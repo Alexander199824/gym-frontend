@@ -394,6 +394,46 @@ class ApiService {
   // ================================
   // 🔧 MÉTODOS UTILITARIOS
   // ================================
+
+
+// VERIFICAR CONEXIÓN AL BACKEND (NUEVO)
+async checkBackendConnection() {
+  try {
+    console.log('🔍 Verificando conexión al backend...');
+    console.log('🔗 URL configurada:', process.env.REACT_APP_API_URL);
+    
+    const startTime = Date.now();
+    const response = await api.get('/api/health');
+    const responseTime = Date.now() - startTime;
+    
+    if (response.data.success) {
+      console.log('✅ Backend conectado exitosamente!');
+      console.log('📊 Datos del backend:', response.data);
+      console.log(`⚡ Tiempo de respuesta: ${responseTime}ms`);
+      return { connected: true, data: response.data, responseTime };
+    } else {
+      console.warn('⚠️ Backend respondió pero con error:', response.data);
+      return { connected: false, error: 'Backend respondió con error' };
+    }
+  } catch (error) {
+    console.error('❌ No se pudo conectar al backend!');
+    console.error('🔍 Error details:', {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      url: error.config?.url
+    });
+    
+    if (error.code === 'ERR_NETWORK') {
+      console.error('🚫 Error de red: El backend no está corriendo o hay un problema de CORS');
+    } else if (error.response?.status === 404) {
+      console.error('🚫 Error 404: La ruta /api/health no existe en el backend');
+    }
+    
+    return { connected: false, error: error.message };
+  }
+}
+
   
   // HEALTH CHECK - Conecta con GET /api/health
   async healthCheck() {
@@ -432,6 +472,9 @@ class ApiService {
 
 // 🏭 EXPORTAR INSTANCIA SINGLETON
 const apiService = new ApiService();
+
+
+
 export default apiService;
 
 // 📝 NOTAS DE USO:

@@ -94,6 +94,58 @@ function App() {
   const { isMobile, addNotification } = useApp();
   const location = useLocation();
   
+  // 🔍 VERIFICACIÓN DE CONEXIÓN AL BACKEND AL INICIAR
+  useEffect(() => {
+    const checkBackendConnection = async () => {
+      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+        console.log('🏋️‍♂️ Gym Management System - Verificando Backend...');
+        console.log('🔗 URL del Backend:', process.env.REACT_APP_API_URL);
+        
+        try {
+          const startTime = Date.now();
+          const response = await fetch(`${process.env.REACT_APP_API_URL}/api/health`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          const responseTime = Date.now() - startTime;
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ BACKEND CONECTADO EXITOSAMENTE!');
+            console.log('📊 Respuesta del servidor:', data);
+            console.log(`⚡ Tiempo de respuesta: ${responseTime}ms`);
+            console.log('🎯 Estado: Backend funcionando correctamente');
+          } else {
+            console.error('❌ BACKEND RESPONDIÓ CON ERROR!');
+            console.error('📊 Status:', response.status);
+            console.error('📊 Status Text:', response.statusText);
+            console.error('🔧 Verifica que el endpoint /api/health exista en el backend');
+          }
+        } catch (error) {
+          console.error('💥 ERROR: NO SE PUDO CONECTAR AL BACKEND!');
+          console.error('🔍 Detalles del error:', error.message);
+          console.error('🚫 Causas posibles:');
+          console.error('   1. El backend NO está corriendo');
+          console.error('   2. El backend está en un puerto diferente');
+          console.error('   3. Problema de CORS en el backend');
+          console.error('   4. URL incorrecta en REACT_APP_API_URL');
+          console.error('');
+          console.error('🛠️ SOLUCIONES:');
+          console.error('   1. Ejecuta: cd gym-backend && npm run dev');
+          console.error('   2. Verifica que veas: "✅ URL: http://localhost:5000"');
+          console.error('   3. Verifica tu archivo .env tiene: REACT_APP_API_URL=http://localhost:5000');
+          console.error('   4. Prueba manualmente: http://localhost:5000/api/health');
+        }
+      }
+    };
+    
+    // Ejecutar verificación al cargar la app
+    checkBackendConnection();
+  }, []); // Solo se ejecuta una vez al montar
+  
   // 📱 EFECTO: Notificar cambios de ruta en desarrollo
   useEffect(() => {
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
