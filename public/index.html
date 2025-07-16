@@ -1,43 +1,253 @@
+<!-- public/index.html -->
 <!DOCTYPE html>
-<html lang="en">
-  <head>
+<html lang="es">
+<head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web site created using create-react-app"
-    />
+    <meta name="theme-color" content="#ef4444" />
+    <meta name="description" content="Sistema de gestión integral para gimnasios. Controla membresías, pagos, usuarios y más." />
+    <meta name="keywords" content="gimnasio, gestión, membresías, pagos, fitness, management" />
+    <meta name="author" content="Gym Management System" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Gym Management System" />
+    <meta property="og:description" content="Sistema de gestión integral para gimnasios" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://your-gym-frontend.com" />
+    <meta property="og:image" content="%PUBLIC_URL%/logo192.png" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Gym Management System" />
+    <meta name="twitter:description" content="Sistema de gestión integral para gimnasios" />
+    <meta name="twitter:image" content="%PUBLIC_URL%/logo192.png" />
+    
+    <!-- Apple Touch Icon -->
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
+    
+    <!-- Web App Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>React App</title>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Prefetch DNS for better performance -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    
+    <title>Gym Management System</title>
+    
+    <!-- Inline Critical CSS for better performance -->
+    <style>
+        /* Critical CSS for initial load */
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #f9fafb;
+        }
+        
+        /* Loading animation */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%);
+            color: white;
+        }
+        
+        .loading-logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .loading-text {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .loading-subtitle {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-bottom: 30px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        /* Hide loading when React loads */
+        .react-loaded .loading-container {
+            display: none;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 640px) {
+            .loading-logo {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .loading-text {
+                font-size: 20px;
+            }
+            
+            .loading-subtitle {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <noscript>
+        <div style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            background: #f9fafb;
+            color: #374151;
+            padding: 20px;
+        ">
+            <h1 style="color: #ef4444; margin-bottom: 20px;">
+                🏋️‍♂️ Gym Management System
+            </h1>
+            <h2 style="margin-bottom: 15px;">
+                JavaScript es necesario para usar esta aplicación
+            </h2>
+            <p style="margin-bottom: 20px;">
+                Por favor, habilita JavaScript en tu navegador para continuar.
+            </p>
+            <div style="
+                background: #fee2e2;
+                color: #dc2626;
+                padding: 15px;
+                border-radius: 8px;
+                max-width: 400px;
+            ">
+                <strong>Instrucciones:</strong>
+                <ul style="text-align: left; margin-top: 10px;">
+                    <li>Chrome: Configuración → Avanzado → Privacidad → Configuración de contenido → JavaScript</li>
+                    <li>Firefox: about:config → javascript.enabled → true</li>
+                    <li>Safari: Preferencias → Seguridad → Habilitar JavaScript</li>
+                </ul>
+            </div>
+        </div>
+    </noscript>
+    
+    <!-- Loading Screen -->
+    <div class="loading-container" id="loading-screen">
+        <div class="loading-logo">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6.5 6.5h11l-1 7h-9l-1-7z"/>
+                <path d="M6 4V2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/>
+                <path d="M10 10h4"/>
+                <path d="M10 14h4"/>
+                <path d="M10 18h4"/>
+            </svg>
+        </div>
+        <div class="loading-text">Gym Management System</div>
+        <div class="loading-subtitle">Cargando aplicación...</div>
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <!-- React App Container -->
     <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
+    
+    <!-- 
+        INFORMACIÓN PARA DESARROLLADORES
+        
+        Este archivo HTML es el punto de entrada principal de la aplicación React.
+        
+        Estructura:
+        - Meta tags para SEO y redes sociales
+        - Preconnect para optimización de performance
+        - CSS crítico inline para evitar FOUC
+        - Loading screen mientras carga React
+        - Fallback para navegadores sin JavaScript
+        
+        Optimizaciones implementadas:
+        - Preconnect a Google Fonts
+        - CSS crítico inline
+        - Loading screen personalizado
+        - Meta tags completos para SEO
+        - Soporte para PWA (manifest.json)
+        - Responsive design
+        
+        Para futuras actualizaciones:
+        - Service Worker para PWA
+        - Análisis de Google Analytics
+        - Más optimizaciones de performance
+        - Soporte para modo offline
     -->
-  </body>
+    
+    <!-- Performance Monitoring (opcional) -->
+    <script>
+        // Medir tiempo de carga
+        if ('performance' in window) {
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    const perfData = performance.getEntriesByType('navigation')[0];
+                    const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
+                    
+                    // En producción, enviar métricas a servicio de monitoreo
+                    if (window.location.hostname !== 'localhost') {
+                        console.log('Page load time:', loadTime + 'ms');
+                    }
+                }, 0);
+            });
+        }
+        
+        // Ocultar loading screen cuando React esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.display = 'none';
+                }
+                document.body.classList.add('react-loaded');
+            }, 100);
+        });
+    </script>
+</body>
 </html>
