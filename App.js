@@ -5,22 +5,22 @@
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
-import { useApp } from './contexts/AppContext';
+import { useAuth } from './src/contexts/AuthContext';
+import { useApp } from './src/contexts/AppContext';
 
 // 📱 Componentes de Layout
-import LoadingSpinner from './components/common/LoadingSpinner';
-import ErrorBoundary from './components/common/ErrorBoundary';
+import LoadingSpinner from './src/components/common/LoadingSpinner';
+import ErrorBoundary from './src/components/common/ErrorBoundary';
 
 // 🔐 Páginas de Autenticación (Lazy Loading)
-const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
-const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
+const LoginPage = React.lazy(() => import('./src/pages/auth/LoginPage'));
+const RegisterPage = React.lazy(() => import('./src/pages/auth/RegisterPage'));
 
 // 🏠 Páginas del Dashboard (Lazy Loading)
-const DashboardLayout = React.lazy(() => import('./components/layout/DashboardLayout'));
-const AdminDashboard = React.lazy(() => import('./pages/dashboard/AdminDashboard'));
-const StaffDashboard = React.lazy(() => import('./pages/dashboard/StaffDashboard'));
-const ClientDashboard = React.lazy(() => import('./pages/dashboard/ClientDashboard'));
+const DashboardLayout = React.lazy(() => import('./src/components/layout/DashboardLayout'));
+const AdminDashboard = React.lazy(() => import('./src/pages/dashboard/AdminDashboard'));
+const StaffDashboard = React.lazy(() => import('./src/pages/dashboard/StaffDashboard'));
+const ClientDashboard = React.lazy(() => import('./src/pages/dashboard/ClientDashboard'));
 
 // 👥 Páginas de Usuarios (Lazy Loading)
 const UsersListPage = React.lazy(() => import('./pages/users/UsersListPage'));
@@ -48,8 +48,8 @@ const ProfilePage = React.lazy(() => import('./pages/profile/ProfilePage'));
 const SettingsPage = React.lazy(() => import('./pages/settings/SettingsPage'));
 
 // 🚫 Páginas de Error (Lazy Loading)
-const NotFoundPage = React.lazy(() => import('./pages/error/NotFoundPage'));
-const ForbiddenPage = React.lazy(() => import('./pages/error/ForbiddenPage'));
+const NotFoundPage = React.lazy(() => import('./src/pages/error/NotFoundPage'));
+const ForbiddenPage = React.lazy(() => import('./src/pages/error/ForbiddenPage'));
 
 // 🛡️ COMPONENTE DE RUTA PROTEGIDA
 function ProtectedRoute({ children, requiredRole = null, requiredPermissions = [] }) {

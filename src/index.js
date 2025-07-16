@@ -16,8 +16,8 @@ import './styles/index.css';
 import App from './App';
 
 // 📊 Importar contextos globales
-import { AuthProvider } from './src/contexts/AuthContext';
-import { AppProvider } from './src/contexts/AppContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { AppProvider } from './contexts/AppContext';
 
 // ⚙️ CONFIGURACIÓN DE REACT QUERY
 // React Query maneja el cache y sincronización con el backend
@@ -127,10 +127,3 @@ if (process.env.REACT_APP_ENVIRONMENT === 'development') {
   // Reportar métricas en desarrollo
   reportWebVitals(console.log);
 }
-
-// 📝 NOTAS SOBRE LA ESTRUCTURA:
-// - BrowserRouter: Habilita navegación SPA
-// - QueryClientProvider: Cache inteligente de datos del backend
-// - AuthProvider: Maneja login/logout y tokens JWT
-// - AppProvider: Estado global de la aplicación
-// - Toaster: Reemplaza window.alert() con notificaciones modernas
