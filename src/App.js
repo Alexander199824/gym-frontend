@@ -94,23 +94,51 @@ function App() {
   const { isMobile, addNotification } = useApp();
   const location = useLocation();
   
+  // 🔥 DEBUGGING TEMPORAL - Verificar variables de entorno
+  console.log('🚀 APP INICIANDO - Variables de entorno:');
+  console.log('  🔍 REACT_APP_DEBUG_MODE:', process.env.REACT_APP_DEBUG_MODE);
+  console.log('  🔗 REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+  console.log('  🌍 NODE_ENV:', process.env.NODE_ENV);
+  console.log('  📱 REACT_APP_NAME:', process.env.REACT_APP_NAME);
+  console.log('  🎯 Todas las variables REACT_APP_*:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
+  
   // 🔍 VERIFICACIÓN DE CONEXIÓN AL BACKEND AL INICIAR
   useEffect(() => {
+    console.log('🔄 useEffect ejecutándose...');
+    
     const checkBackendConnection = async () => {
-      if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+      console.log('🏋️‍♂️ Gym Management System - INICIANDO VERIFICACIÓN BACKEND...');
+      console.log('🔗 URL del Backend configurada:', process.env.REACT_APP_API_URL);
+      console.log('🔍 DEBUG_MODE configurado:', process.env.REACT_APP_DEBUG_MODE);
+      
+      // 🔥 FORZAR LA EJECUCIÓN (quitar condición temporal)
+      // if (process.env.REACT_APP_DEBUG_MODE === 'true') {
         console.log('🏋️‍♂️ Gym Management System - Verificando Backend...');
-        console.log('🔗 URL del Backend:', process.env.REACT_APP_API_URL);
+        console.log('🔗 URL del Backend:', process.env.REACT_APP_API_URL || 'http://localhost:5000');
         
         try {
           const startTime = Date.now();
-          const response = await fetch(`${process.env.REACT_APP_API_URL}/api/health`, {
+          const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+          const healthUrl = `${apiUrl}/api/health`;
+          
+          console.log('📡 Haciendo petición a:', healthUrl);
+          
+          const response = await fetch(healthUrl, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
             },
+            // Agregar timeout manual
+            signal: AbortSignal.timeout(10000) // 10 segundos
           });
           
           const responseTime = Date.now() - startTime;
+          
+          console.log('📊 Respuesta recibida:');
+          console.log('  📊 Status:', response.status);
+          console.log('  📊 StatusText:', response.statusText);
+          console.log('  📊 OK:', response.ok);
+          console.log(`  ⚡ Tiempo de respuesta: ${responseTime}ms`);
           
           if (response.ok) {
             const data = await response.json();
@@ -118,40 +146,111 @@ function App() {
             console.log('📊 Respuesta del servidor:', data);
             console.log(`⚡ Tiempo de respuesta: ${responseTime}ms`);
             console.log('🎯 Estado: Backend funcionando correctamente');
+            
+            // Mostrar notificación si está disponible
+            if (addNotification) {
+              addNotification({
+                type: 'success',
+                title: 'Conexión exitosa',
+                message: `Backend conectado en ${responseTime}ms`
+              });
+            }
           } else {
             console.error('❌ BACKEND RESPONDIÓ CON ERROR!');
             console.error('📊 Status:', response.status);
             console.error('📊 Status Text:', response.statusText);
             console.error('🔧 Verifica que el endpoint /api/health exista en el backend');
+            
+            // Intentar leer la respuesta de error
+            try {
+              const errorData = await response.text();
+              console.error('📊 Respuesta de error:', errorData);
+            } catch (e) {
+              console.error('📊 No se pudo leer la respuesta de error');
+            }
           }
         } catch (error) {
           console.error('💥 ERROR: NO SE PUDO CONECTAR AL BACKEND!');
-          console.error('🔍 Detalles del error:', error.message);
-          console.error('🚫 Causas posibles:');
-          console.error('   1. El backend NO está corriendo');
+          console.error('🔍 Tipo de error:', error.name);
+          console.error('🔍 Mensaje del error:', error.message);
+          console.error('🔍 Error completo:', error);
+          console.error('');
+          console.error('🚫 CAUSAS POSIBLES:');
+          console.error('   1. El backend NO está corriendo en puerto 5000');
           console.error('   2. El backend está en un puerto diferente');
           console.error('   3. Problema de CORS en el backend');
           console.error('   4. URL incorrecta en REACT_APP_API_URL');
+          console.error('   5. Firewall o antivirus bloqueando la conexión');
           console.error('');
           console.error('🛠️ SOLUCIONES:');
-          console.error('   1. Ejecuta: cd gym-backend && npm run dev');
-          console.error('   2. Verifica que veas: "✅ URL: http://localhost:5000"');
-          console.error('   3. Verifica tu archivo .env tiene: REACT_APP_API_URL=http://localhost:5000');
-          console.error('   4. Prueba manualmente: http://localhost:5000/api/health');
+          console.error('   1. Verifica: http://localhost:5000/api/health en el navegador');
+          console.error('   2. Ejecuta: cd gym-backend && npm run dev');
+          console.error('   3. Verifica que veas: "✅ URL: http://localhost:5000"');
+          console.error('   4. Verifica tu archivo .env tiene: REACT_APP_API_URL=http://localhost:5000');
+          console.error('   5. Prueba desde otra pestaña: curl http://localhost:5000/api/health');
+          
+          // Mostrar notificación de error si está disponible
+          if (addNotification) {
+            addNotification({
+              type: 'error',
+              title: 'Error de conexión',
+              message: 'No se pudo conectar al backend',
+              persistent: true
+            });
+          }
         }
-      }
+      // } // FIN DE CONDICIÓN COMENTADA
     };
     
-    // Ejecutar verificación al cargar la app
+    // 🔄 EJECUTAR VERIFICACIÓN INMEDIATAMENTE
+    console.log('🚀 Ejecutando verificación de backend...');
     checkBackendConnection();
+    
+    // 🔄 EJECUTAR VERIFICACIÓN CADA 30 SEGUNDOS (TEMPORAL)
+    const interval = setInterval(() => {
+      console.log('🔄 Verificación periódica del backend...');
+      checkBackendConnection();
+    }, 30000);
+    
+    // Limpiar interval al desmontar
+    return () => {
+      console.log('🧹 Limpiando interval de verificación');
+      clearInterval(interval);
+    };
   }, []); // Solo se ejecuta una vez al montar
   
   // 📱 EFECTO: Notificar cambios de ruta en desarrollo
   useEffect(() => {
-    if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-      console.log('🧭 Navegando a:', location.pathname);
+    console.log('🧭 Navegando a:', location.pathname);
+    
+    // Verificar si las variables de entorno siguen disponibles
+    if (!process.env.REACT_APP_API_URL) {
+      console.warn('⚠️ REACT_APP_API_URL no está definida después de la navegación');
     }
   }, [location]);
+  
+  // 🔄 EFECTO: Verificar variables de entorno periódicamente
+  useEffect(() => {
+    const checkEnvVars = () => {
+      console.log('🔍 Verificación periódica de variables de entorno:');
+      console.log('  REACT_APP_DEBUG_MODE:', process.env.REACT_APP_DEBUG_MODE);
+      console.log('  REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+      
+      if (!process.env.REACT_APP_API_URL) {
+        console.error('❌ REACT_APP_API_URL no está definida!');
+        console.error('🔧 Verifica tu archivo .env');
+        console.error('🔧 Reinicia el servidor de desarrollo: npm start');
+      }
+    };
+    
+    // Verificar inmediatamente
+    checkEnvVars();
+    
+    // Verificar cada 60 segundos
+    const interval = setInterval(checkEnvVars, 60000);
+    
+    return () => clearInterval(interval);
+  }, []);
   
   return (
     <ErrorBoundary>
