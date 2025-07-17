@@ -1,21 +1,36 @@
 // src/components/common/GymLogo.js
-// UBICACIÓN: /gym-frontend/src/components/common/GymLogo.js
-// FUNCIÓN: Componente de logo personalizable para Elite Fitness Club
-// CONECTA CON: Configuración global del gym
+// FUNCIÓN: Logo CORREGIDO para Elite Fitness Club
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dumbbell } from 'lucide-react';
 
 const GymLogo = ({ 
-  size = 'md',           // xs, sm, md, lg, xl, 2xl
-  variant = 'gradient',  // gradient, solid-teal, solid-magenta, white, dark
-  showText = true,       // Mostrar nombre del gym
-  textSize = 'auto',     // auto, sm, md, lg, xl
+  size = 'md',
+  variant = 'professional',  // Nuevo variant por defecto más serio
+  showText = true,
+  textSize = 'auto',
   className = '',
-  logoUrl = null,        // URL de la imagen del logo (puedes configurar aquí)
-  gymName = "Elite Fitness Club"  // Nombre del gym (configurable)
+  logoUrl = null,
+  gymName = null,
+  fallbackToIcon = true
 }) => {
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  
+  // 🔧 Obtener configuración desde .env
+  const defaultLogoUrl = process.env.REACT_APP_LOGO_URL;
+  const defaultGymName = process.env.REACT_APP_GYM_NAME || "Elite Fitness Club";
+  
+  // 🎯 URLs y nombres finales
+  const finalLogoUrl = logoUrl || defaultLogoUrl;
+  const finalGymName = gymName || defaultGymName;
+  
+  // 🔍 Debug para ver si la imagen se está cargando
+  useEffect(() => {
+    if (finalLogoUrl) {
+      console.log('🖼️ Intentando cargar logo desde:', finalLogoUrl);
+    }
+  }, [finalLogoUrl]);
   
   // 📏 CONFIGURACIÓN DE TAMAÑOS
   const sizeConfig = {
@@ -57,67 +72,101 @@ const GymLogo = ({
     }
   };
   
-  // 🎨 CONFIGURACIÓN DE VARIANTES
+  // 🎨 CONFIGURACIÓN DE VARIANTES - COLORES SERIOS
   const variantConfig = {
-    gradient: {
-      container: 'bg-elite-gradient',
+    professional: {
+      container: 'bg-slate-800',  // Gris oscuro profesional
       icon: 'text-white',
-      text: 'text-gray-800'
-    },
-    'solid-teal': {
-      container: 'bg-primary-500',
-      icon: 'text-white',
-      text: 'text-gray-800'
-    },
-    'solid-magenta': {
-      container: 'bg-secondary-500',
-      icon: 'text-white',
-      text: 'text-gray-800'
-    },
-    white: {
-      container: 'bg-white border-2 border-gray-200',
-      icon: 'text-primary-600',
-      text: 'text-gray-800'
+      text: 'text-slate-800'
     },
     dark: {
-      container: 'bg-gray-800',
-      icon: 'text-primary-400',
-      text: 'text-white'
+      container: 'bg-slate-900',
+      icon: 'text-slate-300',
+      text: 'text-slate-900'
+    },
+    light: {
+      container: 'bg-slate-100 border-2 border-slate-300',
+      icon: 'text-slate-700',
+      text: 'text-slate-800'
+    },
+    white: {
+      container: 'bg-white border-2 border-slate-200 shadow-sm',
+      icon: 'text-slate-600',
+      text: 'text-slate-800'
+    },
+    minimal: {
+      container: 'bg-slate-700',
+      icon: 'text-slate-200',
+      text: 'text-slate-700'
     }
   };
   
   const currentSize = sizeConfig[size];
   const currentVariant = variantConfig[variant];
   
-  // 📝 TEXTO DEL LOGO
+  // 📝 Obtener tamaño del texto
   const getTextSize = () => {
     if (textSize !== 'auto') return textSize;
     return currentSize.text;
   };
   
+  // 🚨 Manejar error de imagen
+  const handleImageError = (e) => {
+    console.error('❌ Error al cargar logo:', finalLogoUrl);
+    console.error('Error details:', e);
+    setImageError(true);
+  };
+  
+  // ✅ Manejar carga exitosa de imagen
+  const handleImageLoad = () => {
+    console.log('✅ Logo cargado exitosamente:', finalLogoUrl);
+    setImageLoaded(true);
+  };
+  
   // 🖼️ RENDERIZAR LOGO
   const renderLogoContent = () => {
-    // Si hay una imagen del logo y no ha fallado, mostrarla
-    if (logoUrl && !imageError) {
+    // Si hay una imagen del logo configurada y no ha fallado
+    if (finalLogoUrl && !imageError) {
       return (
-        <img 
-          src={logoUrl}
-          alt={`${gymName} Logo`}
-          className={`${currentSize.container} object-contain`}
-          onError={() => setImageError(true)}
-        />
+        <div className={`${currentSize.container} relative overflow-hidden rounded-xl`}>
+          {/* Imagen principal */}
+          <img 
+            src={finalLogoUrl}
+            alt={`${finalGymName} Logo`}
+            className={`${currentSize.container} object-contain`}
+            onError={handleImageError}
+            onLoad={handleImageLoad}
+            style={{
+              display: imageLoaded ? 'block' : 'none'
+            }}
+          />
+          
+          {/* Loading placeholder mientras carga */}
+          {!imageLoaded && !imageError && (
+            <div className={`
+              ${currentSize.container} ${currentVariant.container} 
+              flex items-center justify-center animate-pulse
+            `}>
+              <Dumbbell className={`${currentSize.icon} ${currentVariant.icon}`} />
+            </div>
+          )}
+        </div>
       );
     }
     
-    // Fallback: Icono de mancuernas con el estilo del gym
-    return (
-      <div className={`
-        ${currentSize.container} ${currentVariant.container} 
-        rounded-xl flex items-center justify-center shadow-elite
-      `}>
-        <Dumbbell className={`${currentSize.icon} ${currentVariant.icon}`} />
-      </div>
-    );
+    // Fallback: Icono de mancuernas (con colores serios)
+    if (fallbackToIcon) {
+      return (
+        <div className={`
+          ${currentSize.container} ${currentVariant.container} 
+          rounded-xl flex items-center justify-center shadow-sm
+        `}>
+          <Dumbbell className={`${currentSize.icon} ${currentVariant.icon}`} />
+        </div>
+      );
+    }
+    
+    return null;
   };
 
   return (
@@ -129,28 +178,26 @@ const GymLogo = ({
           font-display font-bold ${getTextSize()} ${currentVariant.text}
           whitespace-nowrap
         `}>
-          {gymName}
+          {finalGymName}
         </span>
       )}
     </div>
   );
 };
 
-// 🎯 VARIANTES ESPECÍFICAS PARA USO COMÚN
+// 🎯 VARIANTES ESPECÍFICAS ACTUALIZADAS - COLORES SERIOS
 
-// Logo para navbar
-export const NavbarLogo = ({ logoUrl, gymName = "Elite Fitness Club" }) => (
+export const NavbarLogo = ({ logoUrl, gymName }) => (
   <GymLogo 
     size="md" 
-    variant="gradient" 
+    variant="professional" 
     showText={true}
     logoUrl={logoUrl}
     gymName={gymName}
   />
 );
 
-// Logo para footer
-export const FooterLogo = ({ logoUrl, gymName = "Elite Fitness Club" }) => (
+export const FooterLogo = ({ logoUrl, gymName }) => (
   <GymLogo 
     size="lg" 
     variant="white" 
@@ -160,44 +207,40 @@ export const FooterLogo = ({ logoUrl, gymName = "Elite Fitness Club" }) => (
   />
 );
 
-// Logo para páginas de auth
-export const AuthLogo = ({ logoUrl, gymName = "Elite Fitness Club" }) => (
+export const AuthLogo = ({ logoUrl, gymName }) => (
   <GymLogo 
     size="xl" 
-    variant="gradient" 
+    variant="professional" 
     showText={false}
     logoUrl={logoUrl}
     gymName={gymName}
   />
 );
 
-// Logo para móvil (más pequeño)
-export const MobileLogo = ({ logoUrl, gymName = "Elite Fitness Club" }) => (
+export const MobileLogo = ({ logoUrl, gymName }) => (
   <GymLogo 
     size="sm" 
-    variant="gradient" 
+    variant="professional" 
     showText={false}
     logoUrl={logoUrl}
     gymName={gymName}
   />
 );
 
-// Logo para dashboard
-export const DashboardLogo = ({ logoUrl, gymName = "Elite Fitness Club" }) => (
+export const DashboardLogo = ({ logoUrl, gymName }) => (
   <GymLogo 
     size="md" 
-    variant="gradient" 
+    variant="professional" 
     showText={true}
     logoUrl={logoUrl}
     gymName={gymName}
   />
 );
 
-// Logo grande para hero sections
-export const HeroLogo = ({ logoUrl, gymName = "Elite Fitness Club" }) => (
+export const HeroLogo = ({ logoUrl, gymName }) => (
   <GymLogo 
     size="2xl" 
-    variant="gradient" 
+    variant="dark" 
     showText={false}
     logoUrl={logoUrl}
     gymName={gymName}

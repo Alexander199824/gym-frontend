@@ -1,14 +1,12 @@
 /* src/styles/index.css */
-/* UBICACIÓN: /gym-frontend/src/styles/index.css */
-/* FUNCIÓN: Estilos globales ELITE FITNESS CLUB */
+/* FUNCIÓN: Estilos globales PROFESIONALES para Elite Fitness Club */
 
-/* 🎨 IMPORTAR TAILWIND CSS */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 🌐 IMPORTAR FUENTES GOOGLE FONTS */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800;900&display=swap');
+/* 🌐 FUENTES PROFESIONALES */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 /* 📱 ESTILOS BASE GLOBALES */
 @layer base {
@@ -24,425 +22,93 @@
   }
   
   body {
-    @apply font-sans text-gray-800 bg-gray-50;
+    @apply font-sans text-slate-800 bg-slate-50;
     -webkit-tap-highlight-color: transparent;
     line-height: 1.6;
   }
   
   /* Mejorar accesibilidad del foco */
   *:focus {
-    @apply outline-none ring-2 ring-primary-500 ring-opacity-50 ring-offset-2;
+    @apply outline-none ring-2 ring-slate-500 ring-opacity-50 ring-offset-2;
   }
   
-  /* Scrollbar personalizado */
+  /* Scrollbar profesional */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   
   ::-webkit-scrollbar-track {
-    @apply bg-gray-100;
+    @apply bg-slate-100;
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-primary-400 rounded-full;
+    @apply bg-slate-400 rounded-full;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary-500;
+    @apply bg-slate-500;
   }
 }
 
-/* 🧩 COMPONENTES REUTILIZABLES */
+/* 🧩 COMPONENTES PROFESIONALES */
 @layer components {
   
-  /* ===============================
-     BOTONES ELITE FITNESS
-  =============================== */
+  /* BOTONES PROFESIONALES */
   .btn {
     @apply inline-flex items-center justify-center px-6 py-3 font-medium rounded-xl
            transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95;
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
   
   .btn-primary {
-    @apply btn bg-elite-gradient text-white hover:shadow-elite-lg focus:ring-primary-500
-           border border-transparent font-semibold;
+    @apply btn bg-slate-800 text-white hover:bg-slate-700 focus:ring-slate-500
+           border border-transparent font-semibold shadow-sm hover:shadow-md;
   }
   
   .btn-secondary {
-    @apply btn bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-500
-           border border-gray-300 shadow-sm hover:shadow-md;
+    @apply btn bg-white text-slate-700 hover:bg-slate-50 focus:ring-slate-500
+           border border-slate-300 shadow-sm hover:shadow-md;
   }
   
-  .btn-success {
-    @apply btn bg-success-500 text-white hover:bg-success-600 focus:ring-success-500
-           shadow-md hover:shadow-lg;
+  .btn-professional {
+    @apply btn bg-professional-gradient text-white hover:shadow-professional-lg focus:ring-slate-500
+           border border-transparent font-semibold;
   }
   
-  .btn-warning {
-    @apply btn bg-warning-500 text-white hover:bg-warning-600 focus:ring-warning-500
-           shadow-md hover:shadow-lg;
-  }
-  
-  .btn-danger {
-    @apply btn bg-danger-500 text-white hover:bg-danger-600 focus:ring-danger-500
-           shadow-md hover:shadow-lg;
-  }
-  
-  .btn-ghost {
-    @apply btn text-gray-600 hover:bg-gray-100 focus:ring-gray-500 
-           hover:text-gray-800;
-  }
-  
-  .btn-outline {
-    @apply btn border-2 border-primary-500 text-primary-600 hover:bg-primary-500 
-           hover:text-white focus:ring-primary-500 bg-transparent;
-  }
-  
-  /* Tamaños de botones */
-  .btn-sm {
-    @apply px-4 py-2 text-sm rounded-lg;
-  }
-  
-  .btn-lg {
-    @apply px-8 py-4 text-lg rounded-2xl font-semibold;
-  }
-  
-  .btn-xl {
-    @apply px-10 py-5 text-xl rounded-2xl font-bold;
-  }
-  
-  /* ===============================
-     FORMULARIOS ELITE FITNESS
-  =============================== */
-  .form-group {
-    @apply space-y-2;
-  }
-  
-  .form-label {
-    @apply block text-sm font-semibold text-gray-700 mb-2;
-  }
-  
-  .form-label-required::after {
-    content: " *";
-    @apply text-danger-500;
-  }
-  
-  .form-input {
-    @apply w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-xl
-           focus:ring-2 focus:ring-primary-500 focus:border-primary-500
-           transition-all duration-200 placeholder-gray-400
-           shadow-sm hover:border-gray-400;
-  }
-  
-  .form-input-error {
-    @apply border-danger-500 focus:ring-danger-500 focus:border-danger-500
-           bg-danger-50;
-  }
-  
-  .form-error {
-    @apply text-sm text-danger-600 mt-1 font-medium;
-  }
-  
-  .form-help {
-    @apply text-sm text-gray-500 mt-1;
-  }
-  
-  /* Textarea */
-  .form-textarea {
-    @apply form-input resize-none;
-    min-height: 100px;
-  }
-  
-  /* Select */
-  .form-select {
-    @apply form-input pr-10 cursor-pointer;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.75rem center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-  }
-  
-  /* Checkbox y Radio */
-  .form-checkbox,
-  .form-radio {
-    @apply h-5 w-5 text-primary-600 focus:ring-primary-500 border-gray-300 
-           rounded transition-colors duration-200;
-  }
-  
-  .form-radio {
-    @apply rounded-full;
-  }
-  
-  /* ===============================
-     TARJETAS ELITE FITNESS
-  =============================== */
+  /* TARJETAS PROFESIONALES */
   .card {
-    @apply bg-white rounded-2xl shadow-md border border-gray-200 
-           transition-all duration-300 hover:shadow-lg;
+    @apply bg-white rounded-2xl shadow-sm border border-slate-200 
+           transition-all duration-300 hover:shadow-md;
   }
   
   .card-elite {
-    @apply card border-primary-200 hover:shadow-elite-lg;
+    @apply card border-slate-300 hover:shadow-elite-lg;
   }
   
-  .card-header {
-    @apply px-6 py-4 border-b border-gray-200;
+  /* FORMULARIOS PROFESIONALES */
+  .form-input {
+    @apply w-full px-4 py-3 text-slate-900 bg-white border border-slate-300 rounded-xl
+           focus:ring-2 focus:ring-slate-500 focus:border-slate-500
+           transition-all duration-200 placeholder-slate-400
+           shadow-sm hover:border-slate-400;
   }
   
-  .card-body {
-    @apply px-6 py-4;
-  }
-  
-  .card-footer {
-    @apply px-6 py-4 border-t border-gray-200 bg-gray-50;
-  }
-  
-  /* ===============================
-     BADGES Y ETIQUETAS
-  =============================== */
-  .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
-  }
-  
-  .badge-primary {
-    @apply badge bg-primary-100 text-primary-800;
-  }
-  
-  .badge-secondary {
-    @apply badge bg-secondary-100 text-secondary-800;
-  }
-  
-  .badge-success {
-    @apply badge bg-success-100 text-success-800;
-  }
-  
-  .badge-warning {
-    @apply badge bg-warning-100 text-warning-800;
-  }
-  
-  .badge-danger {
-    @apply badge bg-danger-100 text-danger-800;
-  }
-  
-  /* ===============================
-     NAVEGACIÓN Y LAYOUT
-  =============================== */
-  .navbar {
-    @apply bg-white shadow-md border-b border-gray-200;
-  }
-  
-  .navbar-brand {
-    @apply flex items-center space-x-3 font-display font-bold text-xl text-gray-800;
-  }
-  
-  .sidebar {
-    @apply bg-white border-r border-gray-200 shadow-sm;
-  }
-  
-  .sidebar-nav {
-    @apply space-y-1 px-3 py-4;
-  }
-  
-  .sidebar-link {
-    @apply flex items-center px-3 py-2 text-sm font-medium rounded-lg 
-           transition-all duration-200 group;
-  }
-  
-  .sidebar-link-active {
-    @apply bg-primary-50 text-primary-700 border-r-2 border-primary-500;
-  }
-  
-  .sidebar-link:not(.sidebar-link-active) {
-    @apply text-gray-600 hover:bg-gray-100 hover:text-gray-900;
-  }
-  
-  /* ===============================
-     ALERTAS Y NOTIFICACIONES
-  =============================== */
-  .alert {
-    @apply px-4 py-3 rounded-xl border flex items-start space-x-3;
-  }
-  
-  .alert-success {
-    @apply alert bg-success-50 border-success-200 text-success-800;
-  }
-  
-  .alert-warning {
-    @apply alert bg-warning-50 border-warning-200 text-warning-800;
-  }
-  
-  .alert-danger {
-    @apply alert bg-danger-50 border-danger-200 text-danger-800;
-  }
-  
-  .alert-info {
-    @apply alert bg-primary-50 border-primary-200 text-primary-800;
-  }
-  
-  /* ===============================
-     TABLAS ELEGANTES
-  =============================== */
-  .table {
-    @apply min-w-full divide-y divide-gray-200 rounded-xl overflow-hidden shadow-sm;
-  }
-  
-  .table-header {
-    @apply bg-gray-50;
-  }
-  
-  .table-header th {
-    @apply px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase 
-           tracking-wider;
-  }
-  
-  .table-body {
-    @apply bg-white divide-y divide-gray-200;
-  }
-  
-  .table-body td {
-    @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
-  }
-  
-  .table-row:hover {
-    @apply bg-gray-50;
-  }
-  
-  /* ===============================
-     MODALES Y OVERLAYS
-  =============================== */
-  .modal-overlay {
-    @apply fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 
-           flex items-center justify-center p-4;
-  }
-  
-  .modal {
-    @apply bg-white rounded-2xl shadow-2xl max-w-md w-full mx-auto 
-           transform transition-all duration-300;
-  }
-  
-  .modal-header {
-    @apply px-6 py-4 border-b border-gray-200;
-  }
-  
-  .modal-body {
-    @apply px-6 py-4;
-  }
-  
-  .modal-footer {
-    @apply px-6 py-4 border-t border-gray-200 flex justify-end space-x-3;
-  }
-  
-  /* ===============================
-     UTILIDADES ESPECIALES
-  =============================== */
-  .loading-pulse {
-    @apply animate-pulse bg-gray-200 rounded;
-  }
-  
+  /* GRADIENTES PROFESIONALES */
   .gradient-text {
-    @apply bg-elite-gradient bg-clip-text text-transparent;
+    @apply bg-professional-gradient bg-clip-text text-transparent;
   }
   
-  .glass-effect {
-    @apply bg-white bg-opacity-20 backdrop-blur-lg border border-white border-opacity-30;
-  }
-  
-  .center-content {
-    @apply flex items-center justify-center;
-  }
-  
-  .section-padding {
-    @apply px-4 sm:px-6 lg:px-8 py-12;
-  }
-  
-  /* ===============================
-     RESPONSIVE CONTAINERS
-  =============================== */
-  .container-elite {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
-  }
-  
-  .container-narrow {
-    @apply max-w-3xl mx-auto px-4 sm:px-6;
-  }
-  
-  /* ===============================
-     ANIMACIONES PERSONALIZADAS
-  =============================== */
-  .fade-in {
-    @apply animate-fade-in;
-  }
-  
-  .slide-up {
-    @apply animate-slide-up;
-  }
-  
-  .hover-lift {
-    @apply transition-transform duration-300 hover:-translate-y-1;
-  }
-  
-  .hover-glow {
-    @apply transition-shadow duration-300 hover:shadow-elite-lg;
-  }
-}
-
-/* ===============================
-   CLASES UTILITARIAS ADICIONALES
-=============================== */
-@layer utilities {
-  /* Gradientes de texto */
   .text-gradient-elite {
     @apply bg-elite-gradient bg-clip-text text-transparent;
   }
   
-  .text-gradient-reverse {
-    @apply bg-elite-gradient-reverse bg-clip-text text-transparent;
-  }
-  
-  /* Sombras personalizadas */
+  /* SOMBRAS PROFESIONALES */
   .shadow-elite {
-    box-shadow: 0 4px 20px rgba(20, 184, 166, 0.15);
+    box-shadow: 0 4px 20px rgba(51, 65, 85, 0.15);
   }
   
-  .shadow-magenta {
-    box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15);
-  }
-  
-  /* Efectos de hover */
-  .hover-scale {
-    @apply transition-transform duration-300 hover:scale-105;
-  }
-  
-  .hover-rotate {
-    @apply transition-transform duration-300 hover:rotate-3;
-  }
-  
-  /* Filtros */
-  .filter-elite {
-    filter: drop-shadow(0 4px 20px rgba(20, 184, 166, 0.3));
-  }
-}
-
-/* ===============================
-   BREAKPOINTS PERSONALIZADOS
-=============================== */
-@media (max-width: 640px) {
-  .mobile-center {
-    @apply text-center;
-  }
-  
-  .mobile-stack {
-    @apply flex-col space-y-4 space-x-0;
-  }
-}
-
-/* ===============================
-   MODO OSCURO (PREPARADO)
-=============================== */
-@media (prefers-color-scheme: dark) {
-  .dark-mode {
-    /* Preparado para futuro modo oscuro */
+  .shadow-professional {
+    box-shadow: 0 4px 20px rgba(14, 165, 233, 0.15);
   }
 }
