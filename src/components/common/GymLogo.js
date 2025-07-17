@@ -1,5 +1,4 @@
 // src/components/common/GymLogo.js
-// FUNCIÓN: Logo COMPLETAMENTE CORREGIDO con mejor manejo de errores
 
 import React, { useState, useEffect } from 'react';
 import { Dumbbell } from 'lucide-react';
@@ -16,52 +15,64 @@ const GymLogo = ({
   const gymConfig = useGymConfig();
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageUrl, setImageUrl] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [finalImageUrl, setFinalImageUrl] = useState(null);
   
   // 🔍 Construir URL de la imagen y verificar que existe
   useEffect(() => {
     const loadImage = async () => {
       if (!gymConfig.logo.url) {
         console.log('❌ No hay URL de logo configurada en .env');
-        setIsLoading(false);
         setImageError(true);
         return;
       }
       
-      let finalUrl = '';
+      let imageUrl = '';
       
       // Si la URL ya es completa (http/https), usarla directamente
       if (gymConfig.logo.url.startsWith('http')) {
-        finalUrl = gymConfig.logo.url;
+        imageUrl = gymConfig.logo.url;
       } else {
         // Si es una ruta relativa, construir la URL completa
         const baseUrl = window.location.origin;
         const cleanPath = gymConfig.logo.url.startsWith('/') ? gymConfig.logo.url : `/${gymConfig.logo.url}`;
-        finalUrl = `${baseUrl}${cleanPath}`;
+        imageUrl = `${baseUrl}${cleanPath}`;
       }
       
       console.log('🔍 Intentando cargar logo:');
       console.log('  📁 Ruta configurada:', gymConfig.logo.url);
-      console.log('  🌐 URL final:', finalUrl);
+      console.log('  🌐 URL final:', imageUrl);
       
-      // Verificar si la imagen existe antes de asignarla
+      // Verificar si la imagen existe
       try {
-        const response = await fetch(finalUrl, { method: 'HEAD' });
-        if (response.ok) {
-          console.log('✅ Imagen encontrada, cargando...');
-          setImageUrl(finalUrl);
+        // Crear una nueva imagen para probar la carga
+        const img = new Image();
+        
+        img.onload = () => {
+          console.log('✅ Imagen cargada correctamente!');
+          setFinalImageUrl(imageUrl);
           setImageError(false);
-        } else {
-          console.error('❌ Imagen no encontrada (HTTP ' + response.status + ')');
+          setImageLoaded(true);
+        };
+        
+        img.onerror = () => {
+          console.error('❌ Error al cargar la imagen');
+          console.error('🔍 URL que falló:', imageUrl);
+          console.error('🛠️ SOLUCIONES:');
+          console.error('   1. Verifica que el archivo existe en: public' + gymConfig.logo.url);
+          console.error('   2. Verifica que el .env tiene: REACT_APP_LOGO_URL=' + gymConfig.logo.url);
+          console.error('   3. Reinicia el servidor: npm start');
           setImageError(true);
-        }
+          setImageLoaded(false);
+        };
+        
+        // Establecer la fuente de la imagen para iniciar la carga
+        img.src = imageUrl;
+        
       } catch (error) {
         console.error('❌ Error al verificar la imagen:', error);
         setImageError(true);
+        setImageLoaded(false);
       }
-      
-      setIsLoading(false);
     };
     
     loadImage();
@@ -107,32 +118,32 @@ const GymLogo = ({
     }
   };
   
-  // 🎨 CONFIGURACIÓN DE VARIANTES
+  // 🎨 CONFIGURACIÓN DE VARIANTES SUAVES
   const variantConfig = {
     professional: {
-      container: 'bg-slate-800',
+      container: 'bg-primary-600',
       icon: 'text-white',
-      text: 'text-slate-800'
+      text: 'text-primary-600'
     },
     dark: {
-      container: 'bg-slate-900',
-      icon: 'text-slate-300',
-      text: 'text-slate-900'
+      container: 'bg-slate-800',
+      icon: 'text-slate-100',
+      text: 'text-slate-800'
     },
     light: {
-      container: 'bg-slate-100 border-2 border-slate-300',
-      icon: 'text-slate-700',
-      text: 'text-slate-800'
+      container: 'bg-slate-100 border-2 border-slate-200',
+      icon: 'text-slate-600',
+      text: 'text-slate-700'
     },
     white: {
       container: 'bg-white border-2 border-slate-200 shadow-sm',
-      icon: 'text-slate-600',
+      icon: 'text-primary-600',
       text: 'text-slate-800'
     },
     gradient: {
       container: 'bg-elite-gradient',
       icon: 'text-white',
-      text: 'text-slate-800'
+      text: 'text-primary-600'
     }
   };
   
@@ -145,63 +156,17 @@ const GymLogo = ({
     return currentSize.text;
   };
   
-  // 🚨 Manejar error de imagen
-  const handleImageError = (e) => {
-    console.error('❌ Error al cargar la imagen del logo');
-    console.error('🔍 URL que falló:', imageUrl);
-    console.error('🔍 Mensaje de error:', e.type);
-    setImageError(true);
-    setImageLoaded(false);
-  };
-  
-  // ✅ Manejar carga exitosa de imagen
-  const handleImageLoad = () => {
-    console.log('✅ Logo cargado exitosamente:', imageUrl);
-    setImageLoaded(true);
-    setImageError(false);
-  };
-  
   // 🖼️ RENDERIZAR LOGO
   const renderLogoContent = () => {
-    // Si está cargando, mostrar placeholder
-    if (isLoading) {
+    // Si tenemos imagen y se cargó correctamente, mostrarla
+    if (finalImageUrl && imageLoaded && !imageError) {
       return (
-        <div className={`
-          ${currentSize.container} ${currentVariant.container} 
-          rounded-xl flex items-center justify-center animate-pulse
-        `}>
-          <Dumbbell className={`${currentSize.icon} ${currentVariant.icon} opacity-50`} />
-        </div>
-      );
-    }
-    
-    // Si hay imagen configurada y no ha fallado, intentar mostrarla
-    if (imageUrl && !imageError) {
-      return (
-        <div className={`${currentSize.container} relative overflow-hidden rounded-xl`}>
-          {/* Imagen principal */}
+        <div className={`${currentSize.container} rounded-xl overflow-hidden shadow-sm`}>
           <img 
-            src={imageUrl}
+            src={finalImageUrl}
             alt={gymConfig.logo.alt}
-            className={`${currentSize.container} object-contain transition-opacity duration-300`}
-            onError={handleImageError}
-            onLoad={handleImageLoad}
-            style={{
-              opacity: imageLoaded ? 1 : 0,
-              display: imageError ? 'none' : 'block'
-            }}
+            className={`${currentSize.container} object-contain`}
           />
-          
-          {/* Fallback mientras carga o si falla */}
-          {(!imageLoaded || imageError) && (
-            <div className={`
-              absolute inset-0 ${currentVariant.container} 
-              flex items-center justify-center
-              ${!imageLoaded && !imageError ? 'animate-pulse' : ''}
-            `}>
-              <Dumbbell className={`${currentSize.icon} ${currentVariant.icon}`} />
-            </div>
-          )}
         </div>
       );
     }
@@ -226,7 +191,7 @@ const GymLogo = ({
       
       {showText && (
         <span className={`
-          font-bold ${getTextSize()} ${currentVariant.text}
+          font-semibold ${getTextSize()} ${currentVariant.text}
           whitespace-nowrap
         `}>
           {gymConfig.name}

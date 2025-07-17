@@ -1,5 +1,5 @@
 /* src/styles/index.css */
-/* FUNCIÓN: Estilos globales VIBRANTES para Elite Fitness Club */
+/* FUNCIÓN: Estilos globales PROFESIONALES para Elite Fitness Club */
 
 @tailwind base;
 @tailwind components;
@@ -22,17 +22,17 @@
   }
   
   body {
-    @apply font-sans text-gray-800 bg-gray-50;
+    @apply font-sans text-gray-700 bg-gray-50;
     -webkit-tap-highlight-color: transparent;
     line-height: 1.6;
   }
   
   /* Mejorar accesibilidad del foco */
   *:focus {
-    @apply outline-none ring-2 ring-primary-500 ring-opacity-50 ring-offset-2;
+    @apply outline-none ring-2 ring-primary-500 ring-opacity-30 ring-offset-1;
   }
   
-  /* Scrollbar moderna */
+  /* Scrollbar moderna y suave */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -43,42 +43,57 @@
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-primary-400 rounded-full;
+    @apply bg-primary-300 rounded-full;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary-500;
+    @apply bg-primary-400;
   }
 }
 
-/* 🧩 COMPONENTES VIBRANTES */
+/* 🧩 COMPONENTES PROFESIONALES */
 @layer components {
   
-  /* BOTONES VIBRANTES */
+  /* BOTONES ELEGANTES */
   .btn {
-    @apply inline-flex items-center justify-center px-6 py-3 font-medium rounded-xl
-           transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2
+    @apply inline-flex items-center justify-center px-6 py-3 font-medium rounded-lg
+           transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
   
   .btn-primary {
-    @apply btn bg-elite-gradient text-white hover:shadow-elite-lg focus:ring-primary-500
-           border border-transparent font-semibold transform hover:scale-105;
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500
+           border border-transparent shadow-sm hover:shadow-elite;
   }
   
   .btn-secondary {
     @apply btn bg-white text-primary-700 hover:bg-primary-50 focus:ring-primary-500
-           border border-primary-300 shadow-sm hover:shadow-elite;
+           border border-primary-200 shadow-sm hover:shadow-md;
   }
   
   .btn-ghost {
     @apply btn bg-transparent text-primary-600 hover:bg-primary-50 focus:ring-primary-500
-           border border-transparent hover:border-primary-200;
+           border border-transparent;
   }
   
   .btn-outline {
     @apply btn bg-transparent text-primary-600 hover:bg-primary-600 hover:text-white 
-           focus:ring-primary-500 border border-primary-600 hover:shadow-elite;
+           focus:ring-primary-500 border border-primary-300 hover:shadow-md;
+  }
+  
+  .btn-success {
+    @apply btn bg-success-600 text-white hover:bg-success-700 focus:ring-success-500
+           border border-transparent shadow-sm;
+  }
+  
+  .btn-warning {
+    @apply btn bg-warning-500 text-white hover:bg-warning-600 focus:ring-warning-500
+           border border-transparent shadow-sm;
+  }
+  
+  .btn-danger {
+    @apply btn bg-danger-600 text-white hover:bg-danger-700 focus:ring-danger-500
+           border border-transparent shadow-sm;
   }
   
   /* TAMAÑOS DE BOTONES */
@@ -94,19 +109,19 @@
     @apply px-10 py-5 text-xl;
   }
   
-  /* TARJETAS VIBRANTES */
+  /* TARJETAS ELEGANTES */
   .card {
-    @apply bg-white rounded-2xl shadow-lg border border-gray-100 
-           transition-all duration-300 hover:shadow-vibrant;
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 
+           transition-all duration-200 hover:shadow-md;
   }
   
   .card-elite {
-    @apply card border-primary-200 hover:shadow-elite-lg transform hover:scale-105;
+    @apply card border-primary-100 hover:shadow-elite;
   }
   
   /* FORMULARIOS MODERNOS */
   .form-input {
-    @apply w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-xl
+    @apply w-full px-4 py-3 text-gray-900 bg-white border border-gray-200 rounded-lg
            focus:ring-2 focus:ring-primary-500 focus:border-primary-500
            transition-all duration-200 placeholder-gray-400
            shadow-sm hover:border-primary-300;
@@ -133,13 +148,9 @@
     @apply w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500;
   }
   
-  /* GRADIENTES VIBRANTES */
+  /* GRADIENTES SUAVES */
   .text-gradient-elite {
     @apply bg-elite-gradient bg-clip-text text-transparent;
-  }
-  
-  .text-gradient-reverse {
-    @apply bg-elite-gradient-reverse bg-clip-text text-transparent;
   }
   
   /* CONTENEDORES */
@@ -151,26 +162,26 @@
     @apply py-16 md:py-24;
   }
   
-  /* EFECTOS HOVER */
+  /* EFECTOS HOVER SUAVES */
   .hover-scale {
-    @apply transition-transform duration-300 hover:scale-105;
+    @apply transition-transform duration-200 hover:scale-105;
   }
   
   .hover-lift {
-    @apply transition-all duration-300 hover:-translate-y-2 hover:shadow-elite-lg;
+    @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-lg;
   }
   
   .hover-glow {
-    @apply transition-all duration-300 hover:shadow-vibrant;
+    @apply transition-all duration-200 hover:shadow-elite;
   }
   
-  /* ANIMACIONES */
+  /* ANIMACIONES SUAVES */
   .fade-in {
     @apply animate-fade-in;
   }
   
-  .pulse-elite {
-    @apply animate-pulse-elite;
+  .pulse-soft {
+    @apply animate-pulse-soft;
   }
   
   .bounce-soft {
@@ -181,26 +192,26 @@
 /* 🎯 UTILIDADES ADICIONALES */
 @layer utilities {
   .bg-elite-gradient {
-    background: linear-gradient(135deg, #14b8a6 0%, #ec4899 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #64748b 100%);
   }
   
   .bg-elite-gradient-reverse {
-    background: linear-gradient(135deg, #ec4899 0%, #14b8a6 100%);
+    background: linear-gradient(135deg, #64748b 0%, #3b82f6 100%);
   }
   
   .shadow-elite {
-    box-shadow: 0 4px 20px rgba(20, 184, 166, 0.25);
+    box-shadow: 0 4px 20px rgba(59, 130, 246, 0.15);
   }
   
   .shadow-elite-lg {
-    box-shadow: 0 8px 30px rgba(20, 184, 166, 0.3);
+    box-shadow: 0 8px 30px rgba(59, 130, 246, 0.2);
   }
   
-  .shadow-magenta {
-    box-shadow: 0 4px 20px rgba(236, 72, 153, 0.25);
+  .shadow-soft {
+    box-shadow: 0 4px 20px rgba(100, 116, 139, 0.15);
   }
   
-  .shadow-vibrant {
-    box-shadow: 0 4px 20px rgba(20, 184, 166, 0.2), 0 4px 20px rgba(236, 72, 153, 0.2);
+  .shadow-soft-lg {
+    box-shadow: 0 8px 30px rgba(100, 116, 139, 0.2);
   }
 }
