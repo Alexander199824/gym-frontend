@@ -1,10 +1,10 @@
-/* src/styles/index.css - TEMA TURQUESA Y ROSA */
+/* src/styles/index.css - ELITE FITNESS CLUB COLORES EXACTOS */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 🌐 FUENTES MODERNAS */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* 🌐 FUENTE INTER (como en la imagen) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* 📱 ESTILOS BASE GLOBALES */
 @layer base {
@@ -30,7 +30,7 @@
     @apply outline-none ring-2 ring-primary-500 ring-opacity-30 ring-offset-1;
   }
   
-  /* Scrollbar turquesa */
+  /* Scrollbar turquesa elite */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -41,85 +41,108 @@
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-primary-300 rounded-full;
+    @apply bg-primary-400 rounded-full;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary-400;
+    @apply bg-primary-500;
   }
 }
 
-/* 🧩 COMPONENTES TURQUESA Y ROSA */
+/* 🧩 COMPONENTES ELITE FITNESS CLUB */
 @layer components {
   
-  /* BOTONES TURQUESA Y ROSA */
+  /* BOTONES ELITE TURQUESA Y ROSA */
   .btn {
-    @apply inline-flex items-center justify-center px-6 py-3 font-medium rounded-lg
-           transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2
+    @apply inline-flex items-center justify-center px-6 py-3 font-medium rounded-xl
+           transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
   
+  /* Botón principal - Gradiente turquesa a rosa (como "Únete Gratis") */
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500
-           border border-transparent shadow-sm hover:shadow-elite;
+    @apply btn bg-elite-gradient text-white hover:shadow-elite-lg focus:ring-primary-500
+           border border-transparent font-semibold hover:scale-105;
   }
   
+  /* Botón secundario - Rosa sólido */
   .btn-secondary {
-    @apply btn bg-white text-secondary-700 hover:bg-secondary-50 focus:ring-secondary-500
-           border border-secondary-200 shadow-sm hover:shadow-md;
+    @apply btn bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-secondary-500
+           border border-transparent shadow-pink hover:shadow-pink-lg hover:scale-105;
   }
   
+  /* Botón turquesa sólido */
+  .btn-turquoise {
+    @apply btn bg-primary-500 text-white hover:bg-primary-600 focus:ring-primary-500
+           border border-transparent shadow-elite hover:shadow-elite-lg hover:scale-105;
+  }
+  
+  /* Botón outline turquesa */
+  .btn-outline {
+    @apply btn bg-transparent text-primary-600 hover:bg-primary-500 hover:text-white 
+           focus:ring-primary-500 border-2 border-primary-500 hover:shadow-elite;
+  }
+  
+  /* Botón outline rosa */
+  .btn-outline-pink {
+    @apply btn bg-transparent text-secondary-600 hover:bg-secondary-500 hover:text-white 
+           focus:ring-secondary-500 border-2 border-secondary-500 hover:shadow-pink;
+  }
+  
+  /* Botón ghost */
   .btn-ghost {
     @apply btn bg-transparent text-primary-600 hover:bg-primary-50 focus:ring-primary-500
            border border-transparent;
   }
   
-  .btn-outline {
-    @apply btn bg-transparent text-primary-600 hover:bg-primary-600 hover:text-white 
-           focus:ring-primary-500 border border-primary-300 hover:shadow-md;
-  }
-  
+  /* Botón éxito - Verde */
   .btn-success {
-    @apply btn bg-accent-600 text-white hover:bg-accent-700 focus:ring-accent-500
-           border border-transparent shadow-sm;
+    @apply btn bg-success-500 text-white hover:bg-success-600 focus:ring-success-500
+           border border-transparent shadow-sm hover:scale-105;
   }
   
+  /* Botón advertencia - Amarillo (NO naranja) */
   .btn-warning {
     @apply btn bg-warning-500 text-white hover:bg-warning-600 focus:ring-warning-500
-           border border-transparent shadow-sm;
+           border border-transparent shadow-sm hover:scale-105;
   }
   
+  /* Botón peligro - Rojo */
   .btn-danger {
-    @apply btn bg-danger-600 text-white hover:bg-danger-700 focus:ring-danger-500
-           border border-transparent shadow-sm;
+    @apply btn bg-danger-500 text-white hover:bg-danger-600 focus:ring-danger-500
+           border border-transparent shadow-sm hover:scale-105;
   }
   
   /* TAMAÑOS DE BOTONES */
   .btn-sm {
-    @apply px-4 py-2 text-sm;
+    @apply px-4 py-2 text-sm rounded-lg;
   }
   
   .btn-lg {
-    @apply px-8 py-4 text-lg;
+    @apply px-8 py-4 text-lg rounded-2xl;
   }
   
   .btn-xl {
-    @apply px-10 py-5 text-xl;
+    @apply px-10 py-5 text-xl rounded-2xl;
   }
   
-  /* TARJETAS CON BORDES TURQUESA */
+  /* TARJETAS ELITE */
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-primary-100 
-           transition-all duration-200 hover:shadow-md;
+    @apply bg-white rounded-2xl shadow-soft border border-gray-100 
+           transition-all duration-300 hover:shadow-soft-lg;
   }
   
   .card-elite {
-    @apply card border-primary-200 hover:shadow-elite;
+    @apply card border-primary-100 hover:shadow-elite hover:border-primary-200;
   }
   
-  /* FORMULARIOS TURQUESA */
+  .card-pink {
+    @apply card border-secondary-100 hover:shadow-pink hover:border-secondary-200;
+  }
+  
+  /* FORMULARIOS ELITE */
   .form-input {
-    @apply w-full px-4 py-3 text-gray-900 bg-white border border-primary-200 rounded-lg
+    @apply w-full px-4 py-3 text-gray-900 bg-white border-2 border-gray-200 rounded-xl
            focus:ring-2 focus:ring-primary-500 focus:border-primary-500
            transition-all duration-200 placeholder-gray-400
            shadow-sm hover:border-primary-300;
@@ -130,7 +153,7 @@
   }
   
   .form-label {
-    @apply block text-sm font-medium text-gray-700 mb-2;
+    @apply block text-sm font-semibold text-gray-700 mb-2;
   }
   
   .form-label-required::after {
@@ -139,16 +162,24 @@
   }
   
   .form-error {
-    @apply text-red-600 text-sm mt-1;
+    @apply text-red-600 text-sm mt-1 font-medium;
   }
   
   .form-checkbox {
-    @apply w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500;
+    @apply w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500;
   }
   
-  /* GRADIENTES TURQUESA Y ROSA */
+  /* TEXTO CON GRADIENTE ELITE (como "cuerpo" y "mente" en la imagen) */
   .text-gradient-elite {
-    @apply bg-elite-gradient bg-clip-text text-transparent;
+    @apply bg-elite-gradient bg-clip-text text-transparent font-bold;
+  }
+  
+  .text-gradient-turquoise {
+    @apply bg-turquoise-gradient bg-clip-text text-transparent font-bold;
+  }
+  
+  .text-gradient-pink {
+    @apply bg-pink-gradient bg-clip-text text-transparent font-bold;
   }
   
   /* CONTENEDORES */
@@ -160,35 +191,104 @@
     @apply py-16 md:py-24;
   }
   
-  /* EFECTOS HOVER TURQUESA */
+  /* EFECTOS HOVER ELITE */
   .hover-scale {
-    @apply transition-transform duration-200 hover:scale-105;
+    @apply transition-transform duration-300 hover:scale-105;
   }
   
   .hover-lift {
-    @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-lg;
+    @apply transition-all duration-300 hover:-translate-y-2 hover:shadow-elite-lg;
   }
   
-  .hover-glow {
-    @apply transition-all duration-200 hover:shadow-elite;
+  .hover-glow-turquoise {
+    @apply transition-all duration-300 hover:shadow-elite-xl;
   }
   
-  /* ANIMACIONES TURQUESA */
+  .hover-glow-pink {
+    @apply transition-all duration-300 hover:shadow-pink-lg;
+  }
+  
+  /* ANIMACIONES ELITE CON EFECTOS ESPECIALES */
   .fade-in {
     @apply animate-fade-in;
   }
   
-  .pulse-soft {
-    @apply animate-pulse-soft;
+  .pulse-elite {
+    @apply animate-pulse-elite;
   }
   
   .bounce-soft {
     @apply animate-bounce-soft;
   }
+  
+  .float {
+    @apply animate-float;
+  }
+  
+  .blob-morph {
+    @apply animate-blob-morph;
+  }
+  
+  .particle-float {
+    @apply animate-particle-float;
+  }
+  
+  .text-shimmer {
+    @apply animate-text-shimmer;
+  }
+  
+  /* CLASES PARA EFECTOS DE FONDO */
+  .hero-bg-effects {
+    @apply bg-with-decorations bg-hero-pattern;
+  }
+  
+  .section-bg-effects {
+    @apply bg-section-pattern relative overflow-hidden;
+  }
+  
+  /* ICONOS Y CHECKS VERDE (como en la imagen) */
+  .icon-success {
+    @apply text-success-500 bg-success-50 rounded-full p-2;
+  }
+  
+  .check-mark {
+    @apply text-success-500 bg-success-100 rounded-full w-6 h-6 flex items-center justify-center;
+  }
+  
+  /* BADGES ELITE */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-turquoise {
+    @apply badge bg-primary-100 text-primary-800;
+  }
+  
+  .badge-pink {
+    @apply badge bg-secondary-100 text-secondary-800;
+  }
+  
+  .badge-success {
+    @apply badge bg-success-100 text-success-800;
+  }
+  
+  /* SEPARADORES ELITE */
+  .divider-elite {
+    @apply h-px bg-elite-gradient;
+  }
+  
+  .divider-turquoise {
+    @apply h-px bg-primary-200;
+  }
+  
+  .divider-pink {
+    @apply h-px bg-secondary-200;
+  }
 }
 
-/* 🎯 UTILIDADES TURQUESA Y ROSA */
+/* 🎯 UTILIDADES ELITE FITNESS CLUB */
 @layer utilities {
+  /* GRADIENTES PRINCIPALES */
   .bg-elite-gradient {
     background: linear-gradient(135deg, #14b8a6 0%, #ec4899 100%);
   }
@@ -197,6 +297,78 @@
     background: linear-gradient(135deg, #ec4899 0%, #14b8a6 100%);
   }
   
+  .bg-turquoise-gradient {
+    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  }
+  
+  .bg-pink-gradient {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  }
+  
+  /* FONDOS SUTILES CON EFECTOS */
+  .bg-hero-pattern {
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%);
+    position: relative;
+  }
+  
+  .bg-section-pattern {
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.02) 0%, rgba(236, 72, 153, 0.02) 100%);
+  }
+  
+  /* EFECTOS DECORATIVOS DEL FONDO (como en la imagen) */
+  .bg-with-decorations {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .bg-with-decorations::before {
+    content: '';
+    position: absolute;
+    top: 15%;
+    right: 10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(20, 184, 166, 0.08) 0%, rgba(20, 184, 166, 0.03) 40%, transparent 70%);
+    border-radius: 50%;
+    animation: float 8s ease-in-out infinite;
+    z-index: 0;
+  }
+  
+  .bg-with-decorations::after {
+    content: '';
+    position: absolute;
+    bottom: 10%;
+    left: 5%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.08) 0%, rgba(236, 72, 153, 0.03) 40%, transparent 70%);
+    border-radius: 50%;
+    animation: float 10s ease-in-out infinite reverse;
+    z-index: 0;
+  }
+  
+  /* Manchas orgánicas adicionales */
+  .decoration-blob {
+    position: absolute;
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.06) 0%, rgba(45, 212, 191, 0.02) 100%);
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    animation: blob-morph 12s ease-in-out infinite, float 6s ease-in-out infinite;
+    z-index: 0;
+  }
+  
+  .decoration-blob-pink {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.06) 0%, rgba(244, 114, 182, 0.02) 100%);
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    animation: blob-morph 15s ease-in-out infinite reverse, float 8s ease-in-out infinite;
+  }
+  
+  .decoration-blob-green {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, rgba(74, 222, 128, 0.02) 100%);
+    border-radius: 40% 60% 60% 40% / 60% 40% 60% 40%;
+    animation: blob-morph 10s ease-in-out infinite, float 7s ease-in-out infinite;
+  }
+  
+  /* SOMBRAS ELITE */
   .shadow-elite {
     box-shadow: 0 4px 20px rgba(20, 184, 166, 0.15);
   }
@@ -205,20 +377,251 @@
     box-shadow: 0 8px 30px rgba(20, 184, 166, 0.2);
   }
   
-  .shadow-soft {
+  .shadow-elite-xl {
+    box-shadow: 0 12px 40px rgba(20, 184, 166, 0.25);
+  }
+  
+  .shadow-pink {
     box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15);
   }
   
-  .shadow-soft-lg {
+  .shadow-pink-lg {
     box-shadow: 0 8px 30px rgba(236, 72, 153, 0.2);
   }
   
-  /* EFECTOS ESPECIALES TURQUESA */
-  .glow-turquesa {
-    box-shadow: 0 0 20px rgba(20, 184, 166, 0.5);
+  /* EFECTOS ESPECIALES ELITE */
+  .glow-turquoise {
+    box-shadow: 0 0 30px rgba(20, 184, 166, 0.5);
   }
   
-  .glow-rosa {
-    box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
+  .glow-pink {
+    box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);
+  }
+  
+  .glow-elite {
+    box-shadow: 0 0 30px rgba(20, 184, 166, 0.3), 0 0 60px rgba(236, 72, 153, 0.2);
+  }
+  
+  /* EFECTOS DE TEXTO DEL TÍTULO (como en la imagen) */
+  .text-hero-title {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-word-turquoise {
+    background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    position: relative;
+  }
+  
+  .text-word-pink {
+    background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    position: relative;
+  }
+  
+  /* Efectos de sombra en el texto */
+  .text-word-turquoise::before {
+    content: attr(data-text);
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    z-index: -1;
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.3) 0%, rgba(45, 212, 191, 0.3) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: blur(4px);
+  }
+  
+  .text-word-pink::before {
+    content: attr(data-text);
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    z-index: -1;
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(244, 114, 182, 0.3) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: blur(4px);
+  }
+  
+  /* MANCHITAS Y ELEMENTOS DECORATIVOS DEL FONDO */
+  .bg-hero-decorative {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .bg-hero-decorative::before {
+    content: '';
+    position: absolute;
+    top: 10%;
+    right: 15%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(20, 184, 166, 0.1) 0%, rgba(20, 184, 166, 0.05) 50%, transparent 100%);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+    z-index: 0;
+  }
+  
+  .bg-hero-decorative::after {
+    content: '';
+    position: absolute;
+    bottom: 20%;
+    left: 10%;
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, rgba(236, 72, 153, 0.05) 50%, transparent 100%);
+    border-radius: 50%;
+    animation: float 8s ease-in-out infinite reverse;
+    z-index: 0;
+  }
+  
+  /* Manchitas adicionales */
+  .decorative-blob-1 {
+    position: absolute;
+    top: 25%;
+    left: 5%;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(45, 212, 191, 0.04) 100%);
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    animation: blob-morph 10s ease-in-out infinite, float 7s ease-in-out infinite;
+    z-index: 0;
+  }
+  
+  .decorative-blob-2 {
+    position: absolute;
+    top: 60%;
+    right: 8%;
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(244, 114, 182, 0.04) 100%);
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    animation: blob-morph 12s ease-in-out infinite reverse, float 9s ease-in-out infinite;
+    z-index: 0;
+  }
+  
+  .decorative-blob-3 {
+    position: absolute;
+    bottom: 10%;
+    right: 25%;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(74, 222, 128, 0.04) 100%);
+    border-radius: 40% 60% 60% 40% / 60% 40% 60% 40%;
+    animation: blob-morph 8s ease-in-out infinite, float 5s ease-in-out infinite;
+    z-index: 0;
+  }
+  
+  /* Partículas flotantes */
+  .floating-particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  .particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(20, 184, 166, 0.3);
+    border-radius: 50%;
+    animation: particle-float 15s linear infinite;
+  }
+  
+  .particle:nth-child(2) {
+    background: rgba(236, 72, 153, 0.3);
+    animation-delay: -5s;
+    animation-duration: 12s;
+  }
+  
+  .particle:nth-child(3) {
+    background: rgba(34, 197, 94, 0.3);
+    animation-delay: -10s;
+    animation-duration: 18s;
+  }
+  
+  /* BORDES ELITE */
+  .border-elite-gradient {
+    border: 2px solid transparent;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(135deg, #14b8a6, #ec4899) border-box;
+  }
+  
+  /* TEXTO ESPECIAL ELITE */
+  .text-elite-turquoise {
+    color: #14b8a6;
+  }
+  
+  .text-elite-pink {
+    color: #ec4899;
+  }
+  
+  /* BACKGROUNDS SÓLIDOS ELITE */
+  .bg-elite-turquoise {
+    background-color: #14b8a6;
+  }
+  
+  .bg-elite-pink {
+    background-color: #ec4899;
+  }
+  
+  .bg-elite-success {
+    background-color: #22c55e;
+  }
+  
+  /* CLASES UTILITARIAS PARA DECORACIONES DEL FONDO */
+  .decoration-blob-sm {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .decoration-blob-md {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .decoration-blob-lg {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .decoration-blob-xl {
+    width: 200px;
+    height: 200px;
+  }
+  
+  /* POSICIONAMIENTO DE DECORACIONES */
+  .decoration-top-right {
+    top: 10%;
+    right: 15%;
+  }
+  
+  .decoration-bottom-left {
+    bottom: 15%;
+    left: 10%;
+  }
+  
+  .decoration-center-left {
+    top: 40%;
+    left: 5%;
+  }
+  
+  .decoration-center-right {
+    top: 50%;
+    right: 8%;
   }
 }
