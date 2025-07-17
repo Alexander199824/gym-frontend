@@ -3,6 +3,9 @@
 // FUNCIÓN: Barra superior del dashboard con navegación y acciones del usuario
 // CONECTA CON: AuthContext, AppContext, componentes de notificación
 
+// src/components/layout/Header.js
+// FUNCIÓN: Header CORREGIDO con logo desde configuración
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -14,11 +17,11 @@ import {
   LogOut, 
   ChevronDown,
   Sun,
-  Moon,
-  Dumbbell
+  Moon
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
+import GymLogo from '../common/GymLogo'; // 🔧 USAR EL COMPONENTE CORRECTO
 
 const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
   const { user, logout } = useAuth();
@@ -80,9 +83,9 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
   // 🎯 Rol del usuario con colores
   const getRoleConfig = (role) => {
     const configs = {
-      admin: { label: 'Administrador', color: 'bg-red-100 text-red-800' },
-      colaborador: { label: 'Personal', color: 'bg-blue-100 text-blue-800' },
-      cliente: { label: 'Cliente', color: 'bg-green-100 text-green-800' }
+      admin: { label: 'Administrador', color: 'bg-secondary-100 text-secondary-800' },
+      colaborador: { label: 'Personal', color: 'bg-primary-100 text-primary-800' },
+      cliente: { label: 'Cliente', color: 'bg-success-100 text-success-800' }
     };
     return configs[role] || configs.cliente;
   };
@@ -90,7 +93,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
   const roleConfig = getRoleConfig(user?.role);
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between shadow-sm">
       
       {/* 🏠 LADO IZQUIERDO - Logo y navegación */}
       <div className="flex items-center space-x-4">
@@ -112,15 +115,8 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
           </button>
         )}
         
-        {/* 🏋️ Logo del gimnasio */}
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-            <Dumbbell className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-gray-900 text-lg hidden sm:block">
-            {process.env.REACT_APP_NAME || 'Gym System'}
-          </span>
-        </div>
+        {/* 🏋️ Logo del gimnasio - CORREGIDO */}
+        <GymLogo size="md" variant="professional" showText={true} />
         
       </div>
       
@@ -138,7 +134,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
               onBlur={() => setSearchFocused(false)}
               placeholder="Buscar usuarios, membresías, pagos..."
               className={`
-                w-full pl-10 pr-4 py-2 rounded-lg border transition-all duration-200
+                w-full pl-10 pr-4 py-2 rounded-xl border transition-all duration-200
                 ${searchFocused 
                   ? 'border-primary-500 ring-2 ring-primary-500 ring-opacity-20' 
                   : 'border-gray-300 hover:border-gray-400'
@@ -150,7 +146,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
           
           {/* 🔍 Sugerencias de búsqueda (futuro) */}
           {searchFocused && searchQuery && (
-            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 z-50">
+            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-elite mt-1 z-50">
               <div className="p-3 text-sm text-gray-500">
                 Presiona Enter para buscar "{searchQuery}"
               </div>
@@ -180,7 +176,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
           >
             <Bell className="w-5 h-5" />
             {unreadNotifications > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-secondary-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
                 {unreadNotifications > 9 ? '9+' : unreadNotifications}
               </span>
             )}
@@ -194,7 +190,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
             className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
             {/* Avatar */}
-            <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-elite-gradient rounded-full flex items-center justify-center shadow-sm">
               {user?.profileImage ? (
                 <img 
                   src={user.profileImage} 
@@ -223,12 +219,12 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
           
           {/* 📋 Dropdown del menú de usuario */}
           {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+            <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-elite z-50">
               
               {/* 📊 Información del usuario */}
               <div className="px-4 py-3 border-b border-gray-200">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center">
+                  <div className="w-10 h-10 bg-elite-gradient rounded-full flex items-center justify-center">
                     {user?.profileImage ? (
                       <img 
                         src={user.profileImage} 
@@ -259,7 +255,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
               <div className="py-2">
                 <Link
                   to="/dashboard/profile"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
                   onClick={() => setShowUserMenu(false)}
                 >
                   <User className="w-4 h-4 mr-3" />
@@ -268,7 +264,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
                 
                 <Link
                   to="/dashboard/settings"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
                   onClick={() => setShowUserMenu(false)}
                 >
                   <Settings className="w-4 h-4 mr-3" />
@@ -282,7 +278,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
                     setShowUserMenu(false);
                     logout();
                   }}
-                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 >
                   <LogOut className="w-4 h-4 mr-3" />
                   Cerrar Sesión

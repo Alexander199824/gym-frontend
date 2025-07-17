@@ -1,7 +1,7 @@
 // src/App.js
 // UBICACIÓN: /gym-frontend/src/App.js
-// FUNCIÓN: Componente principal con nueva paleta Elite Fitness y LandingPage
-// CONECTA CON: Todos los componentes del sistema
+// FUNCIÓN: Componente principal CON DEBUG INTEGRADO para Elite Fitness
+// CONECTA CON: LandingPage, AuthContext, y debugging completo
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -12,7 +12,7 @@ import { useApp } from './contexts/AppContext';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
-// 🏠 Landing Page (nueva página principal)
+// 🏠 Landing Page (página principal)
 const LandingPage = React.lazy(() => import('./pages/dashboard/LandingPage'));
 
 // 🔐 Páginas de Autenticación (Lazy Loading)
@@ -91,140 +91,224 @@ function getDashboardPath(role) {
   }
 }
 
+// 🔍 FUNCIÓN DE DEBUG INTEGRADA
+function runCompleteDebug() {
+  console.clear(); // Limpiar consola para mejor visibilidad
+  
+  console.log('🚀 =====================================');
+  console.log('🏋️ ELITE FITNESS CLUB - DEBUG COMPLETO');
+  console.log('🚀 =====================================');
+  console.log('');
+  
+  // 📊 1. DEBUG DE VARIABLES DE ENTORNO
+  console.log('📋 1. VARIABLES DE ENTORNO:');
+  console.log('----------------------------------');
+  console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+  console.log('🔍 REACT_APP_DEBUG_MODE:', process.env.REACT_APP_DEBUG_MODE);
+  console.log('🔍 REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+  console.log('');
+  
+  // 🏋️ 2. DEBUG DE CONFIGURACIÓN DEL GIMNASIO
+  console.log('🏋️ 2. CONFIGURACIÓN DEL GIMNASIO:');
+  console.log('----------------------------------');
+  console.log('📱 REACT_APP_GYM_NAME:', process.env.REACT_APP_GYM_NAME);
+  console.log('🏷️ REACT_APP_GYM_TAGLINE:', process.env.REACT_APP_GYM_TAGLINE);
+  console.log('📍 REACT_APP_GYM_ADDRESS:', process.env.REACT_APP_GYM_ADDRESS);
+  console.log('📞 REACT_APP_GYM_PHONE:', process.env.REACT_APP_GYM_PHONE);
+  console.log('📧 REACT_APP_GYM_EMAIL:', process.env.REACT_APP_GYM_EMAIL);
+  console.log('🕐 REACT_APP_GYM_HOURS_FULL:', process.env.REACT_APP_GYM_HOURS_FULL);
+  console.log('');
+  
+  // 🖼️ 3. DEBUG DEL LOGO
+  console.log('🖼️ 3. CONFIGURACIÓN DEL LOGO:');
+  console.log('----------------------------------');
+  const logoUrl = process.env.REACT_APP_LOGO_URL;
+  console.log('📁 REACT_APP_LOGO_URL (crudo):', logoUrl);
+  
+  if (logoUrl) {
+    const baseUrl = window.location.origin;
+    const cleanPath = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+    const finalUrl = `${baseUrl}${cleanPath}`;
+    
+    console.log('🌐 Base URL:', baseUrl);
+    console.log('🛤️ Path limpio:', cleanPath);
+    console.log('🔗 URL final construida:', finalUrl);
+    console.log('');
+    console.log('🔍 Verificando si la imagen existe...');
+    
+    // Verificar si la imagen existe
+    fetch(finalUrl, { method: 'HEAD' })
+      .then(response => {
+        if (response.ok) {
+          console.log('✅ ¡IMAGEN ENCONTRADA! La imagen existe y es accesible');
+          console.log('📊 Status HTTP:', response.status);
+          console.log('📊 Content-Type:', response.headers.get('content-type'));
+          console.log('📊 Content-Length:', response.headers.get('content-length'));
+        } else {
+          console.error('❌ IMAGEN NO ENCONTRADA');
+          console.error('📊 Status HTTP:', response.status);
+          console.error('📊 Status Text:', response.statusText);
+          console.error('');
+          console.error('🛠️ SOLUCIONES:');
+          console.error('   1. Verifica que el archivo existe en: public/assets/images/image.png');
+          console.error('   2. Verifica que el .env tiene: REACT_APP_LOGO_URL=/assets/images/image.png');
+          console.error('   3. Reinicia el servidor: npm start');
+        }
+      })
+      .catch(error => {
+        console.error('❌ ERROR AL VERIFICAR LA IMAGEN:', error.message);
+        console.error('🛠️ POSIBLES CAUSAS:');
+        console.error('   1. El archivo no existe en la ruta especificada');
+        console.error('   2. Problema de permisos de archivo');
+        console.error('   3. El servidor de desarrollo no está sirviendo archivos estáticos');
+      });
+  } else {
+    console.error('❌ NO HAY REACT_APP_LOGO_URL CONFIGURADA');
+    console.error('🛠️ SOLUCIÓN: Agrega REACT_APP_LOGO_URL=/assets/images/image.png al archivo .env');
+  }
+  console.log('');
+  
+  // 📱 4. DEBUG DE REDES SOCIALES
+  console.log('📱 4. REDES SOCIALES:');
+  console.log('----------------------------------');
+  console.log('📸 Instagram:', process.env.REACT_APP_SOCIAL_INSTAGRAM || '❌ No configurado');
+  console.log('👥 Facebook:', process.env.REACT_APP_SOCIAL_FACEBOOK || '❌ No configurado');
+  console.log('🐦 Twitter:', process.env.REACT_APP_SOCIAL_TWITTER || '❌ No configurado');
+  console.log('🎥 YouTube:', process.env.REACT_APP_SOCIAL_YOUTUBE || '❌ No configurado');
+  console.log('💬 WhatsApp:', process.env.REACT_APP_SOCIAL_WHATSAPP || '❌ No configurado');
+  console.log('');
+  
+  // 📊 5. DEBUG DE ESTADÍSTICAS
+  console.log('📊 5. ESTADÍSTICAS:');
+  console.log('----------------------------------');
+  console.log('👥 Miembros:', process.env.REACT_APP_GYM_MEMBERS_COUNT || '❌ No configurado');
+  console.log('🏋️ Entrenadores:', process.env.REACT_APP_GYM_TRAINERS_COUNT || '❌ No configurado');
+  console.log('🏆 Años experiencia:', process.env.REACT_APP_GYM_EXPERIENCE_YEARS || '❌ No configurado');
+  console.log('⭐ Satisfacción:', process.env.REACT_APP_GYM_SATISFACTION_RATE || '❌ No configurado');
+  console.log('');
+  
+  console.log('🔚 =====================================');
+  console.log('🏋️ FIN DEL DEBUG - ELITE FITNESS CLUB');
+  console.log('🔚 =====================================');
+}
+
+// 🔍 FUNCIÓN PARA VERIFICAR BACKEND
+async function debugBackendConnection() {
+  console.log('🌐 6. VERIFICANDO CONEXIÓN AL BACKEND:');
+  console.log('----------------------------------');
+  console.log('🔗 URL del Backend configurada:', process.env.REACT_APP_API_URL);
+  
+  try {
+    const startTime = Date.now();
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const healthUrl = `${apiUrl}/api/health`;
+    
+    console.log('📡 Haciendo petición a:', healthUrl);
+    
+    const response = await fetch(healthUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000) // 10 segundos
+    });
+    
+    const responseTime = Date.now() - startTime;
+    
+    console.log('📊 Respuesta recibida:');
+    console.log('  📊 Status:', response.status);
+    console.log('  📊 StatusText:', response.statusText);
+    console.log('  📊 OK:', response.ok);
+    console.log(`  ⚡ Tiempo de respuesta: ${responseTime}ms`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ BACKEND CONECTADO EXITOSAMENTE!');
+      console.log('📊 Respuesta del servidor:', data);
+      console.log('🎯 Estado: Backend funcionando correctamente');
+    } else {
+      console.error('❌ BACKEND RESPONDIÓ CON ERROR!');
+      console.error('📊 Status:', response.status);
+      console.error('📊 Status Text:', response.statusText);
+      
+      try {
+        const errorData = await response.text();
+        console.error('📊 Respuesta de error:', errorData);
+      } catch (e) {
+        console.error('📊 No se pudo leer la respuesta de error');
+      }
+    }
+  } catch (error) {
+    console.error('💥 ERROR: NO SE PUDO CONECTAR AL BACKEND!');
+    console.error('🔍 Tipo de error:', error.name);
+    console.error('🔍 Mensaje del error:', error.message);
+    console.error('');
+    console.error('🚫 CAUSAS POSIBLES:');
+    console.error('   1. El backend NO está corriendo en puerto 5000');
+    console.error('   2. El backend está en un puerto diferente');
+    console.error('   3. Problema de CORS en el backend');
+    console.error('   4. URL incorrecta en REACT_APP_API_URL');
+    console.error('');
+    console.error('🛠️ SOLUCIONES:');
+    console.error('   1. Verifica: http://localhost:5000/api/health en el navegador');
+    console.error('   2. Ejecuta: cd gym-backend && npm run dev');
+    console.error('   3. Verifica que veas: "✅ URL: http://localhost:5000"');
+    console.error('   4. Verifica tu archivo .env tiene: REACT_APP_API_URL=http://localhost:5000');
+  }
+  
+  console.log('');
+}
+
 // 🚀 COMPONENTE PRINCIPAL DE LA APLICACIÓN
 function App() {
   const { isAuthenticated, user } = useAuth();
   const { isMobile, addNotification } = useApp();
   const location = useLocation();
   
-  // 🔥 DEBUGGING TEMPORAL - Verificar variables de entorno
-  console.log('🚀 ELITE FITNESS APP INICIANDO - Variables de entorno:');
-  console.log('  🔍 REACT_APP_DEBUG_MODE:', process.env.REACT_APP_DEBUG_MODE);
-  console.log('  🔗 REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-  console.log('  🌍 NODE_ENV:', process.env.NODE_ENV);
-  console.log('  📱 REACT_APP_NAME:', process.env.REACT_APP_NAME);
-  
-  // 🔍 VERIFICACIÓN DE CONEXIÓN AL BACKEND AL INICIAR
+  // 🔥 EFECTO PRINCIPAL: DEBUG COMPLETO AL INICIAR
   useEffect(() => {
-    console.log('🔄 useEffect ejecutándose...');
+    console.log('🚀 ELITE FITNESS CLUB - INICIANDO APLICACIÓN...');
     
-    const checkBackendConnection = async () => {
-      console.log('🏋️‍♂️ Elite Fitness Club - INICIANDO VERIFICACIÓN BACKEND...');
-      console.log('🔗 URL del Backend configurada:', process.env.REACT_APP_API_URL);
-      console.log('🔍 DEBUG_MODE configurado:', process.env.REACT_APP_DEBUG_MODE);
+    // 🔍 EJECUTAR DEBUG COMPLETO INMEDIATAMENTE
+    if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+      // Esperar un poco para que React termine de cargar
+      setTimeout(() => {
+        runCompleteDebug();
+        
+        // Verificar backend después del debug general
+        setTimeout(() => {
+          debugBackendConnection();
+        }, 2000);
+      }, 1000);
+    }
+    
+    // 🔄 DEBUG PERIÓDICO (cada 60 segundos en desarrollo)
+    if (process.env.NODE_ENV === 'development') {
+      const interval = setInterval(() => {
+        console.log('🔄 Debug periódico - Elite Fitness...');
+        debugBackendConnection();
+      }, 60000); // Cada minuto
       
-      // 🔥 FORZAR LA EJECUCIÓN 
-      console.log('🏋️‍♂️ Elite Fitness Club - Verificando Backend...');
-      console.log('🔗 URL del Backend:', process.env.REACT_APP_API_URL || 'http://localhost:5000');
-      
-      try {
-        const startTime = Date.now();
-        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-        const healthUrl = `${apiUrl}/api/health`;
-        
-        console.log('📡 Haciendo petición a:', healthUrl);
-        
-        const response = await fetch(healthUrl, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          signal: AbortSignal.timeout(10000) // 10 segundos
-        });
-        
-        const responseTime = Date.now() - startTime;
-        
-        console.log('📊 Respuesta recibida:');
-        console.log('  📊 Status:', response.status);
-        console.log('  📊 StatusText:', response.statusText);
-        console.log('  📊 OK:', response.ok);
-        console.log(`  ⚡ Tiempo de respuesta: ${responseTime}ms`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ BACKEND ELITE FITNESS CONECTADO EXITOSAMENTE!');
-          console.log('📊 Respuesta del servidor:', data);
-          console.log(`⚡ Tiempo de respuesta: ${responseTime}ms`);
-          console.log('🎯 Estado: Backend funcionando correctamente');
-          
-          // Mostrar notificación si está disponible
-          if (addNotification) {
-            addNotification({
-              type: 'success',
-              title: 'Elite Fitness conectado',
-              message: `Backend listo en ${responseTime}ms`
-            });
-          }
-        } else {
-          console.error('❌ BACKEND ELITE FITNESS RESPONDIÓ CON ERROR!');
-          console.error('📊 Status:', response.status);
-          console.error('📊 Status Text:', response.statusText);
-          console.error('🔧 Verifica que el endpoint /api/health exista en el backend');
-          
-          // Intentar leer la respuesta de error
-          try {
-            const errorData = await response.text();
-            console.error('📊 Respuesta de error:', errorData);
-          } catch (e) {
-            console.error('📊 No se pudo leer la respuesta de error');
-          }
-        }
-      } catch (error) {
-        console.error('💥 ERROR: NO SE PUDO CONECTAR AL BACKEND ELITE FITNESS!');
-        console.error('🔍 Tipo de error:', error.name);
-        console.error('🔍 Mensaje del error:', error.message);
-        console.error('🔍 Error completo:', error);
-        console.error('');
-        console.error('🚫 CAUSAS POSIBLES:');
-        console.error('   1. El backend NO está corriendo en puerto 5000');
-        console.error('   2. El backend está en un puerto diferente');
-        console.error('   3. Problema de CORS en el backend');
-        console.error('   4. URL incorrecta en REACT_APP_API_URL');
-        console.error('   5. Firewall o antivirus bloqueando la conexión');
-        console.error('');
-        console.error('🛠️ SOLUCIONES:');
-        console.error('   1. Verifica: http://localhost:5000/api/health en el navegador');
-        console.error('   2. Ejecuta: cd gym-backend && npm run dev');
-        console.error('   3. Verifica que veas: "✅ URL: http://localhost:5000"');
-        console.error('   4. Verifica tu archivo .env tiene: REACT_APP_API_URL=http://localhost:5000');
-        console.error('   5. Prueba desde otra pestaña: curl http://localhost:5000/api/health');
-        
-        // Mostrar notificación de error si está disponible
-        if (addNotification) {
-          addNotification({
-            type: 'error',
-            title: 'Error de conexión Elite Fitness',
-            message: 'No se pudo conectar al backend',
-            persistent: true
-          });
-        }
-      }
-    };
-    
-    // 🔄 EJECUTAR VERIFICACIÓN INMEDIATAMENTE
-    console.log('🚀 Ejecutando verificación de backend Elite Fitness...');
-    checkBackendConnection();
-    
-    // 🔄 EJECUTAR VERIFICACIÓN CADA 30 SEGUNDOS (TEMPORAL)
-    const interval = setInterval(() => {
-      console.log('🔄 Verificación periódica del backend Elite Fitness...');
-      checkBackendConnection();
-    }, 30000);
-    
-    // Limpiar interval al desmontar
-    return () => {
-      console.log('🧹 Limpiando interval de verificación');
-      clearInterval(interval);
-    };
+      return () => {
+        console.log('🧹 Limpiando interval de debug');
+        clearInterval(interval);
+      };
+    }
   }, []); // Solo se ejecuta una vez al montar
   
   // 📱 EFECTO: Notificar cambios de ruta en desarrollo
   useEffect(() => {
-    console.log('🧭 Elite Fitness - Navegando a:', location.pathname);
-    
-    // Verificar si las variables de entorno siguen disponibles
-    if (!process.env.REACT_APP_API_URL) {
-      console.warn('⚠️ REACT_APP_API_URL no está definida después de la navegación');
+    if (process.env.REACT_APP_DEBUG_MODE === 'true') {
+      console.log('🧭 Elite Fitness - Navegando a:', location.pathname);
+      
+      // Verificar si las variables de entorno siguen disponibles
+      if (!process.env.REACT_APP_API_URL) {
+        console.warn('⚠️ REACT_APP_API_URL no está definida después de la navegación');
+      }
+      
+      if (!process.env.REACT_APP_LOGO_URL) {
+        console.warn('⚠️ REACT_APP_LOGO_URL no está definida después de la navegación');
+      }
     }
   }, [location]);
   
@@ -260,9 +344,26 @@ function App() {
     }
   }, [isMobile]);
   
+  // 🔍 DEBUG ADICIONAL: Mostrar información importante en pantalla si hay errores
+  const showDebugInfo = process.env.REACT_APP_DEBUG_MODE === 'true' && process.env.NODE_ENV === 'development';
+
   return (
     <ErrorBoundary>
       <div className="app min-h-screen bg-gray-50">
+        
+        {/* 🔍 DEBUG INFO EN PANTALLA (solo en desarrollo) */}
+        {showDebugInfo && (
+          <div className="fixed top-0 right-0 z-50 bg-black bg-opacity-80 text-white p-4 text-xs max-w-xs">
+            <div className="font-bold mb-2">🔍 DEBUG ELITE FITNESS</div>
+            <div>Logo: {process.env.REACT_APP_LOGO_URL ? '✅' : '❌'}</div>
+            <div>Nombre: {process.env.REACT_APP_GYM_NAME || '❌'}</div>
+            <div>API: {process.env.REACT_APP_API_URL ? '✅' : '❌'}</div>
+            <div className="mt-2 text-yellow-300">
+              Revisa la consola para más detalles
+            </div>
+          </div>
+        )}
+        
         <Suspense fallback={<LoadingSpinner fullScreen message="Cargando Elite Fitness..." />}>
           <Routes>
             
@@ -348,37 +449,33 @@ function App() {
 
 export default App;
 
-// 📝 NOTAS SOBRE LA NUEVA ESTRUCTURA ELITE FITNESS:
+// 📝 NOTAS SOBRE EL DEBUG INTEGRADO:
 // 
-// 🏠 LANDING PAGE:
-// - Página principal "/" muestra LandingPage con información del gym
-// - Preparada para futuro e-commerce de productos fitness
-// - Testimonios dinámicos y planes de membresía
-// - Diseño responsivo con nueva paleta Elite Fitness
+// ✅ DEBUG AUTOMÁTICO:
+// - Se ejecuta automáticamente al cargar la aplicación
+// - Verifica todas las variables de entorno
+// - Comprueba si la imagen del logo existe
+// - Testa la conexión al backend
+// - Muestra información detallada en la consola
 // 
-// 🎨 NUEVA PALETA DE COLORES:
-// - Primary: Teal (#14b8a6) - Color principal del logo
-// - Secondary: Magenta (#ec4899) - Color secundario del logo  
-// - Grises elegantes para textos y fondos
-// - Gradientes Elite Fitness para elementos destacados
+// 🔍 INFORMACIÓN QUE MUESTRA:
+// - Variables de entorno del gimnasio
+// - Configuración del logo (con verificación de existencia)
+// - Redes sociales configuradas
+// - Estadísticas del gimnasio
+// - Estado de conexión al backend
 // 
-// 🔐 AUTENTICACIÓN:
-// - Login y Register con nueva paleta y diseño mejorado
-// - Credenciales demo actualizadas para Elite Fitness
-// - Validación corregida y UX mejorada
+// 🛠️ SOLUCIONES AUTOMÁTICAS:
+// - Detecta problemas comunes
+// - Sugiere soluciones específicas
+// - Muestra enlaces para verificar manualmente
 // 
-// 🛡️ SEGURIDAD:
-// - Misma lógica de protección de rutas
-// - Roles: admin, colaborador, cliente
-// - Redirecciones automáticas según rol
+// 📱 DEBUG EN PANTALLA:
+// - Muestra indicadores visuales en la esquina superior derecha
+// - Solo visible en modo desarrollo
+// - Muestra si los componentes principales están configurados
 // 
-// 📱 RESPONSIVE:
-// - Optimizado para móvil, tablet y desktop
-// - Navegación adaptativa
-// - Imágenes y contenido responsivo
-// 
-// 🛍️ E-COMMERCE PREPARADO:
-// - Sección de tienda lista para productos
-// - Carrito de compras (estructura preparada)
-// - Productos destacados con ratings y precios
-// - Sistema de wishlist preparado
+// 🔄 DEBUG PERIÓDICO:
+// - Verifica la conexión al backend cada minuto
+// - Solo en modo desarrollo
+// - Ayuda a detectar cuando el backend se desconecta

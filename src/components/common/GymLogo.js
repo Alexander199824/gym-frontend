@@ -1,36 +1,71 @@
 // src/components/common/GymLogo.js
-// FUNCIÓN: Logo CORREGIDO para Elite Fitness Club
+// FUNCIÓN: Logo COMPLETAMENTE CORREGIDO con mejor manejo de errores
 
 import React, { useState, useEffect } from 'react';
 import { Dumbbell } from 'lucide-react';
+import { useGymConfig } from '../../hooks/useGymConfig';
 
 const GymLogo = ({ 
   size = 'md',
-  variant = 'professional',  // Nuevo variant por defecto más serio
+  variant = 'professional',
   showText = true,
   textSize = 'auto',
   className = '',
-  logoUrl = null,
-  gymName = null,
-  fallbackToIcon = true
+  onClick = null
 }) => {
+  const gymConfig = useGymConfig();
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageUrl, setImageUrl] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // 🔧 Obtener configuración desde .env
-  const defaultLogoUrl = process.env.REACT_APP_LOGO_URL;
-  const defaultGymName = process.env.REACT_APP_GYM_NAME || "Elite Fitness Club";
-  
-  // 🎯 URLs y nombres finales
-  const finalLogoUrl = logoUrl || defaultLogoUrl;
-  const finalGymName = gymName || defaultGymName;
-  
-  // 🔍 Debug para ver si la imagen se está cargando
+  // 🔍 Construir URL de la imagen y verificar que existe
   useEffect(() => {
-    if (finalLogoUrl) {
-      console.log('🖼️ Intentando cargar logo desde:', finalLogoUrl);
-    }
-  }, [finalLogoUrl]);
+    const loadImage = async () => {
+      if (!gymConfig.logo.url) {
+        console.log('❌ No hay URL de logo configurada en .env');
+        setIsLoading(false);
+        setImageError(true);
+        return;
+      }
+      
+      let finalUrl = '';
+      
+      // Si la URL ya es completa (http/https), usarla directamente
+      if (gymConfig.logo.url.startsWith('http')) {
+        finalUrl = gymConfig.logo.url;
+      } else {
+        // Si es una ruta relativa, construir la URL completa
+        const baseUrl = window.location.origin;
+        const cleanPath = gymConfig.logo.url.startsWith('/') ? gymConfig.logo.url : `/${gymConfig.logo.url}`;
+        finalUrl = `${baseUrl}${cleanPath}`;
+      }
+      
+      console.log('🔍 Intentando cargar logo:');
+      console.log('  📁 Ruta configurada:', gymConfig.logo.url);
+      console.log('  🌐 URL final:', finalUrl);
+      
+      // Verificar si la imagen existe antes de asignarla
+      try {
+        const response = await fetch(finalUrl, { method: 'HEAD' });
+        if (response.ok) {
+          console.log('✅ Imagen encontrada, cargando...');
+          setImageUrl(finalUrl);
+          setImageError(false);
+        } else {
+          console.error('❌ Imagen no encontrada (HTTP ' + response.status + ')');
+          setImageError(true);
+        }
+      } catch (error) {
+        console.error('❌ Error al verificar la imagen:', error);
+        setImageError(true);
+      }
+      
+      setIsLoading(false);
+    };
+    
+    loadImage();
+  }, [gymConfig.logo.url]);
   
   // 📏 CONFIGURACIÓN DE TAMAÑOS
   const sizeConfig = {
@@ -72,10 +107,10 @@ const GymLogo = ({
     }
   };
   
-  // 🎨 CONFIGURACIÓN DE VARIANTES - COLORES SERIOS
+  // 🎨 CONFIGURACIÓN DE VARIANTES
   const variantConfig = {
     professional: {
-      container: 'bg-slate-800',  // Gris oscuro profesional
+      container: 'bg-slate-800',
       icon: 'text-white',
       text: 'text-slate-800'
     },
@@ -94,15 +129,15 @@ const GymLogo = ({
       icon: 'text-slate-600',
       text: 'text-slate-800'
     },
-    minimal: {
-      container: 'bg-slate-700',
-      icon: 'text-slate-200',
-      text: 'text-slate-700'
+    gradient: {
+      container: 'bg-elite-gradient',
+      icon: 'text-white',
+      text: 'text-slate-800'
     }
   };
   
-  const currentSize = sizeConfig[size];
-  const currentVariant = variantConfig[variant];
+  const currentSize = sizeConfig[size] || sizeConfig.md;
+  const currentVariant = variantConfig[variant] || variantConfig.professional;
   
   // 📝 Obtener tamaño del texto
   const getTextSize = () => {
@@ -112,40 +147,57 @@ const GymLogo = ({
   
   // 🚨 Manejar error de imagen
   const handleImageError = (e) => {
-    console.error('❌ Error al cargar logo:', finalLogoUrl);
-    console.error('Error details:', e);
+    console.error('❌ Error al cargar la imagen del logo');
+    console.error('🔍 URL que falló:', imageUrl);
+    console.error('🔍 Mensaje de error:', e.type);
     setImageError(true);
+    setImageLoaded(false);
   };
   
   // ✅ Manejar carga exitosa de imagen
   const handleImageLoad = () => {
-    console.log('✅ Logo cargado exitosamente:', finalLogoUrl);
+    console.log('✅ Logo cargado exitosamente:', imageUrl);
     setImageLoaded(true);
+    setImageError(false);
   };
   
   // 🖼️ RENDERIZAR LOGO
   const renderLogoContent = () => {
-    // Si hay una imagen del logo configurada y no ha fallado
-    if (finalLogoUrl && !imageError) {
+    // Si está cargando, mostrar placeholder
+    if (isLoading) {
+      return (
+        <div className={`
+          ${currentSize.container} ${currentVariant.container} 
+          rounded-xl flex items-center justify-center animate-pulse
+        `}>
+          <Dumbbell className={`${currentSize.icon} ${currentVariant.icon} opacity-50`} />
+        </div>
+      );
+    }
+    
+    // Si hay imagen configurada y no ha fallado, intentar mostrarla
+    if (imageUrl && !imageError) {
       return (
         <div className={`${currentSize.container} relative overflow-hidden rounded-xl`}>
           {/* Imagen principal */}
           <img 
-            src={finalLogoUrl}
-            alt={`${finalGymName} Logo`}
-            className={`${currentSize.container} object-contain`}
+            src={imageUrl}
+            alt={gymConfig.logo.alt}
+            className={`${currentSize.container} object-contain transition-opacity duration-300`}
             onError={handleImageError}
             onLoad={handleImageLoad}
             style={{
-              display: imageLoaded ? 'block' : 'none'
+              opacity: imageLoaded ? 1 : 0,
+              display: imageError ? 'none' : 'block'
             }}
           />
           
-          {/* Loading placeholder mientras carga */}
-          {!imageLoaded && !imageError && (
+          {/* Fallback mientras carga o si falla */}
+          {(!imageLoaded || imageError) && (
             <div className={`
-              ${currentSize.container} ${currentVariant.container} 
-              flex items-center justify-center animate-pulse
+              absolute inset-0 ${currentVariant.container} 
+              flex items-center justify-center
+              ${!imageLoaded && !imageError ? 'animate-pulse' : ''}
             `}>
               <Dumbbell className={`${currentSize.icon} ${currentVariant.icon}`} />
             </div>
@@ -154,96 +206,82 @@ const GymLogo = ({
       );
     }
     
-    // Fallback: Icono de mancuernas (con colores serios)
-    if (fallbackToIcon) {
-      return (
-        <div className={`
-          ${currentSize.container} ${currentVariant.container} 
-          rounded-xl flex items-center justify-center shadow-sm
-        `}>
-          <Dumbbell className={`${currentSize.icon} ${currentVariant.icon}`} />
-        </div>
-      );
-    }
-    
-    return null;
+    // Fallback: Icono de mancuernas
+    return (
+      <div className={`
+        ${currentSize.container} ${currentVariant.container} 
+        rounded-xl flex items-center justify-center shadow-sm
+      `}>
+        <Dumbbell className={`${currentSize.icon} ${currentVariant.icon}`} />
+      </div>
+    );
   };
 
   return (
-    <div className={`flex items-center ${showText ? currentSize.spacing : ''} ${className}`}>
+    <div 
+      className={`flex items-center ${showText ? currentSize.spacing : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      onClick={onClick}
+    >
       {renderLogoContent()}
       
       {showText && (
         <span className={`
-          font-display font-bold ${getTextSize()} ${currentVariant.text}
+          font-bold ${getTextSize()} ${currentVariant.text}
           whitespace-nowrap
         `}>
-          {finalGymName}
+          {gymConfig.name}
         </span>
       )}
     </div>
   );
 };
 
-// 🎯 VARIANTES ESPECÍFICAS ACTUALIZADAS - COLORES SERIOS
-
-export const NavbarLogo = ({ logoUrl, gymName }) => (
+// 🎯 VARIANTES ESPECÍFICAS
+export const NavbarLogo = () => (
   <GymLogo 
     size="md" 
     variant="professional" 
     showText={true}
-    logoUrl={logoUrl}
-    gymName={gymName}
   />
 );
 
-export const FooterLogo = ({ logoUrl, gymName }) => (
+export const FooterLogo = () => (
   <GymLogo 
     size="lg" 
     variant="white" 
     showText={true}
-    logoUrl={logoUrl}
-    gymName={gymName}
   />
 );
 
-export const AuthLogo = ({ logoUrl, gymName }) => (
+export const AuthLogo = () => (
   <GymLogo 
     size="xl" 
-    variant="professional" 
+    variant="gradient" 
     showText={false}
-    logoUrl={logoUrl}
-    gymName={gymName}
   />
 );
 
-export const MobileLogo = ({ logoUrl, gymName }) => (
+export const MobileLogo = () => (
   <GymLogo 
     size="sm" 
     variant="professional" 
     showText={false}
-    logoUrl={logoUrl}
-    gymName={gymName}
   />
 );
 
-export const DashboardLogo = ({ logoUrl, gymName }) => (
+export const DashboardLogo = () => (
   <GymLogo 
     size="md" 
     variant="professional" 
     showText={true}
-    logoUrl={logoUrl}
-    gymName={gymName}
   />
 );
 
-export const HeroLogo = ({ logoUrl, gymName }) => (
+export const HeroLogo = () => (
   <GymLogo 
     size="2xl" 
-    variant="dark" 
+    variant="gradient" 
     showText={false}
-    logoUrl={logoUrl}
-    gymName={gymName}
   />
 );
 

@@ -2,6 +2,7 @@
 // UBICACIÓN: /gym-frontend/src/components/layout/MobileMenu.js
 // FUNCIÓN: Menú lateral para dispositivos móviles con navegación completa
 // CONECTA CON: AuthContext para permisos, Router para navegación
+// FUNCIÓN: Menu móvil CORREGIDO con logo desde configuración
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -16,10 +17,10 @@ import {
   LogOut,
   User,
   Calendar,
-  AlertCircle,
-  Dumbbell
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import GymLogo from '../common/GymLogo'; // 🔧 USAR EL COMPONENTE CORRECTO
 
 const MobileMenu = ({ onClose }) => {
   const { user, logout, hasPermission } = useAuth();
@@ -124,16 +125,9 @@ const MobileMenu = ({ onClose }) => {
   return (
     <div className="flex flex-col h-full bg-white">
       
-      {/* 🔝 HEADER */}
+      {/* 🔝 HEADER - CORREGIDO */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-            <Dumbbell className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-gray-900 text-lg">
-            Gym System
-          </span>
-        </div>
+        <GymLogo size="md" variant="professional" showText={true} />
         
         <button
           onClick={onClose}
@@ -144,9 +138,9 @@ const MobileMenu = ({ onClose }) => {
       </div>
       
       {/* 👤 INFORMACIÓN DEL USUARIO */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center">
+          <div className="w-10 h-10 bg-elite-gradient rounded-full flex items-center justify-center">
             {user?.profileImage ? (
               <img 
                 src={user.profileImage} 
@@ -180,7 +174,7 @@ const MobileMenu = ({ onClose }) => {
             to={item.path}
             onClick={onClose}
             className={`
-              flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
+              flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-colors
               ${isActiveRoute(item.path) || isActiveSection([item.path])
                 ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-500'
                 : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -199,7 +193,7 @@ const MobileMenu = ({ onClose }) => {
           to="/dashboard/profile"
           onClick={onClose}
           className={`
-            flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors
+            flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-colors
             ${isActiveRoute('/dashboard/profile')
               ? 'bg-primary-50 text-primary-700'
               : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -212,7 +206,7 @@ const MobileMenu = ({ onClose }) => {
         
         <button
           onClick={handleLogout}
-          className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+          className="w-full flex items-center px-3 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 transition-colors"
         >
           <LogOut className="w-5 h-5 mr-3" />
           <span>Cerrar Sesión</span>
