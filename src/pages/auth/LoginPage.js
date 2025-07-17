@@ -42,7 +42,8 @@ const LoginPage = () => {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting }
+    formState: { errors, isSubmitting },
+    setValue
   } = useForm({
     resolver: yupResolver(loginSchema),
     defaultValues: {
@@ -74,14 +75,29 @@ const LoginPage = () => {
     { role: 'Cliente', email: 'cliente@gym.com', password: 'Cliente123!' }
   ];
   
-  // 📱 Función para usar credenciales de demo
-  const useDemoCredentials = (email, password) => {
+  // ✅ CORRECCIÓN: Cambiar de hook a función normal
+  const fillDemoCredentials = (email, password) => {
+    // Usar setValue de react-hook-form para llenar los campos
+    setValue('email', email);
+    setValue('password', password);
+    
+    // También llenar los campos HTML directamente para compatibilidad
     const emailInput = document.querySelector('input[name="email"]');
     const passwordInput = document.querySelector('input[name="password"]');
     
     if (emailInput && passwordInput) {
       emailInput.value = email;
       passwordInput.value = password;
+      
+      // Disparar eventos para que React detecte el cambio
+      const inputEvent = new Event('input', { bubbles: true });
+      emailInput.dispatchEvent(inputEvent);
+      passwordInput.dispatchEvent(inputEvent);
+      
+      // También disparar evento change
+      const changeEvent = new Event('change', { bubbles: true });
+      emailInput.dispatchEvent(changeEvent);
+      passwordInput.dispatchEvent(changeEvent);
     }
   };
 
@@ -156,6 +172,7 @@ const LoginPage = () => {
                   {...register('email')}
                   type="email"
                   id="email"
+                  name="email"
                   className={`form-input pl-10 ${errors.email ? 'form-input-error' : ''}`}
                   placeholder="tu@email.com"
                   disabled={isLoading}
@@ -179,6 +196,7 @@ const LoginPage = () => {
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
                   id="password"
+                  name="password"
                   className={`form-input pl-10 pr-10 ${errors.password ? 'form-input-error' : ''}`}
                   placeholder="••••••••"
                   disabled={isLoading}
@@ -243,7 +261,7 @@ const LoginPage = () => {
                   <button
                     key={index}
                     type="button"
-                    onClick={() => useDemoCredentials(cred.email, cred.password)}
+                    onClick={() => fillDemoCredentials(cred.email, cred.password)} // ✅ CORRECCIÓN: función normal en lugar de hook
                     className="w-full text-left px-3 py-2 text-xs bg-yellow-100 hover:bg-yellow-200 rounded border border-yellow-300 transition-colors"
                   >
                     <div className="font-medium text-yellow-800">{cred.role}</div>
