@@ -1,6 +1,4 @@
-// tailwind.config.js
-// FUNCIÓN: Configuración PROFESIONAL para Elite Fitness Club
-
+// tailwind.config.js - VERSIÓN TURQUESA Y ROSA
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -10,51 +8,51 @@ module.exports = {
   
   theme: {
     extend: {
-      // 🎨 PALETA PROFESIONAL Y ELEGANTE
+      // 🎨 PALETA TURQUESA Y ROSA (como en la imagen)
       colors: {
-        // Colores principales - AZUL PROFESIONAL
+        // Colores principales - TURQUESA/TEAL VIBRANTE
         primary: {
-          50: '#eff6ff',   // Azul muy claro
-          100: '#dbeafe',  // Azul claro
-          200: '#bfdbfe',  // Azul medio claro
-          300: '#93c5fd',  // Azul medio
-          400: '#60a5fa',  // Azul medio oscuro
-          500: '#3b82f6',  // BASE - Azul profesional
-          600: '#2563eb',  // Azul oscuro
-          700: '#1d4ed8',  // Azul muy oscuro
-          800: '#1e40af',  // Azul ultra oscuro
-          900: '#1e3a8a'   // Azul negro
+          50: '#f0fdfa',   // Turquesa muy claro
+          100: '#ccfbf1',  // Turquesa claro
+          200: '#99f6e4',  // Turquesa medio claro
+          300: '#5eead4',  // Turquesa medio
+          400: '#2dd4bf',  // Turquesa medio oscuro
+          500: '#14b8a6',  // BASE - Turquesa principal
+          600: '#0d9488',  // Turquesa oscuro
+          700: '#0f766e',  // Turquesa muy oscuro
+          800: '#115e59',  // Turquesa ultra oscuro
+          900: '#134e4a'   // Turquesa negro
         },
         
-        // Color secundario - GRIS ELEGANTE
+        // Color secundario - ROSA/MAGENTA VIBRANTE
         secondary: {
-          50: '#f8fafc',   // Gris muy claro
-          100: '#f1f5f9',  // Gris claro
-          200: '#e2e8f0',  // Gris medio claro
-          300: '#cbd5e1',  // Gris medio
-          400: '#94a3b8',  // Gris medio oscuro
-          500: '#64748b',  // BASE - Gris profesional
-          600: '#475569',  // Gris oscuro
-          700: '#334155',  // Gris muy oscuro
-          800: '#1e293b',  // Gris ultra oscuro
-          900: '#0f172a'   // Gris negro
+          50: '#fdf2f8',   // Rosa muy claro
+          100: '#fce7f3',  // Rosa claro
+          200: '#fbcfe8',  // Rosa medio claro
+          300: '#f9a8d4',  // Rosa medio
+          400: '#f472b6',  // Rosa medio oscuro
+          500: '#ec4899',  // BASE - Rosa principal
+          600: '#db2777',  // Rosa oscuro
+          700: '#be185d',  // Rosa muy oscuro
+          800: '#9d174d',  // Rosa ultra oscuro
+          900: '#831843'   // Rosa negro
         },
         
-        // Acento - VERDE SUAVE
+        // Acento - VERDE VIBRANTE
         accent: {
           50: '#f0fdf4',
           100: '#dcfce7',
           200: '#bbf7d0',
           300: '#86efac',
           400: '#4ade80',
-          500: '#22c55e',  // Verde suave
+          500: '#22c55e',  // Verde vibrante
           600: '#16a34a',
           700: '#15803d',
           800: '#166534',
           900: '#14532d'
         },
         
-        // Grises modernos
+        // Grises suaves
         slate: {
           50: '#f8fafc',
           100: '#f1f5f9',
@@ -68,7 +66,7 @@ module.exports = {
           900: '#0f172a'
         },
         
-        // Colores de estado (suaves)
+        // Colores de estado (mantenemos los actuales)
         success: {
           50: '#f0fdf4',
           100: '#dcfce7',
@@ -96,23 +94,23 @@ module.exports = {
           900: '#7f1d1d'
         },
         
-        // Colores de la marca - PROFESIONALES
+        // Colores de la marca - TURQUESA Y ROSA
         elite: {
-          blue: '#3b82f6',      // Azul principal
-          gray: '#64748b',      // Gris secundario
+          teal: '#14b8a6',      // Turquesa principal
+          pink: '#ec4899',      // Rosa secundario
           green: '#22c55e',     // Verde acento
-          dark: '#1e293b',      // Gris oscuro
           light: '#f8fafc',     // Blanco suave
+          dark: '#134e4a',      // Turquesa oscuro
         }
       },
       
-      // 🎨 GRADIENTES SUAVES
+      // 🎨 GRADIENTES TURQUESA Y ROSA
       backgroundImage: {
-        'elite-gradient': 'linear-gradient(135deg, #3b82f6 0%, #64748b 100%)',
-        'elite-gradient-reverse': 'linear-gradient(135deg, #64748b 0%, #3b82f6 100%)',
-        'primary-gradient': 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-        'secondary-gradient': 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
-        'hero-pattern': 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(100, 116, 139, 0.05) 100%)',
+        'elite-gradient': 'linear-gradient(135deg, #14b8a6 0%, #ec4899 100%)',
+        'elite-gradient-reverse': 'linear-gradient(135deg, #ec4899 0%, #14b8a6 100%)',
+        'primary-gradient': 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
+        'secondary-gradient': 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+        'hero-pattern': 'linear-gradient(135deg, rgba(20, 184, 166, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%)',
       },
       
       // 📱 FUENTES MODERNAS
@@ -121,12 +119,12 @@ module.exports = {
         'display': ['Inter', 'system-ui', 'sans-serif'],
       },
       
-      // 🎯 SOMBRAS SUAVES
+      // 🎯 SOMBRAS TURQUESA Y ROSA
       boxShadow: {
-        'elite': '0 4px 20px rgba(59, 130, 246, 0.15)',
-        'elite-lg': '0 8px 30px rgba(59, 130, 246, 0.2)',
-        'soft': '0 4px 20px rgba(100, 116, 139, 0.15)',
-        'soft-lg': '0 8px 30px rgba(100, 116, 139, 0.2)',
+        'elite': '0 4px 20px rgba(20, 184, 166, 0.15)',
+        'elite-lg': '0 8px 30px rgba(20, 184, 166, 0.2)',
+        'soft': '0 4px 20px rgba(236, 72, 153, 0.15)',
+        'soft-lg': '0 8px 30px rgba(236, 72, 153, 0.2)',
       },
       
       // 📐 ESPACIADO ADICIONAL
@@ -155,10 +153,10 @@ module.exports = {
         },
         pulseSoft: {
           '0%, 100%': { 
-            boxShadow: '0 0 0 0 rgba(59, 130, 246, 0.4)' 
+            boxShadow: '0 0 0 0 rgba(20, 184, 166, 0.4)' 
           },
           '70%': { 
-            boxShadow: '0 0 0 8px rgba(59, 130, 246, 0)' 
+            boxShadow: '0 0 0 8px rgba(20, 184, 166, 0)' 
           },
         },
         bounceSoft: {

@@ -1,6 +1,6 @@
 // src/index.js
 // UBICACIÓN: /gym-frontend/src/index.js
-// FUNCIÓN: Punto de entrada principal de la aplicación React
+// FUNCIÓN: Punto de entrada principal CORREGIDO con CartProvider
 // CONECTA CON: Backend Express.js en puerto 5000
 
 import React from 'react';
@@ -15,28 +15,25 @@ import './styles/index.css';
 // 🏠 Componente principal de la aplicación
 import App from './App';
 
-// 📊 Importar contextos globales
+// 📊 Importar contextos globales - RUTAS CORREGIDAS
 import { AuthProvider } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
+import { CartProvider } from './contexts/CartContext'; // ✅ RUTA CORREGIDA
+
+// 🛒 Importar componente del carrito - RUTA CORREGIDA
+import CartSidebar from './components/cart/CartSidebar'; // ✅ RUTA CORREGIDA
 
 // ⚙️ CONFIGURACIÓN DE REACT QUERY
-// React Query maneja el cache y sincronización con el backend
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Cache queries por 5 minutos
       staleTime: 5 * 60 * 1000, 
-      // Mantener cache por 10 minutos
       cacheTime: 10 * 60 * 1000,
-      // Reintentar en caso de error
       retry: 2,
-      // Revalidar al volver a la ventana
       refetchOnWindowFocus: false,
-      // Configuración de error
       onError: (error) => {
         console.error('❌ Error en query:', error);
         
-        // Si el token expiró, limpiar autenticación
         if (error.response?.status === 401) {
           localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY);
           window.location.href = '/login';
@@ -44,7 +41,6 @@ const queryClient = new QueryClient({
       }
     },
     mutations: {
-      // Configuración para mutaciones (POST, PUT, DELETE)
       retry: 1,
       onError: (error) => {
         console.error('❌ Error en mutación:', error);
@@ -65,43 +61,43 @@ if (process.env.REACT_APP_DEBUG_MODE === 'true') {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    {/* 🧭 Router para navegación entre páginas */}
     <BrowserRouter>
-      {/* 📊 Provider de React Query para cache de datos */}
       <QueryClientProvider client={queryClient}>
-        {/* 🔐 Provider de autenticación (conecta con /api/auth) */}
         <AuthProvider>
-          {/* 🏪 Provider de estado global de la app */}
           <AppProvider>
-            {/* 🏠 Componente principal */}
-            <App />
-            
-            {/* 🍞 Toaster para notificaciones (reemplaza alerts) */}
-            <Toaster 
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#1f2937',
-                  color: '#fff',
-                  borderRadius: '0.75rem',
-                  padding: '16px',
-                  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#fff',
+            {/* 🛒 CartProvider CORRECTAMENTE INCLUIDO */}
+            <CartProvider>
+              <App />
+              
+              {/* 📦 Sidebar del carrito */}
+              <CartSidebar />
+              
+              <Toaster 
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#1f2937',
+                    color: '#fff',
+                    borderRadius: '0.75rem',
+                    padding: '16px',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
+                  success: {
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#fff',
+                    },
                   },
-                }
-              }}
-            />
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#fff',
+                    },
+                  }
+                }}
+              />
+            </CartProvider>
           </AppProvider>
         </AuthProvider>
       </QueryClientProvider>
@@ -110,7 +106,6 @@ root.render(
 );
 
 // 🔍 REPORTES DE RENDIMIENTO (opcional)
-// Mide el rendimiento de la aplicación
 if (process.env.REACT_APP_ENVIRONMENT === 'development') {
   const reportWebVitals = (onPerfEntry) => {
     if (onPerfEntry && onPerfEntry instanceof Function) {
@@ -124,6 +119,5 @@ if (process.env.REACT_APP_ENVIRONMENT === 'development') {
     }
   };
   
-  // Reportar métricas en desarrollo
   reportWebVitals(console.log);
 }

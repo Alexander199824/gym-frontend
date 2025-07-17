@@ -8,13 +8,15 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { useApp } from './contexts/AppContext';
 
-
 // 📱 Componentes de Layout
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
 // 🏠 Landing Page (página principal)
 const LandingPage = React.lazy(() => import('./pages/dashboard/LandingPage'));
+
+// 🛍️ Tienda (página separada)
+const StorePage = React.lazy(() => import('./pages/store/StorePage'));
 
 // 🔐 Páginas de Autenticación (Lazy Loading)
 const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
@@ -35,22 +37,18 @@ function ProtectedRoute({ children, requiredRole = null, requiredPermissions = [
   const { isAuthenticated, isLoading, user, hasPermission, hasRole } = useAuth();
   const location = useLocation();
   
-  // Mostrar loading si aún estamos verificando autenticación
   if (isLoading) {
     return <LoadingSpinner fullScreen message="Verificando autenticación..." />;
   }
   
-  // Redirigir a login si no está autenticado
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
-  // Verificar rol específico
   if (requiredRole && !hasRole(requiredRole)) {
     return <Navigate to="/forbidden" replace />;
   }
   
-  // Verificar permisos específicos
   if (requiredPermissions.length > 0) {
     const hasAllPermissions = requiredPermissions.every(permission => hasPermission(permission));
     if (!hasAllPermissions) {
@@ -69,7 +67,6 @@ function PublicRoute({ children }) {
     return <LoadingSpinner fullScreen message="Cargando Elite Fitness..." />;
   }
   
-  // Si ya está autenticado, redirigir al dashboard apropiado
   if (isAuthenticated && user) {
     const dashboardPath = getDashboardPath(user.role);
     return <Navigate to={dashboardPath} replace />;
@@ -94,7 +91,7 @@ function getDashboardPath(role) {
 
 // 🔍 FUNCIÓN DE DEBUG INTEGRADA
 function runCompleteDebug() {
-  console.clear(); // Limpiar consola para mejor visibilidad
+  console.clear();
   
   console.log('🚀 =====================================');
   console.log('🏋️ ELITE FITNESS CLUB - DEBUG COMPLETO');
@@ -169,25 +166,6 @@ function runCompleteDebug() {
   }
   console.log('');
   
-  // 📱 4. DEBUG DE REDES SOCIALES
-  console.log('📱 4. REDES SOCIALES:');
-  console.log('----------------------------------');
-  console.log('📸 Instagram:', process.env.REACT_APP_SOCIAL_INSTAGRAM || '❌ No configurado');
-  console.log('👥 Facebook:', process.env.REACT_APP_SOCIAL_FACEBOOK || '❌ No configurado');
-  console.log('🐦 Twitter:', process.env.REACT_APP_SOCIAL_TWITTER || '❌ No configurado');
-  console.log('🎥 YouTube:', process.env.REACT_APP_SOCIAL_YOUTUBE || '❌ No configurado');
-  console.log('💬 WhatsApp:', process.env.REACT_APP_SOCIAL_WHATSAPP || '❌ No configurado');
-  console.log('');
-  
-  // 📊 5. DEBUG DE ESTADÍSTICAS
-  console.log('📊 5. ESTADÍSTICAS:');
-  console.log('----------------------------------');
-  console.log('👥 Miembros:', process.env.REACT_APP_GYM_MEMBERS_COUNT || '❌ No configurado');
-  console.log('🏋️ Entrenadores:', process.env.REACT_APP_GYM_TRAINERS_COUNT || '❌ No configurado');
-  console.log('🏆 Años experiencia:', process.env.REACT_APP_GYM_EXPERIENCE_YEARS || '❌ No configurado');
-  console.log('⭐ Satisfacción:', process.env.REACT_APP_GYM_SATISFACTION_RATE || '❌ No configurado');
-  console.log('');
-  
   console.log('🔚 =====================================');
   console.log('🏋️ FIN DEL DEBUG - ELITE FITNESS CLUB');
   console.log('🔚 =====================================');
@@ -211,44 +189,23 @@ async function debugBackendConnection() {
       headers: {
         'Content-Type': 'application/json',
       },
-      signal: AbortSignal.timeout(10000) // 10 segundos
+      signal: AbortSignal.timeout(10000)
     });
     
     const responseTime = Date.now() - startTime;
-    
-    console.log('📊 Respuesta recibida:');
-    console.log('  📊 Status:', response.status);
-    console.log('  📊 StatusText:', response.statusText);
-    console.log('  📊 OK:', response.ok);
-    console.log(`  ⚡ Tiempo de respuesta: ${responseTime}ms`);
     
     if (response.ok) {
       const data = await response.json();
       console.log('✅ BACKEND CONECTADO EXITOSAMENTE!');
       console.log('📊 Respuesta del servidor:', data);
-      console.log('🎯 Estado: Backend funcionando correctamente');
+      console.log(`⚡ Tiempo de respuesta: ${responseTime}ms`);
     } else {
       console.error('❌ BACKEND RESPONDIÓ CON ERROR!');
       console.error('📊 Status:', response.status);
-      console.error('📊 Status Text:', response.statusText);
-      
-      try {
-        const errorData = await response.text();
-        console.error('📊 Respuesta de error:', errorData);
-      } catch (e) {
-        console.error('📊 No se pudo leer la respuesta de error');
-      }
     }
   } catch (error) {
     console.error('💥 ERROR: NO SE PUDO CONECTAR AL BACKEND!');
-    console.error('🔍 Tipo de error:', error.name);
     console.error('🔍 Mensaje del error:', error.message);
-    console.error('');
-    console.error('🚫 CAUSAS POSIBLES:');
-    console.error('   1. El backend NO está corriendo en puerto 5000');
-    console.error('   2. El backend está en un puerto diferente');
-    console.error('   3. Problema de CORS en el backend');
-    console.error('   4. URL incorrecta en REACT_APP_API_URL');
     console.error('');
     console.error('🛠️ SOLUCIONES:');
     console.error('   1. Verifica: http://localhost:5000/api/health en el navegador');
@@ -270,39 +227,34 @@ function App() {
   useEffect(() => {
     console.log('🚀 ELITE FITNESS CLUB - INICIANDO APLICACIÓN...');
     
-    // 🔍 EJECUTAR DEBUG COMPLETO INMEDIATAMENTE
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-      // Esperar un poco para que React termine de cargar
       setTimeout(() => {
         runCompleteDebug();
         
-        // Verificar backend después del debug general
         setTimeout(() => {
           debugBackendConnection();
         }, 2000);
       }, 1000);
     }
     
-    // 🔄 DEBUG PERIÓDICO (cada 60 segundos en desarrollo)
     if (process.env.NODE_ENV === 'development') {
       const interval = setInterval(() => {
         console.log('🔄 Debug periódico - Elite Fitness...');
         debugBackendConnection();
-      }, 60000); // Cada minuto
+      }, 60000);
       
       return () => {
         console.log('🧹 Limpiando interval de debug');
         clearInterval(interval);
       };
     }
-  }, []); // Solo se ejecuta una vez al montar
+  }, []);
   
   // 📱 EFECTO: Notificar cambios de ruta en desarrollo
   useEffect(() => {
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
       console.log('🧭 Elite Fitness - Navegando a:', location.pathname);
       
-      // Verificar si las variables de entorno siguen disponibles
       if (!process.env.REACT_APP_API_URL) {
         console.warn('⚠️ REACT_APP_API_URL no está definida después de la navegación');
       }
@@ -335,7 +287,6 @@ function App() {
   // 📱 EFECTO: Configuraciones específicas para móvil
   useEffect(() => {
     if (isMobile) {
-      // Prevenir zoom en inputs en iOS
       const viewportMeta = document.querySelector('meta[name=viewport]');
       if (viewportMeta) {
         viewportMeta.setAttribute('content', 
@@ -345,7 +296,6 @@ function App() {
     }
   }, [isMobile]);
   
-  // 🔍 DEBUG ADICIONAL: Mostrar información importante en pantalla si hay errores
   const showDebugInfo = process.env.REACT_APP_DEBUG_MODE === 'true' && process.env.NODE_ENV === 'development';
 
   return (
@@ -378,6 +328,11 @@ function App() {
             } />
             
             {/* ================================
+                🛍️ TIENDA (PÚBLICA)
+            ================================ */}
+            <Route path="/store" element={<StorePage />} />
+            
+            {/* ================================
                 🔐 RUTAS DE AUTENTICACIÓN
             ================================ */}
             <Route path="/login" element={
@@ -396,14 +351,12 @@ function App() {
                 🏋️ RUTAS PROTEGIDAS (DASHBOARD)
             ================================ */}
             
-            {/* 🏠 DASHBOARD PRINCIPAL */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <DashboardLayout />
               </ProtectedRoute>
             }>
               
-              {/* Dashboard por rol */}
               <Route path="admin" element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminDashboard />
@@ -422,7 +375,6 @@ function App() {
                 </ProtectedRoute>
               } />
               
-              {/* Redirección automática del dashboard base */}
               <Route index element={
                 isAuthenticated && user ? 
                   <Navigate to={getDashboardPath(user.role)} replace /> :
@@ -435,10 +387,7 @@ function App() {
                 🚫 PÁGINAS DE ERROR
             ================================ */}
             
-            {/* Página de acceso denegado */}
             <Route path="/forbidden" element={<ForbiddenPage />} />
-            
-            {/* Página 404 - Debe ser la última ruta */}
             <Route path="*" element={<NotFoundPage />} />
             
           </Routes>

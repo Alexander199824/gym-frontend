@@ -4,10 +4,7 @@
 // CONECTA CON: LandingPage como página principal, login como secundaria
 
 
-// src/App.js
-// UBICACIÓN: /gym-frontend/src/App.js
-// FUNCIÓN: Componente principal CON TIENDA INTEGRADA para Elite Fitness
-// CONECTA CON: LandingPage, StorePage, AuthContext, CartContext
+
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
