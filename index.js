@@ -18,6 +18,9 @@ import App from './App';
 // 📊 Importar contextos globales
 import { AuthProvider } from './src/contexts/AuthContext';
 import { AppProvider } from './src/contexts/AppContext';
+import { CartProvider } from './src/contexts/CartContext'; // ✅ IMPORTA CartProvider
+
+import CartSidebar from './src/components/cart/CartSidebar'; // ✅ IMPORTA CartSidebar
 
 // ⚙️ CONFIGURACIÓN DE REACT QUERY
 // React Query maneja el cache y sincronización con el backend
@@ -73,35 +76,41 @@ root.render(
         <AuthProvider>
           {/* 🏪 Provider de estado global de la app */}
           <AppProvider>
-            {/* 🏠 Componente principal */}
-            <App />
-            
-            {/* 🍞 Toaster para notificaciones (reemplaza alerts) */}
-            <Toaster 
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#1f2937',
-                  color: '#fff',
-                  borderRadius: '0.75rem',
-                  padding: '16px',
-                  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
-                },
-                success: {
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#fff',
+            {/* 🛒 Provider de carrito de compras */}
+            <CartProvider>
+              {/* 🏠 Componente principal */}
+              <App />
+
+              {/* 📦 Sidebar del carrito */}
+              <CartSidebar />
+
+              {/* 🍞 Toaster para notificaciones */}
+              <Toaster 
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#1f2937',
+                    color: '#fff',
+                    borderRadius: '0.75rem',
+                    padding: '16px',
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
                   },
-                },
-                error: {
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
+                  success: {
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#fff',
+                    },
                   },
-                }
-              }}
-            />
+                  error: {
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#fff',
+                    },
+                  }
+                }}
+              />
+            </CartProvider>
           </AppProvider>
         </AuthProvider>
       </QueryClientProvider>
@@ -133,4 +142,6 @@ if (process.env.REACT_APP_ENVIRONMENT === 'development') {
 // - QueryClientProvider: Cache inteligente de datos del backend
 // - AuthProvider: Maneja login/logout y tokens JWT
 // - AppProvider: Estado global de la aplicación
-// - Toaster: Reemplaza window.alert() con notificaciones modernas
+// - CartProvider: Estado del carrito de compras
+// - CartSidebar: Sidebar flotante del carrito
+// - Toaster: Notificaciones modernas

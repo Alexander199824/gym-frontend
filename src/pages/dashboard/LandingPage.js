@@ -1,49 +1,73 @@
 // src/pages/dashboard/LandingPage.js
 // FUNCIÓN: Landing page MEJORADA - más limpia, ordenada y profesional
 // CONECTA CON: Configuración desde .env, diseño serio pero atractivo
+// src/pages/dashboard/LandingPage.js
+// FUNCIÓN: Landing page MEJORADA con tienda integrada y sin necesidad de login
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Dumbbell, 
-  Star, 
-  Users, 
-  Target, 
-  Trophy, 
-  Clock,
-  MapPin,
-  Phone,
-  Mail,
-  Instagram,
-  Facebook,
-  Twitter,
-  Youtube,
-  MessageCircle,
-  Play,
-  Check,
-  Shield,
-  Award,
-  ArrowRight,
-  Menu,
-  X,
-  Gift,
-  Zap,
-  Heart,
-  Crown,
-  ChevronRight
+  Dumbbell, Star, Users, Target, Trophy, Clock, MapPin, Phone, Mail,
+  Instagram, Facebook, Twitter, Youtube, MessageCircle, Play, Check,
+  Shield, Award, ArrowRight, Menu, X, Gift, Zap, Heart, Crown,
+  ChevronRight, ShoppingCart, Package, Truck, CreditCard, Eye,
+  Filter, Search, Plus, Minus
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
 import { useGymConfig } from '../../hooks/useGymConfig';
 import GymLogo from '../../components/common/GymLogo';
 
+// 🛍️ PRODUCTOS DESTACADOS PARA LANDING
+const FEATURED_PRODUCTS = [
+  {
+    id: 1,
+    name: "Proteína Whey Elite Gold",
+    description: "Proteína de suero aislada premium - 2.5kg",
+    price: 399,
+    originalPrice: 459,
+    image: "/api/placeholder/300/300",
+    category: "suplementos",
+    rating: 4.9,
+    reviews: 342,
+    badge: "Más vendido"
+  },
+  {
+    id: 2,
+    name: "Camiseta Elite Fitness Pro",
+    description: "Camiseta deportiva con tecnología de absorción",
+    price: 149,
+    originalPrice: 199,
+    image: "/api/placeholder/300/300",
+    category: "ropa",
+    rating: 4.8,
+    reviews: 156,
+    badge: "Nuevo"
+  },
+  {
+    id: 3,
+    name: "Shaker Elite Pro 750ml",
+    description: "Shaker oficial con compartimentos",
+    price: 69,
+    originalPrice: 89,
+    image: "/api/placeholder/300/300",
+    category: "accesorios",
+    rating: 4.5,
+    reviews: 267,
+    badge: "Oferta"
+  }
+];
+
 const LandingPage = () => {
   const { isAuthenticated } = useAuth();
+  const { addItem, itemCount, toggleCart } = useCart();
   const navigate = useNavigate();
   const gymConfig = useGymConfig();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showStorePreview, setShowStorePreview] = useState(false);
   
   // 🔄 Redirigir si ya está autenticado
   useEffect(() => {
@@ -62,7 +86,7 @@ const LandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
-  // 📊 Estadísticas principales (desde configuración)
+  // 📊 Estadísticas principales
   const stats = [
     { number: gymConfig.stats.members, label: "Miembros Activos", icon: Users },
     { number: gymConfig.stats.trainers, label: "Entrenadores", icon: Award },
@@ -70,7 +94,7 @@ const LandingPage = () => {
     { number: gymConfig.stats.satisfaction, label: "Satisfacción", icon: Star }
   ];
   
-  // 🏋️ Servicios principales (simplificados)
+  // 🏋️ Servicios principales
   const services = [
     {
       icon: Dumbbell,
@@ -92,7 +116,7 @@ const LandingPage = () => {
     }
   ];
   
-  // 💳 Planes de membresía (simplificados)
+  // 💳 Planes de membresía
   const membershipPlans = [
     {
       name: "Básico",
@@ -125,18 +149,18 @@ const LandingPage = () => {
     }
   ];
   
-  // 💬 Testimonios (simplificados - solo 2)
+  // 💬 Testimonios
   const testimonials = [
     {
       name: "María González",
       role: "Empresaria",
-      text: `Excelente gimnasio, instalaciones modernas y personal muy profesional. He visto resultados increíbles.`,
+      text: "Excelente gimnasio, instalaciones modernas y personal muy profesional. He visto resultados increíbles.",
       rating: 5
     },
     {
       name: "Carlos Mendoza",
       role: "Ingeniero",
-      text: `El mejor gimnasio de la ciudad. Equipos de última generación y ambiente muy motivador.`,
+      text: "El mejor gimnasio de la ciudad. Equipos de última generación y ambiente muy motivador.",
       rating: 5
     }
   ];
@@ -167,7 +191,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-white">
       
-      {/* 🔝 NAVBAR FLOTANTE - MEJORADO */}
+      {/* 🔝 NAVBAR FLOTANTE - CON CARRITO */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
           ? 'bg-white bg-opacity-95 backdrop-blur-lg shadow-lg border-b border-gray-200' 
@@ -190,13 +214,29 @@ const LandingPage = () => {
               <a href="#planes" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">
                 Planes
               </a>
+              <a href="#tienda" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">
+                Tienda
+              </a>
               <a href="#contacto" className="text-gray-600 hover:text-primary-600 font-medium transition-colors">
                 Contacto
               </a>
             </div>
             
-            {/* Botones de acción */}
+            {/* Botones de acción + Carrito */}
             <div className="hidden md:flex items-center space-x-3">
+              {/* Carrito */}
+              <button
+                onClick={toggleCart}
+                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
+              </button>
+              
               <Link to="/login" className="btn-secondary py-2 px-4 text-sm">
                 Iniciar Sesión
               </Link>
@@ -207,12 +247,27 @@ const LandingPage = () => {
             </div>
             
             {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            <div className="md:hidden flex items-center space-x-2">
+              {/* Carrito móvil */}
+              <button
+                onClick={toggleCart}
+                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
+              </button>
+              
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
         </div>
         
@@ -228,6 +283,9 @@ const LandingPage = () => {
               </a>
               <a href="#planes" className="block text-gray-600 hover:text-primary-600 font-medium py-2">
                 Planes
+              </a>
+              <a href="#tienda" className="block text-gray-600 hover:text-primary-600 font-medium py-2">
+                Tienda
               </a>
               <a href="#contacto" className="block text-gray-600 hover:text-primary-600 font-medium py-2">
                 Contacto
@@ -246,9 +304,8 @@ const LandingPage = () => {
         )}
       </nav>
       
-      {/* 🏠 HERO SECTION - MEJORADO Y MÁS ESPACIOSO */}
+      {/* 🏠 HERO SECTION */}
       <section id="inicio" className="relative pt-20 pb-24 min-h-screen flex items-center bg-gradient-to-br from-gray-50 via-white to-blue-50">
-        
         {/* Elementos decorativos sutiles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-20 right-10 w-72 h-72 bg-primary-500 bg-opacity-5 rounded-full blur-3xl"></div>
@@ -260,8 +317,6 @@ const LandingPage = () => {
             
             {/* Contenido Hero */}
             <div className="space-y-10">
-              
-              {/* Badge de bienvenida */}
               <div className="inline-flex items-center px-4 py-2 bg-white rounded-full shadow-md border border-gray-200">
                 <Zap className="w-4 h-4 text-primary-500 mr-2" />
                 <span className="text-sm font-medium text-gray-700">
@@ -269,7 +324,6 @@ const LandingPage = () => {
                 </span>
               </div>
               
-              {/* Título principal */}
               <div className="space-y-6">
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
                   Bienvenido a{' '}
@@ -288,9 +342,12 @@ const LandingPage = () => {
                   <Gift className="w-5 h-5 mr-3" />
                   Primera Semana GRATIS
                 </Link>
-                <button className="btn-secondary px-8 py-4 text-lg hover:scale-105 transition-all">
-                  <Play className="w-5 h-5 mr-3" />
-                  Ver Instalaciones
+                <button 
+                  onClick={() => setShowStorePreview(true)}
+                  className="btn-secondary px-8 py-4 text-lg hover:scale-105 transition-all"
+                >
+                  <ShoppingCart className="w-5 h-5 mr-3" />
+                  Ver Tienda
                 </button>
               </div>
               
@@ -317,7 +374,7 @@ const LandingPage = () => {
             
           </div>
           
-          {/* 📊 Estadísticas - Mejor espaciado */}
+          {/* 📊 Estadísticas */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 pt-16 border-t border-gray-200">
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
@@ -338,11 +395,71 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 🏋️ SERVICIOS - DISEÑO MÁS LIMPIO */}
-      <section id="servicios" className="py-24 bg-white">
+      {/* 🛍️ SECCIÓN DE TIENDA DESTACADA */}
+      <section id="tienda" className="py-24 bg-gradient-to-br from-primary-50 to-secondary-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          {/* Header de sección */}
+          {/* Header de tienda */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center px-4 py-2 bg-primary-100 rounded-full mb-6">
+              <ShoppingCart className="w-4 h-4 text-primary-600 mr-2" />
+              <span className="text-sm font-semibold text-primary-700">
+                Tienda Elite Fitness
+              </span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Productos{' '}
+              <span className="text-primary-600">premium</span>{' '}
+              para tu entrenamiento
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+              Descubre nuestra selección de suplementos, ropa deportiva y accesorios de la más alta calidad
+            </p>
+            
+            {/* Benefits de comprar */}
+            <div className="flex flex-wrap justify-center gap-6 mb-12">
+              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm">
+                <Truck className="w-5 h-5 text-green-500 mr-2" />
+                <span className="text-sm font-medium text-gray-700">Envío gratis +Q200</span>
+              </div>
+              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm">
+                <Shield className="w-5 h-5 text-blue-500 mr-2" />
+                <span className="text-sm font-medium text-gray-700">Garantía de calidad</span>
+              </div>
+              <div className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm">
+                <Award className="w-5 h-5 text-purple-500 mr-2" />
+                <span className="text-sm font-medium text-gray-700">Productos originales</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Grid de productos destacados */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+            {FEATURED_PRODUCTS.map((product) => (
+              <ProductPreviewCard 
+                key={product.id} 
+                product={product} 
+                onAddToCart={addItem}
+              />
+            ))}
+          </div>
+          
+          {/* CTA para ver tienda completa */}
+          <div className="text-center">
+            <Link 
+              to="/store"
+              className="btn-primary px-8 py-4 text-lg font-semibold hover:scale-105 transition-all"
+            >
+              Ver tienda completa
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Link>
+          </div>
+        </div>
+      </section>
+      
+      {/* 🏋️ SERVICIOS */}
+      <section id="servicios" className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
             <div className="inline-flex items-center px-4 py-2 bg-primary-50 rounded-full mb-6">
               <Zap className="w-4 h-4 text-primary-600 mr-2" />
@@ -359,17 +476,13 @@ const LandingPage = () => {
             </p>
           </div>
           
-          {/* Grid de servicios - Más espacioso */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             {services.map((service, index) => (
               <div key={index} className="text-center group">
-                
-                {/* Icono */}
                 <div className="w-20 h-20 mx-auto mb-8 rounded-3xl bg-primary-100 flex items-center justify-center group-hover:bg-primary-200 transition-all duration-300">
                   <service.icon className="w-10 h-10 text-primary-600" />
                 </div>
                 
-                {/* Contenido */}
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4">
                   {service.title}
                 </h3>
@@ -377,7 +490,6 @@ const LandingPage = () => {
                   {service.description}
                 </p>
                 
-                {/* Características */}
                 <ul className="text-sm text-gray-500 space-y-2">
                   {service.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center justify-center">
@@ -392,11 +504,9 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 💳 PLANES - DISEÑO MEJORADO */}
+      {/* 💳 PLANES */}
       <section id="planes" className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Header */}
           <div className="text-center mb-20">
             <div className="inline-flex items-center px-4 py-2 bg-secondary-50 rounded-full mb-6">
               <Crown className="w-4 h-4 text-secondary-600 mr-2" />
@@ -413,7 +523,6 @@ const LandingPage = () => {
             </p>
           </div>
           
-          {/* Grid de planes */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {membershipPlans.map((plan, index) => (
               <div key={index} className={`
@@ -424,7 +533,6 @@ const LandingPage = () => {
                 }
               `}>
                 
-                {/* Badge popular */}
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                     <span className="bg-primary-600 text-white px-6 py-2 rounded-full text-sm font-bold">
@@ -433,15 +541,11 @@ const LandingPage = () => {
                   </div>
                 )}
                 
-                {/* Contenido del plan */}
                 <div className="text-center">
-                  
-                  {/* Icono */}
                   <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary-100 flex items-center justify-center">
                     <plan.icon className="w-8 h-8 text-primary-600" />
                   </div>
                   
-                  {/* Nombre y precio */}
                   <h3 className="text-2xl font-bold text-gray-900 mb-4">
                     Plan {plan.name}
                   </h3>
@@ -463,7 +567,6 @@ const LandingPage = () => {
                     </div>
                   </div>
                   
-                  {/* Características */}
                   <ul className="space-y-4 mb-8 text-left">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center">
@@ -473,7 +576,6 @@ const LandingPage = () => {
                     ))}
                   </ul>
                   
-                  {/* CTA */}
                   <Link 
                     to="/register"
                     className={`
@@ -488,7 +590,6 @@ const LandingPage = () => {
             ))}
           </div>
           
-          {/* Garantía */}
           <div className="text-center mt-16">
             <div className="inline-flex items-center px-6 py-3 bg-white rounded-full shadow-lg border border-gray-200">
               <Shield className="w-5 h-5 text-green-500 mr-3" />
@@ -500,11 +601,9 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 💬 TESTIMONIOS - SIMPLIFICADO */}
+      {/* 💬 TESTIMONIOS */}
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          {/* Header */}
           <div className="text-center mb-20">
             <div className="inline-flex items-center px-4 py-2 bg-yellow-50 rounded-full mb-6">
               <Star className="w-4 h-4 text-yellow-600 mr-2" />
@@ -518,23 +617,18 @@ const LandingPage = () => {
             </h2>
           </div>
           
-          {/* Testimonio actual */}
           <div className="max-w-4xl mx-auto">
             <div className="bg-gray-50 rounded-3xl p-12 text-center">
-              
-              {/* Rating */}
               <div className="flex justify-center mb-8">
                 {[...Array(testimonials[currentTestimonial].rating)].map((_, i) => (
                   <Star key={i} className="w-6 h-6 text-yellow-500 fill-current" />
                 ))}
               </div>
               
-              {/* Testimonio */}
               <blockquote className="text-2xl md:text-3xl text-gray-700 mb-8 leading-relaxed font-medium">
                 "{testimonials[currentTestimonial].text}"
               </blockquote>
               
-              {/* Autor */}
               <div>
                 <div className="font-bold text-gray-900 text-xl">
                   {testimonials[currentTestimonial].name}
@@ -545,7 +639,6 @@ const LandingPage = () => {
               </div>
             </div>
             
-            {/* Indicadores */}
             <div className="flex justify-center mt-8 space-x-3">
               {testimonials.map((_, index) => (
                 <button
@@ -563,12 +656,11 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 📞 CONTACTO - INFORMACIÓN ESENCIAL */}
+      {/* 📞 CONTACTO */}
       <section id="contacto" className="py-24 bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             
-            {/* Información */}
             <div className="space-y-12">
               <div>
                 <h2 className="text-4xl md:text-5xl font-bold mb-6">
@@ -579,7 +671,6 @@ const LandingPage = () => {
                 </p>
               </div>
               
-              {/* Información de contacto */}
               <div className="space-y-6">
                 <div className="flex items-center">
                   <div className="w-12 h-12 bg-white bg-opacity-10 rounded-xl flex items-center justify-center mr-4">
@@ -612,7 +703,6 @@ const LandingPage = () => {
                 </div>
               </div>
               
-              {/* Redes sociales */}
               <div className="flex space-x-4">
                 {Object.entries(gymConfig.social).map(([platform, data]) => {
                   if (!data.url) return null;
@@ -673,12 +763,11 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 🔽 FOOTER - SIMPLIFICADO */}
+      {/* 🔽 FOOTER */}
       <footer className="bg-gray-800 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
             
-            {/* Logo y descripción */}
             <div className="space-y-6">
               <GymLogo size="lg" variant="white" showText={true} />
               <p className="text-gray-400 leading-relaxed">
@@ -686,18 +775,27 @@ const LandingPage = () => {
               </p>
             </div>
             
-            {/* Enlaces rápidos */}
             <div>
               <h3 className="font-semibold mb-6 text-lg">Enlaces Rápidos</h3>
               <ul className="space-y-3">
                 <li><a href="#inicio" className="text-gray-400 hover:text-white transition-colors">Inicio</a></li>
                 <li><a href="#servicios" className="text-gray-400 hover:text-white transition-colors">Servicios</a></li>
                 <li><a href="#planes" className="text-gray-400 hover:text-white transition-colors">Planes</a></li>
+                <li><a href="#tienda" className="text-gray-400 hover:text-white transition-colors">Tienda</a></li>
                 <li><Link to="/login" className="text-gray-400 hover:text-white transition-colors">Iniciar Sesión</Link></li>
               </ul>
             </div>
             
-            {/* Contacto */}
+            <div>
+              <h3 className="font-semibold mb-6 text-lg">Tienda</h3>
+              <ul className="space-y-3">
+                <li><Link to="/store?category=suplementos" className="text-gray-400 hover:text-white transition-colors">Suplementos</Link></li>
+                <li><Link to="/store?category=ropa" className="text-gray-400 hover:text-white transition-colors">Ropa Deportiva</Link></li>
+                <li><Link to="/store?category=accesorios" className="text-gray-400 hover:text-white transition-colors">Accesorios</Link></li>
+                <li><Link to="/store?category=equipamiento" className="text-gray-400 hover:text-white transition-colors">Equipamiento</Link></li>
+              </ul>
+            </div>
+            
             <div>
               <h3 className="font-semibold mb-6 text-lg">Contáctanos</h3>
               <ul className="space-y-3">
@@ -706,7 +804,6 @@ const LandingPage = () => {
                 <li className="text-gray-400">{gymConfig.contact.address}</li>
               </ul>
               
-              {/* Redes sociales en footer */}
               <div className="flex space-x-4 mt-6">
                 {Object.entries(gymConfig.social).map(([platform, data]) => {
                   if (!data.url) return null;
@@ -729,7 +826,6 @@ const LandingPage = () => {
             
           </div>
           
-          {/* Copyright */}
           <div className="border-t border-gray-700 pt-8 mt-12 text-center">
             <p className="text-gray-400">
               &copy; 2024 {gymConfig.name}. Todos los derechos reservados.
@@ -738,6 +834,160 @@ const LandingPage = () => {
         </div>
       </footer>
       
+      {/* 🛍️ MODAL DE VISTA PREVIA DE TIENDA */}
+      {showStorePreview && (
+        <StorePreviewModal 
+          onClose={() => setShowStorePreview(false)}
+          products={FEATURED_PRODUCTS}
+          onAddToCart={addItem}
+        />
+      )}
+      
+    </div>
+  );
+};
+
+// 🛍️ COMPONENTE: Tarjeta de producto para landing
+const ProductPreviewCard = ({ product, onAddToCart }) => {
+  const [quantity, setQuantity] = useState(1);
+  
+  const handleAddToCart = () => {
+    onAddToCart(product, { quantity });
+    setQuantity(1);
+  };
+  
+  const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+  
+  return (
+    <div className="bg-white rounded-2xl shadow-lg overflow-hidden group hover:shadow-xl transition-all duration-300">
+      
+      <div className="relative overflow-hidden">
+        <img 
+          src={product.image}
+          alt={product.name}
+          className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        
+        {/* Badges */}
+        <div className="absolute top-4 left-4 space-y-2">
+          {product.badge && (
+            <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+              {product.badge}
+            </span>
+          )}
+          {discount > 0 && (
+            <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+              -{discount}%
+            </span>
+          )}
+        </div>
+        
+        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button className="w-10 h-10 bg-white text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-100">
+            <Eye className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+      
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-primary-600 font-medium">{product.category}</span>
+          <div className="flex items-center">
+            <Star className="w-4 h-4 text-yellow-400 fill-current" />
+            <span className="ml-1 text-sm text-gray-600">
+              {product.rating} ({product.reviews})
+            </span>
+          </div>
+        </div>
+        
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          {product.name}
+        </h3>
+        <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+          {product.description}
+        </p>
+        
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <span className="text-2xl font-bold text-gray-900">Q{product.price}</span>
+            {product.originalPrice > product.price && (
+              <span className="text-gray-500 text-sm line-through ml-2">
+                Q{product.originalPrice}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <span className="w-8 text-center text-sm font-medium">{quantity}</span>
+            <button
+              onClick={() => setQuantity(quantity + 1)}
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        
+        <button 
+          onClick={handleAddToCart}
+          className="w-full btn-primary py-3 font-semibold"
+        >
+          Agregar al carrito
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// 🛍️ COMPONENTE: Modal de vista previa de tienda
+const StorePreviewModal = ({ onClose, products, onAddToCart }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900">
+            🛍️ Vista previa de la tienda
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="p-6 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            {products.map((product) => (
+              <ProductPreviewCard 
+                key={product.id} 
+                product={product} 
+                onAddToCart={onAddToCart}
+              />
+            ))}
+          </div>
+          
+          <div className="text-center">
+            <Link 
+              to="/store"
+              onClick={onClose}
+              className="btn-primary px-8 py-4 text-lg font-semibold"
+            >
+              Ver tienda completa
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
