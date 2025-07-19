@@ -1,7 +1,5 @@
 // src/App.js
-// UBICACIÓN: /gym-frontend/src/App.js
-// FUNCIÓN: Componente principal CON DEBUG INTEGRADO para Elite Fitness
-// CONECTA CON: LandingPage, AuthContext, y debugging completo
+// FUNCIÓN: Componente principal LISTO PARA RENDER (debug comentado)
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -89,7 +87,8 @@ function getDashboardPath(role) {
   }
 }
 
-// 🔍 FUNCIÓN DE DEBUG INTEGRADA
+// 🔍 FUNCIONES DE DEBUG COMENTADAS (para que no cause errores)
+/*
 function runCompleteDebug() {
   console.clear();
   
@@ -171,7 +170,6 @@ function runCompleteDebug() {
   console.log('🔚 =====================================');
 }
 
-// 🔍 FUNCIÓN PARA VERIFICAR BACKEND
 async function debugBackendConnection() {
   console.log('🌐 6. VERIFICANDO CONEXIÓN AL BACKEND:');
   console.log('----------------------------------');
@@ -216,6 +214,7 @@ async function debugBackendConnection() {
   
   console.log('');
 }
+*/
 
 // 🚀 COMPONENTE PRINCIPAL DE LA APLICACIÓN
 function App() {
@@ -223,10 +222,12 @@ function App() {
   const { isMobile, addNotification } = useApp();
   const location = useLocation();
   
-  // 🔥 EFECTO PRINCIPAL: DEBUG COMPLETO AL INICIAR
+  // 🔥 EFECTO PRINCIPAL COMENTADO (para evitar errores con variables de entorno)
   useEffect(() => {
     console.log('🚀 ELITE FITNESS CLUB - INICIANDO APLICACIÓN...');
     
+    // COMENTADO PARA RENDER:
+    /*
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
       setTimeout(() => {
         runCompleteDebug();
@@ -248,10 +249,13 @@ function App() {
         clearInterval(interval);
       };
     }
+    */
   }, []);
   
-  // 📱 EFECTO: Notificar cambios de ruta en desarrollo
+  // 📱 EFECTO COMENTADO (para evitar errores con variables de entorno)
   useEffect(() => {
+    // COMENTADO PARA RENDER:
+    /*
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
       console.log('🧭 Elite Fitness - Navegando a:', location.pathname);
       
@@ -263,6 +267,7 @@ function App() {
         console.warn('⚠️ REACT_APP_LOGO_URL no está definida después de la navegación');
       }
     }
+    */
   }, [location]);
   
   // 🔔 EFECTO: Notificación de bienvenida (solo una vez)
@@ -296,21 +301,22 @@ function App() {
     }
   }, [isMobile]);
   
-  const showDebugInfo = process.env.REACT_APP_DEBUG_MODE === 'true' && process.env.NODE_ENV === 'development';
+  // ✅ DESHABILITADO PARA RENDER (evita errores)
+  const showDebugInfo = false;
 
   return (
     <ErrorBoundary>
       <div className="app min-h-screen bg-gray-50">
         
-        {/* 🔍 DEBUG INFO EN PANTALLA (solo en desarrollo) */}
+        {/* 🔍 DEBUG INFO DESHABILITADO PARA RENDER */}
         {showDebugInfo && (
           <div className="fixed top-0 right-0 z-50 bg-black bg-opacity-80 text-white p-4 text-xs max-w-xs">
             <div className="font-bold mb-2">🔍 DEBUG ELITE FITNESS</div>
-            <div>Logo: {process.env.REACT_APP_LOGO_URL ? '✅' : '❌'}</div>
-            <div>Nombre: {process.env.REACT_APP_GYM_NAME || '❌'}</div>
-            <div>API: {process.env.REACT_APP_API_URL ? '✅' : '❌'}</div>
+            <div>Logo: ✅</div>
+            <div>Nombre: Elite Fitness Club</div>
+            <div>API: ✅</div>
             <div className="mt-2 text-yellow-300">
-              Revisa la consola para más detalles
+              Modo producción
             </div>
           </div>
         )}
@@ -399,33 +405,10 @@ function App() {
 
 export default App;
 
-// 📝 NOTAS SOBRE EL DEBUG INTEGRADO:
-// 
-// ✅ DEBUG AUTOMÁTICO:
-// - Se ejecuta automáticamente al cargar la aplicación
-// - Verifica todas las variables de entorno
-// - Comprueba si la imagen del logo existe
-// - Testa la conexión al backend
-// - Muestra información detallada en la consola
-// 
-// 🔍 INFORMACIÓN QUE MUESTRA:
-// - Variables de entorno del gimnasio
-// - Configuración del logo (con verificación de existencia)
-// - Redes sociales configuradas
-// - Estadísticas del gimnasio
-// - Estado de conexión al backend
-// 
-// 🛠️ SOLUCIONES AUTOMÁTICAS:
-// - Detecta problemas comunes
-// - Sugiere soluciones específicas
-// - Muestra enlaces para verificar manualmente
-// 
-// 📱 DEBUG EN PANTALLA:
-// - Muestra indicadores visuales en la esquina superior derecha
-// - Solo visible en modo desarrollo
-// - Muestra si los componentes principales están configurados
-// 
-// 🔄 DEBUG PERIÓDICO:
-// - Verifica la conexión al backend cada minuto
-// - Solo en modo desarrollo
-// - Ayuda a detectar cuando el backend se desconecta
+// 📝 CAMBIOS REALIZADOS PARA RENDER:
+// ✅ Funciones de debug completamente comentadas
+// ✅ useEffect de debug comentados 
+// ✅ showDebugInfo = false (hardcodeado)
+// ✅ No más dependencias de process.env problemáticas
+// ✅ Mantiene toda la funcionalidad de rutas
+// ✅ Compatible con Render sin variables de entorno
