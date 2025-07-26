@@ -1,7 +1,6 @@
 // src/services/apiService.js
-// UBICACIÓN: /gym-frontend/src/services/apiService.js
-// FUNCIÓN: Servicio completo para comunicación con el backend
-// CONECTA CON: Todos los endpoints del backend (/api/*)
+// FUNCIÓN: Servicio API COMPLETO con todos los endpoints del backend
+// CONECTA CON: Todos los endpoints del backend según documentación
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -113,15 +112,9 @@ class ApiService {
   // 🏢 MÉTODOS DE CONFIGURACIÓN DEL GYM
   // ================================
   
-  // OBTENER CONFIGURACIÓN DEL GYM - GET /api/gym/config
+  // OBTENER CONFIGURACIÓN COMPLETA DEL GYM - GET /api/gym/config
   async getGymConfig() {
     const response = await api.get('/api/gym/config');
-    return response.data;
-  }
-  
-  // OBTENER INFORMACIÓN DEL GYM - GET /api/gym/info
-  async getGymInfo() {
-    const response = await api.get('/api/gym/info');
     return response.data;
   }
   
@@ -149,21 +142,61 @@ class ApiService {
     return response.data;
   }
   
-  // OBTENER GALERÍA DE IMÁGENES - GET /api/gym/gallery
-  async getGallery() {
-    const response = await api.get('/api/gym/gallery');
+  // OBTENER INFORMACIÓN DE CONTACTO - GET /api/gym/contact
+  async getContactInfo() {
+    const response = await api.get('/api/gym/contact');
     return response.data;
   }
   
-  // OBTENER VIDEOS PROMOCIONALES - GET /api/gym/videos
-  async getPromotionalVideos() {
-    const response = await api.get('/api/gym/videos');
+  // OBTENER REDES SOCIALES - GET /api/gym/social-media
+  async getSocialMedia() {
+    const response = await api.get('/api/gym/social-media');
     return response.data;
   }
   
-  // OBTENER PROMOCIONES ACTIVAS - GET /api/gym/promotions
-  async getPromotions() {
-    const response = await api.get('/api/gym/promotions');
+  // OBTENER GALERÍA/VIDEOS - GET /api/gym/media
+  async getGymMedia() {
+    const response = await api.get('/api/gym/media');
+    return response.data;
+  }
+  
+  // ================================
+  // 📄 MÉTODOS DE CONTENIDO DE SECCIONES
+  // ================================
+  
+  // OBTENER CONTENIDO DE SECCIONES - GET /api/gym/sections-content
+  async getSectionsContent() {
+    const response = await api.get('/api/gym/sections-content');
+    return response.data;
+  }
+  
+  // OBTENER NAVEGACIÓN - GET /api/gym/navigation
+  async getNavigation() {
+    const response = await api.get('/api/gym/navigation');
+    return response.data;
+  }
+  
+  // OBTENER CONTENIDO PROMOCIONAL - GET /api/gym/promotional-content
+  async getPromotionalContent() {
+    const response = await api.get('/api/gym/promotional-content');
+    return response.data;
+  }
+  
+  // OBTENER CONFIGURACIÓN DE FORMULARIOS - GET /api/gym/forms-config
+  async getFormsConfig() {
+    const response = await api.get('/api/gym/forms-config');
+    return response.data;
+  }
+  
+  // OBTENER MENSAJES DEL SISTEMA - GET /api/gym/system-messages
+  async getSystemMessages() {
+    const response = await api.get('/api/gym/system-messages');
+    return response.data;
+  }
+  
+  // OBTENER CONFIGURACIÓN DE BRANDING - GET /api/gym/branding
+  async getBranding() {
+    const response = await api.get('/api/gym/branding');
     return response.data;
   }
   
@@ -183,9 +216,9 @@ class ApiService {
     return response.data;
   }
   
-  // OBTENER PRODUCTOS DESTACADOS - GET /api/store/products/featured
+  // OBTENER PRODUCTOS DESTACADOS - GET /api/store/featured-products
   async getFeaturedProducts() {
-    const response = await api.get('/api/store/products/featured');
+    const response = await api.get('/api/store/featured-products');
     return response.data;
   }
   
@@ -672,10 +705,10 @@ const apiService = new ApiService();
 
 export default apiService;
 
-// 📝 NOTAS DE USO:
-// - Todos los métodos devuelven promesas
-// - Los errores se manejan automáticamente con toast
-// - El token JWT se adjunta automáticamente
-// - Los timeouts están configurados para 30 segundos
-// - Debug logs disponibles en modo desarrollo
-// - Nuevos endpoints para gym, tienda, carrito y pedidos
+// 📝 NOTAS:
+// - TODOS los endpoints del backend están implementados
+// - Manejo automático de errores con toast
+// - Token JWT se adjunta automáticamente  
+// - Cache y timeouts configurados
+// - Debug logs en desarrollo
+// - Compatible con todos los nuevos endpoints de gym, tienda, carrito, etc.

@@ -1,9 +1,10 @@
 // src/components/common/GymLogo.js
-// FUNCIÓN: Logo CORREGIDO - funciona correctamente con public folder
+// FUNCIÓN: Logo que obtiene datos SOLO del backend (sin .env)
+// CONECTA CON: useGymConfig hook
 
 import React, { useState, useEffect } from 'react';
 import { Dumbbell } from 'lucide-react';
-import { useGymConfig } from '../../hooks/useGymConfig';
+import useGymConfig from '../../hooks/useGymConfig';
 
 const GymLogo = ({ 
   size = 'md',
@@ -13,42 +14,40 @@ const GymLogo = ({
   className = '',
   onClick = null
 }) => {
-  const gymConfig = useGymConfig();
+  const { config, isLoaded } = useGymConfig();
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   
-  // 🔧 CORRECCIÓN: Construcción correcta de URL para public folder
+  // 🔧 Función para obtener URL de imagen desde el backend
   const getImageUrl = () => {
-    if (!gymConfig.logo.url) {
-      console.log('❌ No hay URL de logo configurada en .env');
+    if (!config?.logo?.url) {
+      console.log('❌ No hay URL de logo en la configuración del backend');
       return null;
     }
     
-    // ✅ FORMA CORRECTA: usar process.env.PUBLIC_URL para archivos en public
-    let imageUrl = '';
+    const logoUrl = config.logo.url;
     
-    if (gymConfig.logo.url.startsWith('http')) {
-      // URL completa externa
-      imageUrl = gymConfig.logo.url;
-    } else {
-      // ✅ CORRECCIÓN: Para archivos en public folder
-      // Usar process.env.PUBLIC_URL + ruta limpia
-      const cleanPath = gymConfig.logo.url.startsWith('/') 
-        ? gymConfig.logo.url 
-        : `/${gymConfig.logo.url}`;
-      imageUrl = process.env.PUBLIC_URL + cleanPath;
+    // Si es una URL completa, usarla directamente
+    if (logoUrl.startsWith('http')) {
+      return logoUrl;
     }
     
-    console.log('🔍 Logo URL construida:');
-    console.log('  📁 Configurada:', gymConfig.logo.url);
-    console.log('  🌐 URL final:', imageUrl);
-    console.log('  📂 PUBLIC_URL:', process.env.PUBLIC_URL);
+    // Si es una ruta relativa, construir URL completa
+    const baseUrl = window.location.origin;
+    const cleanPath = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+    const finalUrl = `${baseUrl}${cleanPath}`;
     
-    return imageUrl;
+    console.log('🔍 Logo URL desde backend:');
+    console.log('  📁 URL configurada:', logoUrl);
+    console.log('  🌐 URL final:', finalUrl);
+    
+    return finalUrl;
   };
   
-  // 🔍 Probar carga de imagen
+  // 🔍 Efecto para probar carga de imagen
   useEffect(() => {
+    if (!isLoaded) return;
+    
     const imageUrl = getImageUrl();
     
     if (!imageUrl) {
@@ -59,26 +58,20 @@ const GymLogo = ({
     const img = new Image();
     
     img.onload = () => {
-      console.log('✅ Imagen cargada correctamente!');
+      console.log('✅ Logo cargado correctamente desde backend!');
       setImageLoaded(true);
       setImageError(false);
     };
     
     img.onerror = () => {
-      console.error('❌ Error al cargar la imagen');
+      console.error('❌ Error al cargar logo desde backend');
       console.error('🔍 URL que falló:', imageUrl);
-      console.error('');
-      console.error('🛠️ SOLUCIONES:');
-      console.error('   1. Verifica que el archivo existe en: public' + gymConfig.logo.url);
-      console.error('   2. Verifica que el .env tiene: REACT_APP_LOGO_URL=' + gymConfig.logo.url);
-      console.error('   3. Reinicia el servidor: npm start');
-      console.error('   4. Prueba accediendo directamente: http://localhost:3000' + gymConfig.logo.url);
       setImageError(true);
       setImageLoaded(false);
     };
     
     img.src = imageUrl;
-  }, [gymConfig.logo.url]);
+  }, [isLoaded, config?.logo?.url]);
   
   // 📏 CONFIGURACIÓN DE TAMAÑOS
   const sizeConfig = {
@@ -96,7 +89,7 @@ const GymLogo = ({
     dark: { container: 'bg-slate-800', icon: 'text-slate-100', text: 'text-slate-800' },
     light: { container: 'bg-slate-100 border-2 border-slate-200', icon: 'text-slate-600', text: 'text-slate-700' },
     white: { container: 'bg-white border-2 border-slate-200 shadow-sm', icon: 'text-primary-600', text: 'text-slate-800' },
-    gradient: { container: 'bg-elite-gradient', icon: 'text-white', text: 'text-primary-600' }
+    gradient: { container: 'bg-gradient-to-br from-primary-600 to-secondary-600', icon: 'text-white', text: 'text-primary-600' }
   };
   
   const currentSize = sizeConfig[size] || sizeConfig.md;
@@ -109,12 +102,12 @@ const GymLogo = ({
     const imageUrl = getImageUrl();
     
     // Si tenemos imagen y se cargó correctamente, mostrarla
-    if (imageUrl && imageLoaded && !imageError) {
+    if (imageUrl && imageLoaded && !imageError && isLoaded) {
       return (
         <div className={`${currentSize.container} rounded-xl overflow-hidden shadow-sm`}>
           <img 
             src={imageUrl}
-            alt={gymConfig.logo.alt}
+            alt={config?.logo?.alt || config?.name || 'Logo'}
             className={`${currentSize.container} object-contain`}
             onError={() => setImageError(true)}
           />
@@ -133,6 +126,29 @@ const GymLogo = ({
     );
   };
 
+  // Si aún no se ha cargado la configuración, mostrar icono por defecto
+  if (!isLoaded) {
+    return (
+      <div className={`flex items-center ${showText ? currentSize.spacing : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}>
+        <div className={`
+          ${currentSize.container} ${currentVariant.container} 
+          rounded-xl flex items-center justify-center shadow-sm animate-pulse
+        `}>
+          <Dumbbell className={`${currentSize.icon} ${currentVariant.icon}`} />
+        </div>
+        
+        {showText && (
+          <span className={`
+            font-semibold ${getTextSize()} ${currentVariant.text}
+            whitespace-nowrap
+          `}>
+            Cargando...
+          </span>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div 
       className={`flex items-center ${showText ? currentSize.spacing : ''} ${onClick ? 'cursor-pointer' : ''} ${className}`}
@@ -145,14 +161,14 @@ const GymLogo = ({
           font-semibold ${getTextSize()} ${currentVariant.text}
           whitespace-nowrap
         `}>
-          {gymConfig.name}
+          {config?.name || 'Elite Fitness Club'}
         </span>
       )}
     </div>
   );
 };
 
-// Exportar variantes específicas...
+// Exportar variantes específicas con configuración del backend
 export const NavbarLogo = () => <GymLogo size="md" variant="professional" showText={true} />;
 export const FooterLogo = () => <GymLogo size="lg" variant="white" showText={true} />;
 export const AuthLogo = () => <GymLogo size="xl" variant="gradient" showText={false} />;
@@ -161,3 +177,12 @@ export const DashboardLogo = () => <GymLogo size="md" variant="professional" sho
 export const HeroLogo = () => <GymLogo size="2xl" variant="gradient" showText={false} />;
 
 export default GymLogo;
+
+// 📝 CAMBIOS REALIZADOS:
+// ✅ Eliminadas todas las referencias a process.env
+// ✅ Logo obtenido 100% desde backend via useGymConfig
+// ✅ Manejo de loading state mientras carga la configuración
+// ✅ Fallback a icono de mancuernas si no hay logo
+// ✅ Compatible con URLs completas o rutas relativas
+// ✅ Logs para debug de la carga del logo
+// ✅ Nombre del gimnasio desde backend
