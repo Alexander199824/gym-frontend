@@ -1,5 +1,5 @@
 // src/hooks/useMembershipPlans.js
-// FUNCIÓN: Hook para planes de membresía del gimnasio
+// FUNCIÓN: Hook para planes de membresía del gimnasio - CORREGIDO
 // CONECTA CON: GET /api/gym/membership-plans
 
 import { useState, useEffect } from 'react';
@@ -29,9 +29,14 @@ const useMembershipPlans = () => {
       
       console.log('💳 Obteniendo planes de membresía desde backend...');
       
+      // Verificar que apiService tenga la función
+      if (!apiService || typeof apiService.getMembershipPlans !== 'function') {
+        throw new Error('apiService.getMembershipPlans no está disponible');
+      }
+      
       const response = await apiService.getMembershipPlans();
       
-      if (response.success && response.data) {
+      if (response && response.success && response.data && Array.isArray(response.data)) {
         console.log('✅ Planes de membresía obtenidos:', response.data);
         
         // Ordenar planes - populares primero, luego por precio
@@ -42,22 +47,21 @@ const useMembershipPlans = () => {
           // Luego por orden si existe
           if (a.order && b.order) return a.order - b.order;
           // Finalmente por precio
-          return a.price - b.price;
+          return (a.price || 0) - (b.price || 0);
         });
         
         setPlans(sortedPlans);
         setLastFetch(Date.now());
       } else {
-        throw new Error('Respuesta inválida del servidor');
+        console.warn('⚠️ Respuesta inválida del servidor para planes de membresía');
+        setPlans(defaultPlans);
       }
     } catch (error) {
       console.error('❌ Error al obtener planes de membresía:', error);
       setError(error.message);
       
       // En caso de error, usar planes por defecto (vacío)
-      if (!plans) {
-        setPlans(defaultPlans);
-      }
+      setPlans(defaultPlans);
     } finally {
       setLoading(false);
     }
@@ -75,40 +79,45 @@ const useMembershipPlans = () => {
 
   // 🔍 Función para obtener plan por ID
   const getPlanById = (id) => {
-    return plans?.find(plan => plan.id === id);
+    if (!plans || !Array.isArray(plans)) return null;
+    return plans.find(plan => plan.id === id);
   };
 
   // 🔍 Función para obtener plan por nombre
   const getPlanByName = (name) => {
-    return plans?.find(plan => 
-      plan.name.toLowerCase().includes(name.toLowerCase())
+    if (!plans || !Array.isArray(plans)) return null;
+    return plans.find(plan => 
+      plan.name && plan.name.toLowerCase().includes(name.toLowerCase())
     );
   };
 
   // ⭐ Función para obtener planes populares
   const getPopularPlans = () => {
-    return plans?.filter(plan => plan.popular) || [];
+    if (!plans || !Array.isArray(plans)) return [];
+    return plans.filter(plan => plan.popular);
   };
 
   // 💰 Función para obtener planes con descuento
   const getDiscountedPlans = () => {
-    return plans?.filter(plan => 
+    if (!plans || !Array.isArray(plans)) return [];
+    return plans.filter(plan => 
       plan.originalPrice && plan.originalPrice > plan.price
-    ) || [];
+    );
   };
 
   // 📱 Función para obtener planes para móvil (información compacta)
   const getMobilePlans = () => {
-    return plans?.map(plan => ({
+    if (!plans || !Array.isArray(plans)) return [];
+    return plans.map(plan => ({
       ...plan,
       shortFeatures: plan.features?.slice(0, 3) || [],
       hasMoreFeatures: plan.features && plan.features.length > 3
-    })) || [];
+    }));
   };
 
   // 💲 Función para calcular descuento de un plan
   const getDiscount = (plan) => {
-    if (!plan.originalPrice || plan.originalPrice <= plan.price) {
+    if (!plan || !plan.originalPrice || plan.originalPrice <= plan.price) {
       return 0;
     }
     return Math.round(((plan.originalPrice - plan.price) / plan.originalPrice) * 100);
@@ -116,12 +125,13 @@ const useMembershipPlans = () => {
 
   // 💰 Función para formatear precio
   const formatPrice = (price) => {
+    if (typeof price !== 'number') return 'Q0.00';
     return `Q${price.toFixed(2)}`;
   };
 
   // 🏷️ Función para obtener tipo de duración únicos
   const getDurationTypes = () => {
-    if (!plans) return [];
+    if (!plans || !Array.isArray(plans)) return [];
     
     const durations = new Set();
     plans.forEach(plan => {
@@ -135,14 +145,17 @@ const useMembershipPlans = () => {
 
   // 🔍 Función para filtrar planes por duración
   const getPlansByDuration = (duration) => {
-    return plans?.filter(plan => plan.duration === duration) || [];
+    if (!plans || !Array.isArray(plans)) return [];
+    return plans.filter(plan => plan.duration === duration);
   };
 
   // 📊 Función para obtener estadísticas de planes
   const getPlansStats = () => {
-    if (!plans) return null;
+    if (!plans || !Array.isArray(plans) || plans.length === 0) return null;
     
-    const prices = plans.map(p => p.price);
+    const prices = plans.map(p => p.price || 0).filter(p => p > 0);
+    if (prices.length === 0) return null;
+    
     const avgPrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
     
     return {
@@ -160,26 +173,26 @@ const useMembershipPlans = () => {
 
   // 🎯 Función para verificar si hay planes válidos
   const hasValidPlans = () => {
-    return plans && plans.length > 0;
+    return plans && Array.isArray(plans) && plans.length > 0;
   };
 
   // 🔍 Función para buscar planes
   const searchPlans = (query) => {
-    if (!plans || !query) return plans || [];
+    if (!plans || !Array.isArray(plans) || !query) return plans || [];
     
     const searchTerm = query.toLowerCase();
     return plans.filter(plan =>
-      plan.name.toLowerCase().includes(searchTerm) ||
-      plan.description?.toLowerCase().includes(searchTerm) ||
-      plan.features?.some(feature => 
+      (plan.name && plan.name.toLowerCase().includes(searchTerm)) ||
+      (plan.description && plan.description.toLowerCase().includes(searchTerm)) ||
+      (plan.features && plan.features.some(feature => 
         feature.toLowerCase().includes(searchTerm)
-      )
+      ))
     );
   };
 
   // 🎨 Función para obtener planes formateados para display
   const getDisplayPlans = () => {
-    if (!plans) return [];
+    if (!plans || !Array.isArray(plans)) return [];
     
     return plans.map(plan => ({
       ...plan,
@@ -192,9 +205,9 @@ const useMembershipPlans = () => {
       // Mapear iconos
       iconName: plan.icon || (plan.popular ? 'Crown' : 'Shield'),
       // Información adicional
-      isBasic: plan.name.toLowerCase().includes('básico') || plan.name.toLowerCase().includes('basic'),
-      isPremium: plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('pro'),
-      isVIP: plan.name.toLowerCase().includes('vip') || plan.name.toLowerCase().includes('elite')
+      isBasic: plan.name && plan.name.toLowerCase().includes('básico') || plan.name.toLowerCase().includes('basic'),
+      isPremium: plan.name && plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('pro'),
+      isVIP: plan.name && plan.name.toLowerCase().includes('vip') || plan.name.toLowerCase().includes('elite')
     }));
   };
 
@@ -204,32 +217,41 @@ const useMembershipPlans = () => {
     return popularPlans.length > 0 ? popularPlans[0] : null;
   };
 
-  // 💎 Función para obtener el plan más caro (premium)
+  // 💎 Función para obtener el plan más caro (premium) - CORREGIDA
   const getPremiumPlan = () => {
-    if (!plans) return null;
-    return plans.reduce((prev, current) => 
-      (prev.price > current.price) ? prev : current
-    );
+    if (!plans || !Array.isArray(plans) || plans.length === 0) return null;
+    
+    // CORREGIR: Agregar valor inicial al reduce
+    return plans.reduce((prev, current) => {
+      const prevPrice = prev.price || 0;
+      const currentPrice = current.price || 0;
+      return prevPrice > currentPrice ? prev : current;
+    }, plans[0]); // Valor inicial: primer elemento del array
   };
 
-  // 💰 Función para obtener el plan más económico
+  // 💰 Función para obtener el plan más económico - CORREGIDA
   const getCheapestPlan = () => {
-    if (!plans) return null;
-    return plans.reduce((prev, current) => 
-      (prev.price < current.price) ? prev : current
-    );
+    if (!plans || !Array.isArray(plans) || plans.length === 0) return null;
+    
+    // CORREGIR: Agregar valor inicial al reduce
+    return plans.reduce((prev, current) => {
+      const prevPrice = prev.price || Infinity;
+      const currentPrice = current.price || Infinity;
+      return prevPrice < currentPrice ? prev : current;
+    }, plans[0]); // Valor inicial: primer elemento del array
   };
 
   // 🎯 Función para filtrar planes por precio
   const getPlansByPriceRange = (minPrice, maxPrice) => {
-    return plans?.filter(plan => 
+    if (!plans || !Array.isArray(plans)) return [];
+    return plans.filter(plan => 
       plan.price >= minPrice && plan.price <= maxPrice
-    ) || [];
+    );
   };
 
   // 🏆 Función para recomendar plan basado en características
   const getRecommendedPlan = (preferences = {}) => {
-    if (!plans) return null;
+    if (!plans || !Array.isArray(plans) || plans.length === 0) return null;
     
     let scores = plans.map(plan => ({
       plan,
@@ -309,10 +331,10 @@ const useMembershipPlans = () => {
     stats: getPlansStats(),
     
     // Estado útil
-    isLoaded: !loading && !!plans && !error,
+    isLoaded: !loading && plans !== null && !error,
     hasError: !!error,
-    isEmpty: !plans || plans.length === 0,
-    count: plans?.length || 0,
+    isEmpty: !plans || !Array.isArray(plans) || plans.length === 0,
+    count: plans && Array.isArray(plans) ? plans.length : 0,
     hasPopular: getPopularPlans().length > 0,
     hasDiscounts: getDiscountedPlans().length > 0
   };

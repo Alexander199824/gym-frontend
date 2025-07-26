@@ -2,7 +2,8 @@
 // FUNCIÓN: Servicio para manejar contenido dinámico del gimnasio SOLO desde backend
 // CONECTA CON: Backend API /api/gym/content (SIN fallbacks hardcodeados)
 
-import { apiService } from './apiService';
+// ✅ IMPORTACIÓN CORREGIDA - default export en lugar de named export
+import apiService from './apiService';
 
 class GymContentService {
   constructor() {
@@ -35,12 +36,23 @@ class GymContentService {
         return response.data;
       }
       
-      // Si no hay datos en el backend, retornar null
-      return null;
+      // Si el backend no tiene datos, retornar estructura con mensaje "Not Found"
+      return {
+        status: 'not_found',
+        message: 'Contenido no encontrado en el servidor',
+        data: null
+      };
       
     } catch (error) {
       console.error('Error fetching gym content:', error);
-      throw error;
+      
+      // Si hay error de conexión, retornar estructura con error
+      return {
+        status: 'error',
+        message: 'Error de conexión con el servidor',
+        error: error.message,
+        data: null
+      };
     }
   }
 
@@ -53,12 +65,25 @@ class GymContentService {
         return response.data;
       }
       
-      // Si no hay datos, retornar null
-      return null;
+      // Si no hay datos para la sección, retornar estructura con mensaje "Not Found"
+      return {
+        status: 'not_found',
+        message: `Contenido de la sección "${section}" no encontrado`,
+        section,
+        data: null
+      };
       
     } catch (error) {
       console.error(`Error fetching ${section} content:`, error);
-      throw error;
+      
+      // Si hay error, retornar estructura con error
+      return {
+        status: 'error',
+        message: `Error al obtener contenido de la sección "${section}"`,
+        section,
+        error: error.message,
+        data: null
+      };
     }
   }
 
@@ -120,16 +145,27 @@ class GymContentService {
     try {
       const response = await apiService.get(`${this.baseUrl}/stats`);
       
-      if (response.success) {
+      if (response.success && response.data) {
         return response.data;
       }
       
-      // Si no hay stats en backend, retornar null
-      return null;
+      // Si no hay estadísticas en backend, retornar estructura con mensaje "Not Found"
+      return {
+        status: 'not_found',
+        message: 'Estadísticas de contenido no encontradas',
+        data: null
+      };
       
     } catch (error) {
       console.error('Error fetching content stats:', error);
-      throw error;
+      
+      // Si hay error, retornar estructura con error
+      return {
+        status: 'error',
+        message: 'Error al obtener estadísticas de contenido',
+        error: error.message,
+        data: null
+      };
     }
   }
 
@@ -167,6 +203,63 @@ class GymContentService {
       console.error('Error resetting content:', error);
       throw error;
     }
+  }
+
+  // 🛠️ MÉTODOS UTILITARIOS PARA MANEJAR ESTADOS
+
+  // Verificar si la respuesta es "not found"
+  isNotFound(response) {
+    return response && response.status === 'not_found';
+  }
+
+  // Verificar si la respuesta tiene error
+  hasError(response) {
+    return response && response.status === 'error';
+  }
+
+  // Obtener mensaje de estado apropiado
+  getStatusMessage(response) {
+    if (this.isNotFound(response)) {
+      return response.message || 'Contenido no encontrado';
+    }
+    
+    if (this.hasError(response)) {
+      return response.message || 'Error al cargar contenido';
+    }
+    
+    return 'Contenido cargado exitosamente';
+  }
+
+  // Obtener datos o fallback
+  getDataOrFallback(response, fallback = null) {
+    if (response && response.data) {
+      return response.data;
+    }
+    
+    return fallback;
+  }
+
+  // Generar estructura de contenido vacío para mostrar "Not Found"
+  createNotFoundResponse(section = 'general', customMessage = null) {
+    return {
+      status: 'not_found',
+      message: customMessage || `Contenido de ${section} no disponible`,
+      section,
+      data: null,
+      timestamp: Date.now()
+    };
+  }
+
+  // Generar estructura de error
+  createErrorResponse(section = 'general', error = 'Error desconocido') {
+    return {
+      status: 'error',
+      message: `Error al cargar ${section}`,
+      section,
+      error,
+      data: null,
+      timestamp: Date.now()
+    };
   }
 }
 

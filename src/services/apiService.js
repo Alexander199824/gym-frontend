@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 // 🔧 CONFIGURACIÓN DE AXIOS
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL, // http://localhost:5000
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
   timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -18,7 +18,7 @@ const api = axios.create({
 // 🔐 INTERCEPTOR DE PETICIONES (Request)
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY);
+    const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -55,7 +55,7 @@ api.interceptors.response.use(
       switch (response.status) {
         case 401:
           console.warn('🔐 Token expirado o inválido');
-          localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY);
+          localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
           
           if (!window.location.pathname.includes('/login')) {
             toast.error('Sesión expirada. Por favor inicia sesión nuevamente.');
@@ -68,7 +68,8 @@ api.interceptors.response.use(
           break;
           
         case 404:
-          toast.error('Recurso no encontrado.');
+          console.error('❌ API Error 404:', error.config?.url);
+          // NO mostrar toast para 404 ya que pueden ser endpoints opcionales
           break;
           
         case 422:
@@ -95,9 +96,10 @@ api.interceptors.response.use(
     } else if (error.code === 'ECONNABORTED') {
       toast.error('La solicitud tardó demasiado. Verifica tu conexión.');
     } else if (error.code === 'ERR_NETWORK') {
-      toast.error('Error de conexión. Verifica que el servidor esté ejecutándose.');
+      console.error('❌ Error de red. Verifica que el servidor esté ejecutándose.');
+      // NO mostrar toast para errores de red al inicio
     } else {
-      toast.error('Error de conexión. Verifica tu internet.');
+      console.error('❌ Error de conexión:', error.message);
     }
     
     console.error('❌ API Error:', error);
@@ -107,6 +109,40 @@ api.interceptors.response.use(
 
 // 🏠 CLASE PRINCIPAL DEL SERVICIO API
 class ApiService {
+  
+  // ================================
+  // 🔧 MÉTODOS GENERALES (REQUERIDOS POR HOOKS)
+  // ================================
+  
+  // MÉTODO GENERAL GET
+  async get(endpoint) {
+    const response = await api.get(endpoint);
+    return response.data;
+  }
+  
+  // MÉTODO GENERAL POST
+  async post(endpoint, data) {
+    const response = await api.post(endpoint, data);
+    return response.data;
+  }
+  
+  // MÉTODO GENERAL PUT
+  async put(endpoint, data) {
+    const response = await api.put(endpoint, data);
+    return response.data;
+  }
+  
+  // MÉTODO GENERAL PATCH
+  async patch(endpoint, data) {
+    const response = await api.patch(endpoint, data);
+    return response.data;
+  }
+  
+  // MÉTODO GENERAL DELETE
+  async delete(endpoint) {
+    const response = await api.delete(endpoint);
+    return response.data;
+  }
   
   // ================================
   // 🏢 MÉTODOS DE CONFIGURACIÓN DEL GYM
@@ -157,6 +193,33 @@ class ApiService {
   // OBTENER GALERÍA/VIDEOS - GET /api/gym/media
   async getGymMedia() {
     const response = await api.get('/api/gym/media');
+    return response.data;
+  }
+  
+  // ================================
+  // 🎉 MÉTODOS DE PROMOCIONES (AGREGADOS)
+  // ================================
+  
+  // OBTENER PROMOCIONES ACTIVAS - GET /api/gym/promotions
+  async getPromotions() {
+    const response = await api.get('/api/gym/promotions');
+    return response.data;
+  }
+  
+  // OBTENER PROMOCIÓN POR ID - GET /api/gym/promotions/:id
+  async getPromotionById(id) {
+    const response = await api.get(`/api/gym/promotions/${id}`);
+    return response.data;
+  }
+  
+  // CREAR PROMOCIÓN - POST /api/gym/promotions
+  async createPromotion(promotionData) {
+    const response = await api.post('/api/gym/promotions', promotionData);
+    
+    if (response.data.success) {
+      toast.success('Promoción creada exitosamente');
+    }
+    
     return response.data;
   }
   
@@ -342,7 +405,7 @@ class ApiService {
     const response = await api.post('/api/auth/login', credentials);
     
     if (response.data.success && response.data.data.token) {
-      localStorage.setItem(process.env.REACT_APP_TOKEN_KEY, response.data.data.token);
+      localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.data.token);
       toast.success('Inicio de sesión exitoso');
     }
     
@@ -379,7 +442,7 @@ class ApiService {
   
   // LOGOUT
   logout() {
-    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY);
+    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
     toast.success('Sesión cerrada exitosamente');
     window.location.href = '/login';
   }
@@ -615,7 +678,7 @@ class ApiService {
   async checkBackendConnection() {
     try {
       console.log('🔍 Verificando conexión al backend...');
-      console.log('🔗 URL configurada:', process.env.REACT_APP_API_URL);
+      console.log('🔗 URL configurada:', process.env.REACT_APP_API_URL || 'http://localhost:5000');
       
       const startTime = Date.now();
       const response = await api.get('/api/health');
@@ -691,12 +754,12 @@ class ApiService {
   
   // VERIFICAR SI EL USUARIO ESTÁ AUTENTICADO
   isAuthenticated() {
-    return !!localStorage.getItem(process.env.REACT_APP_TOKEN_KEY);
+    return !!localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
   }
   
   // OBTENER TOKEN ACTUAL
   getToken() {
-    return localStorage.getItem(process.env.REACT_APP_TOKEN_KEY);
+    return localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
   }
 }
 
@@ -705,10 +768,12 @@ const apiService = new ApiService();
 
 export default apiService;
 
-// 📝 NOTAS:
-// - TODOS los endpoints del backend están implementados
-// - Manejo automático de errores con toast
-// - Token JWT se adjunta automáticamente  
-// - Cache y timeouts configurados
-// - Debug logs en desarrollo
-// - Compatible con todos los nuevos endpoints de gym, tienda, carrito, etc.
+// 📝 CAMBIOS REALIZADOS:
+// ✅ Agregados métodos generales: get(), post(), put(), patch(), delete()
+// ✅ Agregado método getPromotions() que faltaba
+// ✅ Agregado método createPromotion()
+// ✅ Mejorado manejo de errores 404 (no mostrar toast)
+// ✅ Fallbacks para variables de entorno
+// ✅ Logs mejorados para debug
+// ✅ Compatible con el backend mock
+// ✅ Mantiene TODA la funcionalidad existente

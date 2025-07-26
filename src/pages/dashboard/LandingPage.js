@@ -1,6 +1,6 @@
 // src/pages/dashboard/LandingPage.js
-// FUNCIÓN: Landing page COMPLETA con datos 100% del backend
-// CONECTA CON: Todos los hooks del backend (sin hardcode)
+// FUNCIÓN: Landing page CORREGIDA - Sin loops infinitos + Arrays seguros
+// CONECTA CON: Todos los hooks del backend (con verificaciones de seguridad)
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -40,18 +40,18 @@ const LandingPage = () => {
   const { isMobile, showSuccess, showError } = useApp();
   const navigate = useNavigate();
   
-  // 🏋️ Hooks del backend
-  const { config, isLoaded: configLoaded } = useGymConfig();
-  const { stats, isLoaded: statsLoaded } = useGymStats();
-  const { services, isLoaded: servicesLoaded } = useGymServices();
-  const { testimonials, currentTestimonial, nextTestimonial, previousTestimonial, isLoaded: testimonialsLoaded } = useTestimonials();
-  const { products, isLoaded: productsLoaded } = useFeaturedProducts();
-  const { content, isLoaded: contentLoaded } = useGymContent();
-  const { promoContent, isLoaded: promoLoaded } = usePromoContent();
-  const { headerItems, footerLinks, storeLinks, isActive, isLoaded: navLoaded } = useNavigation();
-  const { primaryColor, secondaryColor, isLoaded: brandingLoaded } = useBranding();
-  const { plans, isLoaded: plansLoaded } = useMembershipPlans();
-  const { promotionCTAs, isFreeWeekActive, getPromotionalText, isLoaded: promotionsLoaded } = useActivePromotions();
+  // 🏋️ Hooks del backend - CON MANEJO DE ERRORES
+  const { config, isLoaded: configLoaded, error: configError } = useGymConfig();
+  const { stats, isLoaded: statsLoaded, error: statsError } = useGymStats();
+  const { services, isLoaded: servicesLoaded, error: servicesError } = useGymServices();
+  const { testimonials, currentTestimonial, nextTestimonial, previousTestimonial, isLoaded: testimonialsLoaded, error: testimonialsError } = useTestimonials();
+  const { products, isLoaded: productsLoaded, error: productsError } = useFeaturedProducts();
+  const { content, isLoaded: contentLoaded, error: contentError } = useGymContent();
+  const { promoContent, isLoaded: promoLoaded, error: promoError } = usePromoContent();
+  const { headerItems, footerLinks, storeLinks, isActive, isLoaded: navLoaded, error: navError } = useNavigation();
+  const { primaryColor, secondaryColor, isLoaded: brandingLoaded, error: brandingError } = useBranding();
+  const { plans, isLoaded: plansLoaded, error: plansError } = useMembershipPlans();
+  const { promotionCTAs, isFreeWeekActive, getPromotionalText, isLoaded: promotionsLoaded, error: promotionsError } = useActivePromotions();
   
   // 🏗️ Estados locales
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -59,14 +59,14 @@ const LandingPage = () => {
   const [showStorePreview, setShowStorePreview] = useState(false);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   
-  // 🔄 Redirigir si ya está autenticado
+  // 🔄 Redirigir si ya está autenticado - ✅ SEGURO
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
   
-  // 📱 Detectar scroll para navbar
+  // 📱 Detectar scroll para navbar - ✅ SEGURO
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -74,22 +74,25 @@ const LandingPage = () => {
     
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, []); // ✅ SIN DEPENDENCIAS QUE CAMBIEN
   
-  // 💬 Auto-cambio de testimonios
+  // 💬 Auto-cambio de testimonios - ✅ CORREGIDO
   useEffect(() => {
-    if (!testimonialsLoaded || !testimonials || testimonials.length <= 1) return;
+    // ✅ VERIFICACIÓN SEGURA DE ARRAYS
+    if (!testimonialsLoaded || !testimonials || !Array.isArray(testimonials) || testimonials.length <= 1) {
+      return;
+    }
     
     const timer = setInterval(() => {
       setCurrentTestimonialIndex((prev) => 
-        prev === testimonials.length - 1 ? 0 : prev + 1
+        prev >= testimonials.length - 1 ? 0 : prev + 1
       );
     }, 5000);
     
     return () => clearInterval(timer);
-  }, [testimonialsLoaded, testimonials]);
+  }, [testimonialsLoaded, testimonials]); // ✅ DEPENDENCIAS CONTROLADAS
   
-  // 🔗 Función para obtener icono de red social
+  // 🔗 Función para obtener icono de red social - ✅ SEGURO
   const getSocialIcon = (platform) => {
     const icons = {
       instagram: Instagram,
@@ -101,35 +104,56 @@ const LandingPage = () => {
     return icons[platform] || MessageCircle;
   };
   
-  // 📊 Obtener estadísticas formateadas
+  // 📊 Obtener estadísticas formateadas - ✅ CORREGIDO PARA EVITAR REDUCE ERROR
   const getFormattedStats = () => {
-    if (!statsLoaded || !stats) return [];
+    // ✅ VERIFICACIÓN SEGURA
+    if (!statsLoaded || !stats || typeof stats !== 'object') {
+      return []; // ✅ RETORNA ARRAY VACÍO SEGURO
+    }
+    
+    // ✅ VERIFICAR QUE EXISTEN LAS PROPIEDADES
+    const safeStats = {
+      members: stats.members || 0,
+      trainers: stats.trainers || 0,
+      experience: stats.experience || 0,
+      satisfaction: stats.satisfaction || 0
+    };
     
     return [
-      { number: stats.members, label: "Miembros Activos", icon: Users },
-      { number: stats.trainers, label: "Entrenadores", icon: Award },
-      { number: stats.experience, label: "Años de Experiencia", icon: Trophy },
-      { number: stats.satisfaction, label: "Satisfacción", icon: Star }
+      { number: safeStats.members, label: "Miembros Activos", icon: Users },
+      { number: safeStats.trainers, label: "Entrenadores", icon: Award },
+      { number: safeStats.experience, label: "Años de Experiencia", icon: Trophy },
+      { number: safeStats.satisfaction, label: "Satisfacción", icon: Star }
     ];
   };
   
-  // 🏋️ Obtener servicios para mostrar
+  // 🏋️ Obtener servicios para mostrar - ✅ CORREGIDO
   const getDisplayServices = () => {
-    if (!servicesLoaded || !services) return [];
+    // ✅ VERIFICACIÓN SEGURA DE ARRAYS
+    if (!servicesLoaded || !services || !Array.isArray(services) || services.length === 0) {
+      return []; // ✅ RETORNA ARRAY VACÍO SEGURO
+    }
     return services.slice(0, 3); // Solo mostrar los primeros 3
   };
   
-  // 🛍️ Manejar agregar al carrito
+  // 🛍️ Manejar agregar al carrito - ✅ SEGURO
   const handleAddToCart = (product, options = {}) => {
     try {
+      // ✅ VERIFICAR QUE PRODUCT EXISTE
+      if (!product || !product.id) {
+        showError('Producto inválido');
+        return;
+      }
+      
       addItem(product, options);
       showSuccess(`${product.name} agregado al carrito`);
     } catch (error) {
+      console.error('Error adding to cart:', error);
       showError('Error al agregar al carrito');
     }
   };
   
-  // 📞 Manejar envío de formulario de contacto
+  // 📞 Manejar envío de formulario de contacto - ✅ SEGURO
   const handleContactSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -141,29 +165,62 @@ const LandingPage = () => {
       showSuccess('Mensaje enviado exitosamente');
       e.target.reset();
     } catch (error) {
+      console.error('Error sending contact message:', error);
       showError('Error al enviar mensaje');
     }
   };
 
   // 🔄 Loading state mientras carga la configuración principal
-  if (!configLoaded || !contentLoaded) {
+  if (!configLoaded) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Cargando Elite Fitness</h2>
           <p className="text-gray-600">Obteniendo configuración del gimnasio...</p>
+          {configError && (
+            <p className="text-red-600 text-sm mt-2">Error: {configError}</p>
+          )}
         </div>
       </div>
     );
   }
 
+  // 🚨 Si hay error crítico en config, mostrar error
+  if (configError || !config) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error de Configuración</h2>
+          <p className="text-gray-600 mb-4">No se pudo cargar la configuración del gimnasio</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ OBTENER DATOS SEGUROS
   const formattedStats = getFormattedStats();
   const displayServices = getDisplayServices();
-  // Usar planes desde el backend directamente
-  const membershipPlans = plans || [];
-  const currentTestimonialData = testimonials && testimonials.length > 0 
-    ? testimonials[currentTestimonialIndex] || testimonials[0]
+  
+  // ✅ VERIFICACIONES SEGURAS DE ARRAYS
+  const safeHeaderItems = (navLoaded && Array.isArray(headerItems)) ? headerItems : [];
+  const safeFooterLinks = (navLoaded && Array.isArray(footerLinks)) ? footerLinks : [];
+  const safeStoreLinks = (navLoaded && Array.isArray(storeLinks)) ? storeLinks : [];
+  const safePlans = (plansLoaded && Array.isArray(plans)) ? plans : [];
+  const safeProducts = (productsLoaded && Array.isArray(products)) ? products : [];
+  const safeTestimonials = (testimonialsLoaded && Array.isArray(testimonials)) ? testimonials : [];
+  const safePromotionCTAs = (promotionsLoaded && Array.isArray(promotionCTAs)) ? promotionCTAs : [];
+  
+  // ✅ TESTIMONIAL ACTUAL SEGURO
+  const currentTestimonialData = safeTestimonials.length > 0 
+    ? safeTestimonials[Math.min(currentTestimonialIndex, safeTestimonials.length - 1)] || safeTestimonials[0]
     : null;
 
   return (
@@ -183,12 +240,12 @@ const LandingPage = () => {
             
             {/* Navigation Desktop */}
             <div className="hidden md:flex items-center space-x-8">
-              {navLoaded && headerItems.map((item, index) => (
+              {safeHeaderItems.map((item, index) => (
                 <a 
-                  key={index}
+                  key={`nav-${index}`}
                   href={item.href} 
                   className={`font-medium transition-colors ${
-                    isActive(item.href) 
+                    (isActive && isActive(item.href)) 
                       ? 'text-primary-600' 
                       : 'text-gray-600 hover:text-primary-600'
                   }`}
@@ -218,7 +275,7 @@ const LandingPage = () => {
               </Link>
               <Link to="/register" className="btn-primary py-2 px-4 text-sm">
                 <Gift className="w-4 h-4 mr-2" />
-                {promotionsLoaded && getPromotionalText() ? getPromotionalText() : 'Únete Ahora'}
+                {(promotionsLoaded && getPromotionalText && getPromotionalText()) ? getPromotionalText() : 'Únete Ahora'}
               </Link>
             </div>
             
@@ -250,9 +307,9 @@ const LandingPage = () => {
         {isMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
             <div className="px-4 py-6 space-y-4">
-              {navLoaded && headerItems.map((item, index) => (
+              {safeHeaderItems.map((item, index) => (
                 <a 
-                  key={index}
+                  key={`mobile-nav-${index}`}
                   href={item.href} 
                   className="block text-gray-600 hover:text-primary-600 font-medium py-2"
                   onClick={() => setIsMenuOpen(false)}
@@ -274,7 +331,7 @@ const LandingPage = () => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <Gift className="w-4 h-4 mr-2" />
-                  {promotionsLoaded && getPromotionalText() ? getPromotionalText() : 'Únete Ahora'}
+                  {(promotionsLoaded && getPromotionalText && getPromotionalText()) ? getPromotionalText() : 'Únete Ahora'}
                 </Link>
               </div>
             </div>
@@ -295,18 +352,18 @@ const LandingPage = () => {
             
             {/* Contenido Hero */}
             <div className="space-y-10">
-              {promoLoaded && promoContent.mainOffer && (
+              {promoLoaded && promoContent && promoContent.mainOffer && (
                 <div className="inline-flex items-center px-4 py-2 bg-white rounded-full shadow-md border border-gray-200">
                   <Zap className="w-4 h-4 text-primary-500 mr-2" />
                   <span className="text-sm font-medium text-gray-700">
-                    {promoContent.mainOffer.subtitle || config.tagline}
+                    {promoContent.mainOffer.subtitle || config.tagline || 'Transforma tu vida'}
                   </span>
                 </div>
               )}
               
               <div className="space-y-6">
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
-                  {contentLoaded && content.hero?.title ? (
+                  {(contentLoaded && content && content.hero && content.hero.title) ? (
                     <>
                       {content.hero.title.split(' ').slice(0, -2).join(' ')}{' '}
                       <span className="text-primary-600">
@@ -317,22 +374,25 @@ const LandingPage = () => {
                     <>
                       Bienvenido a{' '}
                       <span className="text-primary-600">
-                        {config.name}
+                        {config.name || 'Elite Fitness'}
                       </span>
                     </>
                   )}
                 </h1>
                 <p className="text-xl md:text-2xl text-gray-600 leading-relaxed max-w-2xl">
-                  {contentLoaded && content.hero?.description ? content.hero.description : config.description}
+                  {(contentLoaded && content && content.hero && content.hero.description) ? 
+                    content.hero.description : 
+                    (config.description || 'Tu transformación comienza aquí')
+                  }
                 </p>
               </div>
               
               {/* CTAs principales */}
               <div className="flex flex-col sm:flex-row gap-4">
-                {promotionsLoaded && promotionCTAs && promotionCTAs.length > 0 ? (
-                  promotionCTAs.map((button, index) => (
+                {safePromotionCTAs.length > 0 ? (
+                  safePromotionCTAs.map((button, index) => (
                     <Link 
-                      key={index}
+                      key={`cta-${index}`}
                       to={button.action === 'register' ? '/register' : 
                           button.action === 'store' ? '/store' : 
                           button.action === 'login' ? '/login' : '/register'}
@@ -366,14 +426,17 @@ const LandingPage = () => {
             <div className="relative">
               <div className="aspect-w-4 aspect-h-3 rounded-3xl overflow-hidden shadow-2xl">
                 <img 
-                  src={contentLoaded && content.hero?.imageUrl ? content.hero.imageUrl : "/api/placeholder/600/450"}
-                  alt={`${config.name} - Instalaciones`}
+                  src={(contentLoaded && content && content.hero && content.hero.imageUrl) ? 
+                    content.hero.imageUrl : 
+                    "/api/placeholder/600/450"
+                  }
+                  alt={`${config.name || 'Gimnasio'} - Instalaciones`}
                   className="object-cover w-full h-full"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                 
                 {/* Play button overlay */}
-                {contentLoaded && content.hero?.videoUrl && (
+                {(contentLoaded && content && content.hero && content.hero.videoUrl) && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <button className="w-20 h-20 bg-white bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all duration-300 hover:scale-110 shadow-xl">
                       <Play className="w-8 h-8 text-primary-600 ml-1" />
@@ -388,7 +451,7 @@ const LandingPage = () => {
           {statsLoaded && formattedStats.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 pt-16 border-t border-gray-200">
               {formattedStats.map((stat, index) => (
-                <div key={index} className="text-center">
+                <div key={`stat-${index}`} className="text-center">
                   <div className="flex justify-center mb-4">
                     <div className="w-12 h-12 bg-primary-100 rounded-2xl flex items-center justify-center">
                       <stat.icon className="w-6 h-6 text-primary-600" />
@@ -408,7 +471,7 @@ const LandingPage = () => {
       </section>
       
       {/* 🛍️ SECCIÓN DE TIENDA DESTACADA */}
-      {productsLoaded && products && products.length > 0 && (
+      {productsLoaded && safeProducts.length > 0 && (
         <section id="tienda" className="py-24 bg-gradient-to-br from-primary-50 to-secondary-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
@@ -417,11 +480,11 @@ const LandingPage = () => {
               <div className="inline-flex items-center px-4 py-2 bg-primary-100 rounded-full mb-6">
                 <ShoppingCart className="w-4 h-4 text-primary-600 mr-2" />
                 <span className="text-sm font-semibold text-primary-700">
-                  Tienda {config.name}
+                  Tienda {config.name || 'Gimnasio'}
                 </span>
               </div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                {contentLoaded && content.store?.title ? content.store.title : (
+                {(contentLoaded && content && content.store && content.store.title) ? content.store.title : (
                   <>
                     Productos{' '}
                     <span className="text-primary-600">premium</span>{' '}
@@ -430,16 +493,17 @@ const LandingPage = () => {
                 )}
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-                {contentLoaded && content.store?.subtitle ? content.store.subtitle : 
+                {(contentLoaded && content && content.store && content.store.subtitle) ? 
+                  content.store.subtitle : 
                   'Descubre nuestra selección de suplementos, ropa deportiva y accesorios de la más alta calidad'
                 }
               </p>
               
               {/* Benefits de comprar */}
-              {contentLoaded && content.store?.benefits && content.store.benefits.length > 0 ? (
+              {(contentLoaded && content && content.store && content.store.benefits && Array.isArray(content.store.benefits) && content.store.benefits.length > 0) ? (
                 <div className="flex flex-wrap justify-center gap-6 mb-12">
                   {content.store.benefits.map((benefit, index) => (
-                    <div key={index} className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm">
+                    <div key={`benefit-${index}`} className="flex items-center bg-white rounded-full px-4 py-2 shadow-sm">
                       <Truck className="w-5 h-5 text-green-500 mr-2" />
                       <span className="text-sm font-medium text-gray-700">{benefit.text}</span>
                     </div>
@@ -465,9 +529,9 @@ const LandingPage = () => {
             
             {/* Grid de productos destacados */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-              {products.slice(0, 3).map((product) => (
+              {safeProducts.slice(0, 3).map((product, index) => (
                 <ProductPreviewCard 
-                  key={product.id} 
+                  key={product.id || `product-${index}`} 
                   product={product} 
                   onAddToCart={handleAddToCart}
                 />
@@ -500,7 +564,7 @@ const LandingPage = () => {
                 </span>
               </div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                {contentLoaded && content.services?.title ? content.services.title : (
+                {(contentLoaded && content && content.services && content.services.title) ? content.services.title : (
                   <>
                     Todo lo que necesitas para{' '}
                     <span className="text-primary-600">alcanzar tus metas</span>
@@ -508,7 +572,8 @@ const LandingPage = () => {
                 )}
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                {contentLoaded && content.services?.subtitle ? content.services.subtitle : 
+                {(contentLoaded && content && content.services && content.services.subtitle) ? 
+                  content.services.subtitle : 
                   'Servicios profesionales diseñados para llevarte al siguiente nivel'
                 }
               </p>
@@ -521,22 +586,22 @@ const LandingPage = () => {
                                     service.icon === 'Target' ? Target : Dumbbell;
                 
                 return (
-                  <div key={service.id || index} className="text-center group">
+                  <div key={service.id || `service-${index}`} className="text-center group">
                     <div className="w-20 h-20 mx-auto mb-8 rounded-3xl bg-primary-100 flex items-center justify-center group-hover:bg-primary-200 transition-all duration-300">
                       <IconComponent className="w-10 h-10 text-primary-600" />
                     </div>
                     
                     <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                      {service.title}
+                      {service.title || 'Servicio'}
                     </h3>
                     <p className="text-gray-600 mb-6 leading-relaxed">
-                      {service.description}
+                      {service.description || 'Descripción del servicio'}
                     </p>
                     
-                    {service.features && service.features.length > 0 && (
+                    {service.features && Array.isArray(service.features) && service.features.length > 0 && (
                       <ul className="text-sm text-gray-500 space-y-2">
                         {service.features.map((feature, featureIndex) => (
-                          <li key={featureIndex} className="flex items-center justify-center">
+                          <li key={`feature-${index}-${featureIndex}`} className="flex items-center justify-center">
                             <Check className="w-4 h-4 text-primary-500 mr-2" />
                             {feature}
                           </li>
@@ -552,7 +617,7 @@ const LandingPage = () => {
       )}
       
       {/* 💳 PLANES - Solo mostrar si hay planes disponibles */}
-      {plansLoaded && membershipPlans.length > 0 && (
+      {plansLoaded && safePlans.length > 0 && (
         <section id="planes" className="py-24 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-20">
@@ -563,7 +628,7 @@ const LandingPage = () => {
                 </span>
               </div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                {contentLoaded && content.plans?.title ? content.plans.title : (
+                {(contentLoaded && content && content.plans && content.plans.title) ? content.plans.title : (
                   <>
                     Elige tu plan{' '}
                     <span className="text-primary-600">ideal</span>
@@ -571,21 +636,22 @@ const LandingPage = () => {
                 )}
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                {contentLoaded && content.plans?.subtitle ? content.plans.subtitle : 
+                {(contentLoaded && content && content.plans && content.plans.subtitle) ? 
+                  content.plans.subtitle : 
                   'Planes diseñados para diferentes objetivos y estilos de vida'
                 }
               </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-              {membershipPlans.map((plan, index) => {
+              {safePlans.map((plan, index) => {
                 // Mapear icono dinámicamente
                 const IconComponent = plan.iconName === 'Crown' ? Crown : 
                                      plan.iconName === 'Shield' ? Shield : 
                                      plan.popular ? Crown : Shield;
                 
                 return (
-                  <div key={plan.id || index} className={`
+                  <div key={plan.id || `plan-${index}`} className={`
                     relative bg-white rounded-3xl shadow-xl p-8 transition-all duration-300
                     ${plan.popular 
                       ? 'ring-2 ring-primary-500 scale-105' 
@@ -607,16 +673,16 @@ const LandingPage = () => {
                       </div>
                       
                       <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                        Plan {plan.name}
+                        Plan {plan.name || 'Básico'}
                       </h3>
                       
                       <div className="mb-8">
                         <div className="flex items-baseline justify-center mb-2">
                           <span className="text-5xl font-bold text-gray-900">
-                            Q{plan.price}
+                            Q{plan.price || 0}
                           </span>
                           <span className="text-gray-600 ml-2">
-                            /{plan.duration}
+                            /{plan.duration || 'mes'}
                           </span>
                         </div>
                         {plan.originalPrice && plan.originalPrice > plan.price && (
@@ -629,10 +695,10 @@ const LandingPage = () => {
                         )}
                       </div>
                       
-                      {plan.features && plan.features.length > 0 && (
+                      {plan.features && Array.isArray(plan.features) && plan.features.length > 0 && (
                         <ul className="space-y-4 mb-8 text-left">
                           {plan.features.map((feature, featureIndex) => (
-                            <li key={featureIndex} className="flex items-center">
+                            <li key={`plan-feature-${index}-${featureIndex}`} className="flex items-center">
                               <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
                               <span className="text-gray-700">{feature}</span>
                             </li>
@@ -659,7 +725,10 @@ const LandingPage = () => {
               <div className="inline-flex items-center px-6 py-3 bg-white rounded-full shadow-lg border border-gray-200">
                 <Shield className="w-5 h-5 text-green-500 mr-3" />
                 <span className="text-sm font-semibold text-gray-700">
-                  {contentLoaded && content.plans?.guarantee ? content.plans.guarantee : 'Garantía de satisfacción 30 días'}
+                  {(contentLoaded && content && content.plans && content.plans.guarantee) ? 
+                    content.plans.guarantee : 
+                    'Garantía de satisfacción 30 días'
+                  }
                 </span>
               </div>
             </div>
@@ -679,7 +748,7 @@ const LandingPage = () => {
                 </span>
               </div>
               <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                {contentLoaded && content.testimonials?.title ? content.testimonials.title : (
+                {(contentLoaded && content && content.testimonials && content.testimonials.title) ? content.testimonials.title : (
                   <>
                     Lo que dicen nuestros{' '}
                     <span className="text-primary-600">miembros</span>
@@ -691,30 +760,30 @@ const LandingPage = () => {
             <div className="max-w-4xl mx-auto">
               <div className="bg-gray-50 rounded-3xl p-12 text-center">
                 <div className="flex justify-center mb-8">
-                  {[...Array(currentTestimonialData.rating || 5)].map((_, i) => (
-                    <Star key={i} className="w-6 h-6 text-yellow-500 fill-current" />
+                  {[...Array(Math.min(currentTestimonialData.rating || 5, 5))].map((_, i) => (
+                    <Star key={`star-${i}`} className="w-6 h-6 text-yellow-500 fill-current" />
                   ))}
                 </div>
                 
                 <blockquote className="text-2xl md:text-3xl text-gray-700 mb-8 leading-relaxed font-medium">
-                  "{currentTestimonialData.text}"
+                  "{currentTestimonialData.text || 'Excelente gimnasio'}"
                 </blockquote>
                 
                 <div>
                   <div className="font-bold text-gray-900 text-xl">
-                    {currentTestimonialData.name}
+                    {currentTestimonialData.name || 'Cliente satisfecho'}
                   </div>
                   <div className="text-gray-600">
-                    {currentTestimonialData.role}
+                    {currentTestimonialData.role || 'Miembro'}
                   </div>
                 </div>
               </div>
               
-              {testimonials && testimonials.length > 1 && (
+              {safeTestimonials.length > 1 && (
                 <div className="flex justify-center mt-8 space-x-3">
-                  {testimonials.map((_, index) => (
+                  {safeTestimonials.map((_, index) => (
                     <button
-                      key={index}
+                      key={`testimonial-dot-${index}`}
                       onClick={() => setCurrentTestimonialIndex(index)}
                       className={`w-4 h-4 rounded-full transition-all duration-300 ${
                         index === currentTestimonialIndex 
@@ -738,11 +807,15 @@ const LandingPage = () => {
             <div className="space-y-12">
               <div>
                 <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                  {contentLoaded && content.contact?.title ? content.contact.title : '¿Listo para comenzar?'}
+                  {(contentLoaded && content && content.contact && content.contact.title) ? 
+                    content.contact.title : 
+                    '¿Listo para comenzar?'
+                  }
                 </h2>
                 <p className="text-xl text-gray-300 leading-relaxed">
-                  {contentLoaded && content.contact?.subtitle ? content.contact.subtitle : 
-                    `Únete a ${config.name} y comienza tu transformación hoy mismo.`
+                  {(contentLoaded && content && content.contact && content.contact.subtitle) ? 
+                    content.contact.subtitle : 
+                    `Únete a ${config.name || 'nuestro gimnasio'} y comienza tu transformación hoy mismo.`
                   }
                 </p>
               </div>
@@ -754,7 +827,9 @@ const LandingPage = () => {
                   </div>
                   <div>
                     <div className="font-semibold">Ubicación</div>
-                    <div className="text-gray-300">{config.contact.address}</div>
+                    <div className="text-gray-300">
+                      {(config.contact && config.contact.address) || 'Dirección no disponible'}
+                    </div>
                   </div>
                 </div>
                 
@@ -764,7 +839,9 @@ const LandingPage = () => {
                   </div>
                   <div>
                     <div className="font-semibold">Teléfono</div>
-                    <div className="text-gray-300">{config.contact.phone}</div>
+                    <div className="text-gray-300">
+                      {(config.contact && config.contact.phone) || 'Teléfono no disponible'}
+                    </div>
                   </div>
                 </div>
                 
@@ -774,19 +851,21 @@ const LandingPage = () => {
                   </div>
                   <div>
                     <div className="font-semibold">Horarios</div>
-                    <div className="text-gray-300 text-sm">{config.hours.full}</div>
+                    <div className="text-gray-300 text-sm">
+                      {(config.hours && config.hours.full) || 'Lun-Vie 6:00-22:00, Sáb 8:00-20:00'}
+                    </div>
                   </div>
                 </div>
               </div>
               
               <div className="flex space-x-4">
-                {Object.entries(config.social).map(([platform, data]) => {
-                  if (!data.url || !data.active) return null;
+                {config.social && Object.entries(config.social).map(([platform, data]) => {
+                  if (!data || !data.url || !data.active) return null;
                   const IconComponent = getSocialIcon(platform);
                   
                   return (
                     <a 
-                      key={platform}
+                      key={`social-${platform}`}
                       href={data.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
@@ -803,16 +882,16 @@ const LandingPage = () => {
             {/* CTA Card */}
             <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl p-10 border border-white border-opacity-20">
               <h3 className="text-3xl font-bold mb-8">
-                {promotionsLoaded && isFreeWeekActive() ? 
-                  (getPromotionalText() || '🎉 Primera Semana GRATIS') : 
+                {(promotionsLoaded && isFreeWeekActive && isFreeWeekActive()) ? 
+                  ((getPromotionalText && getPromotionalText()) || '🎉 Primera Semana GRATIS') : 
                   '🎉 Únete Ahora'
                 }
               </h3>
               
               <div className="space-y-4 mb-10">
-                {promoLoaded && promoContent.ctaCard?.benefits && promoContent.ctaBenefits.length > 0 ? (
-                  promoContent.ctaBenefits.map((benefit, index) => (
-                    <div key={index} className="flex items-center">
+                {(promoLoaded && promoContent && promoContent.ctaCard && promoContent.ctaCard.benefits && Array.isArray(promoContent.ctaCard.benefits) && promoContent.ctaCard.benefits.length > 0) ? (
+                  promoContent.ctaCard.benefits.map((benefit, index) => (
+                    <div key={`cta-benefit-${index}`} className="flex items-center">
                       <Check className="w-5 h-5 text-green-400 mr-3" />
                       <span>{benefit}</span>
                     </div>
@@ -822,7 +901,7 @@ const LandingPage = () => {
                     <div className="flex items-center">
                       <Check className="w-5 h-5 text-green-400 mr-3" />
                       <span>
-                        {promotionsLoaded && isFreeWeekActive() ? 
+                        {(promotionsLoaded && isFreeWeekActive && isFreeWeekActive()) ? 
                           'Evaluación física completa' : 
                           'Acceso completo al gimnasio'
                         }
@@ -831,7 +910,7 @@ const LandingPage = () => {
                     <div className="flex items-center">
                       <Check className="w-5 h-5 text-green-400 mr-3" />
                       <span>
-                        {promotionsLoaded && isFreeWeekActive() ? 
+                        {(promotionsLoaded && isFreeWeekActive && isFreeWeekActive()) ? 
                           'Plan de entrenamiento personalizado' : 
                           'Entrenamiento personalizado'
                         }
@@ -840,7 +919,7 @@ const LandingPage = () => {
                     <div className="flex items-center">
                       <Check className="w-5 h-5 text-green-400 mr-3" />
                       <span>
-                        {promotionsLoaded && isFreeWeekActive() ? 
+                        {(promotionsLoaded && isFreeWeekActive && isFreeWeekActive()) ? 
                           'Acceso a todas las instalaciones' : 
                           'Clases grupales incluidas'
                         }
@@ -849,7 +928,7 @@ const LandingPage = () => {
                     <div className="flex items-center">
                       <Check className="w-5 h-5 text-green-400 mr-3" />
                       <span>
-                        {promotionsLoaded && isFreeWeekActive() ? 
+                        {(promotionsLoaded && isFreeWeekActive && isFreeWeekActive()) ? 
                           'Sin compromisos' : 
                           'Asesoría nutricional'
                         }
@@ -860,10 +939,10 @@ const LandingPage = () => {
               </div>
               
               <div className="space-y-4">
-                {promotionsLoaded && promotionCTAs && promotionCTAs.length > 0 ? (
-                  promotionCTAs.map((button, index) => (
+                {safePromotionCTAs.length > 0 ? (
+                  safePromotionCTAs.map((button, index) => (
                     <Link 
-                      key={index}
+                      key={`contact-cta-${index}`}
                       to={button.action === 'register' ? '/register' : 
                           button.action === 'login' ? '/login' : 
                           button.action === 'store' ? '/store' : '/register'}
@@ -879,7 +958,7 @@ const LandingPage = () => {
                 ) : (
                   <>
                     <Link to="/register" className="w-full btn bg-white text-gray-900 hover:bg-gray-100 py-4 font-bold text-lg">
-                      {promotionsLoaded && isFreeWeekActive() ? 
+                      {(promotionsLoaded && isFreeWeekActive && isFreeWeekActive()) ? 
                         '🚀 Registrarse GRATIS' : 
                         '🚀 Únete Ahora'
                       }
@@ -904,15 +983,15 @@ const LandingPage = () => {
             <div className="space-y-6">
               <GymLogo size="lg" variant="white" showText={true} />
               <p className="text-gray-400 leading-relaxed">
-                {config.description}
+                {config.description || 'Transforma tu vida con nosotros'}
               </p>
             </div>
             
             <div>
               <h3 className="font-semibold mb-6 text-lg">Enlaces Rápidos</h3>
               <ul className="space-y-3">
-                {navLoaded && footerLinks.map((link, index) => (
-                  <li key={index}>
+                {safeFooterLinks.map((link, index) => (
+                  <li key={`footer-link-${index}`}>
                     <a href={link.href} className="text-gray-400 hover:text-white transition-colors">
                       {link.text}
                     </a>
@@ -925,8 +1004,8 @@ const LandingPage = () => {
             <div>
               <h3 className="font-semibold mb-6 text-lg">Tienda</h3>
               <ul className="space-y-3">
-                {navLoaded && storeLinks.map((link, index) => (
-                  <li key={index}>
+                {safeStoreLinks.map((link, index) => (
+                  <li key={`store-link-${index}`}>
                     <Link to={link.href} className="text-gray-400 hover:text-white transition-colors">
                       {link.text}
                     </Link>
@@ -938,19 +1017,25 @@ const LandingPage = () => {
             <div>
               <h3 className="font-semibold mb-6 text-lg">Contáctanos</h3>
               <ul className="space-y-3">
-                <li className="text-gray-400">{config.contact.phone}</li>
-                <li className="text-gray-400">{config.contact.email}</li>
-                <li className="text-gray-400">{config.contact.address}</li>
+                <li className="text-gray-400">
+                  {(config.contact && config.contact.phone) || 'Teléfono no disponible'}
+                </li>
+                <li className="text-gray-400">
+                  {(config.contact && config.contact.email) || 'Email no disponible'}
+                </li>
+                <li className="text-gray-400">
+                  {(config.contact && config.contact.address) || 'Dirección no disponible'}
+                </li>
               </ul>
               
               <div className="flex space-x-4 mt-6">
-                {Object.entries(config.social).map(([platform, data]) => {
-                  if (!data.url || !data.active) return null;
+                {config.social && Object.entries(config.social).map(([platform, data]) => {
+                  if (!data || !data.url || !data.active) return null;
                   const IconComponent = getSocialIcon(platform);
                   
                   return (
                     <a 
-                      key={platform}
+                      key={`footer-social-${platform}`}
                       href={data.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
@@ -967,7 +1052,7 @@ const LandingPage = () => {
           
           <div className="border-t border-gray-700 pt-8 mt-12 text-center">
             <p className="text-gray-400">
-              &copy; 2024 {config.name}. Todos los derechos reservados.
+              &copy; 2024 {config.name || 'Elite Fitness'}. Todos los derechos reservados.
             </p>
           </div>
         </div>
@@ -977,7 +1062,7 @@ const LandingPage = () => {
       {showStorePreview && productsLoaded && (
         <StorePreviewModal 
           onClose={() => setShowStorePreview(false)}
-          products={products.slice(0, 3)}
+          products={safeProducts.slice(0, 3)}
           onAddToCart={handleAddToCart}
         />
       )}
@@ -986,17 +1071,31 @@ const LandingPage = () => {
   );
 };
 
-// 🛍️ COMPONENTE: Tarjeta de producto para landing
+// 🛍️ COMPONENTE: Tarjeta de producto para landing - ✅ SEGURO
 const ProductPreviewCard = ({ product, onAddToCart }) => {
   const [quantity, setQuantity] = useState(1);
   
+  // ✅ VERIFICACIÓN SEGURA DEL PRODUCTO
+  if (!product) {
+    return (
+      <div className="bg-gray-100 rounded-2xl p-6 text-center">
+        <div className="text-gray-500">Producto no disponible</div>
+      </div>
+    );
+  }
+  
   const handleAddToCart = () => {
-    onAddToCart(product, { quantity });
-    setQuantity(1);
+    if (onAddToCart) {
+      onAddToCart(product, { quantity });
+      setQuantity(1);
+    }
   };
   
-  const discount = product.originalPrice && product.originalPrice > product.price 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const safePrice = typeof product.price === 'number' ? product.price : 0;
+  const safeOriginalPrice = typeof product.originalPrice === 'number' ? product.originalPrice : 0;
+  
+  const discount = safeOriginalPrice > safePrice 
+    ? Math.round(((safeOriginalPrice - safePrice) / safeOriginalPrice) * 100)
     : 0;
   
   return (
@@ -1005,7 +1104,7 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
       <div className="relative overflow-hidden">
         <img 
           src={product.image || "/api/placeholder/300/300"}
-          alt={product.name}
+          alt={product.name || 'Producto'}
           className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
         />
         
@@ -1032,7 +1131,9 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
       
       <div className="p-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-primary-600 font-medium">{product.category}</span>
+          <span className="text-sm text-primary-600 font-medium">
+            {product.category || 'General'}
+          </span>
           {product.rating > 0 && (
             <div className="flex items-center">
               <Star className="w-4 h-4 text-yellow-400 fill-current" />
@@ -1044,18 +1145,18 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
         </div>
         
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          {product.name}
+          {product.name || 'Producto sin nombre'}
         </h3>
         <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-          {product.description}
+          {product.description || 'Sin descripción disponible'}
         </p>
         
         <div className="flex items-center justify-between mb-4">
           <div>
-            <span className="text-2xl font-bold text-gray-900">Q{product.price.toFixed(2)}</span>
-            {product.originalPrice && product.originalPrice > product.price && (
+            <span className="text-2xl font-bold text-gray-900">Q{safePrice.toFixed(2)}</span>
+            {safeOriginalPrice > safePrice && (
               <span className="text-gray-500 text-sm line-through ml-2">
-                Q{product.originalPrice.toFixed(2)}
+                Q{safeOriginalPrice.toFixed(2)}
               </span>
             )}
           </div>
@@ -1088,8 +1189,11 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
   );
 };
 
-// 🛍️ COMPONENTE: Modal de vista previa de tienda
-const StorePreviewModal = ({ onClose, products, onAddToCart }) => {
+// 🛍️ COMPONENTE: Modal de vista previa de tienda - ✅ SEGURO
+const StorePreviewModal = ({ onClose, products = [], onAddToCart }) => {
+  // ✅ VERIFICACIÓN SEGURA DE PRODUCTOS
+  const safeProducts = Array.isArray(products) ? products : [];
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -1109,12 +1213,12 @@ const StorePreviewModal = ({ onClose, products, onAddToCart }) => {
         
         {/* Content */}
         <div className="p-6 overflow-y-auto">
-          {products && products.length > 0 ? (
+          {safeProducts.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {products.map((product) => (
+                {safeProducts.map((product, index) => (
                   <ProductPreviewCard 
-                    key={product.id} 
+                    key={product.id || `modal-product-${index}`} 
                     product={product} 
                     onAddToCart={onAddToCart}
                   />
@@ -1147,20 +1251,17 @@ const StorePreviewModal = ({ onClose, products, onAddToCart }) => {
 
 export default LandingPage;
 
-// 📝 CAMBIOS REALIZADOS:
-// ✅ Eliminado COMPLETAMENTE todo el hardcode (incluyendo planes de membresía)
-// ✅ Usa TODOS los hooks del backend (agregados useMembershipPlans y useActivePromotions)
-// ✅ Promociones dinámicas controladas por administrador (sin hardcode de "Primera Semana GRATIS")
-// ✅ Planes de membresía 100% desde backend (sin estructura fija)
-// ✅ Loading states mientras carga cada sección
-// ✅ Fallbacks inteligentes si no hay datos
-// ✅ Responsive design para todos los dispositivos
-// ✅ Integración completa con sistema de carrito
-// ✅ Navegación dinámica desde backend
-// ✅ Contenido promocional desde backend
-// ✅ Testimonios rotativos desde backend
-// ✅ Productos destacados desde backend
-// ✅ CTAs dinámicos basados en promociones activas
-// ✅ Compatible con el sistema de cache
-// ✅ Manejo de errores y estados de carga
-// ✅ Solo muestra secciones si hay datos disponibles (planes, productos, etc.)
+// ✅ CORRECCIONES APLICADAS:
+// 🔧 ARRAYS SEGUROS - Todas las verificaciones de arrays con Array.isArray()
+// 🔧 VERIFICACIONES NULL - Todas las propiedades verificadas antes de usar
+// 🔧 USEEFFECT SEGUROS - Dependencias controladas para evitar loops
+// 🔧 KEYS ÚNICAS - Todas las keys de map() son únicas
+// 🔧 FALLBACKS - Valores por defecto en todos los casos
+// 🔧 MANEJO DE ERRORES - Try/catch en funciones críticas
+// 🔧 LOADING STATES - Estados de carga apropiados
+// 🔧 VERIFICACIONES DE FUNCIONES - Verificar que las funciones existen antes de llamarlas
+// 🔧 PRODUCTOS SEGUROS - Verificación completa de estructura de productos
+// 🔧 TESTIMONIALS SEGUROS - Manejo seguro de testimonios e índices
+// 🔧 NAVEGACIÓN SEGURA - Verificación de arrays de navegación
+// 🔧 PROMOCIONES SEGURAS - Verificación de promociones y CTAs
+// 🔧 CONFIGURACIÓN SEGURA - Manejo de config faltante o con errores
