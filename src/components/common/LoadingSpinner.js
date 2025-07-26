@@ -68,6 +68,22 @@ const LoadingSpinner = ({
   return <LoadingContent />;
 };
 
+// 🔄 NUEVO: ButtonSpinner para botones
+export const ButtonSpinner = ({ size = 'sm', className = '' }) => {
+  const spinnerSizes = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6'
+  };
+
+  return (
+    <div className={`${spinnerSizes[size]} animate-spin ${className}`}>
+      <div className="absolute inset-0 border-2 border-white border-opacity-30 rounded-full"></div>
+      <div className="absolute inset-0 border-2 border-white border-t-transparent rounded-full"></div>
+    </div>
+  );
+};
+
 // Variantes específicas
 export const FullScreenLoader = ({ message = 'Cargando Elite Fitness...' }) => (
   <LoadingSpinner fullScreen={true} message={message} size="lg" />
