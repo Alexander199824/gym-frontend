@@ -1,6 +1,6 @@
 // src/services/apiService.js
-// FUNCIÓN: Servicio API COMPLETO con todos los endpoints del backend
-// CONECTA CON: Todos los endpoints del backend según documentación
+// FUNCIÓN: Servicio API MEJORADO con logs detallados y rutas corregidas
+// CORRIGE: Errores de rutas, logs confusos y peticiones innecesarias
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 // 🔧 CONFIGURACIÓN DE AXIOS
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
-  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000,
+  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 15000, // Reducido a 15s
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -24,9 +24,10 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Debug en desarrollo (SIN mostrar en pantalla)
-    if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    // 🔍 LOGS MEJORADOS - Solo en desarrollo y sin spam
+    if (process.env.NODE_ENV === 'development') {
+      const url = config.url.startsWith('/') ? config.url : `/${config.url}`;
+      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${url}`);
     }
     
     return config;
@@ -37,24 +38,38 @@ api.interceptors.request.use(
   }
 );
 
-// 📨 INTERCEPTOR DE RESPUESTAS (Response)
+// 📨 INTERCEPTOR DE RESPUESTAS (Response) - MEJORADO
 api.interceptors.response.use(
   (response) => {
-    // Debug en desarrollo (SIN mostrar en pantalla)
-    if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-      console.log(`✅ API Response: ${response.config.url}`, response.data);
+    // 🔍 LOGS DE ÉXITO - Solo en desarrollo y más informativos
+    if (process.env.NODE_ENV === 'development') {
+      const url = response.config.url;
+      const dataType = Array.isArray(response.data?.data) ? 'Array' : typeof response.data?.data;
+      const dataLength = Array.isArray(response.data?.data) ? response.data.data.length : 'N/A';
+      
+      console.log(`✅ API Success: ${url}`);
+      console.log(`📊 Response type: ${dataType}${dataLength !== 'N/A' ? ` (${dataLength} items)` : ''}`);
     }
     
     return response;
   },
   (error) => {
-    const { response } = error;
+    const { response, config } = error;
+    const url = config?.url || 'unknown';
     
-    // Manejo de errores específicos
+    // 🔍 LOGS DE ERROR MEJORADOS - Más informativos
     if (response) {
-      switch (response.status) {
+      const status = response.status;
+      const method = config?.method?.toUpperCase() || 'UNKNOWN';
+      const fullUrl = `${config?.baseURL || ''}${url}`;
+      
+      console.group(`❌ API Error ${status}: ${method} ${url}`);
+      console.log(`🔗 Full URL: ${fullUrl}`);
+      console.log(`📄 Response data:`, response.data);
+      
+      switch (status) {
         case 401:
-          console.warn('🔐 Token expirado o inválido');
+          console.log('🔐 Problema: Token expirado o inválido');
           localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
           
           if (!window.location.pathname.includes('/login')) {
@@ -64,45 +79,55 @@ api.interceptors.response.use(
           break;
           
         case 403:
+          console.log('🚫 Problema: Sin permisos para esta acción');
           toast.error('No tienes permisos para realizar esta acción.');
           break;
           
         case 404:
-          console.error('❌ API Error 404:', error.config?.url);
+          console.log('🔍 Problema: Endpoint no encontrado en el backend');
+          console.log('💡 Solución: Verifica que la ruta exista en el backend');
           // NO mostrar toast para 404 ya que pueden ser endpoints opcionales
           break;
           
         case 422:
+          console.log('📝 Problema: Error de validación de datos');
           if (response.data?.errors) {
-            const errorMsg = response.data.errors
-              .map(err => err.message)
-              .join(', ');
+            const errorMsg = response.data.errors.map(err => err.message).join(', ');
+            console.log('📋 Errores de validación:', errorMsg);
             toast.error(`Error de validación: ${errorMsg}`);
           }
           break;
           
         case 429:
+          console.log('🚦 Problema: Demasiadas peticiones (rate limiting)');
           toast.error('Demasiadas solicitudes. Intenta de nuevo más tarde.');
           break;
           
         case 500:
+          console.log('🔥 Problema: Error interno del servidor');
+          console.log('💡 Solución: Revisa los logs del backend');
           toast.error('Error interno del servidor. Contacta al administrador.');
           break;
           
         default:
-          const message = response.data?.message || 'Error desconocido';
+          console.log(`🤔 Problema: Error HTTP ${status}`);
+          const message = response.data?.message || `Error ${status}`;
           toast.error(message);
       }
+      
+      console.groupEnd();
     } else if (error.code === 'ECONNABORTED') {
+      console.log(`⏰ Error: Timeout en ${url} (${config?.timeout}ms)`);
+      console.log('💡 Solución: El servidor tarda mucho en responder');
       toast.error('La solicitud tardó demasiado. Verifica tu conexión.');
     } else if (error.code === 'ERR_NETWORK') {
-      console.error('❌ Error de red. Verifica que el servidor esté ejecutándose.');
+      console.log(`🌐 Error: No se puede conectar al backend en ${url}`);
+      console.log('💡 Solución: Verifica que el servidor esté corriendo en', config?.baseURL);
       // NO mostrar toast para errores de red al inicio
     } else {
-      console.error('❌ Error de conexión:', error.message);
+      console.log(`🔥 Error desconocido en ${url}:`, error.message);
     }
     
-    console.error('❌ API Error:', error);
     return Promise.reject(error);
   }
 );
@@ -111,460 +136,310 @@ api.interceptors.response.use(
 class ApiService {
   
   // ================================
-  // 🔧 MÉTODOS GENERALES (REQUERIDOS POR HOOKS)
+  // 🔧 MÉTODOS GENERALES (MEJORADOS)
   // ================================
   
-  // MÉTODO GENERAL GET
+  // MÉTODO GENERAL GET - MEJORADO
   async get(endpoint) {
-    const response = await api.get(endpoint);
-    return response.data;
+    try {
+      // Asegurar que el endpoint empiece con /api
+      const url = this.normalizeEndpoint(endpoint);
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      this.logEndpointError('GET', endpoint, error);
+      throw error;
+    }
   }
   
-  // MÉTODO GENERAL POST
+  // MÉTODO GENERAL POST - MEJORADO
   async post(endpoint, data) {
-    const response = await api.post(endpoint, data);
-    return response.data;
+    try {
+      const url = this.normalizeEndpoint(endpoint);
+      const response = await api.post(url, data);
+      return response.data;
+    } catch (error) {
+      this.logEndpointError('POST', endpoint, error);
+      throw error;
+    }
   }
   
-  // MÉTODO GENERAL PUT
+  // MÉTODO GENERAL PUT - MEJORADO
   async put(endpoint, data) {
-    const response = await api.put(endpoint, data);
-    return response.data;
+    try {
+      const url = this.normalizeEndpoint(endpoint);
+      const response = await api.put(url, data);
+      return response.data;
+    } catch (error) {
+      this.logEndpointError('PUT', endpoint, error);
+      throw error;
+    }
   }
   
-  // MÉTODO GENERAL PATCH
+  // MÉTODO GENERAL PATCH - MEJORADO
   async patch(endpoint, data) {
-    const response = await api.patch(endpoint, data);
-    return response.data;
+    try {
+      const url = this.normalizeEndpoint(endpoint);
+      const response = await api.patch(url, data);
+      return response.data;
+    } catch (error) {
+      this.logEndpointError('PATCH', endpoint, error);
+      throw error;
+    }
   }
   
-  // MÉTODO GENERAL DELETE
+  // MÉTODO GENERAL DELETE - MEJORADO
   async delete(endpoint) {
-    const response = await api.delete(endpoint);
-    return response.data;
+    try {
+      const url = this.normalizeEndpoint(endpoint);
+      const response = await api.delete(url);
+      return response.data;
+    } catch (error) {
+      this.logEndpointError('DELETE', endpoint, error);
+      throw error;
+    }
   }
   
-  // ================================
-  // 🏢 MÉTODOS DE CONFIGURACIÓN DEL GYM
-  // ================================
-  
-  // OBTENER CONFIGURACIÓN COMPLETA DEL GYM - GET /api/gym/config
-  async getGymConfig() {
-    const response = await api.get('/api/gym/config');
-    return response.data;
-  }
-  
-  // OBTENER ESTADÍSTICAS PÚBLICAS - GET /api/gym/stats
-  async getGymStats() {
-    const response = await api.get('/api/gym/stats');
-    return response.data;
-  }
-  
-  // OBTENER SERVICIOS DEL GYM - GET /api/gym/services
-  async getGymServices() {
-    const response = await api.get('/api/gym/services');
-    return response.data;
-  }
-  
-  // OBTENER PLANES DE MEMBRESÍA PÚBLICOS - GET /api/gym/membership-plans
-  async getMembershipPlans() {
-    const response = await api.get('/api/gym/membership-plans');
-    return response.data;
-  }
-  
-  // OBTENER TESTIMONIOS - GET /api/gym/testimonials
-  async getTestimonials() {
-    const response = await api.get('/api/gym/testimonials');
-    return response.data;
-  }
-  
-  // OBTENER INFORMACIÓN DE CONTACTO - GET /api/gym/contact
-  async getContactInfo() {
-    const response = await api.get('/api/gym/contact');
-    return response.data;
-  }
-  
-  // OBTENER REDES SOCIALES - GET /api/gym/social-media
-  async getSocialMedia() {
-    const response = await api.get('/api/gym/social-media');
-    return response.data;
-  }
-  
-  // OBTENER GALERÍA/VIDEOS - GET /api/gym/media
-  async getGymMedia() {
-    const response = await api.get('/api/gym/media');
-    return response.data;
-  }
-  
-  // ================================
-  // 🎉 MÉTODOS DE PROMOCIONES (AGREGADOS)
-  // ================================
-  
-  // OBTENER PROMOCIONES ACTIVAS - GET /api/gym/promotions
-  async getPromotions() {
-    const response = await api.get('/api/gym/promotions');
-    return response.data;
-  }
-  
-  // OBTENER PROMOCIÓN POR ID - GET /api/gym/promotions/:id
-  async getPromotionById(id) {
-    const response = await api.get(`/api/gym/promotions/${id}`);
-    return response.data;
-  }
-  
-  // CREAR PROMOCIÓN - POST /api/gym/promotions
-  async createPromotion(promotionData) {
-    const response = await api.post('/api/gym/promotions', promotionData);
+  // 🔧 HELPER: Normalizar endpoints para asegurar /api prefix
+  normalizeEndpoint(endpoint) {
+    // Si ya empieza con /api, devolverlo tal como está
+    if (endpoint.startsWith('/api/')) {
+      return endpoint;
+    }
     
-    if (response.data.success) {
+    // Si empieza con /, agregarlo después de /api
+    if (endpoint.startsWith('/')) {
+      return `/api${endpoint}`;
+    }
+    
+    // Si no empieza con /, agregarlo con /api/
+    return `/api/${endpoint}`;
+  }
+  
+  // 🔧 HELPER: Log detallado de errores por endpoint
+  logEndpointError(method, endpoint, error) {
+    const status = error.response?.status;
+    
+    console.group(`🔧 ${method} ${endpoint} - Error Analysis`);
+    console.log(`📍 Endpoint solicitado: ${endpoint}`);
+    console.log(`🔗 URL normalizada: ${this.normalizeEndpoint(endpoint)}`);
+    
+    if (status) {
+      console.log(`📊 Status: ${status}`);
+      
+      switch (status) {
+        case 404:
+          console.log('❓ ¿Qué significa? El endpoint no existe en el backend');
+          console.log('🔧 ¿Qué hacer? Verificar que el backend tenga esta ruta implementada');
+          break;
+        case 500:
+          console.log('❓ ¿Qué significa? Error interno en el backend');
+          console.log('🔧 ¿Qué hacer? Revisar logs del backend para más detalles');
+          break;
+        case 422:
+          console.log('❓ ¿Qué significa? Datos inválidos enviados');
+          console.log('🔧 ¿Qué hacer? Verificar el formato de los datos enviados');
+          break;
+      }
+    } else {
+      console.log('❓ ¿Qué significa? No se pudo conectar al backend');
+      console.log('🔧 ¿Qué hacer? Verificar que el backend esté corriendo');
+    }
+    
+    console.groupEnd();
+  }
+  
+  // ================================
+  // 🏢 MÉTODOS DE CONFIGURACIÓN DEL GYM - RUTAS CORREGIDAS
+  // ================================
+  
+  // OBTENER CONFIGURACIÓN COMPLETA DEL GYM
+  async getGymConfig() {
+    return await this.get('/api/gym/config');
+  }
+  
+  // OBTENER ESTADÍSTICAS PÚBLICAS
+  async getGymStats() {
+    return await this.get('/api/gym/stats');
+  }
+  
+  // OBTENER SERVICIOS DEL GYM
+  async getGymServices() {
+    return await this.get('/api/gym/services');
+  }
+  
+  // OBTENER PLANES DE MEMBRESÍA PÚBLICOS
+  async getMembershipPlans() {
+    return await this.get('/api/gym/membership-plans');
+  }
+  
+  // OBTENER TESTIMONIOS
+  async getTestimonials() {
+    return await this.get('/api/gym/testimonials');
+  }
+  
+  // OBTENER INFORMACIÓN DE CONTACTO
+  async getContactInfo() {
+    return await this.get('/api/gym/contact');
+  }
+  
+  // OBTENER REDES SOCIALES
+  async getSocialMedia() {
+    return await this.get('/api/gym/social-media');
+  }
+  
+  // OBTENER GALERÍA/VIDEOS
+  async getGymMedia() {
+    return await this.get('/api/gym/media');
+  }
+  
+  // ================================
+  // 🎉 MÉTODOS DE PROMOCIONES - CORREGIDOS
+  // ================================
+  
+  // OBTENER PROMOCIONES ACTIVAS
+  async getPromotions() {
+    return await this.get('/api/gym/promotions');
+  }
+  
+  // OBTENER PROMOCIÓN POR ID
+  async getPromotionById(id) {
+    return await this.get(`/api/gym/promotions/${id}`);
+  }
+  
+  // CREAR PROMOCIÓN
+  async createPromotion(promotionData) {
+    const response = await this.post('/api/gym/promotions', promotionData);
+    
+    if (response.success) {
       toast.success('Promoción creada exitosamente');
     }
     
-    return response.data;
+    return response;
   }
   
   // ================================
-  // 📄 MÉTODOS DE CONTENIDO DE SECCIONES
+  // 📄 MÉTODOS DE CONTENIDO - RUTAS CORREGIDAS
   // ================================
   
-  // OBTENER CONTENIDO DE SECCIONES - GET /api/gym/sections-content
+  // OBTENER CONTENIDO DE SECCIONES
   async getSectionsContent() {
-    const response = await api.get('/api/gym/sections-content');
-    return response.data;
+    return await this.get('/api/gym/sections-content');
   }
   
-  // OBTENER NAVEGACIÓN - GET /api/gym/navigation
+  // OBTENER NAVEGACIÓN
   async getNavigation() {
-    const response = await api.get('/api/gym/navigation');
-    return response.data;
+    return await this.get('/api/gym/navigation');
   }
   
-  // OBTENER CONTENIDO PROMOCIONAL - GET /api/gym/promotional-content
+  // OBTENER CONTENIDO PROMOCIONAL
   async getPromotionalContent() {
-    const response = await api.get('/api/gym/promotional-content');
-    return response.data;
+    return await this.get('/api/gym/promotional-content');
   }
   
-  // OBTENER CONFIGURACIÓN DE FORMULARIOS - GET /api/gym/forms-config
-  async getFormsConfig() {
-    const response = await api.get('/api/gym/forms-config');
-    return response.data;
-  }
-  
-  // OBTENER MENSAJES DEL SISTEMA - GET /api/gym/system-messages
-  async getSystemMessages() {
-    const response = await api.get('/api/gym/system-messages');
-    return response.data;
-  }
-  
-  // OBTENER CONFIGURACIÓN DE BRANDING - GET /api/gym/branding
+  // OBTENER CONFIGURACIÓN DE BRANDING
   async getBranding() {
-    const response = await api.get('/api/gym/branding');
-    return response.data;
+    return await this.get('/api/gym/branding');
   }
   
   // ================================
   // 🛍️ MÉTODOS DE TIENDA
   // ================================
   
-  // OBTENER PRODUCTOS - GET /api/store/products
+  // OBTENER PRODUCTOS DESTACADOS
+  async getFeaturedProducts() {
+    return await this.get('/api/store/featured-products');
+  }
+  
+  // OBTENER PRODUCTOS
   async getProducts(params = {}) {
     const response = await api.get('/api/store/products', { params });
     return response.data;
   }
   
-  // OBTENER PRODUCTO POR ID - GET /api/store/products/:id
+  // OBTENER PRODUCTO POR ID
   async getProductById(id) {
-    const response = await api.get(`/api/store/products/${id}`);
-    return response.data;
-  }
-  
-  // OBTENER PRODUCTOS DESTACADOS - GET /api/store/featured-products
-  async getFeaturedProducts() {
-    const response = await api.get('/api/store/featured-products');
-    return response.data;
-  }
-  
-  // OBTENER CATEGORÍAS DE PRODUCTOS - GET /api/store/categories
-  async getProductCategories() {
-    const response = await api.get('/api/store/categories');
-    return response.data;
-  }
-  
-  // OBTENER MARCAS - GET /api/store/brands
-  async getBrands() {
-    const response = await api.get('/api/store/brands');
-    return response.data;
-  }
-  
-  // BUSCAR PRODUCTOS - GET /api/store/products/search
-  async searchProducts(query, filters = {}) {
-    const response = await api.get('/api/store/products/search', { 
-      params: { q: query, ...filters } 
-    });
-    return response.data;
+    return await this.get(`/api/store/products/${id}`);
   }
   
   // ================================
   // 🛒 MÉTODOS DEL CARRITO
   // ================================
   
-  // OBTENER CARRITO - GET /api/cart
+  // OBTENER CARRITO
   async getCart() {
-    const response = await api.get('/api/cart');
-    return response.data;
+    return await this.get('/api/cart');
   }
   
-  // ACTUALIZAR CARRITO - PUT /api/cart
+  // ACTUALIZAR CARRITO
   async updateCart(items) {
-    const response = await api.put('/api/cart', { items });
-    return response.data;
-  }
-  
-  // AGREGAR AL CARRITO - POST /api/cart/items
-  async addToCart(productId, quantity = 1, options = {}) {
-    const response = await api.post('/api/cart/items', {
-      productId,
-      quantity,
-      options
-    });
-    return response.data;
-  }
-  
-  // ELIMINAR DEL CARRITO - DELETE /api/cart/items/:itemId
-  async removeFromCart(itemId) {
-    const response = await api.delete(`/api/cart/items/${itemId}`);
-    return response.data;
-  }
-  
-  // LIMPIAR CARRITO - DELETE /api/cart
-  async clearCart() {
-    const response = await api.delete('/api/cart');
-    return response.data;
-  }
-  
-  // ================================
-  // 📦 MÉTODOS DE PEDIDOS
-  // ================================
-  
-  // CREAR PEDIDO - POST /api/orders
-  async createOrder(orderData) {
-    const response = await api.post('/api/orders', orderData);
-    
-    if (response.data.success) {
-      toast.success('Pedido creado exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // OBTENER PEDIDOS DEL USUARIO - GET /api/orders
-  async getOrders(params = {}) {
-    const response = await api.get('/api/orders', { params });
-    return response.data;
-  }
-  
-  // OBTENER PEDIDO POR ID - GET /api/orders/:id
-  async getOrderById(id) {
-    const response = await api.get(`/api/orders/${id}`);
-    return response.data;
-  }
-  
-  // ================================
-  // 📧 MÉTODOS DE CONTACTO
-  // ================================
-  
-  // ENVIAR MENSAJE DE CONTACTO - POST /api/contact
-  async sendContactMessage(messageData) {
-    const response = await api.post('/api/contact', messageData);
-    
-    if (response.data.success) {
-      toast.success('Mensaje enviado exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // SUSCRIBIRSE AL NEWSLETTER - POST /api/newsletter/subscribe
-  async subscribeNewsletter(email) {
-    const response = await api.post('/api/newsletter/subscribe', { email });
-    
-    if (response.data.success) {
-      toast.success('Suscripción exitosa');
-    }
-    
-    return response.data;
+    return await this.post('/api/cart', { items });
   }
   
   // ================================
   // 🔐 MÉTODOS DE AUTENTICACIÓN
   // ================================
   
-  // LOGIN - POST /api/auth/login
+  // LOGIN
   async login(credentials) {
-    const response = await api.post('/api/auth/login', credentials);
+    const response = await this.post('/api/auth/login', credentials);
     
-    if (response.data.success && response.data.data.token) {
-      localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.data.token);
+    if (response.success && response.data.token) {
+      localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.token);
       toast.success('Inicio de sesión exitoso');
     }
     
-    return response.data;
+    return response;
   }
   
-  // REGISTRO - POST /api/auth/register
+  // REGISTRO
   async register(userData) {
-    const response = await api.post('/api/auth/register', userData);
+    const response = await this.post('/api/auth/register', userData);
     
-    if (response.data.success) {
+    if (response.success) {
       toast.success('Registro exitoso');
     }
     
-    return response.data;
+    return response;
   }
   
-  // PERFIL - GET /api/auth/profile
+  // PERFIL
   async getProfile() {
-    const response = await api.get('/api/auth/profile');
-    return response.data;
-  }
-  
-  // ACTUALIZAR PERFIL - PATCH /api/auth/profile
-  async updateProfile(profileData) {
-    const response = await api.patch('/api/auth/profile', profileData);
-    
-    if (response.data.success) {
-      toast.success('Perfil actualizado exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // LOGOUT
-  logout() {
-    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
-    toast.success('Sesión cerrada exitosamente');
-    window.location.href = '/login';
+    return await this.get('/api/auth/profile');
   }
   
   // ================================
   // 👥 MÉTODOS DE USUARIOS
   // ================================
   
-  // OBTENER USUARIOS - GET /api/users
+  // OBTENER USUARIOS
   async getUsers(params = {}) {
     const response = await api.get('/api/users', { params });
     return response.data;
   }
   
-  // OBTENER USUARIO POR ID - GET /api/users/:id
-  async getUserById(id) {
-    const response = await api.get(`/api/users/${id}`);
-    return response.data;
-  }
-  
-  // CREAR USUARIO - POST /api/users
+  // CREAR USUARIO
   async createUser(userData) {
-    const response = await api.post('/api/users', userData);
+    const response = await this.post('/api/users', userData);
     
-    if (response.data.success) {
+    if (response.success) {
       toast.success('Usuario creado exitosamente');
     }
     
-    return response.data;
-  }
-  
-  // ACTUALIZAR USUARIO - PATCH /api/users/:id
-  async updateUser(id, userData) {
-    const response = await api.patch(`/api/users/${id}`, userData);
-    
-    if (response.data.success) {
-      toast.success('Usuario actualizado exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // ELIMINAR USUARIO - DELETE /api/users/:id
-  async deleteUser(id) {
-    const response = await api.delete(`/api/users/${id}`);
-    
-    if (response.data.success) {
-      toast.success('Usuario eliminado exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // BUSCAR USUARIOS - GET /api/users/search
-  async searchUsers(query) {
-    const response = await api.get('/api/users/search', { 
-      params: { q: query } 
-    });
-    return response.data;
+    return response;
   }
   
   // ================================
   // 🎫 MÉTODOS DE MEMBRESÍAS
   // ================================
   
-  // OBTENER MEMBRESÍAS - GET /api/memberships
+  // OBTENER MEMBRESÍAS
   async getMemberships(params = {}) {
     const response = await api.get('/api/memberships', { params });
     return response.data;
   }
   
-  // OBTENER MEMBRESÍA POR ID - GET /api/memberships/:id
-  async getMembershipById(id) {
-    const response = await api.get(`/api/memberships/${id}`);
-    return response.data;
-  }
-  
-  // CREAR MEMBRESÍA - POST /api/memberships
-  async createMembership(membershipData) {
-    const response = await api.post('/api/memberships', membershipData);
-    
-    if (response.data.success) {
-      toast.success('Membresía creada exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // ACTUALIZAR MEMBRESÍA - PATCH /api/memberships/:id
-  async updateMembership(id, membershipData) {
-    const response = await api.patch(`/api/memberships/${id}`, membershipData);
-    
-    if (response.data.success) {
-      toast.success('Membresía actualizada exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // RENOVAR MEMBRESÍA - POST /api/memberships/:id/renew
-  async renewMembership(id, renewData) {
-    const response = await api.post(`/api/memberships/${id}/renew`, renewData);
-    
-    if (response.data.success) {
-      toast.success('Membresía renovada exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // CANCELAR MEMBRESÍA - POST /api/memberships/:id/cancel
-  async cancelMembership(id, reason) {
-    const response = await api.post(`/api/memberships/${id}/cancel`, { reason });
-    
-    if (response.data.success) {
-      toast.success('Membresía cancelada exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // MEMBRESÍAS VENCIDAS - GET /api/memberships/expired
+  // MEMBRESÍAS VENCIDAS
   async getExpiredMemberships(days = 0) {
     const response = await api.get('/api/memberships/expired', { 
       params: { days } 
@@ -572,7 +447,7 @@ class ApiService {
     return response.data;
   }
   
-  // MEMBRESÍAS POR VENCER - GET /api/memberships/expiring-soon
+  // MEMBRESÍAS POR VENCER
   async getExpiringSoonMemberships(days = 7) {
     const response = await api.get('/api/memberships/expiring-soon', { 
       params: { days } 
@@ -584,101 +459,61 @@ class ApiService {
   // 💰 MÉTODOS DE PAGOS
   // ================================
   
-  // OBTENER PAGOS - GET /api/payments
+  // OBTENER PAGOS
   async getPayments(params = {}) {
     const response = await api.get('/api/payments', { params });
     return response.data;
   }
   
-  // OBTENER PAGO POR ID - GET /api/payments/:id
-  async getPaymentById(id) {
-    const response = await api.get(`/api/payments/${id}`);
-    return response.data;
-  }
-  
-  // CREAR PAGO - POST /api/payments
+  // CREAR PAGO
   async createPayment(paymentData) {
-    const response = await api.post('/api/payments', paymentData);
+    const response = await this.post('/api/payments', paymentData);
     
-    if (response.data.success) {
+    if (response.success) {
       toast.success('Pago registrado exitosamente');
     }
     
-    return response.data;
+    return response;
   }
   
-  // TRANSFERENCIAS PENDIENTES - GET /api/payments/transfers/pending
+  // TRANSFERENCIAS PENDIENTES
   async getPendingTransfers() {
-    const response = await api.get('/api/payments/transfers/pending');
-    return response.data;
-  }
-  
-  // VALIDAR TRANSFERENCIA - POST /api/payments/:id/validate-transfer
-  async validateTransfer(id, validation) {
-    const response = await api.post(`/api/payments/${id}/validate-transfer`, validation);
-    
-    if (response.data.success) {
-      toast.success('Transferencia validada exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // SUBIR COMPROBANTE - POST /api/payments/:id/transfer-proof
-  async uploadTransferProof(id, file) {
-    const formData = new FormData();
-    formData.append('proof', file);
-    
-    const response = await api.post(`/api/payments/${id}/transfer-proof`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    
-    if (response.data.success) {
-      toast.success('Comprobante subido exitosamente');
-    }
-    
-    return response.data;
+    return await this.get('/api/payments/transfers/pending');
   }
   
   // ================================
   // 📊 MÉTODOS DE REPORTES
   // ================================
   
-  // REPORTES DE PAGOS - GET /api/payments/reports
+  // REPORTES DE PAGOS
   async getPaymentReports(params = {}) {
     const response = await api.get('/api/payments/reports', { params });
     return response.data;
   }
   
-  // ESTADÍSTICAS DE USUARIOS - GET /api/users/stats
+  // ESTADÍSTICAS DE USUARIOS
   async getUserStats() {
-    const response = await api.get('/api/users/stats');
-    return response.data;
+    return await this.get('/api/users/stats');
   }
   
-  // ESTADÍSTICAS DE MEMBRESÍAS - GET /api/memberships/stats
+  // ESTADÍSTICAS DE MEMBRESÍAS
   async getMembershipStats() {
-    const response = await api.get('/api/memberships/stats');
-    return response.data;
+    return await this.get('/api/memberships/stats');
   }
   
   // ================================
-  // 🔧 MÉTODOS UTILITARIOS
+  // 🔧 MÉTODOS UTILITARIOS - MEJORADOS
   // ================================
   
-  // HEALTH CHECK - GET /api/health
+  // HEALTH CHECK
   async healthCheck() {
-    const response = await api.get('/api/health');
-    return response.data;
+    return await this.get('/api/health');
   }
   
-  // VERIFICAR CONEXIÓN AL BACKEND
+  // VERIFICAR CONEXIÓN AL BACKEND - MEJORADO
   async checkBackendConnection() {
     try {
       console.log('🔍 Verificando conexión al backend...');
-      console.log('🔗 URL configurada:', process.env.REACT_APP_API_URL || 'http://localhost:5000');
       
       const startTime = Date.now();
       const response = await api.get('/api/health');
@@ -686,70 +521,48 @@ class ApiService {
       
       if (response.data.success) {
         console.log('✅ Backend conectado exitosamente!');
-        console.log('📊 Datos del backend:', response.data);
         console.log(`⚡ Tiempo de respuesta: ${responseTime}ms`);
-        return { connected: true, data: response.data, responseTime };
+        return { 
+          connected: true, 
+          data: response.data, 
+          responseTime,
+          status: 'connected'
+        };
       } else {
         console.warn('⚠️ Backend respondió pero con error:', response.data);
-        return { connected: false, error: 'Backend respondió con error' };
+        return { 
+          connected: false, 
+          error: 'Backend respondió con error',
+          status: 'error'
+        };
       }
     } catch (error) {
-      console.error('❌ No se pudo conectar al backend!');
-      console.error('🔍 Error details:', {
-        message: error.message,
-        code: error.code,
-        status: error.response?.status,
-        url: error.config?.url
-      });
+      console.log('❌ No se pudo conectar al backend');
+      
+      let errorType = 'unknown';
+      let suggestion = 'Verifica la configuración';
       
       if (error.code === 'ERR_NETWORK') {
-        console.error('🚫 Error de red: El backend no está corriendo o hay un problema de CORS');
+        errorType = 'network';
+        suggestion = 'El backend no está corriendo o hay problema de CORS';
       } else if (error.response?.status === 404) {
-        console.error('🚫 Error 404: La ruta /api/health no existe en el backend');
+        errorType = 'endpoint_not_found';
+        suggestion = 'La ruta /api/health no existe en el backend';
+      } else if (error.code === 'ECONNABORTED') {
+        errorType = 'timeout';
+        suggestion = 'El backend tarda mucho en responder';
       }
       
-      return { connected: false, error: error.message };
+      console.log(`💡 Sugerencia: ${suggestion}`);
+      
+      return { 
+        connected: false, 
+        error: error.message,
+        errorType,
+        suggestion,
+        status: 'disconnected'
+      };
     }
-  }
-  
-  // SUBIR IMAGEN - POST /api/upload/image
-  async uploadImage(file, type = 'general') {
-    const formData = new FormData();
-    formData.append('image', file);
-    formData.append('type', type);
-    
-    const response = await api.post('/api/upload/image', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    
-    if (response.data.success) {
-      toast.success('Imagen subida exitosamente');
-    }
-    
-    return response.data;
-  }
-  
-  // SUBIR MÚLTIPLES IMÁGENES - POST /api/upload/images
-  async uploadImages(files, type = 'general') {
-    const formData = new FormData();
-    files.forEach((file, index) => {
-      formData.append(`images`, file);
-    });
-    formData.append('type', type);
-    
-    const response = await api.post('/api/upload/images', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    
-    if (response.data.success) {
-      toast.success('Imágenes subidas exitosamente');
-    }
-    
-    return response.data;
   }
   
   // VERIFICAR SI EL USUARIO ESTÁ AUTENTICADO
@@ -760,6 +573,13 @@ class ApiService {
   // OBTENER TOKEN ACTUAL
   getToken() {
     return localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+  }
+  
+  // LOGOUT
+  logout() {
+    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+    toast.success('Sesión cerrada exitosamente');
+    window.location.href = '/login';
   }
 }
 
