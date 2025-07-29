@@ -2,6 +2,10 @@
 // FUNCIÓN: Landing page MEJORADA - Muestra datos disponibles sin esperar a que TODO se cargue
 // LOGS: Detallados sobre qué datos se reciben del backend
 
+// src/pages/dashboard/LandingPage.js
+// FUNCIÓN: Landing page CORREGIDA - Muestra datos disponibles del backend correctamente
+// ARREGLA: Problema de carga infinita, ahora usa datos reales del backend
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -9,7 +13,8 @@ import {
   Instagram, Facebook, Twitter, Youtube, MessageCircle, Play, Check,
   Shield, Award, ArrowRight, Menu, X, Gift, Zap, Heart, Crown,
   ChevronRight, ShoppingCart, Package, Truck, CreditCard, Eye,
-  Filter, Search, Plus, Minus, AlertTriangle, Loader, Wifi, WifiOff
+  Filter, Search, Plus, Minus, AlertTriangle, Loader, Wifi, WifiOff,
+  Calendar
 } from 'lucide-react';
 
 // 🎣 Hooks del sistema
@@ -45,7 +50,7 @@ const LandingPage = () => {
   const { isMobile, showSuccess, showError } = useApp();
   const navigate = useNavigate();
   
-  // 🏗️ Estados locales REDUCIDOS
+  // 🏗️ Estados locales
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
@@ -171,75 +176,56 @@ const LandingPage = () => {
       testimonialsLoaded, testimonials, productsLoaded, products, 
       plansLoaded, plans, configError]);
   
-  // ⏰ CONTROL DE CARGA INICIAL - Más flexible
+  // ⏰ CONTROL DE CARGA INICIAL - ARREGLADO
   useEffect(() => {
-    // Considerar "carga inicial completa" cuando tengamos al menos la configuración base
-    // O cuando hayan pasado 3 segundos (timeout)
-    const timer = setTimeout(() => {
-      if (!initialLoadCompleted) {
-        console.log('⏰ TIMEOUT: Showing page anyway after 3 seconds');
-        setInitialLoadCompleted(true);
-      }
-    }, 3000);
+    console.group('⏰ Loading Control Analysis');
+    console.log('📊 Current status:');
+    console.log('  - configLoaded:', configLoaded);
+    console.log('  - config has data:', !!config);
+    console.log('  - config has name:', !!(config && config.name));
+    console.log('  - initialLoadCompleted:', initialLoadCompleted);
     
-    // Si tenemos config básica, mostrar la página
-    if (config && config.name) {
-      console.log('✅ BASIC CONFIG LOADED: Showing page');
+    // ✅ NUEVA LÓGICA: Mostrar página cuando config termine de cargar (exitoso o no)
+    if (configLoaded && !initialLoadCompleted) {
+      if (config && config.name) {
+        console.log('✅ CONFIG LOADED WITH DATA: Showing page immediately');
+      } else {
+        console.log('⚠️ CONFIG LOADED BUT NO DATA: Showing page anyway with fallbacks');
+      }
       setInitialLoadCompleted(true);
-      clearTimeout(timer);
     }
     
+    // ⏰ Timeout de seguridad reducido a 2 segundos
+    const timer = setTimeout(() => {
+      if (!initialLoadCompleted) {
+        console.log('⏰ TIMEOUT: Forcing page display after 2 seconds');
+        setInitialLoadCompleted(true);
+      }
+    }, 2000); // Reducido de 3000 a 2000ms
+    
+    console.groupEnd();
+    
     return () => clearTimeout(timer);
-  }, [config, initialLoadCompleted]);
+  }, [configLoaded, config, initialLoadCompleted]);
   
-  // ✅ USAR DATOS REALES DEL BACKEND
-  const gymConfig = config || MINIMAL_FALLBACK;
-  
-  // ✅ LOGS CONSOLIDADOS cuando la carga inicial esté completa
+  // 📝 Logs de estado final cuando se complete la carga
   useEffect(() => {
     if (initialLoadCompleted) {
-      console.group('🎉 LANDING PAGE - Final Data Summary');
-      
-      // Resumen final de datos disponibles
-      const dataAvailability = {
-        config: !!config,
-        stats: !!stats,
-        services: !!(services && Array.isArray(services) && services.length > 0),
-        testimonials: !!(testimonials && Array.isArray(testimonials) && testimonials.length > 0),
-        products: !!(products && Array.isArray(products) && products.length > 0),
-        plans: !!(plans && Array.isArray(plans) && plans.length > 0)
-      };
-      
-      console.log('📋 Data Availability Summary:', dataAvailability);
-      
-      // Secciones que se mostrarán
-      const sectionsToShow = {
-        hero: true,
-        stats: dataAvailability.stats && stats && Object.values(stats).some(v => v > 0),
-        services: dataAvailability.services,
-        products: dataAvailability.products,
-        plans: dataAvailability.plans,
-        testimonials: dataAvailability.testimonials,
-        contact: true
-      };
-      
-      console.log('📋 Sections that will be displayed:', sectionsToShow);
-      
-      // Conteo de datos disponibles
-      const availableDataCount = Object.values(dataAvailability).filter(Boolean).length;
-      const totalPossibleData = Object.keys(dataAvailability).length;
-      
-      console.log(`📊 Data completion: ${availableDataCount}/${totalPossibleData} (${Math.round(availableDataCount/totalPossibleData*100)}%)`);
-      
-      if (availableDataCount === totalPossibleData) {
-        console.log('🎉 ALL DATA LOADED SUCCESSFULLY!');
-      } else {
-        console.log('⚠️ Some data missing, but page will display with available data');
-      }
-      
+      console.group('🎉 LOADING COMPLETED - Final State');
+      console.log('📋 Final data availability:');
+      console.log('  - Config:', !!config, config ? `(Name: ${config.name})` : '(No data)');
+      console.log('  - Stats:', !!stats, stats ? `(Members: ${stats.members})` : '(No data)');
+      console.log('  - Services:', services?.length || 0, 'services');
+      console.log('  - Testimonials:', testimonials?.length || 0, 'testimonials');
+      console.log('  - Products:', products?.length || 0, 'products');
+      console.log('  - Plans:', plans?.length || 0, 'plans');
+      console.log('✅ PAGE READY TO DISPLAY');
       console.groupEnd();
     }
   }, [initialLoadCompleted, config, stats, services, testimonials, products, plans]);
+  
+  // ✅ USAR DATOS REALES DEL BACKEND con fallback mejorado
+  const gymConfig = config || MINIMAL_FALLBACK;
   
   // 📊 Procesar estadísticas solo si están disponibles
   const formattedStats = React.useMemo(() => {
@@ -680,13 +666,11 @@ const LandingPage = () => {
               'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
             }`}>
               {displayServices.map((service) => {
-                const IconComponent = service.icon === 'Dumbbell' ? Dumbbell : 
-                                    service.icon === 'Users' ? Users : 
-                                    service.icon === 'Target' ? Target : 
-                                    service.icon === 'Trophy' ? Trophy :
-                                    service.icon === 'Heart' ? Heart :
-                                    service.icon === 'Shield' ? Shield :
-                                    Dumbbell;
+                const IconComponent = service.icon === 'user-check' ? Target : 
+                                    service.icon === 'users' ? Users : 
+                                    service.icon === 'heart' ? Heart : 
+                                    service.icon === 'dumbbell' ? Dumbbell :
+                                    Dumbbell; // Fallback icon
                 
                 return (
                   <div key={service.id} className="text-center group">
@@ -757,7 +741,11 @@ const LandingPage = () => {
               'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
             }`}>
               {plans.map((plan) => {
-                const IconComponent = plan.iconName === 'Crown' ? Crown : Shield;
+                const IconComponent = plan.iconName === 'crown' ? Crown : 
+                                    plan.iconName === 'calendar-days' ? Calendar : 
+                                    plan.iconName === 'calendar' ? Calendar :
+                                    plan.iconName === 'calendar-range' ? Calendar :
+                                    Shield; // Fallback icon
                 
                 return (
                   <div key={plan.id} className={`
@@ -779,7 +767,7 @@ const LandingPage = () => {
                       </div>
                       
                       <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                        Plan {plan.name}
+                        {plan.name}
                       </h3>
                       
                       <div className="mb-8">
@@ -1145,7 +1133,7 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
       <div className="aspect-w-4 aspect-h-3">
         <img 
-          src={product.image || "/api/placeholder/300/225"}
+          src={product.images?.[0]?.url || "/api/placeholder/300/225"}
           alt={product.name}
           className="object-cover w-full h-48"
         />

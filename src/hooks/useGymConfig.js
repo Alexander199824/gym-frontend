@@ -1,226 +1,126 @@
-// src/hooks/useGymConfig.js
-// FUNCIÓN: Hook MEJORADO para cargar configuración del gimnasio con logs detallados
-// TOLERANTE: A errores, timeouts y datos faltantes
 
-import { useState, useEffect, useRef } from 'react';
+// src/hooks/useGymConfig.js
+// FUNCIÓN: Hook CORREGIDO para cargar configuración del gimnasio
+// ARREGLA: Extrae solo la data del response del backend
+
+import { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
 
 const useGymConfig = () => {
-  const [state, setState] = useState({
-    config: null,
-    isLoaded: false,
-    isLoading: false,
-    error: null,
-    lastAttempt: null,
-    attemptCount: 0
-  });
-  
-  const isMountedRef = useRef(true);
-  const timeoutRef = useRef(null);
-  
-  // 🔄 Función para cargar configuración
-  const loadConfig = async (attemptNumber = 1) => {
-    if (!isMountedRef.current) return;
+  const [config, setConfig] = useState(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  console.log('🚀 useGymConfig hook initialized');
+
+  const fetchConfig = useCallback(async (attempt = 1) => {
+    console.log(`🏢 Loading Gym Config - Attempt ${attempt}`);
     
-    console.group(`🏢 Loading Gym Config - Attempt ${attemptNumber}`);
-    
-    setState(prev => ({
-      ...prev,
-      isLoading: true,
-      error: null,
-      lastAttempt: new Date(),
-      attemptCount: attemptNumber
-    }));
-    
+    if (attempt === 1) {
+      setIsLoading(true);
+      setError(null);
+    }
+
     try {
       console.log('📡 Making request to /api/gym/config...');
-      
       const response = await apiService.getGymConfig();
       
       console.log('✅ Config response received:', response);
       
-      // Analizar la respuesta
+      // 🔧 ARREGLO CRÍTICO: Extraer solo la data del response
+      let configData = null;
+      
       if (response && response.success && response.data) {
-        const configData = response.data;
-        
+        // Backend devuelve: { success: true, data: { name: "...", ... } }
+        configData = response.data;
         console.log('📋 Config data structure:');
-        console.log('  - Name:', configData.name || '❌ MISSING');
-        console.log('  - Description:', configData.description || '❌ MISSING');
+        console.log('  - Name:', configData.name);
+        console.log('  - Description:', configData.description);
         console.log('  - Logo URL:', configData.logo?.url || '❌ MISSING');
         console.log('  - Contact info:', configData.contact ? '✅ Present' : '❌ MISSING');
         console.log('  - Social media:', configData.social ? `✅ ${Object.keys(configData.social).length} platforms` : '❌ MISSING');
         console.log('  - Hours:', configData.hours?.full || '❌ MISSING');
         console.log('  - Tagline:', configData.tagline || '❌ MISSING');
-        
-        // Validar que al menos tengamos el nombre del gimnasio
-        if (!configData.name) {
-          console.warn('⚠️ Config loaded but missing gym name. Using fallback.');
-          configData.name = 'Elite Fitness Club';
-        }
-        
-        if (!configData.description) {
-          console.warn('⚠️ Config loaded but missing description. Using fallback.');
-          configData.description = 'Tu transformación comienza aquí.';
-        }
-        
-        if (isMountedRef.current) {
-          setState(prev => ({
-            ...prev,
-            config: configData,
-            isLoaded: true,
-            isLoading: false,
-            error: null
-          }));
-        }
-        
-        console.log('🎉 Gym config loaded successfully!');
-        console.groupEnd();
-        
+      } else if (response && response.name) {
+        // Si el response ya es la data directamente
+        configData = response;
+        console.log('📋 Config data (direct):', configData.name);
       } else {
-        throw new Error('Invalid response structure from backend');
+        console.warn('⚠️ Invalid config response structure:', response);
+        throw new Error('Invalid response structure');
       }
-      
-    } catch (error) {
-      console.log('❌ Failed to load gym config:', error.message);
-      
-      let errorMessage = 'Error loading gym configuration';
-      let shouldRetry = false;
-      
-      // Analizar el tipo de error
-      if (error.response?.status === 404) {
-        errorMessage = 'Gym config endpoint not found (404)';
-        console.log('💡 SOLUTION: Implement /api/gym/config endpoint in backend');
-      } else if (error.response?.status === 500) {
-        errorMessage = 'Backend internal error (500)';
-        shouldRetry = true;
-        console.log('💡 SOLUTION: Check backend logs for internal error details');
-      } else if (error.code === 'ERR_NETWORK') {
-        errorMessage = 'Cannot connect to backend';
-        shouldRetry = true;
-        console.log('💡 SOLUTION: Start the backend server');
-      } else if (error.code === 'ECONNABORTED') {
-        errorMessage = 'Request timeout';
-        shouldRetry = true;
-        console.log('💡 SOLUTION: Backend is taking too long to respond');
+
+      if (configData && configData.name) {
+        setConfig(configData); // ✅ Guardamos solo la data, no el wrapper
+        setIsLoaded(true);
+        setError(null);
+        console.log('🎉 Gym config loaded successfully!');
+      } else {
+        throw new Error('Config data missing required fields');
       }
+
+    } catch (err) {
+      console.error(`❌ Error loading config (attempt ${attempt}):`, err.message);
       
-      if (isMountedRef.current) {
-        setState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: errorMessage,
-          // En caso de error, usar configuración mínima para que la app no se rompa
-          config: prev.config || {
-            name: 'Elite Fitness Club',
-            description: 'Tu transformación comienza aquí.',
-            contact: { address: 'Guatemala', phone: 'Pronto disponible' },
-            hours: { full: 'Consultar horarios' },
-            social: {}
-          },
-          isLoaded: true // Marcar como cargado para que la app pueda continuar
-        }));
-      }
+      setError(err);
       
-      // Reintentar automáticamente para ciertos tipos de error
-      if (shouldRetry && attemptNumber < 3) {
-        console.log(`🔄 Will retry in ${attemptNumber * 2} seconds...`);
+      // Reintentar hasta 3 veces
+      if (attempt < 3) {
+        console.log(`🔄 Retrying in ${attempt}s...`);
         setTimeout(() => {
-          if (isMountedRef.current) {
-            loadConfig(attemptNumber + 1);
-          }
-        }, attemptNumber * 2000);
+          setRetryCount(prev => prev + 1);
+          fetchConfig(attempt + 1);
+        }, attempt * 1000);
+      } else {
+        console.log('💥 Max retry attempts reached');
+        setIsLoaded(true); // Marcar como cargado aunque falle
       }
-      
-      console.groupEnd();
+    } finally {
+      if (attempt === 1 || attempt >= 3) {
+        setIsLoading(false);
+      }
     }
-  };
-  
-  // 🔄 Función para recargar configuración manualmente
-  const reloadConfig = () => {
-    console.log('🔄 Manual reload of gym config requested');
-    setState(prev => ({ ...prev, attemptCount: 0 }));
-    loadConfig(1);
-  };
-  
-  // ⏰ Timeout de seguridad - Si no carga en 5 segundos, usar fallback
+  }, []);
+
+  // Efecto principal para cargar datos
   useEffect(() => {
-    timeoutRef.current = setTimeout(() => {
-      if (!state.isLoaded && isMountedRef.current) {
-        console.warn('⏰ Gym config loading timeout - using fallback configuration');
-        setState(prev => ({
-          ...prev,
-          config: {
-            name: 'Elite Fitness Club',
-            description: 'Tu transformación comienza aquí.',
-            contact: { address: 'Guatemala', phone: 'Pronto disponible' },
-            hours: { full: 'Consultar horarios' },
-            social: {}
-          },
-          isLoaded: true,
-          isLoading: false,
-          error: 'Loading timeout - using fallback configuration'
-        }));
-      }
-    }, 5000);
+    fetchConfig();
     
+    // Cleanup en unmount
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [state.isLoaded]);
-  
-  // 🔥 Cargar configuración al montar el componente
-  useEffect(() => {
-    console.log('🚀 useGymConfig hook initialized');
-    loadConfig(1);
-    
-    return () => {
-      isMountedRef.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
       console.log('🧹 useGymConfig hook cleanup');
     };
-  }, []);
-  
-  // 📊 Log del estado actual cuando cambie
+  }, [fetchConfig]);
+
+  // Logs de estado cuando cambie config
   useEffect(() => {
-    console.log('🏢 Gym Config State Update:', {
-      isLoaded: state.isLoaded,
-      isLoading: state.isLoading,
-      hasConfig: !!state.config,
-      hasError: !!state.error,
-      attemptCount: state.attemptCount,
-      configName: state.config?.name || 'Not loaded'
-    });
-  }, [state.isLoaded, state.isLoading, state.config, state.error, state.attemptCount]);
+    if (config) {
+      console.log('🏢 Gym Config State Update:', {
+        hasName: !!config.name,
+        hasLogo: !!config.logo?.url,
+        hasContact: !!config.contact,
+        hasSocial: !!(config.social && Object.keys(config.social).length > 0),
+        hasHours: !!config.hours
+      });
+    }
+  }, [config]);
+
+  // Función manual de reload
+  const reload = useCallback(() => {
+    console.log('🔄 Manual config reload requested');
+    setRetryCount(0);
+    fetchConfig();
+  }, [fetchConfig]);
 
   return {
-    // Datos principales
-    config: state.config,
-    isLoaded: state.isLoaded,
-    isLoading: state.isLoading,
-    error: state.error,
-    
-    // Información adicional
-    lastAttempt: state.lastAttempt,
-    attemptCount: state.attemptCount,
-    
-    // Funciones
-    reloadConfig,
-    
-    // Helpers
-    hasValidConfig: !!(state.config && state.config.name),
-    isUsingFallback: !!(state.error && state.config),
-    
-    // Accesos directos a propiedades comunes
-    gymName: state.config?.name || 'Elite Fitness Club',
-    gymDescription: state.config?.description || 'Tu transformación comienza aquí.',
-    gymLogo: state.config?.logo?.url || null,
-    gymContact: state.config?.contact || null,
-    gymSocial: state.config?.social || {},
-    gymHours: state.config?.hours?.full || 'Consultar horarios'
+    config,          // ✅ Solo la data: { name: "...", description: "...", ... }
+    isLoaded,        // true cuando terminó de cargar (exitoso o fallo)
+    isLoading,       // true mientras está cargando
+    error,           // Error si falló
+    reload,          // Función para recargar manualmente
+    retryCount       // Número de reintentos
   };
 };
 

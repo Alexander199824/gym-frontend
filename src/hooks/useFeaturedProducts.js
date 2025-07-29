@@ -1,94 +1,94 @@
 // src/hooks/useFeaturedProducts.js
-// FUNCIÓN: Hook para productos destacados - TOLERANTE a errores
-import { useState, useEffect, useRef } from 'react';
+// FUNCIÓN: Hook CORREGIDO para cargar productos destacados
+// ARREGLA: Extrae solo la data del response del backend
+
+import { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
 
 const useFeaturedProducts = () => {
-  const [state, setState] = useState({
-    products: null,
-    isLoaded: false,
-    isLoading: false,
-    error: null
-  });
-  
-  const isMountedRef = useRef(true);
-  
-  const loadProducts = async () => {
-    if (!isMountedRef.current) return;
-    
-    console.group('🛍️ Loading Featured Products');
-    
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+  const [products, setProducts] = useState([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  console.log('🚀 useFeaturedProducts hook initialized');
+
+  const fetchProducts = useCallback(async () => {
+    console.log('🛍️ Loading Featured Products');
+    setIsLoading(true);
+    setError(null);
+
     try {
       console.log('📡 Requesting featured products...');
       const response = await apiService.getFeaturedProducts();
       
+      console.log('🛍️ Featured products received:', response);
+      
+      // 🔧 ARREGLO CRÍTICO: Extraer solo la data del response
+      let productsData = [];
+      
       if (response && response.success && response.data) {
-        const productsData = response.data;
-        
+        // Backend devuelve: { success: true, data: [ { id: 1, name: "...", ... }, ... ] }
+        productsData = response.data;
+        console.log('🛍️ Products data extracted:');
+        console.log('  - Total products:', productsData.length);
         if (Array.isArray(productsData)) {
-          console.log('🛍️ Products received:', {
-            total: productsData.length,
-            inStock: productsData.filter(p => p.inStock !== false).length,
-            products: productsData.map(p => ({ 
-              name: p.name, 
-              price: p.price,
-              category: p.category
-            }))
+          productsData.forEach((product, i) => {
+            console.log(`  - Product ${i + 1}: ${product.name} - Q${product.price} (Stock: ${product.inStock})`);
           });
-          
-          if (isMountedRef.current) {
-            setState(prev => ({
-              ...prev,
-              products: productsData,
-              isLoaded: true,
-              isLoading: false,
-              error: null
-            }));
-          }
-          
-          console.log('✅ Featured products loaded successfully');
-        } else {
-          throw new Error('Products data is not an array');
         }
+      } else if (response && Array.isArray(response)) {
+        // Si el response ya es la data directamente
+        productsData = response;
+        console.log('🛍️ Products data (direct array):', productsData.length);
       } else {
-        throw new Error('Invalid products response');
+        console.warn('⚠️ Invalid products response structure:', response);
+        throw new Error('Invalid response structure');
       }
-      
-    } catch (error) {
-      console.log('❌ Failed to load featured products:', error.message);
-      console.log('💡 Store section will be hidden in the landing page');
-      
-      if (isMountedRef.current) {
-        setState(prev => ({
-          ...prev,
-          products: [],
-          isLoaded: true,
-          isLoading: false,
-          error: error.message
-        }));
-      }
+
+      // Filtrar solo productos disponibles y destacados
+      const availableProducts = Array.isArray(productsData) 
+        ? productsData.filter(product => 
+            product.inStock !== false && 
+            product.featured !== false
+          )
+        : [];
+
+      setProducts(availableProducts); // ✅ Guardamos solo la data, no el wrapper
+      setIsLoaded(true);
+      console.log(`✅ Featured products loaded successfully! (${availableProducts.length} available)`);
+
+    } catch (err) {
+      console.error('❌ Error loading featured products:', err.message);
+      setError(err);
+      setProducts([]); // Fallback a array vacío
+      setIsLoaded(true); // Marcar como cargado aunque falle
+    } finally {
+      setIsLoading(false);
     }
-    
-    console.groupEnd();
-  };
-  
+  }, []);
+
+  // Efecto principal para cargar datos
   useEffect(() => {
-    console.log('🚀 useFeaturedProducts hook initialized');
-    loadProducts();
-    return () => { 
-      isMountedRef.current = false;
+    fetchProducts();
+    
+    return () => {
       console.log('🧹 useFeaturedProducts hook cleanup');
     };
-  }, []);
-  
+  }, [fetchProducts]);
+
+  // Función manual de reload
+  const reload = useCallback(() => {
+    console.log('🔄 Manual products reload requested');
+    fetchProducts();
+  }, [fetchProducts]);
+
   return {
-    products: state.products,
-    isLoaded: state.isLoaded,
-    isLoading: state.isLoading,
-    error: state.error,
-    hasProducts: !!(state.products && Array.isArray(state.products) && state.products.length > 0)
+    products,        // ✅ Solo la data: [ { id: 1, name: "...", ... }, ... ]
+    isLoaded,        // true cuando terminó de cargar
+    isLoading,       // true mientras está cargando
+    error,           // Error si falló
+    reload           // Función para recargar manualmente
   };
 };
 

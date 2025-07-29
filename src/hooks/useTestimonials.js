@@ -1,104 +1,94 @@
 // src/hooks/useTestimonials.js
-// FUNCIÓN: Hook para testimonios - TOLERANTE a errores
-import { useState, useEffect, useRef } from 'react';
+// FUNCIÓN: Hook CORREGIDO para cargar testimonios
+// ARREGLA: Extrae solo la data del response del backend
+
+import { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
 
 const useTestimonials = () => {
-  const [state, setState] = useState({
-    testimonials: null,
-    isLoaded: false,
-    isLoading: false,
-    error: null
-  });
-  
-  const isMountedRef = useRef(true);
-  
-  const loadTestimonials = async () => {
-    if (!isMountedRef.current) return;
-    
-    console.group('💬 Loading Testimonials');
-    
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
+  const [testimonials, setTestimonials] = useState([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  console.log('🚀 useTestimonials hook initialized');
+
+  const fetchTestimonials = useCallback(async () => {
+    console.log('💬 Loading Testimonials');
+    setIsLoading(true);
+    setError(null);
+
     try {
       console.log('📡 Requesting testimonials...');
       const response = await apiService.getTestimonials();
       
+      console.log('💬 Testimonials received:', response);
+      
+      // 🔧 ARREGLO CRÍTICO: Extraer solo la data del response
+      let testimonialsData = [];
+      
       if (response && response.success && response.data) {
-        const testimonialsData = response.data;
-        
+        // Backend devuelve: { success: true, data: [ { id: 1, name: "...", ... }, ... ] }
+        testimonialsData = response.data;
+        console.log('💬 Testimonials data extracted:');
+        console.log('  - Total testimonials:', testimonialsData.length);
         if (Array.isArray(testimonialsData)) {
-          console.log('💬 Testimonials received:', {
-            total: testimonialsData.length,
-            active: testimonialsData.filter(t => t.active !== false).length,
-            testimonials: testimonialsData.map(t => ({ 
-              name: t.name, 
-              rating: t.rating,
-              text_preview: t.text?.substring(0, 50) + '...'
-            }))
+          testimonialsData.forEach((testimonial, i) => {
+            console.log(`  - Testimonial ${i + 1}: ${testimonial.name} (${testimonial.rating}⭐)`);
           });
-          
-          if (isMountedRef.current) {
-            setState(prev => ({
-              ...prev,
-              testimonials: testimonialsData,
-              isLoaded: true,
-              isLoading: false,
-              error: null
-            }));
-          }
-          
-          console.log('✅ Testimonials loaded successfully');
-        } else {
-          throw new Error('Testimonials data is not an array');
         }
+      } else if (response && Array.isArray(response)) {
+        // Si el response ya es la data directamente
+        testimonialsData = response;
+        console.log('💬 Testimonials data (direct array):', testimonialsData.length);
       } else {
-        throw new Error('Invalid testimonials response');
+        console.warn('⚠️ Invalid testimonials response structure:', response);
+        throw new Error('Invalid response structure');
       }
-      
-    } catch (error) {
-      console.log('❌ Failed to load testimonials:', error.message);
-      
-      // Análisis específico para testimonios (error común)
-      if (error.response?.status === 500) {
-        console.log('🔍 COMMON ISSUE: Testimonials 500 error usually caused by:');
-        console.log('   - undefined created_at or updated_at fields');
-        console.log('   - calling .toISOString() on undefined date');
-        console.log('🔧 SOLUTION: Add null checking in gymController.js testimonials endpoint');
-        console.log('📝 Example fix: testimonial.created_at ? testimonial.created_at.toISOString() : new Date().toISOString()');
-      }
-      
-      console.log('💡 Testimonials section will be hidden in the landing page');
-      
-      if (isMountedRef.current) {
-        setState(prev => ({
-          ...prev,
-          testimonials: [],
-          isLoaded: true,
-          isLoading: false,
-          error: error.message
-        }));
-      }
+
+      // Filtrar solo testimonios activos y verificados
+      const activeTestimonials = Array.isArray(testimonialsData) 
+        ? testimonialsData.filter(testimonial => 
+            testimonial.active !== false && 
+            testimonial.verified !== false
+          )
+        : [];
+
+      setTestimonials(activeTestimonials); // ✅ Guardamos solo la data, no el wrapper
+      setIsLoaded(true);
+      console.log(`✅ Testimonials loaded successfully! (${activeTestimonials.length} active)`);
+
+    } catch (err) {
+      console.error('❌ Error loading testimonials:', err.message);
+      setError(err);
+      setTestimonials([]); // Fallback a array vacío
+      setIsLoaded(true); // Marcar como cargado aunque falle
+    } finally {
+      setIsLoading(false);
     }
-    
-    console.groupEnd();
-  };
-  
+  }, []);
+
+  // Efecto principal para cargar datos
   useEffect(() => {
-    console.log('🚀 useTestimonials hook initialized');
-    loadTestimonials();
-    return () => { 
-      isMountedRef.current = false;
+    fetchTestimonials();
+    
+    return () => {
       console.log('🧹 useTestimonials hook cleanup');
     };
-  }, []);
-  
+  }, [fetchTestimonials]);
+
+  // Función manual de reload
+  const reload = useCallback(() => {
+    console.log('🔄 Manual testimonials reload requested');
+    fetchTestimonials();
+  }, [fetchTestimonials]);
+
   return {
-    testimonials: state.testimonials,
-    isLoaded: state.isLoaded,
-    isLoading: state.isLoading,
-    error: state.error,
-    hasTestimonials: !!(state.testimonials && Array.isArray(state.testimonials) && state.testimonials.length > 0)
+    testimonials,    // ✅ Solo la data: [ { id: 1, name: "...", ... }, ... ]
+    isLoaded,        // true cuando terminó de cargar
+    isLoading,       // true mientras está cargando
+    error,           // Error si falló
+    reload           // Función para recargar manualmente
   };
 };
 
