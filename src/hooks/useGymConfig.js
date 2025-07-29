@@ -1,285 +1,227 @@
 // src/hooks/useGymConfig.js
-// FUNCIÓN: Hook optimizado para configuración del gym - SIN peticiones múltiples
-// CACHE INTELIGENTE: Evita refetch innecesario
+// FUNCIÓN: Hook MEJORADO para cargar configuración del gimnasio con logs detallados
+// TOLERANTE: A errores, timeouts y datos faltantes
 
 import { useState, useEffect, useRef } from 'react';
-import { useApp } from '../contexts/AppContext';
 import apiService from '../services/apiService';
 
-// 🏠 CACHE GLOBAL para evitar múltiples peticiones de la misma data
-const globalCache = {
-  data: null,
-  timestamp: null,
-  isLoading: false,
-  error: null,
-  subscribers: new Set()
-};
-
-// ⏰ TTL del cache: 10 minutos
-const CACHE_TTL = 10 * 60 * 1000;
-
 const useGymConfig = () => {
-  const { setCacheData, getCacheData, isCacheValid } = useApp();
   const [state, setState] = useState({
     config: null,
     isLoaded: false,
     isLoading: false,
-    error: null
+    error: null,
+    lastAttempt: null,
+    attemptCount: 0
   });
   
-  const subscriberIdRef = useRef(Math.random().toString(36).substr(2, 9));
   const isMountedRef = useRef(true);
+  const timeoutRef = useRef(null);
   
-  // 🔧 Función para actualizar estado solo si el componente está montado
-  const safeSetState = (newState) => {
-    if (isMountedRef.current) {
-      setState(prevState => ({ ...prevState, ...newState }));
-    }
-  };
-  
-  // 🔧 Función para notificar a todos los subscribers
-  const notifySubscribers = (data) => {
-    globalCache.subscribers.forEach(callback => {
-      if (typeof callback === 'function') {
-        callback(data);
-      }
-    });
-  };
-  
-  // 🔧 Función para obtener datos del cache
-  const getFromCache = () => {
-    // Verificar cache de AppContext primero
-    const appCacheData = getCacheData('gymConfig');
-    if (appCacheData) {
-      console.log('📦 Using AppContext cache for gym config');
-      return appCacheData;
-    }
+  // 🔄 Función para cargar configuración
+  const loadConfig = async (attemptNumber = 1) => {
+    if (!isMountedRef.current) return;
     
-    // Verificar cache global
-    if (globalCache.data && globalCache.timestamp) {
-      const age = Date.now() - globalCache.timestamp;
-      if (age < CACHE_TTL) {
-        console.log('📦 Using global cache for gym config');
-        return globalCache.data;
-      }
-    }
+    console.group(`🏢 Loading Gym Config - Attempt ${attemptNumber}`);
     
-    return null;
-  };
-  
-  // 🔧 Función para guardar en cache
-  const saveToCache = (data) => {
-    // Guardar en cache global
-    globalCache.data = data;
-    globalCache.timestamp = Date.now();
-    globalCache.error = null;
-    
-    // Guardar en AppContext cache
-    setCacheData('gymConfig', data);
-    
-    console.log('💾 Gym config saved to cache');
-  };
-  
-  // 🚀 Función principal para obtener configuración
-  const fetchGymConfig = async (force = false) => {
-    const subscriberId = subscriberIdRef.current;
-    
-    // Si ya hay una petición en curso y no es forzada, esperar
-    if (globalCache.isLoading && !force) {
-      console.log('⏳ Gym config fetch already in progress, waiting...');
-      return;
-    }
-    
-    // Verificar cache primero (solo si no es forzada)
-    if (!force) {
-      const cachedData = getFromCache();
-      if (cachedData) {
-        safeSetState({
-          config: cachedData,
-          isLoaded: true,
-          isLoading: false,
-          error: null
-        });
-        return;
-      }
-    }
-    
-    // Marcar como cargando
-    globalCache.isLoading = true;
-    safeSetState({ isLoading: true, error: null });
+    setState(prev => ({
+      ...prev,
+      isLoading: true,
+      error: null,
+      lastAttempt: new Date(),
+      attemptCount: attemptNumber
+    }));
     
     try {
-      console.group('🏢 Fetching Gym Configuration');
-      console.log('📡 Making API request to /api/gym/config');
+      console.log('📡 Making request to /api/gym/config...');
       
       const response = await apiService.getGymConfig();
       
-      if (!isMountedRef.current) {
-        console.log('⚠️ Component unmounted, aborting update');
-        console.groupEnd();
-        return;
-      }
+      console.log('✅ Config response received:', response);
       
-      if (response.success && response.data) {
-        console.log('✅ Gym config received successfully');
-        console.log('📋 Config contains:', {
-          name: response.data.name ? '✅' : '❌',
-          logo: response.data.logo ? '✅' : '❌',
-          contact: response.data.contact ? '✅' : '❌',
-          social: response.data.social ? `✅ (${Object.keys(response.data.social).length} platforms)` : '❌',
-          hours: response.data.hours ? '✅' : '❌'
-        });
+      // Analizar la respuesta
+      if (response && response.success && response.data) {
+        const configData = response.data;
         
-        // Guardar en cache
-        saveToCache(response.data);
+        console.log('📋 Config data structure:');
+        console.log('  - Name:', configData.name || '❌ MISSING');
+        console.log('  - Description:', configData.description || '❌ MISSING');
+        console.log('  - Logo URL:', configData.logo?.url || '❌ MISSING');
+        console.log('  - Contact info:', configData.contact ? '✅ Present' : '❌ MISSING');
+        console.log('  - Social media:', configData.social ? `✅ ${Object.keys(configData.social).length} platforms` : '❌ MISSING');
+        console.log('  - Hours:', configData.hours?.full || '❌ MISSING');
+        console.log('  - Tagline:', configData.tagline || '❌ MISSING');
         
-        // Actualizar estado
-        const newState = {
-          config: response.data,
-          isLoaded: true,
-          isLoading: false,
-          error: null
-        };
+        // Validar que al menos tengamos el nombre del gimnasio
+        if (!configData.name) {
+          console.warn('⚠️ Config loaded but missing gym name. Using fallback.');
+          configData.name = 'Elite Fitness Club';
+        }
         
-        safeSetState(newState);
+        if (!configData.description) {
+          console.warn('⚠️ Config loaded but missing description. Using fallback.');
+          configData.description = 'Tu transformación comienza aquí.';
+        }
         
-        // Notificar a otros subscribers
-        notifySubscribers(newState);
+        if (isMountedRef.current) {
+          setState(prev => ({
+            ...prev,
+            config: configData,
+            isLoaded: true,
+            isLoading: false,
+            error: null
+          }));
+        }
         
+        console.log('🎉 Gym config loaded successfully!');
         console.groupEnd();
         
       } else {
-        throw new Error('Invalid response format from backend');
+        throw new Error('Invalid response structure from backend');
       }
       
     } catch (error) {
-      console.group('❌ Gym Config Fetch Failed');
-      console.log('🔍 Error details:', error.message);
+      console.log('❌ Failed to load gym config:', error.message);
       
+      let errorMessage = 'Error loading gym configuration';
+      let shouldRetry = false;
+      
+      // Analizar el tipo de error
       if (error.response?.status === 404) {
-        console.log('📍 PROBLEM: /api/gym/config endpoint not found');
-        console.log('🔧 SOLUTION: Implement gym config endpoint in backend');
-        console.log('📋 EXPECTED RESPONSE:');
-        console.log(`   {
-     "success": true,
-     "data": {
-       "name": "Gym Name",
-       "logo": { "url": "logo.png" },
-       "contact": { "phone": "123", "address": "..." }
-     }
-   }`);
+        errorMessage = 'Gym config endpoint not found (404)';
+        console.log('💡 SOLUTION: Implement /api/gym/config endpoint in backend');
       } else if (error.response?.status === 500) {
-        console.log('📍 PROBLEM: Backend internal error');
-        console.log('🔧 SOLUTION: Check backend logs for details');
+        errorMessage = 'Backend internal error (500)';
+        shouldRetry = true;
+        console.log('💡 SOLUTION: Check backend logs for internal error details');
       } else if (error.code === 'ERR_NETWORK') {
-        console.log('📍 PROBLEM: Cannot connect to backend');
-        console.log('🔧 SOLUTION: Start backend server');
+        errorMessage = 'Cannot connect to backend';
+        shouldRetry = true;
+        console.log('💡 SOLUTION: Start the backend server');
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Request timeout';
+        shouldRetry = true;
+        console.log('💡 SOLUTION: Backend is taking too long to respond');
+      }
+      
+      if (isMountedRef.current) {
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: errorMessage,
+          // En caso de error, usar configuración mínima para que la app no se rompa
+          config: prev.config || {
+            name: 'Elite Fitness Club',
+            description: 'Tu transformación comienza aquí.',
+            contact: { address: 'Guatemala', phone: 'Pronto disponible' },
+            hours: { full: 'Consultar horarios' },
+            social: {}
+          },
+          isLoaded: true // Marcar como cargado para que la app pueda continuar
+        }));
+      }
+      
+      // Reintentar automáticamente para ciertos tipos de error
+      if (shouldRetry && attemptNumber < 3) {
+        console.log(`🔄 Will retry in ${attemptNumber * 2} seconds...`);
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            loadConfig(attemptNumber + 1);
+          }
+        }, attemptNumber * 2000);
       }
       
       console.groupEnd();
-      
-      const errorState = {
-        config: null,
-        isLoaded: true, // Marcamos como cargado para no mostrar loading infinito
-        isLoading: false,
-        error: error.message
-      };
-      
-      safeSetState(errorState);
-      
-      // Actualizar cache global con error
-      globalCache.error = error.message;
-      globalCache.isLoading = false;
-      
-      // Notificar error a subscribers
-      notifySubscribers(errorState);
     }
-    
-    globalCache.isLoading = false;
   };
   
-  // 🔧 Suscribirse a cambios en el cache global
+  // 🔄 Función para recargar configuración manualmente
+  const reloadConfig = () => {
+    console.log('🔄 Manual reload of gym config requested');
+    setState(prev => ({ ...prev, attemptCount: 0 }));
+    loadConfig(1);
+  };
+  
+  // ⏰ Timeout de seguridad - Si no carga en 5 segundos, usar fallback
   useEffect(() => {
-    const subscriberId = subscriberIdRef.current;
+    timeoutRef.current = setTimeout(() => {
+      if (!state.isLoaded && isMountedRef.current) {
+        console.warn('⏰ Gym config loading timeout - using fallback configuration');
+        setState(prev => ({
+          ...prev,
+          config: {
+            name: 'Elite Fitness Club',
+            description: 'Tu transformación comienza aquí.',
+            contact: { address: 'Guatemala', phone: 'Pronto disponible' },
+            hours: { full: 'Consultar horarios' },
+            social: {}
+          },
+          isLoaded: true,
+          isLoading: false,
+          error: 'Loading timeout - using fallback configuration'
+        }));
+      }
+    }, 5000);
     
-    // Función de callback para recibir actualizaciones
-    const handleCacheUpdate = (newState) => {
-      if (isMountedRef.current) {
-        setState(newState);
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
+  }, [state.isLoaded]);
+  
+  // 🔥 Cargar configuración al montar el componente
+  useEffect(() => {
+    console.log('🚀 useGymConfig hook initialized');
+    loadConfig(1);
     
-    // Suscribirse a cambios
-    globalCache.subscribers.add(handleCacheUpdate);
-    
-    // Verificar si ya hay datos en cache
-    const cachedData = getFromCache();
-    if (cachedData) {
-      console.log('📦 Loading gym config from existing cache');
-      safeSetState({
-        config: cachedData,
-        isLoaded: true,
-        isLoading: false,
-        error: null
-      });
-    } else if (!globalCache.isLoading) {
-      // Solo hacer fetch si no hay cache y no hay petición en curso
-      fetchGymConfig();
-    }
-    
-    // Cleanup al desmontar
     return () => {
       isMountedRef.current = false;
-      globalCache.subscribers.delete(handleCacheUpdate);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      console.log('🧹 useGymConfig hook cleanup');
     };
-  }, []); // Empty dependency array - solo ejecutar una vez
+  }, []);
   
-  // 🔄 Función para refrescar datos (force reload)
-  const refetch = () => {
-    console.log('🔄 Force refreshing gym config...');
-    fetchGymConfig(true);
-  };
-  
-  // 🧹 Función para limpiar cache
-  const clearCache = () => {
-    console.log('🧹 Clearing gym config cache...');
-    globalCache.data = null;
-    globalCache.timestamp = null;
-    globalCache.error = null;
-    
-    safeSetState({
-      config: null,
-      isLoaded: false,
-      isLoading: false,
-      error: null
+  // 📊 Log del estado actual cuando cambie
+  useEffect(() => {
+    console.log('🏢 Gym Config State Update:', {
+      isLoaded: state.isLoaded,
+      isLoading: state.isLoading,
+      hasConfig: !!state.config,
+      hasError: !!state.error,
+      attemptCount: state.attemptCount,
+      configName: state.config?.name || 'Not loaded'
     });
-  };
-  
+  }, [state.isLoaded, state.isLoading, state.config, state.error, state.attemptCount]);
+
   return {
+    // Datos principales
     config: state.config,
     isLoaded: state.isLoaded,
     isLoading: state.isLoading,
     error: state.error,
-    refetch,
-    clearCache,
     
-    // Funciones de utilidad
-    hasValidConfig: !!state.config,
-    configAge: globalCache.timestamp ? Date.now() - globalCache.timestamp : null,
-    isCacheValid: globalCache.timestamp ? (Date.now() - globalCache.timestamp) < CACHE_TTL : false
+    // Información adicional
+    lastAttempt: state.lastAttempt,
+    attemptCount: state.attemptCount,
+    
+    // Funciones
+    reloadConfig,
+    
+    // Helpers
+    hasValidConfig: !!(state.config && state.config.name),
+    isUsingFallback: !!(state.error && state.config),
+    
+    // Accesos directos a propiedades comunes
+    gymName: state.config?.name || 'Elite Fitness Club',
+    gymDescription: state.config?.description || 'Tu transformación comienza aquí.',
+    gymLogo: state.config?.logo?.url || null,
+    gymContact: state.config?.contact || null,
+    gymSocial: state.config?.social || {},
+    gymHours: state.config?.hours?.full || 'Consultar horarios'
   };
 };
 
 export default useGymConfig;
-
-// 📝 OPTIMIZACIONES APLICADAS:
-// ✅ Cache global compartido entre instancias del hook
-// ✅ Evita peticiones múltiples simultáneas
-// ✅ Sistema de suscriptores para sincronizar estado
-// ✅ Verificación de componente montado antes de actualizar estado
-// ✅ Cache con TTL de 10 minutos
-// ✅ Logs informativos y agrupados
-// ✅ Mejor manejo de errores con contexto
-// ✅ Función refetch para force reload
-// ✅ Función clearCache para limpiar datos
-// ✅ Integración con AppContext cache

@@ -1,6 +1,8 @@
 // src/services/apiService.js
 // FUNCIÓN: Servicio API MEJORADO con logs detallados y rutas corregidas
 // CORRIGE: Errores de rutas, logs confusos y peticiones innecesarias
+// FUNCIÓN: Servicio API MEJORADO con logs DETALLADOS de las respuestas del backend
+// MUESTRA: Exactamente qué datos devuelve el backend para debug
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -15,7 +17,7 @@ const api = axios.create({
   }
 });
 
-// 🔐 INTERCEPTOR DE PETICIONES (Request) - OPTIMIZADO
+// 🔐 INTERCEPTOR DE PETICIONES (Request) - MEJORADO
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
@@ -24,15 +26,16 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // 🔍 LOGS REDUCIDOS - Solo endpoints importantes o en desarrollo
+    // 🔍 LOGS DETALLADOS - Mostrar TODA petición en desarrollo
     if (process.env.NODE_ENV === 'development') {
-      const isImportantEndpoint = config.url.includes('/health') || 
-                                  config.url.includes('/auth') || 
-                                  config.url.includes('/config');
+      const url = config.url.startsWith('/') ? config.url : `/${config.url}`;
+      console.log(`🚀 API REQUEST: ${config.method?.toUpperCase()} ${config.baseURL}${url}`);
       
-      if (isImportantEndpoint) {
-        const url = config.url.startsWith('/') ? config.url : `/${config.url}`;
-        console.log(`🚀 API: ${config.method?.toUpperCase()} ${url}`);
+      if (config.data) {
+        console.log('📤 Request Data:', config.data);
+      }
+      if (config.params) {
+        console.log('📋 Request Params:', config.params);
       }
     }
     
@@ -44,25 +47,118 @@ api.interceptors.request.use(
   }
 );
 
-// 📨 INTERCEPTOR DE RESPUESTAS (Response) - MEJORADO
+// 📨 INTERCEPTOR DE RESPUESTAS (Response) - CON LOGS SÚPER DETALLADOS
 api.interceptors.response.use(
   (response) => {
-    // 🔍 LOGS DE ÉXITO - Solo para endpoints importantes
+    // 🔍 LOGS SÚPER DETALLADOS - Mostrar TODO lo que devuelve el backend
     if (process.env.NODE_ENV === 'development') {
       const url = response.config.url;
-      const isImportantEndpoint = url.includes('/health') || 
-                                  url.includes('/auth') || 
-                                  url.includes('/config') ||
-                                  url.includes('/stats') ||
-                                  url.includes('/services');
+      const method = response.config.method?.toUpperCase();
       
-      if (isImportantEndpoint) {
-        const data = response.data?.data;
-        const dataInfo = Array.isArray(data) ? `Array(${data.length})` : 
-                        data ? typeof data : 'No data';
+      console.group(`✅ BACKEND RESPONSE: ${method} ${url}`);
+      console.log('📊 Status:', response.status);
+      console.log('📋 Headers:', response.headers);
+      
+      // MOSTRAR DATOS COMPLETOS del backend
+      if (response.data) {
+        console.log('📦 FULL RESPONSE DATA:');
+        console.log(JSON.stringify(response.data, null, 2));
         
-        console.log(`✅ ${url} → ${dataInfo}`);
+        // Análisis específico por endpoint
+        if (url.includes('/config')) {
+          console.log('🏢 CONFIG ANALYSIS:');
+          const data = response.data?.data || response.data;
+          console.log('  - Name:', data?.name || '❌ MISSING');
+          console.log('  - Logo URL:', data?.logo?.url || '❌ MISSING');
+          console.log('  - Description:', data?.description || '❌ MISSING');
+          console.log('  - Contact:', data?.contact ? '✅ Present' : '❌ MISSING');
+          console.log('  - Social:', data?.social ? Object.keys(data.social).length + ' platforms' : '❌ MISSING');
+        }
+        
+        if (url.includes('/stats')) {
+          console.log('📊 STATS ANALYSIS:');
+          const data = response.data?.data || response.data;
+          console.log('  - Members:', data?.members || '❌ MISSING');
+          console.log('  - Trainers:', data?.trainers || '❌ MISSING');
+          console.log('  - Experience:', data?.experience || '❌ MISSING');
+          console.log('  - Satisfaction:', data?.satisfaction || '❌ MISSING');
+        }
+        
+        if (url.includes('/services')) {
+          console.log('🏋️ SERVICES ANALYSIS:');
+          const data = response.data?.data || response.data;
+          if (Array.isArray(data)) {
+            console.log(`  - Total services: ${data.length}`);
+            data.forEach((service, i) => {
+              console.log(`  - Service ${i + 1}:`, {
+                id: service.id,
+                title: service.title,
+                active: service.active !== false
+              });
+            });
+          } else {
+            console.log('  - ❌ Services is not an array:', typeof data);
+          }
+        }
+        
+        if (url.includes('/testimonials')) {
+          console.log('💬 TESTIMONIALS ANALYSIS:');
+          const data = response.data?.data || response.data;
+          if (Array.isArray(data)) {
+            console.log(`  - Total testimonials: ${data.length}`);
+            data.forEach((testimonial, i) => {
+              console.log(`  - Testimonial ${i + 1}:`, {
+                id: testimonial.id,
+                name: testimonial.name,
+                text: testimonial.text?.substring(0, 50) + '...',
+                rating: testimonial.rating
+              });
+            });
+          } else {
+            console.log('  - ❌ Testimonials is not an array:', typeof data);
+          }
+        }
+        
+        if (url.includes('/products')) {
+          console.log('🛍️ PRODUCTS ANALYSIS:');
+          const data = response.data?.data || response.data;
+          if (Array.isArray(data)) {
+            console.log(`  - Total products: ${data.length}`);
+            data.forEach((product, i) => {
+              console.log(`  - Product ${i + 1}:`, {
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                inStock: product.inStock !== false
+              });
+            });
+          } else {
+            console.log('  - ❌ Products is not an array:', typeof data);
+          }
+        }
+        
+        if (url.includes('/membership-plans')) {
+          console.log('🎫 PLANS ANALYSIS:');
+          const data = response.data?.data || response.data;
+          if (Array.isArray(data)) {
+            console.log(`  - Total plans: ${data.length}`);
+            data.forEach((plan, i) => {
+              console.log(`  - Plan ${i + 1}:`, {
+                id: plan.id,
+                name: plan.name,
+                price: plan.price,
+                popular: plan.popular
+              });
+            });
+          } else {
+            console.log('  - ❌ Plans is not an array:', typeof data);
+          }
+        }
+      } else {
+        console.log('📦 NO DATA in response');
       }
+      
+      console.groupEnd();
     }
     
     return response;
@@ -72,12 +168,16 @@ api.interceptors.response.use(
     const url = config?.url || 'unknown';
     const method = config?.method?.toUpperCase() || 'UNKNOWN';
     
-    // 🔍 LOGS DE ERROR INFORMATIVOS - Sin spam
+    // 🔍 LOGS DE ERROR SÚPER DETALLADOS
+    console.group(`❌ BACKEND ERROR: ${method} ${url}`);
+    
     if (response) {
       const status = response.status;
-      const fullUrl = `${config?.baseURL || ''}${url}`;
+      console.log('📊 Error Status:', status);
+      console.log('📋 Error Headers:', response.headers);
+      console.log('📦 Error Data:', response.data);
       
-      console.group(`❌ API Error: ${method} ${url} (${status})`);
+      const fullUrl = `${config?.baseURL || ''}${url}`;
       
       // Contexto específico por tipo de error
       switch (status) {
@@ -102,6 +202,13 @@ api.interceptors.response.use(
           console.log('🔍 PROBLEMA: Endpoint no implementado en backend');
           console.log('🔧 VERIFICAR: ¿Existe la ruta en el backend?');
           console.log('📋 URL completa:', fullUrl);
+          console.log('💡 POSIBLES RUTAS ESPERADAS:');
+          console.log('   - /api/gym/config');
+          console.log('   - /api/gym/stats');
+          console.log('   - /api/gym/services');
+          console.log('   - /api/gym/testimonials');
+          console.log('   - /api/store/featured-products');
+          console.log('   - /api/gym/membership-plans');
           
           // Solo mostrar toast para endpoints críticos
           const isCritical = url.includes('/auth') || url.includes('/config');
@@ -136,42 +243,49 @@ api.interceptors.response.use(
           console.log('🔥 PROBLEMA: Error interno del servidor');
           console.log('🔧 VERIFICAR: Logs del backend para más detalles');
           console.log('📋 Error del servidor:', response.data?.message || 'Sin detalles');
+          
+          // Análisis específico para errores 500 comunes
+          if (url.includes('/testimonials')) {
+            console.log('💡 POSIBLE CAUSA: Campo created_at o updated_at undefined');
+            console.log('🔧 SOLUCIÓN: Agregar validación en gymController.js');
+            console.log('📝 CÓDIGO SUGERIDO: testimonial.created_at ? testimonial.created_at.toISOString() : new Date().toISOString()');
+          }
+          
           toast.error('Error del servidor, contacta soporte');
           break;
           
         default:
           console.log(`🤔 PROBLEMA: Error HTTP ${status}`);
-          console.log('📋 Respuesta:', response.data);
+          console.log('📋 Respuesta completa:', response.data);
           
           const message = response.data?.message || `Error ${status}`;
           toast.error(message);
       }
       
-      console.groupEnd();
-      
     } else if (error.code === 'ECONNABORTED') {
-      console.group('⏰ Request Timeout');
-      console.log('🔍 PROBLEMA: El servidor tardó más de', config?.timeout, 'ms en responder');
+      console.log('⏰ PROBLEMA: Request Timeout');
+      console.log('🔍 El servidor tardó más de', config?.timeout, 'ms en responder');
       console.log('🔧 POSIBLES CAUSAS:');
       console.log('   - Servidor sobrecargado');
       console.log('   - Conexión lenta');
       console.log('   - Endpoint pesado');
       console.log('💡 SOLUCIÓN: Optimizar endpoint o aumentar timeout');
-      console.groupEnd();
       
       toast.error('La solicitud tardó demasiado tiempo');
       
     } else if (error.code === 'ERR_NETWORK') {
-      console.group('🌐 Network Error');
-      console.log('🔍 PROBLEMA: No se puede conectar al backend');
+      console.log('🌐 PROBLEMA: No se puede conectar al backend');
       console.log('🔧 POSIBLES CAUSAS:');
       console.log('   - Backend no está corriendo');
       console.log('   - Puerto incorrecto');
       console.log('   - Problema de CORS');
       console.log('   - Firewall bloqueando');
-      console.log('📋 Backend URL:', config?.baseURL);
-      console.log('💡 VERIFICAR: ¿Está el backend corriendo en', config?.baseURL, '?');
-      console.groupEnd();
+      console.log('📋 Backend URL configurada:', config?.baseURL);
+      console.log('💡 VERIFICACIONES:');
+      console.log('   1. ¿Está el backend corriendo?');
+      console.log('   2. ¿Responde en:', config?.baseURL);
+      console.log('   3. ¿Hay errors en los logs del backend?');
+      console.log('   4. ¿CORS configurado correctamente?');
       
       // No mostrar toast para errores de red durante carga inicial
       if (!document.location.pathname.includes('/login')) {
@@ -179,13 +293,14 @@ api.interceptors.response.use(
       }
       
     } else {
-      console.group('🔥 Unknown Error');
-      console.log('🔍 PROBLEMA: Error desconocido');
-      console.log('📋 Error:', error.message);
-      console.log('📋 Code:', error.code);
-      console.log('📋 URL:', url);
-      console.groupEnd();
+      console.log('🔥 ERROR DESCONOCIDO');
+      console.log('🔍 Error message:', error.message);
+      console.log('📋 Error code:', error.code);
+      console.log('📋 Error stack:', error.stack);
+      console.log('📋 URL afectada:', url);
     }
+    
+    console.groupEnd();
     
     return Promise.reject(error);
   }
@@ -198,18 +313,25 @@ class ApiService {
   // 🔧 MÉTODOS GENERALES OPTIMIZADOS
   // ================================
   
-  // MÉTODO GENERAL GET
+  // MÉTODO GENERAL GET - CON LOGS DETALLADOS
   async get(endpoint) {
     try {
       const url = this.normalizeEndpoint(endpoint);
+      console.log(`🎯 MAKING GET REQUEST TO: ${url}`);
+      
       const response = await api.get(url);
       
-      // Log informativo para endpoints importantes
-      this.logSuccessfulResponse(endpoint, response.data);
+      // Log específico del resultado
+      console.log(`🎉 GET ${url} SUCCESS:`, {
+        hasData: !!response.data,
+        dataType: Array.isArray(response.data?.data) ? 'Array' : typeof response.data?.data,
+        dataLength: Array.isArray(response.data?.data) ? response.data.data.length : 'N/A',
+        success: response.data?.success
+      });
       
       return response.data;
     } catch (error) {
-      this.logEndpointError('GET', endpoint, error);
+      console.log(`💥 GET ${endpoint} FAILED:`, error.message);
       throw error;
     }
   }
@@ -218,13 +340,15 @@ class ApiService {
   async post(endpoint, data) {
     try {
       const url = this.normalizeEndpoint(endpoint);
+      console.log(`🎯 MAKING POST REQUEST TO: ${url}`, data);
+      
       const response = await api.post(url, data);
       
-      this.logSuccessfulResponse(endpoint, response.data);
+      console.log(`🎉 POST ${url} SUCCESS:`, response.data);
       
       return response.data;
     } catch (error) {
-      this.logEndpointError('POST', endpoint, error);
+      console.log(`💥 POST ${endpoint} FAILED:`, error.message);
       throw error;
     }
   }
@@ -260,37 +384,8 @@ class ApiService {
     return `/api/${endpoint}`;
   }
   
-  // 🔧 HELPER: Log de respuesta exitosa (solo importantes)
-  logSuccessfulResponse(endpoint, data) {
-    if (process.env.NODE_ENV !== 'development') return;
-    
-    const isImportant = endpoint.includes('config') || 
-                       endpoint.includes('stats') || 
-                       endpoint.includes('services') ||
-                       endpoint.includes('health');
-    
-    if (isImportant && data) {
-      const dataType = data.data ? (Array.isArray(data.data) ? 'Array' : 'Object') : 'Response';
-      const count = Array.isArray(data.data) ? data.data.length : '';
-      
-      console.log(`✅ ${endpoint} → ${dataType}${count ? `(${count})` : ''}`);
-      
-      // Mostrar estructura de datos importantes
-      if (endpoint.includes('config') && data.data) {
-        console.log('📋 Config structure:', {
-          name: data.data.name || 'Missing',
-          logo: data.data.logo ? '✅' : '❌',
-          contact: data.data.contact ? '✅' : '❌',
-          social: data.data.social ? Object.keys(data.data.social).length + ' platforms' : '❌'
-        });
-      }
-    }
-  }
-  
   // 🔧 HELPER: Log de error detallado
   logEndpointError(method, endpoint, error) {
-    if (process.env.NODE_ENV !== 'development') return;
-    
     const status = error.response?.status;
     
     console.group(`🔧 ${method} ${endpoint} Analysis`);
@@ -299,37 +394,6 @@ class ApiService {
     
     if (status) {
       console.log(`📊 HTTP Status: ${status}`);
-      
-      // Análisis específico por endpoint
-      if (endpoint.includes('/config')) {
-        console.log('🏢 ENDPOINT: Gym Configuration');
-        console.log('📋 EXPECTED: Basic gym info (name, logo, contact)');
-        console.log('🔧 BACKEND SHOULD HAVE: /api/gym/config route');
-      } else if (endpoint.includes('/services')) {
-        console.log('🏋️ ENDPOINT: Gym Services');
-        console.log('📋 EXPECTED: Array of gym services');
-        console.log('🔧 BACKEND SHOULD HAVE: /api/gym/services route');
-      } else if (endpoint.includes('/stats')) {
-        console.log('📊 ENDPOINT: Gym Statistics');
-        console.log('📋 EXPECTED: Numbers (members, trainers, etc.)');
-        console.log('🔧 BACKEND SHOULD HAVE: /api/gym/stats route');
-      }
-      
-      // Sugerencias por código de error
-      switch (status) {
-        case 404:
-          console.log('❓ WHY: Backend endpoint missing');
-          console.log('🔧 FIX: Implement route in backend');
-          break;
-        case 500:
-          console.log('❓ WHY: Backend internal error');
-          console.log('🔧 FIX: Check backend logs for details');
-          break;
-        case 422:
-          console.log('❓ WHY: Invalid data sent');
-          console.log('🔧 FIX: Check request data format');
-          break;
-      }
     } else {
       console.log('❓ WHY: Cannot connect to backend');
       console.log('🔧 FIX: Start backend server');
@@ -339,37 +403,72 @@ class ApiService {
   }
   
   // ================================
-  // 🏢 MÉTODOS DE GIMNASIO
+  // 🏢 MÉTODOS DE GIMNASIO CON LOGS ESPECÍFICOS
   // ================================
   
   // OBTENER CONFIGURACIÓN DEL GYM
   async getGymConfig() {
-    console.log('🏢 Fetching gym configuration...');
-    return await this.get('/api/gym/config');
+    console.log('🏢 FETCHING GYM CONFIGURATION...');
+    try {
+      const result = await this.get('/gym/config');
+      console.log('✅ GYM CONFIG RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ GYM CONFIG FAILED:', error.message);
+      throw error;
+    }
   }
   
   // OBTENER ESTADÍSTICAS
   async getGymStats() {
-    console.log('📊 Fetching gym statistics...');
-    return await this.get('/api/gym/stats');
+    console.log('📊 FETCHING GYM STATISTICS...');
+    try {
+      const result = await this.get('/gym/stats');
+      console.log('✅ GYM STATS RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ GYM STATS FAILED:', error.message);
+      throw error;
+    }
   }
   
   // OBTENER SERVICIOS
   async getGymServices() {
-    console.log('🏋️ Fetching gym services...');
-    return await this.get('/api/gym/services');
+    console.log('🏋️ FETCHING GYM SERVICES...');
+    try {
+      const result = await this.get('/gym/services');
+      console.log('✅ GYM SERVICES RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ GYM SERVICES FAILED:', error.message);
+      throw error;
+    }
   }
   
   // OBTENER PLANES DE MEMBRESÍA
   async getMembershipPlans() {
-    console.log('🎫 Fetching membership plans...');
-    return await this.get('/api/gym/membership-plans');
+    console.log('🎫 FETCHING MEMBERSHIP PLANS...');
+    try {
+      const result = await this.get('/gym/membership-plans');
+      console.log('✅ MEMBERSHIP PLANS RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ MEMBERSHIP PLANS FAILED:', error.message);
+      throw error;
+    }
   }
   
   // OBTENER TESTIMONIOS
   async getTestimonials() {
-    console.log('💬 Fetching testimonials...');
-    return await this.get('/api/gym/testimonials');
+    console.log('💬 FETCHING TESTIMONIALS...');
+    try {
+      const result = await this.get('/gym/testimonials');
+      console.log('✅ TESTIMONIALS RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ TESTIMONIALS FAILED:', error.message);
+      throw error;
+    }
   }
   
   // ================================
@@ -378,8 +477,15 @@ class ApiService {
   
   // OBTENER PRODUCTOS DESTACADOS
   async getFeaturedProducts() {
-    console.log('🛍️ Fetching featured products...');
-    return await this.get('/api/store/featured-products');
+    console.log('🛍️ FETCHING FEATURED PRODUCTS...');
+    try {
+      const result = await this.get('/store/featured-products');
+      console.log('✅ FEATURED PRODUCTS RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ FEATURED PRODUCTS FAILED:', error.message);
+      throw error;
+    }
   }
   
   // OBTENER PRODUCTOS
@@ -394,26 +500,54 @@ class ApiService {
   
   // OBTENER CONTENIDO DE SECCIONES
   async getSectionsContent() {
-    console.log('📄 Fetching sections content...');
-    return await this.get('/api/gym/sections-content');
+    console.log('📄 FETCHING SECTIONS CONTENT...');
+    try {
+      const result = await this.get('/gym/sections-content');
+      console.log('✅ SECTIONS CONTENT RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ SECTIONS CONTENT FAILED:', error.message);
+      throw error;
+    }
   }
   
   // OBTENER NAVEGACIÓN
   async getNavigation() {
-    console.log('🧭 Fetching navigation...');
-    return await this.get('/api/gym/navigation');
+    console.log('🧭 FETCHING NAVIGATION...');
+    try {
+      const result = await this.get('/gym/navigation');
+      console.log('✅ NAVIGATION RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ NAVIGATION FAILED:', error.message);
+      throw error;
+    }
   }
   
   // OBTENER PROMOCIONES
   async getPromotions() {
-    console.log('🎉 Fetching promotions...');
-    return await this.get('/api/gym/promotions');
+    console.log('🎉 FETCHING PROMOTIONS...');
+    try {
+      const result = await this.get('/gym/promotions');
+      console.log('✅ PROMOTIONS RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ PROMOTIONS FAILED:', error.message);
+      throw error;
+    }
   }
   
   // OBTENER BRANDING
   async getBranding() {
-    console.log('🎨 Fetching branding...');
-    return await this.get('/api/gym/branding');
+    console.log('🎨 FETCHING BRANDING...');
+    try {
+      const result = await this.get('/gym/branding');
+      console.log('✅ BRANDING RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ BRANDING FAILED:', error.message);
+      throw error;
+    }
   }
   
   // ================================
@@ -422,12 +556,12 @@ class ApiService {
   
   // LOGIN
   async login(credentials) {
-    console.log('🔐 Attempting login...');
-    const response = await this.post('/api/auth/login', credentials);
+    console.log('🔐 ATTEMPTING LOGIN...');
+    const response = await this.post('/auth/login', credentials);
     
     if (response.success && response.data.token) {
       localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.token);
-      console.log('✅ Login successful');
+      console.log('✅ LOGIN SUCCESSFUL');
       toast.success('Inicio de sesión exitoso');
     }
     
@@ -436,11 +570,11 @@ class ApiService {
   
   // REGISTRO
   async register(userData) {
-    console.log('📝 Attempting registration...');
-    const response = await this.post('/api/auth/register', userData);
+    console.log('📝 ATTEMPTING REGISTRATION...');
+    const response = await this.post('/auth/register', userData);
     
     if (response.success) {
-      console.log('✅ Registration successful');
+      console.log('✅ REGISTRATION SUCCESSFUL');
       toast.success('Registro exitoso');
     }
     
@@ -449,7 +583,7 @@ class ApiService {
   
   // PERFIL
   async getProfile() {
-    return await this.get('/api/auth/profile');
+    return await this.get('/auth/profile');
   }
   
   // ================================
@@ -462,7 +596,7 @@ class ApiService {
   }
   
   async createUser(userData) {
-    const response = await this.post('/api/users', userData);
+    const response = await this.post('/users', userData);
     if (response.success) {
       toast.success('Usuario creado exitosamente');
     }
@@ -498,7 +632,7 @@ class ApiService {
   }
   
   async createPayment(paymentData) {
-    const response = await this.post('/api/payments', paymentData);
+    const response = await this.post('/payments', paymentData);
     if (response.success) {
       toast.success('Pago registrado exitosamente');
     }
@@ -506,7 +640,7 @@ class ApiService {
   }
   
   async getPendingTransfers() {
-    return await this.get('/api/payments/transfers/pending');
+    return await this.get('/payments/transfers/pending');
   }
   
   // ================================
@@ -519,11 +653,11 @@ class ApiService {
   }
   
   async getUserStats() {
-    return await this.get('/api/users/stats');
+    return await this.get('/users/stats');
   }
   
   async getMembershipStats() {
-    return await this.get('/api/memberships/stats');
+    return await this.get('/memberships/stats');
   }
   
   // ================================
@@ -531,11 +665,11 @@ class ApiService {
   // ================================
   
   async getCart() {
-    return await this.get('/api/cart');
+    return await this.get('/cart');
   }
   
   async updateCart(items) {
-    return await this.post('/api/cart', { items });
+    return await this.post('/cart', { items });
   }
   
   // ================================
@@ -544,21 +678,30 @@ class ApiService {
   
   // HEALTH CHECK
   async healthCheck() {
-    return await this.get('/api/health');
+    console.log('🔌 HEALTH CHECK...');
+    try {
+      const result = await this.get('/health');
+      console.log('✅ HEALTH CHECK SUCCESS:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ HEALTH CHECK FAILED:', error.message);
+      throw error;
+    }
   }
   
   // VERIFICAR CONEXIÓN MEJORADA
   async checkBackendConnection() {
     try {
-      console.log('🔌 Checking backend connection...');
+      console.log('🔌 CHECKING BACKEND CONNECTION...');
       
       const startTime = Date.now();
       const response = await api.get('/api/health');
       const responseTime = Date.now() - startTime;
       
       if (response.data.success) {
-        console.log('✅ Backend connected successfully');
+        console.log('✅ BACKEND CONNECTED SUCCESSFULLY');
         console.log(`⚡ Response time: ${responseTime}ms`);
+        console.log('📦 Health data:', response.data);
         
         return { 
           connected: true, 
@@ -567,7 +710,7 @@ class ApiService {
           status: 'connected'
         };
       } else {
-        console.warn('⚠️ Backend responded with error');
+        console.warn('⚠️ BACKEND RESPONDED WITH ERROR');
         return { 
           connected: false, 
           error: 'Backend error response',
@@ -575,7 +718,7 @@ class ApiService {
         };
       }
     } catch (error) {
-      console.log('❌ Backend connection failed');
+      console.log('❌ BACKEND CONNECTION FAILED');
       
       let errorType = 'unknown';
       let suggestion = 'Check backend configuration';
@@ -616,7 +759,7 @@ class ApiService {
   // LOGOUT
   logout() {
     localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
-    console.log('🚪 User logged out');
+    console.log('🚪 USER LOGGED OUT');
     toast.success('Sesión cerrada exitosamente');
     window.location.href = '/login';
   }
