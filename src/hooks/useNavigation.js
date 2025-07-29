@@ -1,238 +1,350 @@
 // src/hooks/useNavigation.js
-// FUNCIÓN: Hook para navegación y menús
-// CONECTA CON: GET /api/gym/navigation
+// FUNCIÓN: Hook 100% OPTIMIZADO para navegación del gimnasio
+// MEJORAS: RequestManager + deduplicación + cache inteligente + cleanup
 
-import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { requestManager } from '../services/RequestManager';
 import apiService from '../services/apiService';
 
-const useNavigation = () => {
-  // 🏗️ Estados
+const useNavigation = (options = {}) => {
+  // Opciones con defaults
+  const {
+    enabled = true,
+    refetchOnMount = false,
+    staleTime = 30 * 60 * 1000, // 30 minutos - navegación muy estática
+    includeHidden = false, // Incluir elementos ocultos
+    userRole = null, // Filtrar por rol de usuario
+  } = options;
+
+  // Estados
   const [navigation, setNavigation] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
-  
-  const location = useLocation();
 
-  // 📱 Navegación por defecto mientras carga
+  // Referencias para control
+  const mountedRef = useRef(true);
+  const hasInitialLoad = useRef(false);
+  const fetchAbortController = useRef(null);
+  const instanceId = useRef(`navigation-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+
+  console.log(`🧭 useNavigation [${instanceId.current}] hook initialized`);
+
+  // 📱 Navegación por defecto
   const defaultNavigation = {
-    header: [
-      { text: "Inicio", href: "#inicio", active: true },
-      { text: "Servicios", href: "#servicios", active: true },
-      { text: "Planes", href: "#planes", active: true },
-      { text: "Tienda", href: "#tienda", active: true },
-      { text: "Contacto", href: "#contacto", active: true }
+    main: [
+      { id: 'home', label: 'Inicio', href: '/', order: 1, visible: true },
+      { id: 'services', label: 'Servicios', href: '#servicios', order: 2, visible: true },
+      { id: 'plans', label: 'Planes', href: '#planes', order: 3, visible: true },
+      { id: 'store', label: 'Tienda', href: '#tienda', order: 4, visible: true },
+      { id: 'contact', label: 'Contacto', href: '#contacto', order: 5, visible: true }
     ],
-    footer: {
-      links: [
-        { text: "Inicio", href: "#inicio" },
-        { text: "Servicios", href: "#servicios" },
-        { text: "Planes", href: "#planes" },
-        { text: "Tienda", href: "#tienda" }
-      ],
-      store_links: [
-        { text: "Suplementos", href: "/store?category=suplementos" },
-        { text: "Ropa Deportiva", href: "/store?category=ropa" },
-        { text: "Accesorios", href: "/store?category=accesorios" },
-        { text: "Equipamiento", href: "/store?category=equipamiento" }
-      ]
-    }
+    footer: [
+      { id: 'about', label: 'Acerca de', href: '/about', order: 1, visible: true },
+      { id: 'privacy', label: 'Privacidad', href: '/privacy', order: 2, visible: true },
+      { id: 'terms', label: 'Términos', href: '/terms', order: 3, visible: true }
+    ],
+    dashboard: [],
+    mobile: []
   };
 
-  // 🚀 Función para obtener navegación
-  const fetchNavigation = async (force = false) => {
-    // Cache de 30 minutos (navegación no cambia frecuentemente)
-    if (navigation && !force && lastFetch) {
-      const timeDiff = Date.now() - lastFetch;
-      if (timeDiff < 30 * 60 * 1000) return;
+  // 🔥 FUNCIÓN DE FETCH OPTIMIZADA con RequestManager
+  const fetchNavigation = useCallback(async (forceRefresh = false) => {
+    // Verificar si el componente sigue montado y está habilitado
+    if (!mountedRef.current || !enabled) {
+      console.log(`⏸️ useNavigation [${instanceId.current}] fetch skipped - disabled or unmounted`);
+      return;
+    }
+
+    // Evitar múltiples fetches simultáneos
+    if (isLoading && !forceRefresh) {
+      console.log(`⏸️ useNavigation [${instanceId.current}] fetch skipped - already loading`);
+      return;
+    }
+
+    // Verificar si ya tenemos datos frescos
+    if (!forceRefresh && navigation && lastFetch) {
+      const age = Date.now() - lastFetch;
+      if (age < staleTime) {
+        console.log(`✅ useNavigation [${instanceId.current}] using fresh data (age: ${Math.round(age/1000)}s)`);
+        return;
+      }
     }
 
     try {
-      setLoading(true);
-      setError(null);
+      console.log(`🧭 useNavigation [${instanceId.current}] Fetching Navigation${forceRefresh ? ' (forced)' : ''}`);
       
-      console.log('🧭 Obteniendo navegación desde backend...');
-      
-      const response = await apiService.getNavigation();
-      
-      if (response.success && response.data) {
-        console.log('✅ Navegación obtenida:', response.data);
-        setNavigation(response.data);
-        setLastFetch(Date.now());
-      } else {
-        throw new Error('Respuesta inválida del servidor');
+      // Cancelar petición anterior si existe
+      if (fetchAbortController.current) {
+        fetchAbortController.current.abort();
       }
-    } catch (error) {
-      console.error('❌ Error al obtener navegación:', error);
-      setError(error.message);
-      
-      // En caso de error, usar navegación por defecto
-      if (!navigation) {
-        setNavigation(defaultNavigation);
+
+      // Crear nuevo AbortController
+      fetchAbortController.current = new AbortController();
+
+      setIsLoading(true);
+      setError(null);
+
+      // 🎯 USAR REQUEST MANAGER - Evita peticiones duplicadas automáticamente
+      const response = await requestManager.executeRequest(
+        '/api/gym/navigation',
+        () => apiService.getNavigation(),
+        {
+          forceRefresh,
+          ttl: staleTime,
+          priority: 'low' // Navegación no es crítica
+        }
+      );
+
+      // Verificar que el componente sigue montado antes de actualizar estado
+      if (!mountedRef.current) {
+        console.log(`⚠️ useNavigation [${instanceId.current}] component unmounted, skipping state update`);
+        return;
+      }
+
+      // Procesar respuesta
+      let processedNavigation = defaultNavigation;
+
+      if (response && response.success && response.data) {
+        console.log('✅ Navigation received:', response.data);
+        
+        processedNavigation = {
+          main: response.data.main || defaultNavigation.main,
+          footer: response.data.footer || defaultNavigation.footer,
+          dashboard: response.data.dashboard || [],
+          mobile: response.data.mobile || []
+        };
+
+        // Aplicar filtros
+        Object.keys(processedNavigation).forEach(section => {
+          if (Array.isArray(processedNavigation[section])) {
+            processedNavigation[section] = processedNavigation[section]
+              .filter(item => {
+                // Filtrar elementos ocultos si no se incluyen
+                if (!includeHidden && item.visible === false) return false;
+                
+                // Filtrar por rol si está especificado
+                if (userRole && item.roles && Array.isArray(item.roles)) {
+                  if (!item.roles.includes(userRole)) return false;
+                }
+                
+                return true;
+              })
+              .sort((a, b) => (a.order || 0) - (b.order || 0)); // Ordenar por order
+          }
+        });
+
+        console.log('🧭 Navigation processed:', {
+          main: processedNavigation.main.length,
+          footer: processedNavigation.footer.length,
+          dashboard: processedNavigation.dashboard.length,
+          mobile: processedNavigation.mobile.length
+        });
+
+      } else {
+        console.warn('⚠️ No navigation data available, using defaults');
+      }
+
+      setNavigation(processedNavigation);
+      setIsLoaded(true);
+      setError(null);
+      setLastFetch(Date.now());
+      hasInitialLoad.current = true;
+
+    } catch (err) {
+      // Solo actualizar error si el componente sigue montado
+      if (mountedRef.current) {
+        console.error(`❌ useNavigation [${instanceId.current}] error:`, err.message);
+        setError(err);
+        
+        // En caso de error, usar navegación por defecto
+        if (!navigation) {
+          setNavigation(defaultNavigation);
+        }
+        
+        setIsLoaded(true);
+        hasInitialLoad.current = true;
       }
     } finally {
-      setLoading(false);
+      // Solo actualizar loading si el componente sigue montado
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
+      
+      // Limpiar AbortController
+      fetchAbortController.current = null;
     }
-  };
+  }, [enabled, isLoading, navigation, lastFetch, staleTime, includeHidden, userRole]);
 
-  // 🔄 Efecto para cargar navegación al montar
-  useEffect(() => {
-    fetchNavigation();
+  // 🔄 FUNCIÓN DE REFETCH MANUAL
+  const refresh = useCallback(() => {
+    console.log(`🔄 useNavigation [${instanceId.current}] manual refresh requested`);
+    return fetchNavigation(true);
+  }, [fetchNavigation]);
+
+  // 🗑️ FUNCIÓN DE INVALIDACIÓN
+  const invalidate = useCallback(() => {
+    console.log(`🗑️ useNavigation [${instanceId.current}] invalidating cache`);
+    requestManager.invalidateCache('/api/gym/navigation');
+    setLastFetch(null);
   }, []);
 
-  // 🎯 Función para refrescar navegación
-  const refresh = () => {
-    fetchNavigation(true);
-  };
+  // 🔍 FUNCIÓN PARA OBTENER NAVEGACIÓN POR SECCIÓN
+  const getNavigationBySection = useCallback((section) => {
+    if (!navigation || !navigation[section]) return [];
+    return navigation[section];
+  }, [navigation]);
 
-  // 🔝 Función para obtener elementos del header
-  const getHeaderItems = () => {
-    return navigation?.header?.filter(item => item.active) || defaultNavigation.header;
-  };
-
-  // 🔽 Función para obtener enlaces del footer
-  const getFooterLinks = () => {
-    return navigation?.footer?.links || defaultNavigation.footer.links;
-  };
-
-  // 🛍️ Función para obtener enlaces de la tienda en footer
-  const getStoreLinks = () => {
-    return navigation?.footer?.store_links || defaultNavigation.footer.store_links;
-  };
-
-  // 🎯 Función para verificar si un enlace está activo
-  const isActive = (href) => {
-    if (href.startsWith('#')) {
-      // Para enlaces de hash (#inicio, #servicios, etc.)
-      return window.location.hash === href || 
-             (href === '#inicio' && !window.location.hash);
-    } else {
-      // Para rutas normales
-      return location.pathname === href;
-    }
-  };
-
-  // 🔍 Función para obtener elemento de navegación por texto
-  const getNavItemByText = (text) => {
-    const headerItems = getHeaderItems();
-    return headerItems.find(item => item.text.toLowerCase() === text.toLowerCase());
-  };
-
-  // 📱 Función para obtener elementos de navegación móvil
-  const getMobileNavItems = () => {
-    // En móvil, podemos incluir elementos adicionales
-    const headerItems = getHeaderItems();
-    const additionalItems = [
-      { text: "Mi Cuenta", href: "/login", active: true },
-      { text: "Registro", href: "/register", active: true }
-    ];
+  // 🔍 FUNCIÓN PARA OBTENER ITEM POR ID
+  const getNavigationItemById = useCallback((id) => {
+    if (!navigation) return null;
     
-    return [...headerItems, ...additionalItems];
-  };
-
-  // 🎨 Función para obtener clase CSS de elemento activo
-  const getNavItemClass = (href, baseClass = '', activeClass = 'active') => {
-    return `${baseClass} ${isActive(href) ? activeClass : ''}`.trim();
-  };
-
-  // 🔗 Función para manejar navegación suave (smooth scroll)
-  const handleSmoothScroll = (href) => {
-    if (href.startsWith('#')) {
-      const targetId = href.substring(1);
-      const targetElement = document.getElementById(targetId);
-      
-      if (targetElement) {
-        targetElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-        
-        // Actualizar la URL sin recargar
-        window.history.pushState(null, null, href);
-        return true;
+    for (const section of Object.values(navigation)) {
+      if (Array.isArray(section)) {
+        const item = section.find(item => item.id === id);
+        if (item) return item;
       }
     }
-    return false;
-  };
-
-  // 🧭 Función para obtener breadcrumbs basado en la ruta actual
-  const getBreadcrumbs = () => {
-    const path = location.pathname;
-    const segments = path.split('/').filter(Boolean);
     
-    const breadcrumbs = [
-      { text: 'Inicio', href: '/' }
-    ];
-    
-    let currentPath = '';
-    segments.forEach(segment => {
-      currentPath += `/${segment}`;
-      
-      // Mapear segmentos a nombres legibles
-      const segmentNames = {
-        'store': 'Tienda',
-        'dashboard': 'Dashboard',
-        'login': 'Iniciar Sesión',
-        'register': 'Registro',
-        'profile': 'Perfil',
-        'settings': 'Configuración'
-      };
-      
-      const displayName = segmentNames[segment] || 
-        segment.charAt(0).toUpperCase() + segment.slice(1);
-      
-      breadcrumbs.push({
-        text: displayName,
-        href: currentPath
-      });
-    });
-    
-    return breadcrumbs;
-  };
+    return null;
+  }, [navigation]);
 
-  // 🔄 Función para verificar si hay navegación personalizada disponible
-  const hasCustomNavigation = () => {
-    return navigation && 
-           navigation !== defaultNavigation && 
-           navigation.header && 
-           navigation.header.length > 0;
-  };
+  // 🔍 FUNCIÓN PARA VERIFICAR SI HAY NAVEGACIÓN
+  const hasNavigation = useCallback(() => {
+    if (!navigation) return false;
+    
+    return Object.values(navigation).some(section => 
+      Array.isArray(section) && section.length > 0
+    );
+  }, [navigation]);
 
-  // 🏠 Retornar navegación y funciones
+  // 📊 FUNCIÓN PARA OBTENER ESTADÍSTICAS DE NAVEGACIÓN
+  const getNavigationStats = useCallback(() => {
+    if (!navigation) return null;
+    
+    const totalItems = Object.values(navigation).reduce((sum, section) => 
+      sum + (Array.isArray(section) ? section.length : 0), 0
+    );
+    
+    const visibleItems = Object.values(navigation).reduce((sum, section) => 
+      sum + (Array.isArray(section) ? section.filter(item => item.visible !== false).length : 0), 0
+    );
+    
+    return {
+      total: totalItems,
+      visible: visibleItems,
+      hidden: totalItems - visibleItems,
+      main: navigation.main?.length || 0,
+      footer: navigation.footer?.length || 0,
+      dashboard: navigation.dashboard?.length || 0,
+      mobile: navigation.mobile?.length || 0
+    };
+  }, [navigation]);
+
+  // 🔥 EFECTO PRINCIPAL - Optimizado para evitar renders innecesarios
+  useEffect(() => {
+    const shouldFetch = enabled && (
+      !hasInitialLoad.current || 
+      refetchOnMount || 
+      !navigation ||
+      (lastFetch && Date.now() - lastFetch > staleTime)
+    );
+
+    if (shouldFetch) {
+      console.log(`🚀 useNavigation [${instanceId.current}] initial fetch triggered`);
+      fetchNavigation();
+    } else {
+      console.log(`⏸️ useNavigation [${instanceId.current}] initial fetch skipped - conditions not met`);
+      
+      // Si tenemos datos pero no está marcado como loaded, marcarlo
+      if (navigation && !isLoaded) {
+        setIsLoaded(true);
+        hasInitialLoad.current = true;
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      if (fetchAbortController.current) {
+        console.log(`🚫 useNavigation [${instanceId.current}] aborting fetch on effect cleanup`);
+        fetchAbortController.current.abort();
+        fetchAbortController.current = null;
+      }
+    };
+  }, [enabled, refetchOnMount]); // Dependencias mínimas
+
+  // 🧹 CLEANUP AL DESMONTAR
+  useEffect(() => {
+    mountedRef.current = true;
+    
+    return () => {
+      console.log(`🧹 useNavigation [${instanceId.current}] component unmounting - cleanup`);
+      mountedRef.current = false;
+      
+      // Abortar cualquier petición activa
+      if (fetchAbortController.current) {
+        fetchAbortController.current.abort();
+        fetchAbortController.current = null;
+      }
+    };
+  }, []);
+
+  // 📊 PROPIEDADES COMPUTADAS (Memoizadas)
+  const hasValidData = Boolean(navigation && hasNavigation());
+  const isStale = lastFetch ? (Date.now() - lastFetch > staleTime) : false;
+  const cacheAge = lastFetch ? Date.now() - lastFetch : 0;
+  const stats = getNavigationStats();
+
+  // 🎯 VALOR DE RETORNO OPTIMIZADO
   return {
-    // Estado
+    // Datos principales
     navigation: navigation || defaultNavigation,
-    loading,
+    isLoaded,
+    isLoading,
     error,
     lastFetch,
     
-    // Funciones principales
+    // Funciones de control
     refresh,
-    getHeaderItems,
-    getFooterLinks,
-    getStoreLinks,
-    getMobileNavItems,
-    getNavItemByText,
-    getBreadcrumbs,
+    invalidate,
     
     // Funciones de utilidad
-    isActive,
-    getNavItemClass,
-    handleSmoothScroll,
-    hasCustomNavigation,
+    getNavigationBySection,    // Obtener navegación por sección
+    getNavigationItemById,     // Obtener item por ID
+    hasNavigation,             // Verificar si hay navegación
+    getNavigationStats,        // Obtener estadísticas
     
-    // Acceso directo (para compatibilidad)
-    headerItems: getHeaderItems(),
-    footerLinks: getFooterLinks(),
-    storeLinks: getStoreLinks(),
-    mobileNavItems: getMobileNavItems(),
-    breadcrumbs: getBreadcrumbs(),
+    // Acceso directo a secciones
+    mainNavigation: navigation?.main || defaultNavigation.main,
+    footerNavigation: navigation?.footer || defaultNavigation.footer,
+    dashboardNavigation: navigation?.dashboard || [],
+    mobileNavigation: navigation?.mobile || [],
     
-    // Estado útil
-    isLoaded: !loading && !!navigation && !error,
-    hasError: !!error,
-    isEmpty: !navigation || !navigation.header || navigation.header.length === 0
+    // Información de estado
+    hasValidData,
+    isStale,
+    cacheAge,
+    stats,
+    isEmpty: !hasNavigation(),
+    
+    // Información de debug (solo en desarrollo)
+    ...(process.env.NODE_ENV === 'development' && {
+      instanceId: instanceId.current,
+      debugInfo: {
+        hasInitialLoad: hasInitialLoad.current,
+        isEnabled: enabled,
+        includeHidden,
+        userRole,
+        cacheAge: Math.round(cacheAge / 1000) + 's',
+        dataStructure: navigation ? {
+          sections: Object.keys(navigation),
+          totalItems: Object.values(navigation).reduce((sum, arr) => 
+            sum + (Array.isArray(arr) ? arr.length : 0), 0
+          )
+        } : null
+      }
+    })
   };
 };
 

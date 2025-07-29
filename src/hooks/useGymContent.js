@@ -1,16 +1,33 @@
 // src/hooks/useGymContent.js
-// FUNCIÓN: Hook para obtener contenido dinámico del gimnasio - CORREGIDO
-// CONECTA CON: Backend API /api/gym/content usando apiService
+// FUNCIÓN: Hook 100% OPTIMIZADO para contenido dinámico del gimnasio
+// MEJORAS: RequestManager + deduplicación + cache inteligente + cleanup
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { requestManager } from '../services/RequestManager';
 import apiService from '../services/apiService';
 
-const useGymContent = () => {
-  // 🏗️ Estados
+const useGymContent = (options = {}) => {
+  // Opciones con defaults
+  const {
+    enabled = true,
+    refetchOnMount = false,
+    staleTime = 10 * 60 * 1000, // 10 minutos - contenido puede cambiar ocasionalmente
+    section = null, // Sección específica a cargar
+  } = options;
+
+  // Estados
   const [content, setContent] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
+
+  // Referencias para control
+  const mountedRef = useRef(true);
+  const hasInitialLoad = useRef(false);
+  const fetchAbortController = useRef(null);
+  const instanceId = useRef(`gymContent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+
+  console.log(`📄 useGymContent [${instanceId.current}] hook initialized`);
 
   // 📱 Contenido por defecto mientras carga
   const defaultContent = {
@@ -22,34 +39,77 @@ const useGymContent = () => {
     store: null
   };
 
-  // 🚀 Función para obtener contenido del gimnasio
-  const fetchGymContent = async (force = false) => {
-    // Cache de 10 minutos (contenido puede cambiar ocasionalmente)
-    if (content && !force && lastFetch) {
-      const timeDiff = Date.now() - lastFetch;
-      if (timeDiff < 10 * 60 * 1000) return;
+  // 🔥 FUNCIÓN DE FETCH OPTIMIZADA con RequestManager
+  const fetchGymContent = useCallback(async (forceRefresh = false) => {
+    // Verificar si el componente sigue montado y está habilitado
+    if (!mountedRef.current || !enabled) {
+      console.log(`⏸️ useGymContent [${instanceId.current}] fetch skipped - disabled or unmounted`);
+      return;
+    }
+
+    // Evitar múltiples fetches simultáneos
+    if (loading && !forceRefresh) {
+      console.log(`⏸️ useGymContent [${instanceId.current}] fetch skipped - already loading`);
+      return;
+    }
+
+    // Verificar si ya tenemos datos frescos
+    if (!forceRefresh && content && lastFetch) {
+      const age = Date.now() - lastFetch;
+      if (age < staleTime) {
+        console.log(`✅ useGymContent [${instanceId.current}] using fresh data (age: ${Math.round(age/1000)}s)`);
+        return;
+      }
     }
 
     try {
+      console.log(`📄 useGymContent [${instanceId.current}] Obteniendo contenido del gimnasio${forceRefresh ? ' (forced)' : ''}...`);
+      
+      // Cancelar petición anterior si existe
+      if (fetchAbortController.current) {
+        fetchAbortController.current.abort();
+      }
+
+      // Crear nuevo AbortController
+      fetchAbortController.current = new AbortController();
+
       setLoading(true);
       setError(null);
+
+      const endpoint = section ? `/gym/content/${section}` : '/gym/content';
       
-      console.log('📄 Obteniendo contenido del gimnasio desde backend...');
-      
-      // Verificar que apiService tenga la función
-      if (!apiService || typeof apiService.get !== 'function') {
-        throw new Error('apiService.get no está disponible');
-      }
-      
-      // Intentar obtener contenido desde el endpoint específico
-      let response = await apiService.get('/gym/content');
-      
-      // Si no existe ese endpoint, intentar obtener desde config general
-      if (!response.success) {
+      // 🎯 USAR REQUEST MANAGER - Evita peticiones duplicadas automáticamente
+      let response;
+      try {
+        response = await requestManager.executeRequest(
+          endpoint,
+          () => apiService.get(endpoint),
+          {
+            forceRefresh,
+            ttl: staleTime,
+            priority: 'low' // Contenido no es crítico
+          }
+        );
+      } catch (contentError) {
+        // Si no existe ese endpoint, intentar obtener desde config general
         console.log('📄 Endpoint /gym/content no disponible, usando configuración general...');
-        response = await apiService.getGymConfig();
+        response = await requestManager.executeRequest(
+          '/api/gym/config',
+          () => apiService.getGymConfig(),
+          {
+            forceRefresh,
+            ttl: staleTime,
+            priority: 'low'
+          }
+        );
       }
-      
+
+      // Verificar que el componente sigue montado antes de actualizar estado
+      if (!mountedRef.current) {
+        console.log(`⚠️ useGymContent [${instanceId.current}] component unmounted, skipping state update`);
+        return;
+      }
+
       if (response && response.success && response.data) {
         console.log('✅ Contenido del gimnasio obtenido:', response.data);
         
@@ -92,69 +152,92 @@ const useGymContent = () => {
         
         setContent(structuredContent);
         setLastFetch(Date.now());
+        hasInitialLoad.current = true;
       } else {
         console.warn('⚠️ No se pudo obtener contenido del gimnasio');
         setContent(defaultContent);
+        hasInitialLoad.current = true;
       }
     } catch (err) {
-      console.error('❌ Error al obtener contenido del gimnasio:', err);
-      setError(err.message);
-      
-      // En caso de error, mantener contenido por defecto
-      setContent(defaultContent);
+      // Solo actualizar error si el componente sigue montado
+      if (mountedRef.current) {
+        console.error(`❌ useGymContent [${instanceId.current}] error:`, err.message);
+        setError(err.message);
+        
+        // En caso de error, mantener contenido por defecto
+        if (!content) {
+          setContent(defaultContent);
+        }
+        hasInitialLoad.current = true;
+      }
     } finally {
-      setLoading(false);
+      // Solo actualizar loading si el componente sigue montado
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+      
+      // Limpiar AbortController
+      fetchAbortController.current = null;
     }
-  };
+  }, [enabled, loading, content, lastFetch, staleTime, section]);
 
-  // 🔄 Efecto para cargar contenido al montar
-  useEffect(() => {
-    fetchGymContent();
-  }, []);
+  // 🔄 FUNCIÓN DE REFETCH MANUAL
+  const refresh = useCallback(() => {
+    console.log(`🔄 useGymContent [${instanceId.current}] manual refresh requested`);
+    return fetchGymContent(true);
+  }, [fetchGymContent]);
 
-  // 🎯 Función para refrescar contenido
-  const refresh = () => {
-    fetchGymContent(true);
-  };
+  // 🗑️ FUNCIÓN DE INVALIDACIÓN
+  const invalidate = useCallback(() => {
+    console.log(`🗑️ useGymContent [${instanceId.current}] invalidating cache`);
+    const endpoint = section ? `/gym/content/${section}` : '/gym/content';
+    requestManager.invalidateCache(endpoint);
+    requestManager.invalidateCache('/api/gym/config'); // También limpiar config
+    setLastFetch(null);
+  }, [section]);
 
-  // 🔄 Función para actualizar una sección específica
-  const updateContent = async (section, newData) => {
+  // 🔄 FUNCIÓN PARA ACTUALIZAR CONTENIDO (solo para admins)
+  const updateContent = useCallback(async (sectionName, newData) => {
     try {
-      console.log(`📝 Actualizando sección ${section}...`);
+      console.log(`📝 useGymContent [${instanceId.current}] Updating section ${sectionName}...`);
       
       if (!apiService || typeof apiService.put !== 'function') {
         throw new Error('apiService.put no está disponible');
       }
       
-      const response = await apiService.put(`/gym/content/${section}`, newData);
+      const response = await apiService.put(`/gym/content/${sectionName}`, newData);
       
       if (response.success) {
-        console.log(`✅ Sección ${section} actualizada`);
+        console.log(`✅ Sección ${sectionName} actualizada`);
         setContent(prev => ({
           ...prev,
-          [section]: response.data
+          [sectionName]: response.data
         }));
+        
+        // Invalidar cache para refrescar datos
+        invalidate();
+        
         return true;
       } else {
         throw new Error(response.message || 'Error al actualizar contenido');
       }
     } catch (err) {
-      console.error(`❌ Error al actualizar sección ${section}:`, err);
+      console.error(`❌ useGymContent [${instanceId.current}] Error updating section ${sectionName}:`, err);
       setError(err.message);
       return false;
     }
-  };
+  }, [invalidate]);
 
-  // 🔍 Función para verificar si una sección tiene datos
-  const hasSection = (sectionName) => {
+  // 🔍 FUNCIÓN PARA VERIFICAR SI UNA SECCIÓN TIENE DATOS
+  const hasSection = useCallback((sectionName) => {
     return content && 
            content[sectionName] && 
            typeof content[sectionName] === 'object' &&
            Object.keys(content[sectionName]).length > 0;
-  };
+  }, [content]);
 
-  // 🔍 Función para verificar si hay contenido disponible
-  const hasAnyContent = () => {
+  // 🔍 FUNCIÓN PARA VERIFICAR SI HAY CONTENIDO DISPONIBLE
+  const hasAnyContent = useCallback(() => {
     if (!content) return false;
     
     return Object.values(content).some(section => 
@@ -162,23 +245,23 @@ const useGymContent = () => {
       typeof section === 'object' && 
       Object.keys(section).length > 0
     );
-  };
+  }, [content]);
 
-  // 🎯 Función para obtener contenido de una sección específica
-  const getSectionContent = (sectionName) => {
+  // 🎯 FUNCIÓN PARA OBTENER CONTENIDO DE UNA SECCIÓN ESPECÍFICA
+  const getSectionContent = useCallback((sectionName) => {
     return content?.[sectionName] || null;
-  };
+  }, [content]);
 
-  // 🎨 Función para verificar si el contenido está completo
-  const isContentComplete = () => {
+  // 🎨 FUNCIÓN PARA VERIFICAR SI EL CONTENIDO ESTÁ COMPLETO
+  const isContentComplete = useCallback(() => {
     if (!content) return false;
     
     const requiredSections = ['hero', 'services', 'plans'];
     return requiredSections.every(section => hasSection(section));
-  };
+  }, [content, hasSection]);
 
-  // 📊 Función para obtener estadísticas del contenido
-  const getContentStats = () => {
+  // 📊 FUNCIÓN PARA OBTENER ESTADÍSTICAS DEL CONTENIDO
+  const getContentStats = useCallback(() => {
     if (!content) return null;
     
     const sectionsWithContent = Object.keys(content).filter(key => hasSection(key));
@@ -189,9 +272,64 @@ const useGymContent = () => {
       completionPercentage: Math.round((sectionsWithContent.length / Object.keys(content).length) * 100),
       missingSections: Object.keys(content).filter(key => !hasSection(key))
     };
-  };
+  }, [content, hasSection]);
 
-  // 🏠 Retornar contenido y funciones
+  // 🔥 EFECTO PRINCIPAL - Optimizado para evitar renders innecesarios
+  useEffect(() => {
+    const shouldFetch = enabled && (
+      !hasInitialLoad.current || 
+      refetchOnMount || 
+      !content ||
+      (lastFetch && Date.now() - lastFetch > staleTime)
+    );
+
+    if (shouldFetch) {
+      console.log(`🚀 useGymContent [${instanceId.current}] initial fetch triggered`);
+      fetchGymContent();
+    } else {
+      console.log(`⏸️ useGymContent [${instanceId.current}] initial fetch skipped - conditions not met`);
+      
+      // Si tenemos datos pero no está marcado como loaded, marcarlo
+      if (content && !hasInitialLoad.current) {
+        hasInitialLoad.current = true;
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      if (fetchAbortController.current) {
+        console.log(`🚫 useGymContent [${instanceId.current}] aborting fetch on effect cleanup`);
+        fetchAbortController.current.abort();
+        fetchAbortController.current = null;
+      }
+    };
+  }, [enabled, refetchOnMount]); // Dependencias mínimas
+
+  // 🧹 CLEANUP AL DESMONTAR
+  useEffect(() => {
+    mountedRef.current = true;
+    
+    return () => {
+      console.log(`🧹 useGymContent [${instanceId.current}] component unmounting - cleanup`);
+      mountedRef.current = false;
+      
+      // Abortar cualquier petición activa
+      if (fetchAbortController.current) {
+        fetchAbortController.current.abort();
+        fetchAbortController.current = null;
+      }
+    };
+  }, []);
+
+  // 📊 PROPIEDADES COMPUTADAS (Memoizadas)
+  const isLoaded = !loading && content !== null && !error;
+  const hasError = !!error;
+  const isEmpty = !content || !hasAnyContent();
+  const isStale = lastFetch ? (Date.now() - lastFetch > staleTime) : false;
+  const cacheAge = lastFetch ? Date.now() - lastFetch : 0;
+  const stats = getContentStats();
+
+  // 🎯 VALOR DE RETORNO OPTIMIZADO
   return {
     // Estados principales
     content: content || defaultContent,
@@ -203,6 +341,7 @@ const useGymContent = () => {
     refresh,
     updateContent,
     getSectionContent,
+    invalidate,
     
     // Verificaciones
     hasSection,
@@ -221,10 +360,28 @@ const useGymContent = () => {
     store: getSectionContent('store'),
     
     // Estado útil
-    isLoaded: !loading && content !== null && !error,
-    hasError: !!error,
-    isEmpty: !content || !hasAnyContent(),
-    stats: getContentStats()
+    isLoaded,
+    hasError,
+    isEmpty,
+    isStale,
+    cacheAge,
+    stats,
+    
+    // Información de debug (solo en desarrollo)
+    ...(process.env.NODE_ENV === 'development' && {
+      instanceId: instanceId.current,
+      debugInfo: {
+        hasInitialLoad: hasInitialLoad.current,
+        isEnabled: enabled,
+        section,
+        cacheAge: Math.round(cacheAge / 1000) + 's',
+        dataStructure: content ? {
+          sections: Object.keys(content),
+          completeSections: Object.keys(content).filter(key => hasSection(key)),
+          totalSections: Object.keys(content).length
+        } : null
+      }
+    })
   };
 };
 
