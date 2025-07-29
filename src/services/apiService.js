@@ -4,6 +4,10 @@
 // FUNCIÓN: Servicio API MEJORADO con logs DETALLADOS de las respuestas del backend
 // MUESTRA: Exactamente qué datos devuelve el backend para debug
 
+// src/services/apiService.js
+// FUNCIÓN: Servicio API COMPLETO con soporte para video desde backend
+// INCLUYE: Todos los métodos originales + getGymVideo() + logs detallados
+
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -154,6 +158,40 @@ api.interceptors.response.use(
             console.log('  - ❌ Plans is not an array:', typeof data);
           }
         }
+        
+        // 🎬 ANÁLISIS ESPECÍFICO PARA VIDEO - NUEVO
+        if (url.includes('/video')) {
+          console.log('🎬 VIDEO ANALYSIS:');
+          const data = response.data?.data || response.data;
+          console.log('  - Hero Video URL:', data?.heroVideo || '❌ MISSING');
+          console.log('  - Poster URL:', data?.poster || '❌ MISSING');
+          console.log('  - Title:', data?.title || '❌ MISSING');
+          console.log('  - Description:', data?.description || '❌ MISSING');
+          console.log('  - Settings:', data?.settings ? '✅ Present' : '❌ MISSING');
+          
+          if (data?.settings) {
+            console.log('    - Autoplay:', data.settings.autoplay);
+            console.log('    - Muted:', data.settings.muted);
+            console.log('    - Loop:', data.settings.loop);
+            console.log('    - Controls:', data.settings.controls);
+          }
+          
+          // Verificar si el video es accesible
+          if (data?.heroVideo) {
+            console.log('🔍 VIDEO URL VALIDATION:');
+            try {
+              const videoUrl = new URL(data.heroVideo);
+              console.log('  - ✅ Valid absolute URL:', videoUrl.href);
+            } catch {
+              if (data.heroVideo.startsWith('/')) {
+                console.log('  - ✅ Valid relative URL:', data.heroVideo);
+              } else {
+                console.log('  - ⚠️ Potentially invalid URL format:', data.heroVideo);
+              }
+            }
+          }
+        }
+        
       } else {
         console.log('📦 NO DATA in response');
       }
@@ -178,6 +216,35 @@ api.interceptors.response.use(
       console.log('📦 Error Data:', response.data);
       
       const fullUrl = `${config?.baseURL || ''}${url}`;
+      
+      // 🎬 Contexto específico para endpoint de video
+      if (url.includes('/video')) {
+        console.log('🎬 VIDEO ENDPOINT ERROR CONTEXT:');
+        console.log('📍 Requested URL:', fullUrl);
+        
+        if (status === 404) {
+          console.log('💡 SOLUTION FOR VIDEO 404:');
+          console.log('1. Create video endpoint in backend:');
+          console.log('   GET /api/gym/video');
+          console.log('2. Expected response format:');
+          console.log('   {');
+          console.log('     "success": true,');
+          console.log('     "data": {');
+          console.log('       "heroVideo": "https://yourdomain.com/videos/hero.mp4",');
+          console.log('       "poster": "https://yourdomain.com/images/video-poster.jpg",');
+          console.log('       "title": "Welcome to Our Gym",');
+          console.log('       "description": "Experience our amazing facilities",');
+          console.log('       "settings": {');
+          console.log('         "autoplay": false,');
+          console.log('         "muted": true,');
+          console.log('         "loop": true,');
+          console.log('         "controls": true');
+          console.log('       }');
+          console.log('     }');
+          console.log('   }');
+          console.log('3. Video files should be stored in public/videos/ or external CDN');
+        }
+      }
       
       // Contexto específico por tipo de error
       switch (status) {
@@ -207,10 +274,11 @@ api.interceptors.response.use(
           console.log('   - /api/gym/stats');
           console.log('   - /api/gym/services');
           console.log('   - /api/gym/testimonials');
+          console.log('   - /api/gym/video'); // 🎬 NUEVA RUTA
           console.log('   - /api/store/featured-products');
           console.log('   - /api/gym/membership-plans');
           
-          // Solo mostrar toast para endpoints críticos
+          // Solo mostrar toast para endpoints críticos (no para video)
           const isCritical = url.includes('/auth') || url.includes('/config');
           if (isCritical) {
             toast.error('Servicio no disponible');
@@ -251,6 +319,11 @@ api.interceptors.response.use(
             console.log('📝 CÓDIGO SUGERIDO: testimonial.created_at ? testimonial.created_at.toISOString() : new Date().toISOString()');
           }
           
+          if (url.includes('/video')) {
+            console.log('💡 POSIBLE CAUSA: Error en procesamiento de video o acceso a archivos');
+            console.log('🔧 VERIFICAR: Permisos de archivos de video y rutas correctas');
+          }
+          
           toast.error('Error del servidor, contacta soporte');
           break;
           
@@ -269,6 +342,7 @@ api.interceptors.response.use(
       console.log('   - Servidor sobrecargado');
       console.log('   - Conexión lenta');
       console.log('   - Endpoint pesado');
+      console.log('   - Video muy grande (si es endpoint de video)');
       console.log('💡 SOLUCIÓN: Optimizar endpoint o aumentar timeout');
       
       toast.error('La solicitud tardó demasiado tiempo');
@@ -467,6 +541,71 @@ class ApiService {
       return result;
     } catch (error) {
       console.log('❌ TESTIMONIALS FAILED:', error.message);
+      throw error;
+    }
+  }
+  
+  // 🎬 OBTENER VIDEO DEL GIMNASIO - NUEVO MÉTODO
+  async getGymVideo() {
+    console.log('🎬 FETCHING GYM VIDEO...');
+    try {
+      const result = await this.get('/gym/video');
+      console.log('✅ GYM VIDEO RECEIVED:', result);
+      
+      // Validación adicional para datos de video
+      if (result && result.data) {
+        const videoData = result.data;
+        console.log('🔍 VIDEO DATA VALIDATION:');
+        console.log('  - Has hero video:', !!videoData.heroVideo);
+        console.log('  - Has poster:', !!videoData.poster);
+        console.log('  - Has title:', !!videoData.title);
+        console.log('  - Has settings:', !!videoData.settings);
+        
+        // Validar URLs si existen
+        if (videoData.heroVideo) {
+          try {
+            new URL(videoData.heroVideo);
+            console.log('  - Hero video URL: ✅ Valid');
+          } catch {
+            if (videoData.heroVideo.startsWith('/') || videoData.heroVideo.includes('.')) {
+              console.log('  - Hero video URL: ✅ Relative path');
+            } else {
+              console.log('  - Hero video URL: ⚠️ Potentially invalid');
+            }
+          }
+        }
+        
+        if (videoData.poster) {
+          try {
+            new URL(videoData.poster);
+            console.log('  - Poster URL: ✅ Valid');
+          } catch {
+            if (videoData.poster.startsWith('/') || videoData.poster.includes('.')) {
+              console.log('  - Poster URL: ✅ Relative path');
+            } else {
+              console.log('  - Poster URL: ⚠️ Potentially invalid');
+            }
+          }
+        }
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ GYM VIDEO FAILED:', error.message);
+      
+      // Análisis específico de errores de video
+      if (error.response?.status === 404) {
+        console.log('💡 GYM VIDEO: Endpoint not implemented in backend');
+        console.log('🔧 IMPLEMENTATION GUIDE:');
+        console.log('1. Add route in backend: GET /api/gym/video');
+        console.log('2. Create controller method to return video data');
+        console.log('3. Store video files in public/videos/ or use CDN URLs');
+      } else if (error.code === 'ERR_NETWORK') {
+        console.log('🌐 GYM VIDEO: Network connection error');
+      } else {
+        console.log('🔥 GYM VIDEO: Unexpected error:', error.message);
+      }
+      
       throw error;
     }
   }
