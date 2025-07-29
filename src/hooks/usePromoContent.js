@@ -1,354 +1,170 @@
 // src/hooks/usePromoContent.js
-// FUNCIÓN: Hook 100% OPTIMIZADO para contenido promocional del gimnasio
-// MEJORAS: RequestManager + deduplicación + cache inteligente + cleanup
+// FUNCIÓN: Hook para contenido promocional y CTAs
+// CONECTA CON: GET /api/gym/promotional-content
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { requestManager } from '../services/RequestManager';
+import { useState, useEffect } from 'react';
 import apiService from '../services/apiService';
 
-const usePromoContent = (options = {}) => {
-  // Opciones con defaults
-  const {
-    enabled = true,
-    refetchOnMount = false,
-    staleTime = 5 * 60 * 1000, // 5 minutos - promociones pueden cambiar más seguido
-    activeOnly = true, // Solo promociones activas
-    currentOnly = true, // Solo promociones vigentes (no expiradas)
-  } = options;
-
-  // Estados
+const usePromoContent = () => {
+  // 🏗️ Estados
   const [promoContent, setPromoContent] = useState(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
 
-  // Referencias para control
-  const mountedRef = useRef(true);
-  const hasInitialLoad = useRef(false);
-  const fetchAbortController = useRef(null);
-  const instanceId = useRef(`promoContent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-
-  console.log(`🎉 usePromoContent [${instanceId.current}] hook initialized`);
-
-  // 📱 Contenido promocional por defecto
+  // 📱 Contenido promocional por defecto mientras carga
   const defaultPromoContent = {
-    banners: [],
-    popups: [],
-    discounts: [],
-    announcements: [],
-    specialOffers: []
+    main_offer: {
+      title: 'Cargando oferta...',
+      subtitle: 'Cargando...',
+      description: 'Cargando...'
+    },
+    cta_card: {
+      title: 'Cargando...',
+      benefits: [],
+      buttons: []
+    },
+    features: [],
+    motivational: {
+      title: 'Cargando...',
+      message: 'Cargando...'
+    }
   };
 
-  // 🔥 FUNCIÓN DE FETCH OPTIMIZADA con RequestManager
-  const fetchPromoContent = useCallback(async (forceRefresh = false) => {
-    // Verificar si el componente sigue montado y está habilitado
-    if (!mountedRef.current || !enabled) {
-      console.log(`⏸️ usePromoContent [${instanceId.current}] fetch skipped - disabled or unmounted`);
-      return;
-    }
-
-    // Evitar múltiples fetches simultáneos
-    if (isLoading && !forceRefresh) {
-      console.log(`⏸️ usePromoContent [${instanceId.current}] fetch skipped - already loading`);
-      return;
-    }
-
-    // Verificar si ya tenemos datos frescos
-    if (!forceRefresh && promoContent && lastFetch) {
-      const age = Date.now() - lastFetch;
-      if (age < staleTime) {
-        console.log(`✅ usePromoContent [${instanceId.current}] using fresh data (age: ${Math.round(age/1000)}s)`);
-        return;
-      }
+  // 🚀 Función para obtener contenido promocional
+  const fetchPromotionalContent = async (force = false) => {
+    // Cache de 15 minutos (contenido promocional puede cambiar frecuentemente)
+    if (promoContent && !force && lastFetch) {
+      const timeDiff = Date.now() - lastFetch;
+      if (timeDiff < 15 * 60 * 1000) return;
     }
 
     try {
-      console.log(`🎉 usePromoContent [${instanceId.current}] Fetching Promotional Content${forceRefresh ? ' (forced)' : ''}`);
+      setLoading(true);
+      setError(null);
       
-      // Cancelar petición anterior si existe
-      if (fetchAbortController.current) {
-        fetchAbortController.current.abort();
-      }
-
-      // Crear nuevo AbortController
-      fetchAbortController.current = new AbortController();
-
-      setIsLoading(true);
-      setError(null);
-
-      // 🎯 USAR REQUEST MANAGER - Evita peticiones duplicadas automáticamente
-      const response = await requestManager.executeRequest(
-        '/api/gym/promo-content',
-        () => apiService.get('/gym/promo-content'),
-        {
-          forceRefresh,
-          ttl: staleTime,
-          priority: 'low' // Contenido promocional no es crítico
-        }
-      );
-
-      // Verificar que el componente sigue montado antes de actualizar estado
-      if (!mountedRef.current) {
-        console.log(`⚠️ usePromoContent [${instanceId.current}] component unmounted, skipping state update`);
-        return;
-      }
-
-      // Procesar respuesta
-      let processedPromoContent = defaultPromoContent;
-
-      if (response && response.success && response.data) {
-        console.log('✅ Promotional content received:', response.data);
-        
-        // Estructurar contenido promocional
-        processedPromoContent = {
-          banners: response.data.banners || [],
-          popups: response.data.popups || [],
-          discounts: response.data.discounts || [],
-          announcements: response.data.announcements || [],
-          specialOffers: response.data.specialOffers || []
-        };
-
-        // Aplicar filtros
-        if (activeOnly || currentOnly) {
-          const now = new Date();
-          
-          Object.keys(processedPromoContent).forEach(key => {
-            if (Array.isArray(processedPromoContent[key])) {
-              processedPromoContent[key] = processedPromoContent[key].filter(item => {
-                // Filtrar solo activos
-                if (activeOnly && item.active === false) return false;
-                
-                // Filtrar solo vigentes (no expirados)
-                if (currentOnly && item.expiresAt) {
-                  const expiryDate = new Date(item.expiresAt);
-                  if (expiryDate < now) return false;
-                }
-                
-                // Filtrar solo que ya hayan iniciado
-                if (currentOnly && item.startsAt) {
-                  const startDate = new Date(item.startsAt);
-                  if (startDate > now) return false;
-                }
-                
-                return true;
-              });
-            }
-          });
-        }
-
-        console.log('🎉 Promotional content processed:', {
-          banners: processedPromoContent.banners.length,
-          popups: processedPromoContent.popups.length,
-          discounts: processedPromoContent.discounts.length,
-          announcements: processedPromoContent.announcements.length,
-          specialOffers: processedPromoContent.specialOffers.length
-        });
-
+      console.log('🎉 Obteniendo contenido promocional desde backend...');
+      
+      const response = await apiService.getPromotionalContent();
+      
+      if (response.success && response.data) {
+        console.log('✅ Contenido promocional obtenido:', response.data);
+        setPromoContent(response.data);
+        setLastFetch(Date.now());
       } else {
-        console.warn('⚠️ No promotional content available or invalid response');
+        throw new Error('Respuesta inválida del servidor');
       }
-
-      setPromoContent(processedPromoContent);
-      setIsLoaded(true);
-      setError(null);
-      setLastFetch(Date.now());
-      hasInitialLoad.current = true;
-
-    } catch (err) {
-      // Solo actualizar error si el componente sigue montado
-      if (mountedRef.current) {
-        console.error(`❌ usePromoContent [${instanceId.current}] error:`, err.message);
-        setError(err);
-        
-        // En caso de error, usar contenido por defecto
-        if (!promoContent) {
-          setPromoContent(defaultPromoContent);
-        }
-        
-        setIsLoaded(true);
-        hasInitialLoad.current = true;
+    } catch (error) {
+      console.error('❌ Error al obtener contenido promocional:', error);
+      setError(error.message);
+      
+      // En caso de error, usar contenido por defecto
+      if (!promoContent) {
+        setPromoContent(defaultPromoContent);
       }
     } finally {
-      // Solo actualizar loading si el componente sigue montado
-      if (mountedRef.current) {
-        setIsLoading(false);
-      }
-      
-      // Limpiar AbortController
-      fetchAbortController.current = null;
+      setLoading(false);
     }
-  }, [enabled, isLoading, promoContent, lastFetch, staleTime, activeOnly, currentOnly]);
+  };
 
-  // 🔄 FUNCIÓN DE REFETCH MANUAL
-  const refresh = useCallback(() => {
-    console.log(`🔄 usePromoContent [${instanceId.current}] manual refresh requested`);
-    return fetchPromoContent(true);
-  }, [fetchPromoContent]);
-
-  // 🗑️ FUNCIÓN DE INVALIDACIÓN
-  const invalidate = useCallback(() => {
-    console.log(`🗑️ usePromoContent [${instanceId.current}] invalidating cache`);
-    requestManager.invalidateCache('/api/gym/promo-content');
-    setLastFetch(null);
+  // 🔄 Efecto para cargar contenido al montar
+  useEffect(() => {
+    fetchPromotionalContent();
   }, []);
 
-  // 🔍 FUNCIÓN PARA OBTENER PROMOCIONES POR TIPO
-  const getPromosByType = useCallback((type) => {
-    if (!promoContent || !promoContent[type]) return [];
-    return promoContent[type];
-  }, [promoContent]);
+  // 🎯 Función para refrescar contenido promocional
+  const refresh = () => {
+    fetchPromotionalContent(true);
+  };
 
-  // 🔍 FUNCIÓN PARA OBTENER PROMOCIONES PRIORITARIAS
-  const getPriorityPromos = useCallback(() => {
-    if (!promoContent) return [];
-    
-    const allPromos = [
-      ...promoContent.banners,
-      ...promoContent.popups,
-      ...promoContent.announcements,
-      ...promoContent.specialOffers
-    ];
-    
-    return allPromos
-      .filter(promo => promo.priority === 'high' || promo.featured === true)
-      .sort((a, b) => (b.priority === 'high' ? 1 : 0) - (a.priority === 'high' ? 1 : 0));
-  }, [promoContent]);
+  // 🏆 Función para obtener la oferta principal
+  const getMainOffer = () => {
+    return promoContent?.main_offer || defaultPromoContent.main_offer;
+  };
 
-  // 🔍 FUNCIÓN PARA VERIFICAR SI HAY PROMOCIONES ACTIVAS
-  const hasActivePromos = useCallback(() => {
-    if (!promoContent) return false;
-    
-    return Object.values(promoContent).some(promos => 
-      Array.isArray(promos) && promos.length > 0
-    );
-  }, [promoContent]);
+  // 🎯 Función para obtener CTA card
+  const getCTACard = () => {
+    return promoContent?.cta_card || defaultPromoContent.cta_card;
+  };
 
-  // 📊 FUNCIÓN PARA OBTENER ESTADÍSTICAS DE PROMOCIONES
-  const getPromoStats = useCallback(() => {
-    if (!promoContent) return null;
-    
-    const totalPromos = Object.values(promoContent).reduce((sum, promos) => 
-      sum + (Array.isArray(promos) ? promos.length : 0), 0
-    );
-    
-    const priorityPromos = getPriorityPromos().length;
-    
-    return {
-      total: totalPromos,
-      banners: promoContent.banners.length,
-      popups: promoContent.popups.length,
-      discounts: promoContent.discounts.length,
-      announcements: promoContent.announcements.length,
-      specialOffers: promoContent.specialOffers.length,
-      priority: priorityPromos
-    };
-  }, [promoContent, getPriorityPromos]);
+  // ⭐ Función para obtener características destacadas
+  const getFeatures = () => {
+    return promoContent?.features || [];
+  };
 
-  // 🔥 EFECTO PRINCIPAL - Optimizado para evitar renders innecesarios
-  useEffect(() => {
-    const shouldFetch = enabled && (
-      !hasInitialLoad.current || 
-      refetchOnMount || 
-      !promoContent ||
-      (lastFetch && Date.now() - lastFetch > staleTime)
-    );
+  // 💡 Función para obtener mensaje motivacional
+  const getMotivationalMessage = () => {
+    return promoContent?.motivational || defaultPromoContent.motivational;
+  };
 
-    if (shouldFetch) {
-      console.log(`🚀 usePromoContent [${instanceId.current}] initial fetch triggered`);
-      fetchPromoContent();
-    } else {
-      console.log(`⏸️ usePromoContent [${instanceId.current}] initial fetch skipped - conditions not met`);
-      
-      // Si tenemos datos pero no está marcado como loaded, marcarlo
-      if (promoContent && !isLoaded) {
-        setIsLoaded(true);
-        hasInitialLoad.current = true;
-      }
-    }
+  // 🎨 Función para obtener botones de CTA
+  const getCTAButtons = () => {
+    return promoContent?.cta_card?.buttons || [];
+  };
 
-    // Cleanup function
-    return () => {
-      if (fetchAbortController.current) {
-        console.log(`🚫 usePromoContent [${instanceId.current}] aborting fetch on effect cleanup`);
-        fetchAbortController.current.abort();
-        fetchAbortController.current = null;
-      }
-    };
-  }, [enabled, refetchOnMount]); // Dependencias mínimas
+  // 🎁 Función para obtener beneficios del CTA
+  const getCTABenefits = () => {
+    return promoContent?.cta_card?.benefits || [];
+  };
 
-  // 🧹 CLEANUP AL DESMONTAR
-  useEffect(() => {
-    mountedRef.current = true;
-    
-    return () => {
-      console.log(`🧹 usePromoContent [${instanceId.current}] component unmounting - cleanup`);
-      mountedRef.current = false;
-      
-      // Abortar cualquier petición activa
-      if (fetchAbortController.current) {
-        fetchAbortController.current.abort();
-        fetchAbortController.current = null;
-      }
-    };
-  }, []);
+  // 📊 Función para verificar si hay ofertas activas
+  const hasActiveOffers = () => {
+    const mainOffer = getMainOffer();
+    return mainOffer && mainOffer.title && mainOffer.title !== 'Cargando oferta...';
+  };
 
-  // 📊 PROPIEDADES COMPUTADAS (Memoizadas)
-  const hasValidData = Boolean(promoContent && hasActivePromos());
-  const isStale = lastFetch ? (Date.now() - lastFetch > staleTime) : false;
-  const cacheAge = lastFetch ? Date.now() - lastFetch : 0;
-  const stats = getPromoStats();
+  // 🎯 Función para verificar si hay CTAs disponibles
+  const hasCTAs = () => {
+    const buttons = getCTAButtons();
+    return buttons && buttons.length > 0;
+  };
 
-  // 🎯 VALOR DE RETORNO OPTIMIZADO
+  // 🌟 Función para obtener feature específico por título
+  const getFeatureByTitle = (title) => {
+    const features = getFeatures();
+    return features.find(feature => feature.title === title);
+  };
+
+  // 🎨 Función para verificar si el contenido promocional está completo
+  const isContentComplete = () => {
+    return hasActiveOffers() && hasCTAs() && getFeatures().length > 0;
+  };
+
+  // 🏠 Retornar contenido promocional y funciones
   return {
-    // Datos principales
+    // Estado
     promoContent: promoContent || defaultPromoContent,
-    isLoaded,
-    isLoading,
+    loading,
     error,
     lastFetch,
     
-    // Funciones de control
+    // Funciones principales
     refresh,
-    invalidate,
+    getMainOffer,
+    getCTACard,
+    getFeatures,
+    getMotivationalMessage,
+    getCTAButtons,
+    getCTABenefits,
+    getFeatureByTitle,
     
-    // Funciones de utilidad
-    getPromosByType,      // Obtener promociones por tipo
-    getPriorityPromos,    // Obtener promociones prioritarias
-    hasActivePromos,      // Verificar si hay promociones activas
-    getPromoStats,        // Obtener estadísticas
+    // Verificaciones
+    hasActiveOffers,
+    hasCTAs,
+    isContentComplete,
     
-    // Acceso directo a tipos de promociones
-    banners: promoContent?.banners || [],
-    popups: promoContent?.popups || [],
-    discounts: promoContent?.discounts || [],
-    announcements: promoContent?.announcements || [],
-    specialOffers: promoContent?.specialOffers || [],
+    // Acceso directo (para compatibilidad)
+    mainOffer: getMainOffer(),
+    ctaCard: getCTACard(),
+    features: getFeatures(),
+    motivational: getMotivationalMessage(),
+    ctaButtons: getCTAButtons(),
+    ctaBenefits: getCTABenefits(),
     
-    // Información de estado
-    hasValidData,
-    isStale,
-    cacheAge,
-    stats,
-    isEmpty: !hasActivePromos(),
-    
-    // Información de debug (solo en desarrollo)
-    ...(process.env.NODE_ENV === 'development' && {
-      instanceId: instanceId.current,
-      debugInfo: {
-        hasInitialLoad: hasInitialLoad.current,
-        isEnabled: enabled,
-        activeOnly,
-        currentOnly,
-        cacheAge: Math.round(cacheAge / 1000) + 's',
-        dataStructure: promoContent ? {
-          types: Object.keys(promoContent),
-          totalItems: Object.values(promoContent).reduce((sum, arr) => 
-            sum + (Array.isArray(arr) ? arr.length : 0), 0
-          )
-        } : null
-      }
-    })
+    // Estado útil
+    isLoaded: !loading && !!promoContent && !error,
+    hasError: !!error,
+    isEmpty: !promoContent || !hasActiveOffers()
   };
 };
 

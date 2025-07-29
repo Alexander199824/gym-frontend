@@ -1,6 +1,6 @@
 // src/hooks/useGymConfig.js
-// FUNCIÓN: Hook 100% OPTIMIZADO para configuración del gimnasio
-// MEJORAS: RequestManager + deduplicación + cache inteligente + cleanup
+// FUNCIÓN: Hook 100% OPTIMIZADO - Sin peticiones duplicadas
+// MEJORAS: RequestManager + memoización + cleanup inteligente
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { requestManager } from '../services/RequestManager';
@@ -11,7 +11,7 @@ const useGymConfig = (options = {}) => {
   const {
     enabled = true,
     refetchOnMount = false,
-    staleTime = 10 * 60 * 1000, // 10 minutos - config casi nunca cambia
+    staleTime = 10 * 60 * 1000, // 10 minutos
   } = options;
 
   // Estados
@@ -19,19 +19,20 @@ const useGymConfig = (options = {}) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [lastFetch, setLastFetch] = useState(null);
 
   // Referencias para control
   const mountedRef = useRef(true);
   const hasInitialLoad = useRef(false);
   const fetchAbortController = useRef(null);
+
+  // ID único para este hook instance (para logs)
   const instanceId = useRef(`gymConfig-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
 
   console.log(`🚀 useGymConfig [${instanceId.current}] initialized`);
 
-  // 🔥 FUNCIÓN DE FETCH OPTIMIZADA con RequestManager
-  const fetchConfig = useCallback(async (attempt = 1, forceRefresh = false) => {
+  // 🔥 FUNCIÓN DE FETCH OPTIMIZADA - Usa RequestManager
+  const fetchConfig = useCallback(async (forceRefresh = false) => {
     // Verificar si el componente sigue montado y está habilitado
     if (!mountedRef.current || !enabled) {
       console.log(`⏸️ useGymConfig [${instanceId.current}] fetch skipped - disabled or unmounted`);
@@ -39,13 +40,13 @@ const useGymConfig = (options = {}) => {
     }
 
     // Evitar múltiples fetches simultáneos
-    if (isLoading && !forceRefresh && attempt === 1) {
+    if (isLoading && !forceRefresh) {
       console.log(`⏸️ useGymConfig [${instanceId.current}] fetch skipped - already loading`);
       return;
     }
 
-    // Verificar si ya tenemos datos frescos (solo en attempt 1)
-    if (!forceRefresh && attempt === 1 && config && lastFetch) {
+    // Verificar si ya tenemos datos frescos
+    if (!forceRefresh && config && lastFetch) {
       const age = Date.now() - lastFetch;
       if (age < staleTime) {
         console.log(`✅ useGymConfig [${instanceId.current}] using fresh data (age: ${Math.round(age/1000)}s)`);
@@ -54,7 +55,7 @@ const useGymConfig = (options = {}) => {
     }
 
     try {
-      console.log(`🏢 useGymConfig [${instanceId.current}] Loading Gym Config - Attempt ${attempt}${forceRefresh ? ' (forced)' : ''}`);
+      console.log(`🏢 useGymConfig [${instanceId.current}] fetching${forceRefresh ? ' (forced)' : ''}...`);
       
       // Cancelar petición anterior si existe
       if (fetchAbortController.current) {
@@ -64,15 +65,11 @@ const useGymConfig = (options = {}) => {
       // Crear nuevo AbortController
       fetchAbortController.current = new AbortController();
 
-      if (attempt === 1) {
-        setIsLoading(true);
-        setError(null);
-      }
-
-      console.log('📡 Making request to /api/gym/config...');
+      setIsLoading(true);
+      setError(null);
 
       // 🎯 USAR REQUEST MANAGER - Evita peticiones duplicadas automáticamente
-      const response = await requestManager.executeRequest(
+      const result = await requestManager.executeRequest(
         '/api/gym/config',
         () => apiService.getGymConfig(),
         {
@@ -82,76 +79,54 @@ const useGymConfig = (options = {}) => {
         }
       );
 
-      console.log('✅ Config response received:', response);
-
       // Verificar que el componente sigue montado antes de actualizar estado
       if (!mountedRef.current) {
         console.log(`⚠️ useGymConfig [${instanceId.current}] component unmounted, skipping state update`);
         return;
       }
 
-      // 🔧 ARREGLO CRÍTICO: Extraer solo la data del response
+      // Extraer datos del response
       let configData = null;
       
-      if (response && response.success && response.data) {
-        // Backend devuelve: { success: true, data: { name: "...", ... } }
-        configData = response.data;
-        console.log('📋 Config data structure:');
-        console.log('  - Name:', configData.name);
-        console.log('  - Description:', configData.description);
-        console.log('  - Logo URL:', configData.logo?.url || '❌ MISSING');
-        console.log('  - Contact info:', configData.contact ? '✅ Present' : '❌ MISSING');
-        console.log('  - Social media:', configData.social ? `✅ ${Object.keys(configData.social).length} platforms` : '❌ MISSING');
-        console.log('  - Hours:', configData.hours?.full || '❌ MISSING');
-        console.log('  - Tagline:', configData.tagline || '❌ MISSING');
-      } else if (response && response.name) {
+      if (result && result.success && result.data) {
+        configData = result.data;
+      } else if (result && result.name) {
         // Si el response ya es la data directamente
-        configData = response;
-        console.log('📋 Config data (direct):', configData.name);
-      } else {
-        console.warn('⚠️ Invalid config response structure:', response);
-        throw new Error('Invalid response structure');
+        configData = result;
       }
 
       if (configData && configData.name) {
-        setConfig(configData); // ✅ Guardamos solo la data, no el wrapper
-        setIsLoaded(true);
+        console.log(`✅ useGymConfig [${instanceId.current}] data loaded:`, {
+          name: configData.name,
+          hasLogo: !!configData.logo?.url,
+          hasContact: !!configData.contact,
+          hasSocial: !!(configData.social && Object.keys(configData.social).length > 0)
+        });
+
+        setConfig(configData);
         setError(null);
-        setRetryCount(0);
         setLastFetch(Date.now());
-        hasInitialLoad.current = true;
-        console.log('🎉 Gym config loaded successfully!');
       } else {
-        throw new Error('Config data missing required fields');
+        throw new Error('Invalid config data structure');
       }
 
     } catch (err) {
       // Solo actualizar error si el componente sigue montado
       if (mountedRef.current) {
-        console.error(`❌ Error loading config (attempt ${attempt}):`, err.message);
-        
+        console.error(`❌ useGymConfig [${instanceId.current}] error:`, err.message);
         setError(err);
         
-        // Reintentar hasta 3 veces con backoff exponencial
-        if (attempt < 3) {
-          const delay = attempt * 1000; // 1s, 2s, 3s
-          console.log(`🔄 Retrying in ${delay}ms...`);
-          setTimeout(() => {
-            if (mountedRef.current) {
-              setRetryCount(prev => prev + 1);
-              fetchConfig(attempt + 1, forceRefresh);
-            }
-          }, delay);
-        } else {
-          console.log('💥 Max retry attempts reached');
-          setIsLoaded(true); // Marcar como cargado aunque falle
-          hasInitialLoad.current = true;
+        // No limpiar config anterior en caso de error, mantener datos previos
+        if (!config) {
+          setConfig(null);
         }
       }
     } finally {
-      // Solo actualizar loading si es el último intento o éxito
-      if (mountedRef.current && (attempt >= 3 || config)) {
+      // Solo actualizar loading si el componente sigue montado
+      if (mountedRef.current) {
         setIsLoading(false);
+        setIsLoaded(true);
+        hasInitialLoad.current = true;
       }
       
       // Limpiar AbortController
@@ -160,10 +135,9 @@ const useGymConfig = (options = {}) => {
   }, [enabled, isLoading, config, lastFetch, staleTime]);
 
   // 🔄 FUNCIÓN DE REFETCH MANUAL
-  const reload = useCallback(() => {
-    console.log(`🔄 useGymConfig [${instanceId.current}] manual reload requested`);
-    setRetryCount(0);
-    return fetchConfig(1, true); // Forzar refresh
+  const refetch = useCallback(() => {
+    console.log(`🔄 useGymConfig [${instanceId.current}] manual refetch requested`);
+    return fetchConfig(true);
   }, [fetchConfig]);
 
   // 🗑️ FUNCIÓN DE INVALIDACIÓN
@@ -196,7 +170,6 @@ const useGymConfig = (options = {}) => {
       // Si tenemos datos pero no está marcado como loaded, marcarlo
       if (config && !isLoaded) {
         setIsLoaded(true);
-        hasInitialLoad.current = true;
       }
     }
 
@@ -226,20 +199,6 @@ const useGymConfig = (options = {}) => {
     };
   }, []);
 
-  // Logs de estado cuando cambie config
-  useEffect(() => {
-    if (config) {
-      console.log('🏢 Gym Config State Update:', {
-        hasName: !!config.name,
-        hasLogo: !!config.logo?.url,
-        hasContact: !!config.contact,
-        hasSocial: !!(config.social && Object.keys(config.social).length > 0),
-        hasHours: !!config.hours,
-        cacheAge: lastFetch ? Math.round((Date.now() - lastFetch) / 1000) + 's' : 'N/A'
-      });
-    }
-  }, [config, lastFetch]);
-
   // 📊 PROPIEDADES COMPUTADAS (Memoizadas)
   const hasValidData = Boolean(config && config.name);
   const isStale = lastFetch ? (Date.now() - lastFetch > staleTime) : false;
@@ -248,15 +207,14 @@ const useGymConfig = (options = {}) => {
   // 🎯 VALOR DE RETORNO OPTIMIZADO
   return {
     // Datos principales
-    config,          // ✅ Solo la data: { name: "...", description: "...", ... }
-    isLoaded,        // true cuando terminó de cargar (exitoso o fallo)
-    isLoading,       // true mientras está cargando
-    error,           // Error si falló
-    retryCount,      // Número de reintentos
+    config,
+    isLoaded,
+    isLoading,
+    error,
     
     // Funciones de control
-    reload,          // Función para recargar manualmente
-    invalidate,      // Función para invalidar cache
+    refetch,
+    invalidate,
     
     // Información de estado
     hasValidData,
