@@ -8,14 +8,14 @@ import toast from 'react-hot-toast';
 // 🔧 CONFIGURACIÓN DE AXIOS
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
-  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 15000, // Reducido a 15s
+  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 15000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
 });
 
-// 🔐 INTERCEPTOR DE PETICIONES (Request)
+// 🔐 INTERCEPTOR DE PETICIONES (Request) - OPTIMIZADO
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
@@ -24,16 +24,22 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // 🔍 LOGS MEJORADOS - Solo en desarrollo y sin spam
+    // 🔍 LOGS REDUCIDOS - Solo endpoints importantes o en desarrollo
     if (process.env.NODE_ENV === 'development') {
-      const url = config.url.startsWith('/') ? config.url : `/${config.url}`;
-      console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${url}`);
+      const isImportantEndpoint = config.url.includes('/health') || 
+                                  config.url.includes('/auth') || 
+                                  config.url.includes('/config');
+      
+      if (isImportantEndpoint) {
+        const url = config.url.startsWith('/') ? config.url : `/${config.url}`;
+        console.log(`🚀 API: ${config.method?.toUpperCase()} ${url}`);
+      }
     }
     
     return config;
   },
   (error) => {
-    console.error('❌ Error en request interceptor:', error);
+    console.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -41,14 +47,22 @@ api.interceptors.request.use(
 // 📨 INTERCEPTOR DE RESPUESTAS (Response) - MEJORADO
 api.interceptors.response.use(
   (response) => {
-    // 🔍 LOGS DE ÉXITO - Solo en desarrollo y más informativos
+    // 🔍 LOGS DE ÉXITO - Solo para endpoints importantes
     if (process.env.NODE_ENV === 'development') {
       const url = response.config.url;
-      const dataType = Array.isArray(response.data?.data) ? 'Array' : typeof response.data?.data;
-      const dataLength = Array.isArray(response.data?.data) ? response.data.data.length : 'N/A';
+      const isImportantEndpoint = url.includes('/health') || 
+                                  url.includes('/auth') || 
+                                  url.includes('/config') ||
+                                  url.includes('/stats') ||
+                                  url.includes('/services');
       
-      console.log(`✅ API Success: ${url}`);
-      console.log(`📊 Response type: ${dataType}${dataLength !== 'N/A' ? ` (${dataLength} items)` : ''}`);
+      if (isImportantEndpoint) {
+        const data = response.data?.data;
+        const dataInfo = Array.isArray(data) ? `Array(${data.length})` : 
+                        data ? typeof data : 'No data';
+        
+        console.log(`✅ ${url} → ${dataInfo}`);
+      }
     }
     
     return response;
@@ -56,76 +70,121 @@ api.interceptors.response.use(
   (error) => {
     const { response, config } = error;
     const url = config?.url || 'unknown';
+    const method = config?.method?.toUpperCase() || 'UNKNOWN';
     
-    // 🔍 LOGS DE ERROR MEJORADOS - Más informativos
+    // 🔍 LOGS DE ERROR INFORMATIVOS - Sin spam
     if (response) {
       const status = response.status;
-      const method = config?.method?.toUpperCase() || 'UNKNOWN';
       const fullUrl = `${config?.baseURL || ''}${url}`;
       
-      console.group(`❌ API Error ${status}: ${method} ${url}`);
-      console.log(`🔗 Full URL: ${fullUrl}`);
-      console.log(`📄 Response data:`, response.data);
+      console.group(`❌ API Error: ${method} ${url} (${status})`);
       
+      // Contexto específico por tipo de error
       switch (status) {
         case 401:
-          console.log('🔐 Problema: Token expirado o inválido');
+          console.log('🔐 PROBLEMA: Token expirado o inválido');
+          console.log('🔧 ACCIÓN: Redirigiendo a login...');
           localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
           
           if (!window.location.pathname.includes('/login')) {
-            toast.error('Sesión expirada. Por favor inicia sesión nuevamente.');
-            window.location.href = '/login';
+            toast.error('Sesión expirada. Redirigiendo...');
+            setTimeout(() => window.location.href = '/login', 1500);
           }
           break;
           
         case 403:
-          console.log('🚫 Problema: Sin permisos para esta acción');
-          toast.error('No tienes permisos para realizar esta acción.');
+          console.log('🚫 PROBLEMA: Sin permisos para esta acción');
+          console.log('🔧 VERIFICAR: Rol del usuario y permisos necesarios');
+          toast.error('Sin permisos para esta acción');
           break;
           
         case 404:
-          console.log('🔍 Problema: Endpoint no encontrado en el backend');
-          console.log('💡 Solución: Verifica que la ruta exista en el backend');
-          // NO mostrar toast para 404 ya que pueden ser endpoints opcionales
+          console.log('🔍 PROBLEMA: Endpoint no implementado en backend');
+          console.log('🔧 VERIFICAR: ¿Existe la ruta en el backend?');
+          console.log('📋 URL completa:', fullUrl);
+          
+          // Solo mostrar toast para endpoints críticos
+          const isCritical = url.includes('/auth') || url.includes('/config');
+          if (isCritical) {
+            toast.error('Servicio no disponible');
+          }
           break;
           
         case 422:
-          console.log('📝 Problema: Error de validación de datos');
+          console.log('📝 PROBLEMA: Datos inválidos enviados');
+          console.log('🔧 VERIFICAR: Formato y validación de datos');
           if (response.data?.errors) {
-            const errorMsg = response.data.errors.map(err => err.message).join(', ');
-            console.log('📋 Errores de validación:', errorMsg);
-            toast.error(`Error de validación: ${errorMsg}`);
+            const errors = response.data.errors;
+            console.log('📋 Errores de validación:', errors);
+            
+            if (Array.isArray(errors)) {
+              const errorMsg = errors.map(err => err.message || err).join(', ');
+              toast.error(`Datos inválidos: ${errorMsg}`);
+            } else {
+              toast.error('Datos inválidos enviados');
+            }
           }
           break;
           
         case 429:
-          console.log('🚦 Problema: Demasiadas peticiones (rate limiting)');
-          toast.error('Demasiadas solicitudes. Intenta de nuevo más tarde.');
+          console.log('🚦 PROBLEMA: Demasiadas peticiones (rate limiting)');
+          console.log('🔧 SOLUCIÓN: Reducir frecuencia de peticiones');
+          toast.error('Demasiadas solicitudes, espera un momento');
           break;
           
         case 500:
-          console.log('🔥 Problema: Error interno del servidor');
-          console.log('💡 Solución: Revisa los logs del backend');
-          toast.error('Error interno del servidor. Contacta al administrador.');
+          console.log('🔥 PROBLEMA: Error interno del servidor');
+          console.log('🔧 VERIFICAR: Logs del backend para más detalles');
+          console.log('📋 Error del servidor:', response.data?.message || 'Sin detalles');
+          toast.error('Error del servidor, contacta soporte');
           break;
           
         default:
-          console.log(`🤔 Problema: Error HTTP ${status}`);
+          console.log(`🤔 PROBLEMA: Error HTTP ${status}`);
+          console.log('📋 Respuesta:', response.data);
+          
           const message = response.data?.message || `Error ${status}`;
           toast.error(message);
       }
       
       console.groupEnd();
+      
     } else if (error.code === 'ECONNABORTED') {
-      console.log(`⏰ Error: Timeout en ${url} (${config?.timeout}ms)`);
-      console.log('💡 Solución: El servidor tarda mucho en responder');
-      toast.error('La solicitud tardó demasiado. Verifica tu conexión.');
+      console.group('⏰ Request Timeout');
+      console.log('🔍 PROBLEMA: El servidor tardó más de', config?.timeout, 'ms en responder');
+      console.log('🔧 POSIBLES CAUSAS:');
+      console.log('   - Servidor sobrecargado');
+      console.log('   - Conexión lenta');
+      console.log('   - Endpoint pesado');
+      console.log('💡 SOLUCIÓN: Optimizar endpoint o aumentar timeout');
+      console.groupEnd();
+      
+      toast.error('La solicitud tardó demasiado tiempo');
+      
     } else if (error.code === 'ERR_NETWORK') {
-      console.log(`🌐 Error: No se puede conectar al backend en ${url}`);
-      console.log('💡 Solución: Verifica que el servidor esté corriendo en', config?.baseURL);
-      // NO mostrar toast para errores de red al inicio
+      console.group('🌐 Network Error');
+      console.log('🔍 PROBLEMA: No se puede conectar al backend');
+      console.log('🔧 POSIBLES CAUSAS:');
+      console.log('   - Backend no está corriendo');
+      console.log('   - Puerto incorrecto');
+      console.log('   - Problema de CORS');
+      console.log('   - Firewall bloqueando');
+      console.log('📋 Backend URL:', config?.baseURL);
+      console.log('💡 VERIFICAR: ¿Está el backend corriendo en', config?.baseURL, '?');
+      console.groupEnd();
+      
+      // No mostrar toast para errores de red durante carga inicial
+      if (!document.location.pathname.includes('/login')) {
+        toast.error('Sin conexión al servidor');
+      }
+      
     } else {
-      console.log(`🔥 Error desconocido en ${url}:`, error.message);
+      console.group('🔥 Unknown Error');
+      console.log('🔍 PROBLEMA: Error desconocido');
+      console.log('📋 Error:', error.message);
+      console.log('📋 Code:', error.code);
+      console.log('📋 URL:', url);
+      console.groupEnd();
     }
     
     return Promise.reject(error);
@@ -136,15 +195,18 @@ api.interceptors.response.use(
 class ApiService {
   
   // ================================
-  // 🔧 MÉTODOS GENERALES (MEJORADOS)
+  // 🔧 MÉTODOS GENERALES OPTIMIZADOS
   // ================================
   
-  // MÉTODO GENERAL GET - MEJORADO
+  // MÉTODO GENERAL GET
   async get(endpoint) {
     try {
-      // Asegurar que el endpoint empiece con /api
       const url = this.normalizeEndpoint(endpoint);
       const response = await api.get(url);
+      
+      // Log informativo para endpoints importantes
+      this.logSuccessfulResponse(endpoint, response.data);
+      
       return response.data;
     } catch (error) {
       this.logEndpointError('GET', endpoint, error);
@@ -152,11 +214,14 @@ class ApiService {
     }
   }
   
-  // MÉTODO GENERAL POST - MEJORADO
+  // MÉTODO GENERAL POST
   async post(endpoint, data) {
     try {
       const url = this.normalizeEndpoint(endpoint);
       const response = await api.post(url, data);
+      
+      this.logSuccessfulResponse(endpoint, response.data);
+      
       return response.data;
     } catch (error) {
       this.logEndpointError('POST', endpoint, error);
@@ -164,7 +229,7 @@ class ApiService {
     }
   }
   
-  // MÉTODO GENERAL PUT - MEJORADO
+  // MÉTODO GENERAL PUT
   async put(endpoint, data) {
     try {
       const url = this.normalizeEndpoint(endpoint);
@@ -176,19 +241,7 @@ class ApiService {
     }
   }
   
-  // MÉTODO GENERAL PATCH - MEJORADO
-  async patch(endpoint, data) {
-    try {
-      const url = this.normalizeEndpoint(endpoint);
-      const response = await api.patch(url, data);
-      return response.data;
-    } catch (error) {
-      this.logEndpointError('PATCH', endpoint, error);
-      throw error;
-    }
-  }
-  
-  // MÉTODO GENERAL DELETE - MEJORADO
+  // MÉTODO GENERAL DELETE
   async delete(endpoint) {
     try {
       const url = this.normalizeEndpoint(endpoint);
@@ -200,146 +253,123 @@ class ApiService {
     }
   }
   
-  // 🔧 HELPER: Normalizar endpoints para asegurar /api prefix
+  // 🔧 HELPER: Normalizar endpoints
   normalizeEndpoint(endpoint) {
-    // Si ya empieza con /api, devolverlo tal como está
-    if (endpoint.startsWith('/api/')) {
-      return endpoint;
-    }
-    
-    // Si empieza con /, agregarlo después de /api
-    if (endpoint.startsWith('/')) {
-      return `/api${endpoint}`;
-    }
-    
-    // Si no empieza con /, agregarlo con /api/
+    if (endpoint.startsWith('/api/')) return endpoint;
+    if (endpoint.startsWith('/')) return `/api${endpoint}`;
     return `/api/${endpoint}`;
   }
   
-  // 🔧 HELPER: Log detallado de errores por endpoint
+  // 🔧 HELPER: Log de respuesta exitosa (solo importantes)
+  logSuccessfulResponse(endpoint, data) {
+    if (process.env.NODE_ENV !== 'development') return;
+    
+    const isImportant = endpoint.includes('config') || 
+                       endpoint.includes('stats') || 
+                       endpoint.includes('services') ||
+                       endpoint.includes('health');
+    
+    if (isImportant && data) {
+      const dataType = data.data ? (Array.isArray(data.data) ? 'Array' : 'Object') : 'Response';
+      const count = Array.isArray(data.data) ? data.data.length : '';
+      
+      console.log(`✅ ${endpoint} → ${dataType}${count ? `(${count})` : ''}`);
+      
+      // Mostrar estructura de datos importantes
+      if (endpoint.includes('config') && data.data) {
+        console.log('📋 Config structure:', {
+          name: data.data.name || 'Missing',
+          logo: data.data.logo ? '✅' : '❌',
+          contact: data.data.contact ? '✅' : '❌',
+          social: data.data.social ? Object.keys(data.data.social).length + ' platforms' : '❌'
+        });
+      }
+    }
+  }
+  
+  // 🔧 HELPER: Log de error detallado
   logEndpointError(method, endpoint, error) {
+    if (process.env.NODE_ENV !== 'development') return;
+    
     const status = error.response?.status;
     
-    console.group(`🔧 ${method} ${endpoint} - Error Analysis`);
-    console.log(`📍 Endpoint solicitado: ${endpoint}`);
-    console.log(`🔗 URL normalizada: ${this.normalizeEndpoint(endpoint)}`);
+    console.group(`🔧 ${method} ${endpoint} Analysis`);
+    console.log(`📍 Requested: ${endpoint}`);
+    console.log(`🔗 Normalized: ${this.normalizeEndpoint(endpoint)}`);
     
     if (status) {
-      console.log(`📊 Status: ${status}`);
+      console.log(`📊 HTTP Status: ${status}`);
       
+      // Análisis específico por endpoint
+      if (endpoint.includes('/config')) {
+        console.log('🏢 ENDPOINT: Gym Configuration');
+        console.log('📋 EXPECTED: Basic gym info (name, logo, contact)');
+        console.log('🔧 BACKEND SHOULD HAVE: /api/gym/config route');
+      } else if (endpoint.includes('/services')) {
+        console.log('🏋️ ENDPOINT: Gym Services');
+        console.log('📋 EXPECTED: Array of gym services');
+        console.log('🔧 BACKEND SHOULD HAVE: /api/gym/services route');
+      } else if (endpoint.includes('/stats')) {
+        console.log('📊 ENDPOINT: Gym Statistics');
+        console.log('📋 EXPECTED: Numbers (members, trainers, etc.)');
+        console.log('🔧 BACKEND SHOULD HAVE: /api/gym/stats route');
+      }
+      
+      // Sugerencias por código de error
       switch (status) {
         case 404:
-          console.log('❓ ¿Qué significa? El endpoint no existe en el backend');
-          console.log('🔧 ¿Qué hacer? Verificar que el backend tenga esta ruta implementada');
+          console.log('❓ WHY: Backend endpoint missing');
+          console.log('🔧 FIX: Implement route in backend');
           break;
         case 500:
-          console.log('❓ ¿Qué significa? Error interno en el backend');
-          console.log('🔧 ¿Qué hacer? Revisar logs del backend para más detalles');
+          console.log('❓ WHY: Backend internal error');
+          console.log('🔧 FIX: Check backend logs for details');
           break;
         case 422:
-          console.log('❓ ¿Qué significa? Datos inválidos enviados');
-          console.log('🔧 ¿Qué hacer? Verificar el formato de los datos enviados');
+          console.log('❓ WHY: Invalid data sent');
+          console.log('🔧 FIX: Check request data format');
           break;
       }
     } else {
-      console.log('❓ ¿Qué significa? No se pudo conectar al backend');
-      console.log('🔧 ¿Qué hacer? Verificar que el backend esté corriendo');
+      console.log('❓ WHY: Cannot connect to backend');
+      console.log('🔧 FIX: Start backend server');
     }
     
     console.groupEnd();
   }
   
   // ================================
-  // 🏢 MÉTODOS DE CONFIGURACIÓN DEL GYM - RUTAS CORREGIDAS
+  // 🏢 MÉTODOS DE GIMNASIO
   // ================================
   
-  // OBTENER CONFIGURACIÓN COMPLETA DEL GYM
+  // OBTENER CONFIGURACIÓN DEL GYM
   async getGymConfig() {
+    console.log('🏢 Fetching gym configuration...');
     return await this.get('/api/gym/config');
   }
   
-  // OBTENER ESTADÍSTICAS PÚBLICAS
+  // OBTENER ESTADÍSTICAS
   async getGymStats() {
+    console.log('📊 Fetching gym statistics...');
     return await this.get('/api/gym/stats');
   }
   
-  // OBTENER SERVICIOS DEL GYM
+  // OBTENER SERVICIOS
   async getGymServices() {
+    console.log('🏋️ Fetching gym services...');
     return await this.get('/api/gym/services');
   }
   
-  // OBTENER PLANES DE MEMBRESÍA PÚBLICOS
+  // OBTENER PLANES DE MEMBRESÍA
   async getMembershipPlans() {
+    console.log('🎫 Fetching membership plans...');
     return await this.get('/api/gym/membership-plans');
   }
   
   // OBTENER TESTIMONIOS
   async getTestimonials() {
+    console.log('💬 Fetching testimonials...');
     return await this.get('/api/gym/testimonials');
-  }
-  
-  // OBTENER INFORMACIÓN DE CONTACTO
-  async getContactInfo() {
-    return await this.get('/api/gym/contact');
-  }
-  
-  // OBTENER REDES SOCIALES
-  async getSocialMedia() {
-    return await this.get('/api/gym/social-media');
-  }
-  
-  // OBTENER GALERÍA/VIDEOS
-  async getGymMedia() {
-    return await this.get('/api/gym/media');
-  }
-  
-  // ================================
-  // 🎉 MÉTODOS DE PROMOCIONES - CORREGIDOS
-  // ================================
-  
-  // OBTENER PROMOCIONES ACTIVAS
-  async getPromotions() {
-    return await this.get('/api/gym/promotions');
-  }
-  
-  // OBTENER PROMOCIÓN POR ID
-  async getPromotionById(id) {
-    return await this.get(`/api/gym/promotions/${id}`);
-  }
-  
-  // CREAR PROMOCIÓN
-  async createPromotion(promotionData) {
-    const response = await this.post('/api/gym/promotions', promotionData);
-    
-    if (response.success) {
-      toast.success('Promoción creada exitosamente');
-    }
-    
-    return response;
-  }
-  
-  // ================================
-  // 📄 MÉTODOS DE CONTENIDO - RUTAS CORREGIDAS
-  // ================================
-  
-  // OBTENER CONTENIDO DE SECCIONES
-  async getSectionsContent() {
-    return await this.get('/api/gym/sections-content');
-  }
-  
-  // OBTENER NAVEGACIÓN
-  async getNavigation() {
-    return await this.get('/api/gym/navigation');
-  }
-  
-  // OBTENER CONTENIDO PROMOCIONAL
-  async getPromotionalContent() {
-    return await this.get('/api/gym/promotional-content');
-  }
-  
-  // OBTENER CONFIGURACIÓN DE BRANDING
-  async getBranding() {
-    return await this.get('/api/gym/branding');
   }
   
   // ================================
@@ -348,6 +378,7 @@ class ApiService {
   
   // OBTENER PRODUCTOS DESTACADOS
   async getFeaturedProducts() {
+    console.log('🛍️ Fetching featured products...');
     return await this.get('/api/store/featured-products');
   }
   
@@ -357,23 +388,32 @@ class ApiService {
     return response.data;
   }
   
-  // OBTENER PRODUCTO POR ID
-  async getProductById(id) {
-    return await this.get(`/api/store/products/${id}`);
-  }
-  
   // ================================
-  // 🛒 MÉTODOS DEL CARRITO
+  // 📄 MÉTODOS DE CONTENIDO
   // ================================
   
-  // OBTENER CARRITO
-  async getCart() {
-    return await this.get('/api/cart');
+  // OBTENER CONTENIDO DE SECCIONES
+  async getSectionsContent() {
+    console.log('📄 Fetching sections content...');
+    return await this.get('/api/gym/sections-content');
   }
   
-  // ACTUALIZAR CARRITO
-  async updateCart(items) {
-    return await this.post('/api/cart', { items });
+  // OBTENER NAVEGACIÓN
+  async getNavigation() {
+    console.log('🧭 Fetching navigation...');
+    return await this.get('/api/gym/navigation');
+  }
+  
+  // OBTENER PROMOCIONES
+  async getPromotions() {
+    console.log('🎉 Fetching promotions...');
+    return await this.get('/api/gym/promotions');
+  }
+  
+  // OBTENER BRANDING
+  async getBranding() {
+    console.log('🎨 Fetching branding...');
+    return await this.get('/api/gym/branding');
   }
   
   // ================================
@@ -382,10 +422,12 @@ class ApiService {
   
   // LOGIN
   async login(credentials) {
+    console.log('🔐 Attempting login...');
     const response = await this.post('/api/auth/login', credentials);
     
     if (response.success && response.data.token) {
       localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.token);
+      console.log('✅ Login successful');
       toast.success('Inicio de sesión exitoso');
     }
     
@@ -394,9 +436,11 @@ class ApiService {
   
   // REGISTRO
   async register(userData) {
+    console.log('📝 Attempting registration...');
     const response = await this.post('/api/auth/register', userData);
     
     if (response.success) {
+      console.log('✅ Registration successful');
       toast.success('Registro exitoso');
     }
     
@@ -412,20 +456,16 @@ class ApiService {
   // 👥 MÉTODOS DE USUARIOS
   // ================================
   
-  // OBTENER USUARIOS
   async getUsers(params = {}) {
     const response = await api.get('/api/users', { params });
     return response.data;
   }
   
-  // CREAR USUARIO
   async createUser(userData) {
     const response = await this.post('/api/users', userData);
-    
     if (response.success) {
       toast.success('Usuario creado exitosamente');
     }
-    
     return response;
   }
   
@@ -433,25 +473,18 @@ class ApiService {
   // 🎫 MÉTODOS DE MEMBRESÍAS
   // ================================
   
-  // OBTENER MEMBRESÍAS
   async getMemberships(params = {}) {
     const response = await api.get('/api/memberships', { params });
     return response.data;
   }
   
-  // MEMBRESÍAS VENCIDAS
   async getExpiredMemberships(days = 0) {
-    const response = await api.get('/api/memberships/expired', { 
-      params: { days } 
-    });
+    const response = await api.get('/api/memberships/expired', { params: { days } });
     return response.data;
   }
   
-  // MEMBRESÍAS POR VENCER
   async getExpiringSoonMemberships(days = 7) {
-    const response = await api.get('/api/memberships/expiring-soon', { 
-      params: { days } 
-    });
+    const response = await api.get('/api/memberships/expiring-soon', { params: { days } });
     return response.data;
   }
   
@@ -459,24 +492,19 @@ class ApiService {
   // 💰 MÉTODOS DE PAGOS
   // ================================
   
-  // OBTENER PAGOS
   async getPayments(params = {}) {
     const response = await api.get('/api/payments', { params });
     return response.data;
   }
   
-  // CREAR PAGO
   async createPayment(paymentData) {
     const response = await this.post('/api/payments', paymentData);
-    
     if (response.success) {
       toast.success('Pago registrado exitosamente');
     }
-    
     return response;
   }
   
-  // TRANSFERENCIAS PENDIENTES
   async getPendingTransfers() {
     return await this.get('/api/payments/transfers/pending');
   }
@@ -485,24 +513,33 @@ class ApiService {
   // 📊 MÉTODOS DE REPORTES
   // ================================
   
-  // REPORTES DE PAGOS
   async getPaymentReports(params = {}) {
     const response = await api.get('/api/payments/reports', { params });
     return response.data;
   }
   
-  // ESTADÍSTICAS DE USUARIOS
   async getUserStats() {
     return await this.get('/api/users/stats');
   }
   
-  // ESTADÍSTICAS DE MEMBRESÍAS
   async getMembershipStats() {
     return await this.get('/api/memberships/stats');
   }
   
   // ================================
-  // 🔧 MÉTODOS UTILITARIOS - MEJORADOS
+  // 🛒 MÉTODOS DEL CARRITO
+  // ================================
+  
+  async getCart() {
+    return await this.get('/api/cart');
+  }
+  
+  async updateCart(items) {
+    return await this.post('/api/cart', { items });
+  }
+  
+  // ================================
+  // 🔧 MÉTODOS UTILITARIOS
   // ================================
   
   // HEALTH CHECK
@@ -510,18 +547,19 @@ class ApiService {
     return await this.get('/api/health');
   }
   
-  // VERIFICAR CONEXIÓN AL BACKEND - MEJORADO
+  // VERIFICAR CONEXIÓN MEJORADA
   async checkBackendConnection() {
     try {
-      console.log('🔍 Verificando conexión al backend...');
+      console.log('🔌 Checking backend connection...');
       
       const startTime = Date.now();
       const response = await api.get('/api/health');
       const responseTime = Date.now() - startTime;
       
       if (response.data.success) {
-        console.log('✅ Backend conectado exitosamente!');
-        console.log(`⚡ Tiempo de respuesta: ${responseTime}ms`);
+        console.log('✅ Backend connected successfully');
+        console.log(`⚡ Response time: ${responseTime}ms`);
+        
         return { 
           connected: true, 
           data: response.data, 
@@ -529,31 +567,31 @@ class ApiService {
           status: 'connected'
         };
       } else {
-        console.warn('⚠️ Backend respondió pero con error:', response.data);
+        console.warn('⚠️ Backend responded with error');
         return { 
           connected: false, 
-          error: 'Backend respondió con error',
+          error: 'Backend error response',
           status: 'error'
         };
       }
     } catch (error) {
-      console.log('❌ No se pudo conectar al backend');
+      console.log('❌ Backend connection failed');
       
       let errorType = 'unknown';
-      let suggestion = 'Verifica la configuración';
+      let suggestion = 'Check backend configuration';
       
       if (error.code === 'ERR_NETWORK') {
         errorType = 'network';
-        suggestion = 'El backend no está corriendo o hay problema de CORS';
+        suggestion = 'Backend server is not running or CORS issue';
       } else if (error.response?.status === 404) {
         errorType = 'endpoint_not_found';
-        suggestion = 'La ruta /api/health no existe en el backend';
+        suggestion = 'Health check endpoint missing in backend';
       } else if (error.code === 'ECONNABORTED') {
         errorType = 'timeout';
-        suggestion = 'El backend tarda mucho en responder';
+        suggestion = 'Backend is taking too long to respond';
       }
       
-      console.log(`💡 Sugerencia: ${suggestion}`);
+      console.log(`💡 Suggestion: ${suggestion}`);
       
       return { 
         connected: false, 
@@ -565,12 +603,12 @@ class ApiService {
     }
   }
   
-  // VERIFICAR SI EL USUARIO ESTÁ AUTENTICADO
+  // VERIFICAR AUTENTICACIÓN
   isAuthenticated() {
     return !!localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
   }
   
-  // OBTENER TOKEN ACTUAL
+  // OBTENER TOKEN
   getToken() {
     return localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
   }
@@ -578,6 +616,7 @@ class ApiService {
   // LOGOUT
   logout() {
     localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+    console.log('🚪 User logged out');
     toast.success('Sesión cerrada exitosamente');
     window.location.href = '/login';
   }
@@ -587,7 +626,6 @@ class ApiService {
 const apiService = new ApiService();
 
 export default apiService;
-
 // 📝 CAMBIOS REALIZADOS:
 // ✅ Agregados métodos generales: get(), post(), put(), patch(), delete()
 // ✅ Agregado método getPromotions() que faltaba

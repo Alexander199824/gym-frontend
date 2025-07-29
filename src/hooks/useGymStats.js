@@ -1,292 +1,259 @@
 // src/hooks/useGymStats.js
-// FUNCIÓN: Hook para estadísticas del gimnasio
-// CONECTA CON: GET /api/gym/stats
+// FUNCIÓN: Hook optimizado para estadísticas del gym - Cache inteligente
+// EVITA: Múltiples peticiones innecesarias al mismo endpoint
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useApp } from '../contexts/AppContext';
 import apiService from '../services/apiService';
 
+// 🏠 CACHE GLOBAL para estadísticas
+const globalStatsCache = {
+  data: null,
+  timestamp: null,
+  isLoading: false,
+  error: null,
+  subscribers: new Set()
+};
+
+// ⏰ TTL del cache: 5 minutos (las estadísticas cambian poco)
+const CACHE_TTL = 5 * 60 * 1000;
+
 const useGymStats = () => {
-  // 🏗️ Estados
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastFetch, setLastFetch] = useState(null);
-
-  // 📊 Estadísticas por defecto mientras carga
-  const defaultStats = {
-    members: '0',
-    trainers: '0',
-    experience: '0',
-    satisfaction: '0%',
-    equipment: '0',
-    classes: '0',
-    locations: '1',
-    hours_per_day: '16'
-  };
-
-  // 🚀 Función para obtener estadísticas
-  const fetchGymStats = async (force = false) => {
-    // Cache de 5 minutos (estadísticas pueden cambiar frecuentemente)
-    if (stats && !force && lastFetch) {
-      const timeDiff = Date.now() - lastFetch;
-      if (timeDiff < 5 * 60 * 1000) return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log('📊 Obteniendo estadísticas desde backend...');
-      
-      const response = await apiService.getGymStats();
-      
-      if (response.success && response.data) {
-        console.log('✅ Estadísticas obtenidas:', response.data);
-        
-        // Fusionar con valores por defecto
-        const completeStats = { ...defaultStats, ...response.data };
-        setStats(completeStats);
-        setLastFetch(Date.now());
-      } else {
-        throw new Error('Respuesta inválida del servidor');
-      }
-    } catch (error) {
-      console.error('❌ Error al obtener estadísticas:', error);
-      setError(error.message);
-      
-      // En caso de error, usar estadísticas por defecto
-      if (!stats) {
-        setStats(defaultStats);
-      }
-    } finally {
-      setLoading(false);
+  const { setCacheData, getCacheData } = useApp();
+  const [state, setState] = useState({
+    stats: null,
+    isLoaded: false,
+    isLoading: false,
+    error: null
+  });
+  
+  const subscriberIdRef = useRef(Math.random().toString(36).substr(2, 9));
+  const isMountedRef = useRef(true);
+  
+  // 🔧 Función para actualizar estado de forma segura
+  const safeSetState = (newState) => {
+    if (isMountedRef.current) {
+      setState(prevState => ({ ...prevState, ...newState }));
     }
   };
-
-  // 🔄 Efecto para cargar estadísticas al montar
-  useEffect(() => {
-    fetchGymStats();
-  }, []);
-
-  // 🎯 Función para refrescar estadísticas
-  const refresh = () => {
-    fetchGymStats(true);
-  };
-
-  // 📈 Función para obtener estadística específica
-  const getStat = (statName) => {
-    return stats?.[statName] || defaultStats[statName] || '0';
-  };
-
-  // 🔢 Función para formatear números grandes
-  const formatNumber = (value) => {
-    if (typeof value !== 'string') return value;
-    
-    // Si ya tiene formato (ej: "2000+"), devolverlo tal como está
-    if (value.includes('+') || value.includes('%')) {
-      return value;
-    }
-    
-    const num = parseInt(value);
-    if (isNaN(num)) return value;
-    
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}k`;
-    }
-    
-    return num.toString();
-  };
-
-  // 📊 Función para obtener estadísticas formateadas para display
-  const getDisplayStats = () => {
-    if (!stats) return [];
-    
-    return [
-      {
-        key: 'members',
-        label: 'Miembros Activos',
-        value: getStat('members'),
-        icon: 'Users',
-        color: 'primary',
-        description: 'Miembros registrados y activos'
-      },
-      {
-        key: 'trainers',
-        label: 'Entrenadores',
-        value: getStat('trainers'),
-        icon: 'Award',
-        color: 'secondary',
-        description: 'Entrenadores certificados'
-      },
-      {
-        key: 'experience',
-        label: 'Años de Experiencia',
-        value: getStat('experience'),
-        icon: 'Trophy',
-        color: 'success',
-        description: 'Años sirviendo a la comunidad'
-      },
-      {
-        key: 'satisfaction',
-        label: 'Satisfacción',
-        value: getStat('satisfaction'),
-        icon: 'Star',
-        color: 'warning',
-        description: 'Nivel de satisfacción de clientes'
-      },
-      {
-        key: 'equipment',
-        label: 'Equipos',
-        value: getStat('equipment'),
-        icon: 'Dumbbell',
-        color: 'info',
-        description: 'Máquinas y equipos disponibles'
-      },
-      {
-        key: 'classes',
-        label: 'Clases',
-        value: getStat('classes'),
-        icon: 'Calendar',
-        color: 'purple',
-        description: 'Clases grupales semanales'
+  
+  // 🔧 Notificar a todos los subscribers
+  const notifySubscribers = (data) => {
+    globalStatsCache.subscribers.forEach(callback => {
+      if (typeof callback === 'function') {
+        callback(data);
       }
-    ];
-  };
-
-  // 🏆 Función para obtener estadísticas destacadas (para hero)
-  const getFeaturedStats = () => {
-    const displayStats = getDisplayStats();
-    return displayStats.slice(0, 4); // Solo las primeras 4
-  };
-
-  // 📱 Función para obtener estadísticas para móvil (compactas)
-  const getMobileStats = () => {
-    return [
-      {
-        label: 'Miembros',
-        value: getStat('members'),
-        icon: 'Users'
-      },
-      {
-        label: 'Entrenadores',
-        value: getStat('trainers'),
-        icon: 'Award'
-      },
-      {
-        label: 'Años',
-        value: getStat('experience'),
-        icon: 'Trophy'
-      },
-      {
-        label: 'Satisfacción',
-        value: getStat('satisfaction'),
-        icon: 'Star'
-      }
-    ];
-  };
-
-  // 🎯 Función para verificar si hay estadísticas válidas
-  const hasValidStats = () => {
-    if (!stats) return false;
-    
-    const mainStats = ['members', 'trainers', 'experience', 'satisfaction'];
-    return mainStats.some(stat => {
-      const value = getStat(stat);
-      return value && value !== '0' && value !== '0%';
     });
   };
-
-  // 📈 Función para obtener tendencia (si está disponible)
-  const getStatTrend = (statName) => {
-    return stats?.[`${statName}_trend`] || null;
-  };
-
-  // 🔄 Función para auto-actualizar estadísticas
-  const startAutoRefresh = (intervalMinutes = 5) => {
-    const interval = setInterval(() => {
-      refresh();
-    }, intervalMinutes * 60 * 1000);
-    
-    return () => clearInterval(interval);
-  };
-
-  // 💾 Función para obtener estadísticas desde cache local
+  
+  // 🔧 Obtener datos del cache
   const getFromCache = () => {
-    try {
-      const cached = localStorage.getItem('gym_stats_cache');
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        const now = Date.now();
-        
-        // Cache válido por 10 minutos
-        if (now - timestamp < 10 * 60 * 1000) {
-          return data;
-        }
+    // Verificar cache de AppContext primero
+    const appCacheData = getCacheData('gymStats');
+    if (appCacheData) {
+      console.log('📦 Using AppContext cache for gym stats');
+      return appCacheData;
+    }
+    
+    // Verificar cache global
+    if (globalStatsCache.data && globalStatsCache.timestamp) {
+      const age = Date.now() - globalStatsCache.timestamp;
+      if (age < CACHE_TTL) {
+        console.log('📦 Using global cache for gym stats');
+        return globalStatsCache.data;
       }
-    } catch (error) {
-      console.error('Error al leer cache de estadísticas:', error);
     }
     
     return null;
   };
-
-  // 💾 Función para guardar estadísticas en cache
-  const saveToCache = (statsData) => {
-    try {
-      const cacheData = {
-        data: statsData,
-        timestamp: Date.now()
-      };
-      localStorage.setItem('gym_stats_cache', JSON.stringify(cacheData));
-    } catch (error) {
-      console.error('Error al guardar cache de estadísticas:', error);
-    }
+  
+  // 🔧 Guardar en cache
+  const saveToCache = (data) => {
+    globalStatsCache.data = data;
+    globalStatsCache.timestamp = Date.now();
+    globalStatsCache.error = null;
+    
+    setCacheData('gymStats', data);
+    console.log('💾 Gym stats saved to cache');
   };
-
-  // 💾 Efecto para manejar cache
-  useEffect(() => {
-    if (stats && hasValidStats()) {
-      saveToCache(stats);
+  
+  // 🚀 Función principal para obtener estadísticas
+  const fetchGymStats = async (force = false) => {
+    // Si ya hay una petición en curso y no es forzada, esperar
+    if (globalStatsCache.isLoading && !force) {
+      console.log('⏳ Gym stats fetch already in progress, waiting...');
+      return;
     }
-  }, [stats]);
-
-  // 🏠 Retornar estadísticas y funciones
+    
+    // Verificar cache primero (solo si no es forzada)
+    if (!force) {
+      const cachedData = getFromCache();
+      if (cachedData) {
+        safeSetState({
+          stats: cachedData,
+          isLoaded: true,
+          isLoading: false,
+          error: null
+        });
+        return;
+      }
+    }
+    
+    // Marcar como cargando
+    globalStatsCache.isLoading = true;
+    safeSetState({ isLoading: true, error: null });
+    
+    try {
+      console.group('📊 Fetching Gym Statistics');
+      console.log('📡 Making API request to /api/gym/stats');
+      
+      const response = await apiService.getGymStats();
+      
+      if (!isMountedRef.current) {
+        console.log('⚠️ Component unmounted, aborting update');
+        console.groupEnd();
+        return;
+      }
+      
+      if (response.success && response.data) {
+        console.log('✅ Gym stats received successfully');
+        console.log('📋 Stats contains:', {
+          members: response.data.members || 0,
+          trainers: response.data.trainers || 0,
+          experience: response.data.experience || 0,
+          satisfaction: response.data.satisfaction || 0,
+          customStats: response.data.customStats ? `✅ (${response.data.customStats.length})` : '❌'
+        });
+        
+        // Guardar en cache
+        saveToCache(response.data);
+        
+        // Actualizar estado
+        const newState = {
+          stats: response.data,
+          isLoaded: true,
+          isLoading: false,
+          error: null
+        };
+        
+        safeSetState(newState);
+        notifySubscribers(newState);
+        console.groupEnd();
+        
+      } else {
+        throw new Error('Invalid response format from backend');
+      }
+      
+    } catch (error) {
+      console.group('❌ Gym Stats Fetch Failed');
+      console.log('🔍 Error details:', error.message);
+      
+      if (error.response?.status === 404) {
+        console.log('📍 PROBLEM: /api/gym/stats endpoint not found');
+        console.log('🔧 SOLUTION: Implement gym stats endpoint in backend');
+        console.log('📋 EXPECTED RESPONSE:');
+        console.log(`   {
+     "success": true,
+     "data": {
+       "members": 150,
+       "trainers": 12,
+       "experience": 5,
+       "satisfaction": 98
+     }
+   }`);
+      } else if (error.response?.status === 500) {
+        console.log('📍 PROBLEM: Backend internal error in stats calculation');
+        console.log('🔧 SOLUTION: Check backend logs for database errors');
+      } else if (error.code === 'ERR_NETWORK') {
+        console.log('📍 PROBLEM: Cannot connect to backend');
+        console.log('🔧 SOLUTION: Verify backend is running');
+      }
+      
+      console.groupEnd();
+      
+      const errorState = {
+        stats: null,
+        isLoaded: true,
+        isLoading: false,
+        error: error.message
+      };
+      
+      safeSetState(errorState);
+      globalStatsCache.error = error.message;
+      globalStatsCache.isLoading = false;
+      notifySubscribers(errorState);
+    }
+    
+    globalStatsCache.isLoading = false;
+  };
+  
+  // 🔧 Suscribirse a cambios en el cache global
+  useEffect(() => {
+    // Función de callback para recibir actualizaciones
+    const handleCacheUpdate = (newState) => {
+      if (isMountedRef.current) {
+        setState(newState);
+      }
+    };
+    
+    // Suscribirse
+    globalStatsCache.subscribers.add(handleCacheUpdate);
+    
+    // Verificar cache existente
+    const cachedData = getFromCache();
+    if (cachedData) {
+      console.log('📦 Loading gym stats from existing cache');
+      safeSetState({
+        stats: cachedData,
+        isLoaded: true,
+        isLoading: false,
+        error: null
+      });
+    } else if (!globalStatsCache.isLoading) {
+      // Solo hacer fetch si no hay cache y no hay petición en curso
+      fetchGymStats();
+    }
+    
+    // Cleanup
+    return () => {
+      isMountedRef.current = false;
+      globalStatsCache.subscribers.delete(handleCacheUpdate);
+    };
+  }, []);
+  
+  // 🔄 Función para refrescar datos
+  const refetch = () => {
+    console.log('🔄 Force refreshing gym stats...');
+    fetchGymStats(true);
+  };
+  
+  // 🧹 Función para limpiar cache
+  const clearCache = () => {
+    console.log('🧹 Clearing gym stats cache...');
+    globalStatsCache.data = null;
+    globalStatsCache.timestamp = null;
+    globalStatsCache.error = null;
+    
+    safeSetState({
+      stats: null,
+      isLoaded: false,
+      isLoading: false,
+      error: null
+    });
+  };
+  
   return {
-    // Estado
-    stats: stats || defaultStats,
-    loading,
-    error,
-    lastFetch,
+    stats: state.stats,
+    isLoaded: state.isLoaded,
+    isLoading: state.isLoading,
+    error: state.error,
+    refetch,
+    clearCache,
     
-    // Funciones principales
-    refresh,
-    getStat,
-    formatNumber,
-    getDisplayStats,
-    getFeaturedStats,
-    getMobileStats,
-    getStatTrend,
-    startAutoRefresh,
-    
-    // Verificaciones
-    hasValidStats,
-    
-    // Acceso directo a estadísticas principales (para compatibilidad)
-    members: getStat('members'),
-    trainers: getStat('trainers'),
-    experience: getStat('experience'),
-    satisfaction: getStat('satisfaction'),
-    equipment: getStat('equipment'),
-    classes: getStat('classes'),
-    
-    // Estadísticas adicionales
-    locations: getStat('locations'),
-    hoursPerDay: getStat('hours_per_day'),
-    
-    // Estado útil
-    isLoaded: !loading && !!stats && !error,
-    hasError: !!error,
-    isEmpty: !stats || !hasValidStats()
+    // Funciones de utilidad
+    hasValidStats: !!state.stats,
+    cacheAge: globalStatsCache.timestamp ? Date.now() - globalStatsCache.timestamp : null,
+    isCacheValid: globalStatsCache.timestamp ? (Date.now() - globalStatsCache.timestamp) < CACHE_TTL : false
   };
 };
 

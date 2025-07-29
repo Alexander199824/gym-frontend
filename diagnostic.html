@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Diagnóstico Backend - Elite Fitness</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: #2563eb; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+        .endpoint-card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status-ok { border-left: 5px solid #22c55e; }
+        .status-error { border-left: 5px solid #ef4444; }
+        .status-pending { border-left: 5px solid #f59e0b; }
+        .endpoint-header { display: flex; justify-content: between; align-items: center; margin-bottom: 10px; }
+        .method { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white; }
+        .method-get { background: #10b981; }
+        .method-post { background: #3b82f6; }
+        .status-icon { font-size: 24px; margin-right: 10px; }
+        .response-time { font-size: 12px; color: #6b7280; }
+        .error-details { background: #fef2f2; border: 1px solid #fecaca; padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .success-details { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .btn { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #1d4ed8; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .summary-card { background: white; padding: 20px; border-radius: 10px; text-align: center; }
+        .summary-number { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
+        .working { color: #22c55e; }
+        .failing { color: #ef4444; }
+        .pending { color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Diagnóstico de Backend - Elite Fitness</h1>
+            <p>Verificando conectividad y estado de todos los endpoints</p>
+        </div>
+
+        <div class="summary" id="summary">
+            <div class="summary-card">
+                <div class="summary-number working" id="working-count">0</div>
+                <div>✅ Funcionando</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-number failing" id="failing-count">0</div>
+                <div>❌ Con Error</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-number pending" id="pending-count">0</div>
+                <div>⏳ Verificando</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="btn" onclick="runDiagnostic()">🔄 Ejecutar Diagnóstico Completo</button>
+            <button class="btn" onclick="testSpecificEndpoint()">🎯 Probar Endpoint Específico</button>
+            <button class="btn" onclick="exportResults()">📥 Exportar Resultados</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:5000';
+        
+        const endpoints = [
+            { method: 'GET', path: '/api/health', name: 'Health Check', critical: true },
+            { method: 'GET', path: '/api/gym/config', name: 'Configuración del Gym', critical: true },
+            { method: 'GET', path: '/api/gym/stats', name: 'Estadísticas', critical: false },
+            { method: 'GET', path: '/api/gym/services', name: 'Servicios', critical: false },
+            { method: 'GET', path: '/api/gym/testimonials', name: 'Testimonios', critical: false },
+            { method: 'GET', path: '/api/gym/membership-plans', name: 'Planes de Membresía', critical: false },
+            { method: 'GET', path: '/api/store/featured-products', name: 'Productos Destacados', critical: false },
+            { method: 'GET', path: '/api/gym/navigation', name: 'Navegación', critical: false },
+            { method: 'GET', path: '/api/gym/branding', name: 'Branding', critical: false },
+            { method: 'GET', path: '/api/gym/promotions', name: 'Promociones', critical: false }
+        ];
+
+        let results = [];
+
+        async function testEndpoint(endpoint) {
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}${endpoint.path}`, {
+                    method: endpoint.method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    signal: AbortSignal.timeout(10000)
+                });
+                
+                const responseTime = Date.now() - startTime;
+                const data = await response.json();
+                
+                return {
+                    ...endpoint,
+                    status: response.ok ? 'success' : 'error',
+                    httpStatus: response.status,
+                    responseTime,
+                    data: response.ok ? data : null,
+                    error: response.ok ? null : data,
+                    timestamp: new Date().toISOString()
+                };
+                
+            } catch (error) {
+                const responseTime = Date.now() - startTime;
+                
+                return {
+                    ...endpoint,
+                    status: 'error',
+                    httpStatus: 0,
+                    responseTime,
+                    data: null,
+                    error: {
+                        message: error.message,
+                        type: error.name,
+                        isTimeout: error.name === 'AbortError'
+                    },
+                    timestamp: new Date().toISOString()
+                };
+            }
+        }
+
+        function renderResult(result) {
+            const statusClass = result.status === 'success' ? 'status-ok' : 'status-error';
+            const statusIcon = result.status === 'success' ? '✅' : '❌';
+            const criticalBadge = result.critical ? '<span style="background: #ef4444; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">CRÍTICO</span>' : '';
+            
+            return `
+                <div class="endpoint-card ${statusClass}">
+                    <div class="endpoint-header">
+                        <div>
+                            <span class="status-icon">${statusIcon}</span>
+                            <span class="method method-${result.method.toLowerCase()}">${result.method}</span>
+                            <strong>${result.name}</strong>
+                            ${criticalBadge}
+                        </div>
+                        <div class="response-time">
+                            ${result.responseTime}ms
+                        </div>
+                    </div>
+                    
+                    <div><strong>URL:</strong> ${BACKEND_URL}${result.path}</div>
+                    <div><strong>Status HTTP:</strong> ${result.httpStatus}</div>
+                    
+                    ${result.status === 'success' ? 
+                        `<div class="success-details">
+                            <strong>✅ Respuesta exitosa</strong><br>
+                            <strong>Tipo de datos:</strong> ${Array.isArray(result.data?.data) ? 'Array' : typeof result.data?.data}<br>
+                            ${Array.isArray(result.data?.data) ? `<strong>Cantidad:</strong> ${result.data.data.length} elementos<br>` : ''}
+                            <strong>Mensaje:</strong> ${result.data?.message || 'Sin mensaje'}
+                        </div>` : 
+                        `<div class="error-details">
+                            <strong>❌ Error detectado</strong><br>
+                            <strong>Mensaje:</strong> ${result.error?.message || 'Error desconocido'}<br>
+                            ${result.error?.isTimeout ? '<strong>Tipo:</strong> Timeout (servidor muy lento)<br>' : ''}
+                            ${result.httpStatus === 0 ? '<strong>Diagnóstico:</strong> No se puede conectar al backend<br>' : ''}
+                            ${result.httpStatus === 404 ? '<strong>Diagnóstico:</strong> Endpoint no implementado en el backend<br>' : ''}
+                            ${result.httpStatus === 500 ? '<strong>Diagnóstico:</strong> Error interno del servidor (revisar logs del backend)<br>' : ''}
+                        </div>`
+                    }
+                </div>
+            `;
+        }
+
+        function updateSummary() {
+            const working = results.filter(r => r.status === 'success').length;
+            const failing = results.filter(r => r.status === 'error').length;
+            const pending = endpoints.length - results.length;
+            
+            document.getElementById('working-count').textContent = working;
+            document.getElementById('failing-count').textContent = failing;
+            document.getElementById('pending-count').textContent = pending;
+        }
+
+        async function runDiagnostic() {
+            results = [];
+            document.getElementById('results').innerHTML = '<p>🔍 Ejecutando diagnóstico...</p>';
+            updateSummary();
+            
+            for (const endpoint of endpoints) {
+                document.getElementById('results').innerHTML += `<p>⏳ Probando ${endpoint.name}...</p>`;
+                
+                const result = await testEndpoint(endpoint);
+                results.push(result);
+                
+                document.getElementById('results').innerHTML = results.map(renderResult).join('');
+                updateSummary();
+            }
+            
+            // Generar reporte final
+            const criticalFailing = results.filter(r => r.critical && r.status === 'error');
+            const nonCriticalFailing = results.filter(r => !r.critical && r.status === 'error');
+            
+            let finalReport = '<div class="endpoint-card" style="background: #f0fdf4; border: 2px solid #22c55e;">';
+            finalReport += '<h3>📊 Reporte Final</h3>';
+            
+            if (criticalFailing.length === 0) {
+                finalReport += '<p>✅ <strong>Todos los endpoints críticos funcionan correctamente</strong></p>';
+            } else {
+                finalReport += `<p>❌ <strong>${criticalFailing.length} endpoints críticos fallando</strong></p>`;
+            }
+            
+            if (nonCriticalFailing.length > 0) {
+                finalReport += `<p>⚠️ ${nonCriticalFailing.length} endpoints no críticos con problemas (la página debería funcionar)</p>`;
+            }
+            
+            finalReport += '</div>';
+            
+            document.getElementById('results').innerHTML += finalReport;
+        }
+
+        function testSpecificEndpoint() {
+            const path = prompt('Ingresa el path del endpoint (ej: /api/gym/testimonials):');
+            if (path) {
+                testEndpoint({ method: 'GET', path, name: 'Endpoint Personalizado', critical: false })
+                    .then(result => {
+                        document.getElementById('results').innerHTML = renderResult(result);
+                    });
+            }
+        }
+
+        function exportResults() {
+            const report = {
+                timestamp: new Date().toISOString(),
+                backendUrl: BACKEND_URL,
+                summary: {
+                    total: endpoints.length,
+                    working: results.filter(r => r.status === 'success').length,
+                    failing: results.filter(r => r.status === 'error').length
+                },
+                results: results
+            };
+            
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backend-diagnostic-${Date.now()}.json`;
+            a.click();
+        }
+
+        // Ejecutar diagnóstico automáticamente al cargar
+        window.onload = () => {
+            setTimeout(runDiagnostic, 1000);
+        };
+    </script>
+</body>
+</html>
