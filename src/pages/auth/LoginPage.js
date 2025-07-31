@@ -1,9 +1,12 @@
 // src/pages/auth/LoginPage.js
-// FUNCIÓN: Login REAL con OAuth Google (SIN datos de prueba)
-// CONECTA CON: Backend OAuth Google en /api/auth/google
+// FUNCIÓN: Login MEJORADO con credenciales tradicionales + OAuth Google
+// CONECTA CON: Backend /api/auth/login y /api/auth/google
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { 
   Mail, 
   Lock, 
@@ -12,25 +15,60 @@ import {
   ArrowLeft,
   Shield,
   CheckCircle,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import GymLogo from '../../components/common/GymLogo';
+import useGymConfig from '../../hooks/useGymConfig';
+
+// 📝 ESQUEMA DE VALIDACIÓN PARA LOGIN TRADICIONAL
+const loginSchema = yup.object({
+  email: yup
+    .string()
+    .required('El email es requerido')
+    .email('Email inválido')
+    .lowercase('El email debe estar en minúsculas'),
+  password: yup
+    .string()
+    .required('La contraseña es requerida')
+    .min(6, 'La contraseña debe tener al menos 6 caracteres')
+});
 
 const LoginPage = () => {
   const { login, isAuthenticated, isLoading } = useAuth();
-  const { showError, showSuccess } = useApp();
+  const { showError, showSuccess, isMobile } = useApp();
+  const { config } = useGymConfig();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   
   // 📱 Estados locales
+  const [loginMethod, setLoginMethod] = useState('credentials'); // 'credentials' | 'google'
+  const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isCredentialsLoading, setIsCredentialsLoading] = useState(false);
   const [oauthError, setOauthError] = useState(null);
   
   // 🎯 Obtener ruta de redirección
   const from = location.state?.from?.pathname || '/dashboard';
+  
+  // 📋 Configuración del formulario tradicional
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+    clearErrors
+  } = useForm({
+    resolver: yupResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: ''
+    }
+  });
   
   // 🔄 Redirigir si ya está autenticado
   useEffect(() => {
@@ -60,6 +98,7 @@ const LoginPage = () => {
     if (error) {
       setOauthError(message || 'Error en la autenticación con Google');
       showError(message || 'Error al iniciar sesión con Google. Intenta nuevamente.');
+      setLoginMethod('credentials'); // Volver al método tradicional
       return;
     }
     
@@ -79,8 +118,6 @@ const LoginPage = () => {
         localStorage.setItem('elite_fitness_user_role', role);
         localStorage.setItem('elite_fitness_user_id', userId);
         
-        // Actualizar contexto de autenticación
-        // El AuthContext debería detectar el token y actualizar el estado
         showSuccess(`¡Bienvenido, ${decodeURIComponent(name || '')}!`);
         
         // Redirigir según el rol
@@ -90,6 +127,7 @@ const LoginPage = () => {
       } catch (error) {
         console.error('Error procesando callback OAuth:', error);
         showError('Error al procesar la autenticación. Intenta nuevamente.');
+        setLoginMethod('credentials');
       }
     }
   };
@@ -108,10 +146,57 @@ const LoginPage = () => {
     }
   };
   
+  // 🔐 Manejar login tradicional con credenciales
+  const onCredentialsSubmit = async (data) => {
+    try {
+      setIsCredentialsLoading(true);
+      clearErrors();
+      
+      // Limpiar datos antes de enviar
+      const cleanData = {
+        email: data.email.trim().toLowerCase(),
+        password: data.password
+      };
+      
+      console.log('🔑 Intentando login tradicional para:', cleanData.email);
+      
+      // Llamar al método login del contexto
+      const result = await login(cleanData);
+      
+      if (result.success) {
+        showSuccess(`¡Bienvenido de vuelta!`);
+        
+        // Redirigir según el rol
+        const redirectPath = getRoleRedirectPath(result.user?.role);
+        navigate(redirectPath, { replace: true });
+      } else {
+        throw new Error(result.message || 'Error al iniciar sesión');
+      }
+      
+    } catch (error) {
+      console.error('Error en login tradicional:', error);
+      
+      // Manejar errores específicos
+      if (error.response?.status === 401) {
+        setError('email', { message: 'Email o contraseña incorrectos' });
+        setError('password', { message: 'Email o contraseña incorrectos' });
+      } else if (error.response?.status === 404) {
+        setError('email', { message: 'Usuario no encontrado' });
+      } else if (error.response?.data?.message) {
+        showError(error.response.data.message);
+      } else {
+        showError(error.message || 'Error al iniciar sesión. Intenta nuevamente.');
+      }
+    } finally {
+      setIsCredentialsLoading(false);
+    }
+  };
+  
   // 🔐 Iniciar Google OAuth
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true);
     setOauthError(null);
+    setLoginMethod('google');
     
     // Redirigir directamente al endpoint OAuth del backend
     const googleLoginUrl = process.env.REACT_APP_API_URL 
@@ -122,16 +207,36 @@ const LoginPage = () => {
     window.location.href = googleLoginUrl;
   };
   
-  // 📱 Mostrar estado de carga durante OAuth
-  if (isLoading || isGoogleLoading) {
+  // 📱 Mostrar estado de carga durante autenticación
+  if (isLoading || (isGoogleLoading && loginMethod === 'google')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <GymLogo size="xl" variant="gradient" showText={false} />
+          {config && config.logo && config.logo.url ? (
+            <div className="flex justify-center mb-8">
+              <img 
+                src={config.logo.url}
+                alt={config.logo.alt || 'Logo'}
+                className="h-20 w-auto object-contain"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <div className="hidden">
+                <GymLogo size="xl" variant="gradient" showText={false} />
+              </div>
+            </div>
+          ) : (
+            <GymLogo size="xl" variant="gradient" showText={false} />
+          )}
+          
           <div className="mt-8">
             <Loader2 className="w-8 h-8 text-primary-600 animate-spin mx-auto" />
             <p className="text-gray-600 mt-4">
-              {isGoogleLoading ? 'Conectando con Google...' : 'Verificando autenticación...'}
+              {isGoogleLoading && loginMethod === 'google' 
+                ? 'Conectando con Google...' 
+                : 'Verificando autenticación...'}
             </p>
           </div>
         </div>
@@ -161,12 +266,12 @@ const LoginPage = () => {
           
           {/* Título principal */}
           <h1 className="text-5xl font-display font-bold mb-6">
-            Elite Fitness Club
+            {config?.name || 'Elite Fitness Club'}
           </h1>
           
           {/* Subtítulo */}
           <p className="text-2xl font-light mb-12 opacity-90">
-            Transforma tu cuerpo, eleva tu mente
+            {config?.description || 'Transforma tu cuerpo, eleva tu mente'}
           </p>
           
           {/* Características */}
@@ -207,7 +312,7 @@ const LoginPage = () => {
         </div>
       </div>
       
-      {/* 📱 LADO DERECHO - Formulario OAuth */}
+      {/* 📱 LADO DERECHO - Formularios de Login */}
       <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-12 bg-white relative">
         
         {/* Botón de volver (móvil) */}
@@ -223,9 +328,22 @@ const LoginPage = () => {
         
         <div className="mx-auto w-full max-w-md">
           
-          {/* 🏠 Logo móvil */}
+          {/* 🏠 Logo móvil - Usando logo del backend */}
           <div className="flex justify-center mb-8 lg:hidden">
-            <GymLogo size="lg" variant="gradient" showText={false} />
+            {config && config.logo && config.logo.url ? (
+              <img 
+                src={config.logo.url}
+                alt={config.logo.alt || 'Logo'}
+                className="h-16 w-auto object-contain"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+            ) : null}
+            <div className={config && config.logo && config.logo.url ? "hidden" : "block"}>
+              <GymLogo size="lg" variant="gradient" showText={false} />
+            </div>
           </div>
           
           {/* 📝 Título */}
@@ -234,7 +352,7 @@ const LoginPage = () => {
               Bienvenido de vuelta
             </h2>
             <p className="text-gray-600 text-lg">
-              Inicia sesión en tu cuenta Elite Fitness
+              Inicia sesión en tu cuenta {config?.name || 'Elite Fitness'}
             </p>
           </div>
           
@@ -255,14 +373,107 @@ const LoginPage = () => {
             </div>
           )}
           
-          {/* 🔐 BOTÓN DE GOOGLE OAUTH */}
+          {/* 🔐 FORMULARIO DE LOGIN TRADICIONAL */}
           <div className="space-y-6">
+            <form onSubmit={handleSubmit(onCredentialsSubmit)} className="space-y-6">
+              
+              {/* 📧 Email */}
+              <div className="form-group">
+                <label htmlFor="email" className="form-label form-label-required">
+                  Correo Electrónico
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Mail className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <input
+                    {...register('email')}
+                    type="email"
+                    id="email"
+                    className={`form-input pl-12 ${errors.email ? 'form-input-error' : ''}`}
+                    placeholder="tu@email.com"
+                    disabled={isCredentialsLoading}
+                    autoComplete="email"
+                  />
+                </div>
+                {errors.email && (
+                  <p className="form-error">{errors.email.message}</p>
+                )}
+              </div>
+              
+              {/* 🔒 Contraseña */}
+              <div className="form-group">
+                <label htmlFor="password" className="form-label form-label-required">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <input
+                    {...register('password')}
+                    type={showPassword ? 'text' : 'password'}
+                    id="password"
+                    className={`form-input pl-12 pr-12 ${errors.password ? 'form-input-error' : ''}`}
+                    placeholder="••••••••"
+                    disabled={isCredentialsLoading}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    disabled={isCredentialsLoading}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                    ) : (
+                      <Eye className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="form-error">{errors.password.message}</p>
+                )}
+              </div>
+              
+              {/* 🔘 Botón de login tradicional */}
+              <button
+                type="submit"
+                disabled={isCredentialsLoading || isSubmitting}
+                className="w-full btn-primary py-4 text-lg font-semibold"
+              >
+                {isCredentialsLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Iniciando sesión...
+                  </>
+                ) : (
+                  'Iniciar Sesión'
+                )}
+              </button>
+              
+            </form>
+            
+            {/* 📏 Separador */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-gray-500 font-medium">
+                  O continúa con
+                </span>
+              </div>
+            </div>
+            
+            {/* 🔐 BOTÓN DE GOOGLE OAUTH */}
             <button
               onClick={handleGoogleLogin}
-              disabled={isGoogleLoading}
+              disabled={isGoogleLoading || isCredentialsLoading}
               className="w-full flex items-center justify-center px-6 py-4 border border-gray-300 rounded-xl shadow-sm bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isGoogleLoading ? (
+              {isGoogleLoading && loginMethod === 'google' ? (
                 <Loader2 className="w-5 h-5 animate-spin mr-3" />
               ) : (
                 <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
@@ -273,14 +484,14 @@ const LoginPage = () => {
                 </svg>
               )}
               <span className="text-lg font-semibold">
-                {isGoogleLoading ? 'Conectando...' : 'Continuar con Google'}
+                {isGoogleLoading && loginMethod === 'google' ? 'Conectando...' : 'Continuar con Google'}
               </span>
             </button>
             
             {/* 💡 Información adicional */}
             <div className="text-center">
               <p className="text-sm text-gray-600 mb-4">
-                Usa tu cuenta de Google para acceder de forma segura
+                Elige tu método de autenticación preferido
               </p>
               <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
                 <div className="flex items-center">
@@ -318,7 +529,7 @@ const LoginPage = () => {
               to="/" 
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
             >
-              ← Volver a Elite Fitness Club
+              ← Volver a {config?.name || 'Elite Fitness Club'}
             </Link>
           </div>
           
@@ -333,9 +544,11 @@ const LoginPage = () => {
               </div>
               <div className="text-xs text-blue-700 space-y-1">
                 <p><strong>Backend URL:</strong> {process.env.REACT_APP_API_URL || 'http://localhost:5000'}</p>
+                <p><strong>Login tradicional:</strong> /api/auth/login</p>
                 <p><strong>OAuth Endpoint:</strong> /api/auth/google</p>
-                <p><strong>Estado:</strong> {isGoogleLoading ? 'Cargando' : 'Listo'}</p>
-                {oauthError && <p><strong>Error:</strong> {oauthError}</p>}
+                <p><strong>Estado:</strong> {isCredentialsLoading ? 'Cargando credenciales' : isGoogleLoading ? 'Cargando Google' : 'Listo'}</p>
+                <p><strong>Método actual:</strong> {loginMethod}</p>
+                {oauthError && <p><strong>Error OAuth:</strong> {oauthError}</p>}
               </div>
             </div>
           )}

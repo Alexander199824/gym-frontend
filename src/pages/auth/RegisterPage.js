@@ -1,6 +1,5 @@
 // src/pages/auth/RegisterPage.js
-// UBICACIÓN: /gym-frontend/src/pages/auth/RegisterPage.js
-// FUNCIÓN: Página de registro Elite Fitness - Corregida y actualizada
+// FUNCIÓN: Página de registro mejorada con validaciones estrictas
 // CONECTA CON: AuthContext para register, backend /api/auth/register
 
 import React, { useState } from 'react';
@@ -21,41 +20,88 @@ import {
   ArrowLeft,
   Shield,
   Star,
-  Trophy
+  Trophy,
+  AlertTriangle,
+  Check,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import { ButtonSpinner } from '../../components/common/LoadingSpinner';
+import GymLogo from '../../components/common/GymLogo';
+import useGymConfig from '../../hooks/useGymConfig';
 
-// 📝 ESQUEMA DE VALIDACIÓN
+// 📝 ESQUEMA DE VALIDACIÓN MEJORADO Y ESTRICTO
 const registerSchema = yup.object({
   firstName: yup
     .string()
     .required('El nombre es requerido')
     .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(50, 'El nombre no puede exceder 50 caracteres'),
+    .max(50, 'El nombre no puede exceder 50 caracteres')
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/, 'El nombre solo puede contener letras y espacios')
+    .test('no-numbers', 'El nombre no puede contener números', (value) => {
+      return value ? !/\d/.test(value) : true;
+    })
+    .test('no-special-chars', 'El nombre no puede contener caracteres especiales', (value) => {
+      return value ? !/[!@#$%^&*(),.?":{}|<>]/.test(value) : true;
+    }),
   lastName: yup
     .string()
     .required('El apellido es requerido')
     .min(2, 'El apellido debe tener al menos 2 caracteres')
-    .max(50, 'El apellido no puede exceder 50 caracteres'),
+    .max(50, 'El apellido no puede exceder 50 caracteres')
+    .matches(/^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/, 'El apellido solo puede contener letras y espacios')
+    .test('no-numbers', 'El apellido no puede contener números', (value) => {
+      return value ? !/\d/.test(value) : true;
+    })
+    .test('no-special-chars', 'El apellido no puede contener caracteres especiales', (value) => {
+      return value ? !/[!@#$%^&*(),.?":{}|<>]/.test(value) : true;
+    }),
   email: yup
     .string()
     .required('El email es requerido')
-    .email('Email inválido'),
+    .email('El formato del email es inválido')
+    .lowercase('El email debe estar en minúsculas')
+    .matches(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'El email debe tener un formato válido'),
   phone: yup
     .string()
     .required('El teléfono es requerido')
-    .matches(/^[\+]?[\d\s\-\(\)]+$/, 'Formato de teléfono inválido'),
+    .matches(/^[\+]?[\d\s\-\(\)]+$/, 'El teléfono solo puede contener números, espacios, guiones y paréntesis')
+    .min(8, 'El teléfono debe tener al menos 8 dígitos')
+    .test('valid-guatemala-phone', 'Formato de teléfono inválido para Guatemala', (value) => {
+      if (!value) return true;
+      // Remover espacios, guiones y paréntesis para validar
+      const cleanPhone = value.replace(/[\s\-\(\)]/g, '');
+      // Formato Guatemala: +502 XXXX-XXXX o XXXX-XXXX
+      return /^(\+502)?[2-9]\d{7}$/.test(cleanPhone);
+    }),
   whatsapp: yup
     .string()
     .nullable()
-    .matches(/^[\+]?[\d\s\-\(\)]+$/, 'Formato de WhatsApp inválido'),
+    .when('whatsapp', {
+      is: (value) => value && value.length > 0,
+      then: (schema) => schema
+        .matches(/^[\+]?[\d\s\-\(\)]+$/, 'El WhatsApp solo puede contener números, espacios, guiones y paréntesis')
+        .min(8, 'El WhatsApp debe tener al menos 8 dígitos')
+        .test('valid-guatemala-whatsapp', 'Formato de WhatsApp inválido para Guatemala', (value) => {
+          if (!value) return true;
+          const cleanPhone = value.replace(/[\s\-\(\)]/g, '');
+          return /^(\+502)?[2-9]\d{7}$/.test(cleanPhone);
+        }),
+      otherwise: (schema) => schema.nullable()
+    }),
   password: yup
     .string()
     .required('La contraseña es requerida')
-    .min(6, 'La contraseña debe tener al menos 6 caracteres')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'La contraseña debe contener al menos una mayúscula, una minúscula y un número'),
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .max(128, 'La contraseña no puede exceder 128 caracteres')
+    .matches(/^(?=.*[a-z])/, 'La contraseña debe contener al menos una letra minúscula')
+    .matches(/^(?=.*[A-Z])/, 'La contraseña debe contener al menos una letra mayúscula')
+    .matches(/^(?=.*\d)/, 'La contraseña debe contener al menos un número')
+    .matches(/^(?=.*[!@#$%^&*(),.?":{}|<>])/, 'La contraseña debe contener al menos un carácter especial')
+    .test('no-spaces', 'La contraseña no puede contener espacios', (value) => {
+      return value ? !/\s/.test(value) : true;
+    }),
   confirmPassword: yup
     .string()
     .required('Confirma tu contraseña')
@@ -64,21 +110,37 @@ const registerSchema = yup.object({
     .date()
     .nullable()
     .max(new Date(), 'La fecha de nacimiento no puede ser futura')
-    .test('age', 'Debes ser mayor de 16 años', function(value) {
+    .test('min-age', 'Debes tener al menos 12 años para registrarte', function(value) {
       if (!value) return true;
       const today = new Date();
       const birthDate = new Date(value);
       const age = today.getFullYear() - birthDate.getFullYear();
-      return age >= 16;
+      const monthDifference = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+        return age - 1 >= 12;
+      }
+      return age >= 12;
+    })
+    .test('not-today', 'La fecha de nacimiento no puede ser hoy', function(value) {
+      if (!value) return true;
+      const today = new Date();
+      const birthDate = new Date(value);
+      return !(
+        birthDate.getFullYear() === today.getFullYear() &&
+        birthDate.getMonth() === today.getMonth() &&
+        birthDate.getDate() === today.getDate()
+      );
     }),
   acceptTerms: yup
     .boolean()
-    .oneOf([true], 'Debes aceptar los términos y condiciones')
+    .oneOf([true], 'Debes aceptar los términos y condiciones para continuar')
 });
 
 const RegisterPage = () => {
   const { register: registerUser } = useAuth();
-  const { showError, showSuccess } = useApp();
+  const { showError, showSuccess, isMobile } = useApp();
+  const { config } = useGymConfig();
   const navigate = useNavigate();
   
   // 📱 Estados locales
@@ -92,9 +154,12 @@ const RegisterPage = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    watch
+    watch,
+    trigger,
+    clearErrors
   } = useForm({
     resolver: yupResolver(registerSchema),
+    mode: 'onChange', // Validación en tiempo real
     defaultValues: {
       firstName: '',
       lastName: '',
@@ -108,25 +173,34 @@ const RegisterPage = () => {
     }
   });
   
-  // 👀 Observar contraseña para validación en tiempo real
+  // 👀 Observar campos para validación en tiempo real
   const password = watch('password');
+  const firstName = watch('firstName');
+  const lastName = watch('lastName');
+  const email = watch('email');
+  const phone = watch('phone');
   
   // 🔐 Manejar envío del formulario
   const onSubmit = async (data) => {
     try {
       setIsLoading(true);
       
-      // Preparar datos para el registro
+      // Limpiar y preparar datos para el registro
       const registrationData = {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phone,
-        whatsapp: data.whatsapp || data.phone,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        email: data.email.trim().toLowerCase(),
+        phone: data.phone.trim(),
+        whatsapp: data.whatsapp?.trim() || data.phone.trim(),
         password: data.password,
         dateOfBirth: data.dateOfBirth || null,
         role: 'cliente'
       };
+      
+      console.log('📝 Registrando usuario:', {
+        ...registrationData,
+        password: '[PROTECTED]'
+      });
       
       await registerUser(registrationData);
       
@@ -139,44 +213,82 @@ const RegisterPage = () => {
       }, 2000);
       
     } catch (error) {
-      showError(
-        error.response?.data?.message || 
-        'Error al registrar usuario. Intenta nuevamente.'
-      );
+      console.error('Error en registro:', error);
+      
+      // Manejar errores específicos del backend
+      if (error.response?.status === 409) {
+        showError('Ya existe una cuenta con este email. Intenta iniciar sesión.');
+      } else if (error.response?.data?.message) {
+        showError(error.response.data.message);
+      } else {
+        showError(error.message || 'Error al registrar usuario. Intenta nuevamente.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
   
-  // 🔍 Validador de fortaleza de contraseña
+  // 🔍 Validador de fortaleza de contraseña mejorado
   const getPasswordStrength = (password) => {
-    if (!password) return { strength: 0, label: '', color: '' };
+    if (!password) return { strength: 0, label: '', color: '', checks: [] };
     
-    let strength = 0;
     const checks = [
-      { test: /.{6,}/, label: 'Al menos 6 caracteres' },
-      { test: /[a-z]/, label: 'Una minúscula' },
-      { test: /[A-Z]/, label: 'Una mayúscula' },
-      { test: /\d/, label: 'Un número' },
-      { test: /[!@#$%^&*(),.?":{}|<>]/, label: 'Un carácter especial' }
+      { test: /.{8,}/, label: 'Al menos 8 caracteres', passed: /.{8,}/.test(password) },
+      { test: /[a-z]/, label: 'Una letra minúscula', passed: /[a-z]/.test(password) },
+      { test: /[A-Z]/, label: 'Una letra mayúscula', passed: /[A-Z]/.test(password) },
+      { test: /\d/, label: 'Un número', passed: /\d/.test(password) },
+      { test: /[!@#$%^&*(),.?":{}|<>]/, label: 'Un carácter especial (!@#$%^&*)', passed: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+      { test: /^\S*$/, label: 'Sin espacios', passed: /^\S*$/.test(password) }
     ];
     
-    checks.forEach(check => {
-      if (check.test.test(password)) strength++;
-    });
+    const passedChecks = checks.filter(check => check.passed).length;
+    const strength = passedChecks;
     
-    const colors = ['bg-danger-500', 'bg-warning-500', 'bg-warning-400', 'bg-primary-500', 'bg-success-500'];
-    const labels = ['Muy débil', 'Débil', 'Regular', 'Fuerte', 'Muy fuerte'];
+    const colors = [
+      'bg-red-500',      // 0-1: Muy débil
+      'bg-red-400',      // 1: Débil
+      'bg-orange-500',   // 2: Regular
+      'bg-yellow-500',   // 3: Aceptable
+      'bg-blue-500',     // 4: Buena
+      'bg-green-500',    // 5: Fuerte
+      'bg-green-600'     // 6: Muy fuerte
+    ];
+    const labels = ['Muy débil', 'Débil', 'Regular', 'Aceptable', 'Buena', 'Fuerte', 'Muy fuerte'];
     
     return {
       strength,
-      label: labels[strength - 1] || '',
-      color: colors[strength - 1] || 'bg-gray-300',
-      checks
+      label: labels[strength] || '',
+      color: colors[strength] || 'bg-gray-300',
+      checks,
+      percentage: Math.round((strength / 6) * 100)
     };
   };
   
   const passwordStrength = getPasswordStrength(password);
+  
+  // 🎨 Función para obtener clase de validación en tiempo real
+  const getFieldValidationClass = (fieldName, value) => {
+    if (!value) return '';
+    
+    switch (fieldName) {
+      case 'firstName':
+      case 'lastName':
+        return /^[a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]+$/.test(value) && value.length >= 2 
+          ? 'border-green-300 bg-green-50' 
+          : 'border-red-300 bg-red-50';
+      case 'email':
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) 
+          ? 'border-green-300 bg-green-50' 
+          : 'border-red-300 bg-red-50';
+      case 'phone':
+        const cleanPhone = value.replace(/[\s\-\(\)]/g, '');
+        return /^(\+502)?[2-9]\d{7}$/.test(cleanPhone) 
+          ? 'border-green-300 bg-green-50' 
+          : 'border-red-300 bg-red-50';
+      default:
+        return '';
+    }
+  };
   
   // ✅ Página de éxito
   if (registrationComplete) {
@@ -189,7 +301,7 @@ const RegisterPage = () => {
           </div>
           
           <h2 className="text-2xl font-display font-bold text-gray-900 mb-3">
-            ¡Bienvenido a Elite Fitness!
+            ¡Bienvenido a {config?.name || 'Elite Fitness'}!
           </h2>
           
           <p className="text-gray-600 mb-6">
@@ -242,11 +354,22 @@ const RegisterPage = () => {
               </Link>
               
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-elite-gradient rounded-xl flex items-center justify-center">
+                {config && config.logo && config.logo.url ? (
+                  <img 
+                    src={config.logo.url}
+                    alt={config.logo.alt || 'Logo'}
+                    className="h-8 w-auto object-contain"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div className={`${config && config.logo && config.logo.url ? "hidden" : "flex"} w-8 h-8 bg-elite-gradient rounded-xl items-center justify-center`}>
                   <Dumbbell className="w-5 h-5 text-white" />
                 </div>
                 <span className="font-display font-bold text-lg text-gray-800 hidden sm:inline">
-                  Elite Fitness Club
+                  {config?.name || 'Elite Fitness Club'}
                 </span>
               </div>
             </div>
@@ -269,7 +392,9 @@ const RegisterPage = () => {
           {/* 📝 Título y descripción */}
           <div className="text-center mb-10">
             <h1 className="text-4xl font-display font-bold text-gray-900 mb-4">
-              Únete a <span className="text-gradient-elite">Elite Fitness</span>
+              Únete a <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                {config?.name || 'Elite Fitness'}
+              </span>
             </h1>
             <p className="text-xl text-gray-600 max-w-lg mx-auto">
               Comienza tu transformación hoy mismo. Primera semana gratis para nuevos miembros.
@@ -321,10 +446,24 @@ const RegisterPage = () => {
                       {...register('firstName')}
                       type="text"
                       id="firstName"
-                      className={`form-input pl-12 ${errors.firstName ? 'form-input-error' : ''}`}
+                      className={`form-input pl-12 ${
+                        errors.firstName ? 'form-input-error' : 
+                        firstName ? getFieldValidationClass('firstName', firstName) : ''
+                      }`}
                       placeholder="Juan"
                       disabled={isLoading}
+                      onChange={(e) => {
+                        // Filtrar caracteres no permitidos en tiempo real
+                        const value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '');
+                        e.target.value = value;
+                        register('firstName').onChange(e);
+                      }}
                     />
+                    {firstName && !errors.firstName && (
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Check className="w-5 h-5 text-green-500" />
+                      </div>
+                    )}
                   </div>
                   {errors.firstName && (
                     <p className="form-error">{errors.firstName.message}</p>
@@ -343,10 +482,24 @@ const RegisterPage = () => {
                       {...register('lastName')}
                       type="text"
                       id="lastName"
-                      className={`form-input pl-12 ${errors.lastName ? 'form-input-error' : ''}`}
+                      className={`form-input pl-12 ${
+                        errors.lastName ? 'form-input-error' : 
+                        lastName ? getFieldValidationClass('lastName', lastName) : ''
+                      }`}
                       placeholder="Pérez"
                       disabled={isLoading}
+                      onChange={(e) => {
+                        // Filtrar caracteres no permitidos en tiempo real
+                        const value = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '');
+                        e.target.value = value;
+                        register('lastName').onChange(e);
+                      }}
                     />
+                    {lastName && !errors.lastName && (
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Check className="w-5 h-5 text-green-500" />
+                      </div>
+                    )}
                   </div>
                   {errors.lastName && (
                     <p className="form-error">{errors.lastName.message}</p>
@@ -367,10 +520,19 @@ const RegisterPage = () => {
                     {...register('email')}
                     type="email"
                     id="email"
-                    className={`form-input pl-12 ${errors.email ? 'form-input-error' : ''}`}
+                    className={`form-input pl-12 ${
+                      errors.email ? 'form-input-error' : 
+                      email ? getFieldValidationClass('email', email) : ''
+                    }`}
                     placeholder="juan@email.com"
                     disabled={isLoading}
+                    autoComplete="email"
                   />
+                  {email && !errors.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && (
+                    <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                      <Check className="w-5 h-5 text-green-500" />
+                    </div>
+                  )}
                 </div>
                 {errors.email && (
                   <p className="form-error">{errors.email.message}</p>
@@ -391,14 +553,31 @@ const RegisterPage = () => {
                       {...register('phone')}
                       type="tel"
                       id="phone"
-                      className={`form-input pl-12 ${errors.phone ? 'form-input-error' : ''}`}
+                      className={`form-input pl-12 ${
+                        errors.phone ? 'form-input-error' : 
+                        phone ? getFieldValidationClass('phone', phone) : ''
+                      }`}
                       placeholder="+502 1234-5678"
                       disabled={isLoading}
+                      onChange={(e) => {
+                        // Permitir solo números, espacios, guiones, paréntesis y +
+                        const value = e.target.value.replace(/[^0-9\s\-\(\)\+]/g, '');
+                        e.target.value = value;
+                        register('phone').onChange(e);
+                      }}
                     />
+                    {phone && !errors.phone && (
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <Check className="w-5 h-5 text-green-500" />
+                      </div>
+                    )}
                   </div>
                   {errors.phone && (
                     <p className="form-error">{errors.phone.message}</p>
                   )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Formato: +502 XXXX-XXXX o XXXX-XXXX
+                  </p>
                 </div>
                 
                 <div className="form-group">
@@ -416,6 +595,12 @@ const RegisterPage = () => {
                       className={`form-input pl-12 ${errors.whatsapp ? 'form-input-error' : ''}`}
                       placeholder="Mismo que teléfono"
                       disabled={isLoading}
+                      onChange={(e) => {
+                        // Permitir solo números, espacios, guiones, paréntesis y +
+                        const value = e.target.value.replace(/[^0-9\s\-\(\)\+]/g, '');
+                        e.target.value = value;
+                        register('whatsapp').onChange(e);
+                      }}
                     />
                   </div>
                   {errors.whatsapp && (
@@ -438,13 +623,16 @@ const RegisterPage = () => {
                     type="date"
                     id="dateOfBirth"
                     className={`form-input pl-12 ${errors.dateOfBirth ? 'form-input-error' : ''}`}
-                    max={new Date().toISOString().split('T')[0]}
+                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 12)).toISOString().split('T')[0]}
                     disabled={isLoading}
                   />
                 </div>
                 {errors.dateOfBirth && (
                   <p className="form-error">{errors.dateOfBirth.message}</p>
                 )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Debes tener al menos 12 años para registrarte
+                </p>
               </div>
               
               {/* 🔒 Contraseñas */}
@@ -464,6 +652,7 @@ const RegisterPage = () => {
                       className={`form-input pl-12 pr-12 ${errors.password ? 'form-input-error' : ''}`}
                       placeholder="••••••••"
                       disabled={isLoading}
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -479,19 +668,35 @@ const RegisterPage = () => {
                     </button>
                   </div>
                   
-                  {/* 💪 Indicador de fortaleza de contraseña */}
+                  {/* 💪 Indicador de fortaleza de contraseña mejorado */}
                   {password && (
-                    <div className="mt-3">
-                      <div className="flex items-center space-x-2 mb-2">
+                    <div className="mt-3 space-y-3">
+                      <div className="flex items-center space-x-2">
                         <div className="flex-1 bg-gray-200 rounded-full h-2">
                           <div 
                             className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
-                            style={{ width: `${(passwordStrength.strength / 5) * 100}%` }}
+                            style={{ width: `${passwordStrength.percentage}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-600 font-medium">
+                        <span className="text-xs text-gray-600 font-medium min-w-0">
                           {passwordStrength.label}
                         </span>
+                      </div>
+                      
+                      {/* Checklist de requisitos */}
+                      <div className="grid grid-cols-1 gap-1">
+                        {passwordStrength.checks.map((check, index) => (
+                          <div key={index} className="flex items-center text-xs">
+                            {check.passed ? (
+                              <Check className="w-3 h-3 text-green-500 mr-2" />
+                            ) : (
+                              <X className="w-3 h-3 text-red-500 mr-2" />
+                            )}
+                            <span className={check.passed ? 'text-green-700' : 'text-red-700'}>
+                              {check.label}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -516,6 +721,7 @@ const RegisterPage = () => {
                       className={`form-input pl-12 pr-12 ${errors.confirmPassword ? 'form-input-error' : ''}`}
                       placeholder="••••••••"
                       disabled={isLoading}
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
@@ -554,7 +760,7 @@ const RegisterPage = () => {
                   <Link to="/privacy" className="text-primary-600 hover:text-primary-500 font-medium">
                     política de privacidad
                   </Link>
-                  {' '}de Elite Fitness Club
+                  {' '}de {config?.name || 'Elite Fitness Club'}
                 </label>
               </div>
               {errors.acceptTerms && (
