@@ -1,6 +1,6 @@
 // src/pages/auth/LoginPage.js
-// FUNCIÓN: Login CORREGIDO con redirección por rol + OAuth Google preparado
-// CAMBIOS: Manejo correcto de redirección después del login exitoso
+// FUNCIÓN: Login CORREGIDO con manejo de errores mejorado
+// CAMBIOS: Corrección completa del manejo de errores y mensajes
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
@@ -46,11 +46,12 @@ const LoginPage = () => {
   const [searchParams] = useSearchParams();
   
   // 📱 Estados locales
-  const [loginMethod, setLoginMethod] = useState('credentials'); // 'credentials' | 'google'
+  const [loginMethod, setLoginMethod] = useState('credentials');
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isCredentialsLoading, setIsCredentialsLoading] = useState(false);
   const [oauthError, setOauthError] = useState(null);
+  const [loginError, setLoginError] = useState(null); // ✅ NUEVO: Estado para errores de login
   
   // 🎯 Obtener ruta de redirección solicitada
   const from = location.state?.from?.pathname || null;
@@ -61,7 +62,8 @@ const LoginPage = () => {
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-    clearErrors
+    clearErrors,
+    reset
   } = useForm({
     resolver: yupResolver(loginSchema),
     defaultValues: {
@@ -75,22 +77,25 @@ const LoginPage = () => {
     if (isAuthenticated) {
       console.log('👤 Usuario ya autenticado, redirigiendo...');
       
-      // Si hay una ruta de origen específica, ir ahí
       if (from) {
         navigate(from, { replace: true });
       } else {
-        // Si no, ir al dashboard por defecto (esto debería manejarse desde App.js)
         navigate('/dashboard', { replace: true });
       }
     }
   }, [isAuthenticated, navigate, from]);
   
-  // 🔍 Manejar callback de OAuth Google (preparado para el futuro)
+  // 🔍 Manejar callback de OAuth Google
   useEffect(() => {
-    handleOAuthCallback();
+    const token = searchParams.get('token');
+    const error = searchParams.get('error');
+    
+    if (token || error) {
+      handleOAuthCallback();
+    }
   }, [searchParams]);
   
-  // 🔐 Función para manejar callback de Google OAuth (PREPARADA PARA EL FUTURO)
+  // 🔐 Función para manejar callback de Google OAuth
   const handleOAuthCallback = async () => {
     const token = searchParams.get('token');
     const refreshToken = searchParams.get('refresh');
@@ -102,25 +107,22 @@ const LoginPage = () => {
     const error = searchParams.get('error');
     const message = searchParams.get('message');
     
-    // ❌ Error en OAuth
     if (error) {
       setOauthError(message || 'Error en la autenticación con Google');
       showError(message || 'Error al iniciar sesión con Google. Intenta nuevamente.');
-      setLoginMethod('credentials'); // Volver al método tradicional
+      setLoginMethod('credentials');
       return;
     }
     
-    // ✅ OAuth exitoso (FUTURO)
     if (token && refreshToken && loginType === 'google') {
       try {
-        console.log('🎉 OAuth Google exitoso (FUTURO):', {
+        console.log('🎉 OAuth Google exitoso:', {
           role,
           userId,
           name: decodeURIComponent(name || ''),
           email: decodeURIComponent(email || '')
         });
         
-        // Guardar tokens
         localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', token);
         localStorage.setItem('elite_fitness_refresh_token', refreshToken);
         localStorage.setItem('elite_fitness_user_role', role);
@@ -128,7 +130,6 @@ const LoginPage = () => {
         
         showSuccess(`¡Bienvenido, ${decodeURIComponent(name || '')}!`);
         
-        // Redirigir según el rol
         const redirectPath = getDashboardPathByRole(role);
         navigate(redirectPath, { replace: true });
         
@@ -154,73 +155,80 @@ const LoginPage = () => {
     }
   };
   
-  // ✅ CORREGIDO: Manejar login tradicional con credenciales
+  // ✅ SIMPLIFICADO: Manejo de login sin logs excesivos
   const onCredentialsSubmit = async (data) => {
     try {
       setIsCredentialsLoading(true);
+      setLoginError(null);
       clearErrors();
       
-      // Limpiar datos antes de enviar
       const cleanData = {
         email: data.email.trim().toLowerCase(),
         password: data.password
       };
       
-      console.log('🔑 Intentando login tradicional para:', cleanData.email);
+      console.log('🔑 Intentando login para:', cleanData.email);
       
-      // ✅ Llamar al método login del contexto (que NO redirige automáticamente)
       const result = await login(cleanData);
       
-      if (result.success) {
-        console.log('✅ Login exitoso:', {
-          userId: result.user.id,
-          userRole: result.user.role,
-          redirectPath: result.redirectPath
-        });
+      if (result && result.success) {
+        showSuccess(`¡Bienvenido de vuelta, ${result.user?.firstName || 'Usuario'}!`);
         
-        // Mostrar mensaje de éxito
-        showSuccess(`¡Bienvenido de vuelta, ${result.user.firstName}!`);
-        
-        // ✅ REDIRECCIÓN MANUAL DESPUÉS DEL LOGIN EXITOSO
-        // Si hay una ruta de origen específica, ir ahí
         if (from) {
-          console.log('🎯 Redirigiendo a ruta de origen:', from);
           navigate(from, { replace: true });
         } else {
-          // Si no, usar la ruta del rol
-          console.log('🏠 Redirigiendo a dashboard del rol:', result.redirectPath);
           navigate(result.redirectPath, { replace: true });
         }
       } else {
-        throw new Error(result.message || 'Error al iniciar sesión');
+        const errorMessage = result?.message || 'Credenciales incorrectas';
+        setLoginError(errorMessage);
+        showError(errorMessage);
+        
+        setError('email', { 
+          type: 'manual', 
+          message: 'Email o contraseña incorrectos' 
+        });
+        setError('password', { 
+          type: 'manual', 
+          message: 'Email o contraseña incorrectos' 
+        });
       }
       
     } catch (error) {
-      console.error('❌ Error en login tradicional:', error);
+      console.error('❌ Error en login:', error.message);
       
-      // Manejar errores específicos
+      let errorMessage = 'Error al iniciar sesión. Intenta nuevamente.';
+      
       if (error.response?.status === 401) {
-        setError('email', { message: 'Email o contraseña incorrectos' });
-        setError('password', { message: 'Email o contraseña incorrectos' });
+        errorMessage = error.response?.data?.message || 'Email o contraseña incorrectos';
+        setError('email', { type: 'manual', message: 'Credenciales incorrectas' });
+        setError('password', { type: 'manual', message: 'Credenciales incorrectas' });
       } else if (error.response?.status === 404) {
-        setError('email', { message: 'Usuario no encontrado' });
-      } else if (error.response?.data?.message) {
-        showError(error.response.data.message);
-      } else {
-        showError(error.message || 'Error al iniciar sesión. Intenta nuevamente.');
+        errorMessage = 'Usuario no encontrado';
+        setError('email', { type: 'manual', message: 'Este email no está registrado' });
+      } else if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Error de conexión. Verifica tu internet.';
       }
+      
+      setLoginError(errorMessage);
+      
+      if (showError && typeof showError === 'function') {
+        showError(errorMessage);
+      } else {
+        alert(errorMessage);
+      }
+      
     } finally {
       setIsCredentialsLoading(false);
     }
   };
   
-  // 🔐 Iniciar Google OAuth (PREPARADO PARA EL FUTURO)
+  // 🔐 Iniciar Google OAuth
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true);
     setOauthError(null);
     setLoginMethod('google');
     
-    // Redirigir directamente al endpoint OAuth del backend
     const googleLoginUrl = process.env.REACT_APP_API_URL 
       ? `${process.env.REACT_APP_API_URL}/api/auth/google`
       : 'http://localhost:5000/api/auth/google';
@@ -229,9 +237,6 @@ const LoginPage = () => {
     showError('Google OAuth estará disponible próximamente');
     setIsGoogleLoading(false);
     setLoginMethod('credentials');
-    
-    // Para el futuro, descomentar esta línea:
-    // window.location.href = googleLoginUrl;
   };
   
   // 📱 Mostrar estado de carga durante autenticación
@@ -277,7 +282,6 @@ const LoginPage = () => {
         <div className="absolute top-1/2 right-20 w-16 h-16 bg-white bg-opacity-10 rounded-full"></div>
         
         <div className="relative z-10 text-center text-white">
-          {/* Logo Elite Fitness */}
           <div className="flex justify-center mb-8">
             {config && config.logo && config.logo.url ? (
               <div className="w-32 h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48 bg-white bg-opacity-20 backdrop-blur-lg rounded-3xl flex items-center justify-center p-6">
@@ -294,12 +298,10 @@ const LoginPage = () => {
             )}
           </div>
           
-          {/* Título principal */}
           <h1 className="text-5xl font-display font-bold mb-6">
             {config?.name || 'Elite Fitness Club'}
           </h1>
           
-          {/* Subtítulo */}
           <p className="text-2xl font-light mb-12 opacity-90">
             {config?.description || 'Transforma tu cuerpo, eleva tu mente'}
           </p>
@@ -344,6 +346,23 @@ const LoginPage = () => {
               Inicia sesión en tu cuenta {config?.name || 'Elite Fitness'}
             </p>
           </div>
+          
+          {/* ❌ NUEVO: Error general de login */}
+          {loginError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-red-500 mr-3 flex-shrink-0" />
+                <div>
+                  <h3 className="text-sm font-medium text-red-800">
+                    Error de inicio de sesión
+                  </h3>
+                  <p className="text-sm text-red-700 mt-1">
+                    {loginError}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* ❌ Error de OAuth */}
           {oauthError && (
@@ -456,7 +475,7 @@ const LoginPage = () => {
               </div>
             </div>
             
-            {/* 🔐 BOTÓN DE GOOGLE OAUTH (PREPARADO PARA EL FUTURO) */}
+            {/* 🔐 BOTÓN DE GOOGLE OAUTH */}
             <button
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading || isCredentialsLoading}

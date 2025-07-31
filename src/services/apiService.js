@@ -1,12 +1,6 @@
 // src/services/apiService.js
-// FUNCIÓN: Servicio API MEJORADO con logs detallados y rutas corregidas
-// CORRIGE: Errores de rutas, logs confusos y peticiones innecesarias
-// FUNCIÓN: Servicio API MEJORADO con logs DETALLADOS de las respuestas del backend
-// MUESTRA: Exactamente qué datos devuelve el backend para debug
-
-// src/services/apiService.js
-// FUNCIÓN: Servicio API COMPLETO con soporte para video desde backend
-// INCLUYE: Todos los métodos originales + getGymVideo() + logs detallados
+// FUNCIÓN: Servicio API CORREGIDO - Interceptor NO interfiere con login
+// CORRECCIÓN: Error 401 durante login no debe redirigir automáticamente
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -51,7 +45,7 @@ api.interceptors.request.use(
   }
 );
 
-// 📨 INTERCEPTOR DE RESPUESTAS (Response) - CON LOGS SÚPER DETALLADOS
+// 📨 INTERCEPTOR DE RESPUESTAS (Response) - CORREGIDO PARA LOGIN
 api.interceptors.response.use(
   (response) => {
     // 🔍 LOGS SÚPER DETALLADOS - Mostrar TODO lo que devuelve el backend
@@ -246,23 +240,37 @@ api.interceptors.response.use(
         }
       }
       
-      // Contexto específico por tipo de error
+      // ✅ CORRECCIÓN CRÍTICA: Contexto específico por tipo de error
       switch (status) {
         case 401:
-          console.log('🔐 PROBLEMA: Token expirado o inválido');
-          console.log('🔧 ACCIÓN: Redirigiendo a login...');
-          localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+          // ✅ NO INTERFERIR CON LOGIN - Solo redirigir si NO estamos en login
+          const isLoginRequest = url.includes('/auth/login') || url.includes('/login');
+          const isLoginPage = window.location.pathname.includes('/login');
           
-          if (!window.location.pathname.includes('/login')) {
+          if (isLoginRequest) {
+            // ✅ Error 401 en login = credenciales incorrectas
+            console.log('🔐 LOGIN FAILED: Credenciales incorrectas');
+            console.log('✅ Permitiendo que LoginPage maneje el error');
+            // NO hacer nada aquí, dejar que el componente LoginPage maneje
+          } else if (!isLoginPage) {
+            // ✅ Error 401 fuera de login = token expirado
+            console.log('🔐 PROBLEMA: Token expirado o inválido');
+            console.log('🔧 ACCIÓN: Redirigiendo a login...');
+            localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
             toast.error('Sesión expirada. Redirigiendo...');
             setTimeout(() => window.location.href = '/login', 1500);
+          } else {
+            // Ya estamos en login, no hacer nada
+            console.log('🔐 Error 401 en página de login - No redirigir');
           }
           break;
           
         case 403:
           console.log('🚫 PROBLEMA: Sin permisos para esta acción');
           console.log('🔧 VERIFICAR: Rol del usuario y permisos necesarios');
-          toast.error('Sin permisos para esta acción');
+          if (!url.includes('/auth/login')) {
+            toast.error('Sin permisos para esta acción');
+          }
           break;
           
         case 404:
@@ -274,7 +282,7 @@ api.interceptors.response.use(
           console.log('   - /api/gym/stats');
           console.log('   - /api/gym/services');
           console.log('   - /api/gym/testimonials');
-          console.log('   - /api/gym/video'); // 🎬 NUEVA RUTA
+          console.log('   - /api/gym/video');
           console.log('   - /api/store/featured-products');
           console.log('   - /api/gym/membership-plans');
           
@@ -332,7 +340,10 @@ api.interceptors.response.use(
           console.log('📋 Respuesta completa:', response.data);
           
           const message = response.data?.message || `Error ${status}`;
-          toast.error(message);
+          // Solo mostrar toast si no es un error de login
+          if (!url.includes('/auth/login')) {
+            toast.error(message);
+          }
       }
       
     } else if (error.code === 'ECONNABORTED') {
@@ -361,8 +372,8 @@ api.interceptors.response.use(
       console.log('   3. ¿Hay errors en los logs del backend?');
       console.log('   4. ¿CORS configurado correctamente?');
       
-      // No mostrar toast para errores de red durante carga inicial
-      if (!document.location.pathname.includes('/login')) {
+      // No mostrar toast para errores de red durante login
+      if (!window.location.pathname.includes('/login')) {
         toast.error('Sin conexión al servidor');
       }
       
@@ -637,288 +648,292 @@ class ApiService {
   // 📄 MÉTODOS DE CONTENIDO
   // ================================
   
-// OBTENER CONTENIDO DE SECCIONES (método existente)
-async getSectionsContent() {
-  console.log('📄 FETCHING SECTIONS CONTENT...');
-  try {
-    const result = await this.get('/gym/sections-content');
-    console.log('✅ SECTIONS CONTENT RECEIVED:', result);
-    return result;
-  } catch (error) {
-    console.log('❌ SECTIONS CONTENT FAILED:', error.message);
-    throw error;
-  }
-}
-  
-  // OBTENER NAVEGACIÓN
-  async getNavigation() {
-    console.log('🧭 FETCHING NAVIGATION...');
+  // OBTENER CONTENIDO DE SECCIONES (método existente)
+  async getSectionsContent() {
+    console.log('📄 FETCHING SECTIONS CONTENT...');
     try {
-      const result = await this.get('/gym/navigation');
-      console.log('✅ NAVIGATION RECEIVED:', result);
+      const result = await this.get('/gym/sections-content');
+      console.log('✅ SECTIONS CONTENT RECEIVED:', result);
       return result;
     } catch (error) {
-      console.log('❌ NAVIGATION FAILED:', error.message);
+      console.log('❌ SECTIONS CONTENT FAILED:', error.message);
       throw error;
     }
   }
-  
-  // OBTENER PROMOCIONES
-  async getPromotions() {
-    console.log('🎉 FETCHING PROMOTIONS...');
-    try {
-      const result = await this.get('/gym/promotions');
-      console.log('✅ PROMOTIONS RECEIVED:', result);
-      return result;
-    } catch (error) {
-      console.log('❌ PROMOTIONS FAILED:', error.message);
-      throw error;
-    }
-  }
-  
-  // OBTENER BRANDING
-  async getBranding() {
-    console.log('🎨 FETCHING BRANDING...');
-    try {
-      const result = await this.get('/gym/branding');
-      console.log('✅ BRANDING RECEIVED:', result);
-      return result;
-    } catch (error) {
-      console.log('❌ BRANDING FAILED:', error.message);
-      throw error;
-    }
-  }
-  
-  // ================================
-  // 🔐 MÉTODOS DE AUTENTICACIÓN
-  // ================================
-  
-  // LOGIN
-  async login(credentials) {
-    console.log('🔐 ATTEMPTING LOGIN...');
-    const response = await this.post('/auth/login', credentials);
     
-    if (response.success && response.data.token) {
-      localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.token);
-      console.log('✅ LOGIN SUCCESSFUL');
-      toast.success('Inicio de sesión exitoso');
+    // OBTENER NAVEGACIÓN
+    async getNavigation() {
+      console.log('🧭 FETCHING NAVIGATION...');
+      try {
+        const result = await this.get('/gym/navigation');
+        console.log('✅ NAVIGATION RECEIVED:', result);
+        return result;
+      } catch (error) {
+        console.log('❌ NAVIGATION FAILED:', error.message);
+        throw error;
+      }
     }
     
-    return response;
-  }
-  
-  // REGISTRO
-  async register(userData) {
-    console.log('📝 ATTEMPTING REGISTRATION...');
-    const response = await this.post('/auth/register', userData);
-    
-    if (response.success) {
-      console.log('✅ REGISTRATION SUCCESSFUL');
-      toast.success('Registro exitoso');
+    // OBTENER PROMOCIONES
+    async getPromotions() {
+      console.log('🎉 FETCHING PROMOTIONS...');
+      try {
+        const result = await this.get('/gym/promotions');
+        console.log('✅ PROMOTIONS RECEIVED:', result);
+        return result;
+      } catch (error) {
+        console.log('❌ PROMOTIONS FAILED:', error.message);
+        throw error;
+      }
     }
     
-    return response;
-  }
-  
-  // PERFIL
-  async getProfile() {
-    return await this.get('/auth/profile');
-  }
-  
-  // ================================
-  // 👥 MÉTODOS DE USUARIOS
-  // ================================
-  
-  async getUsers(params = {}) {
-    const response = await api.get('/api/users', { params });
-    return response.data;
-  }
-  
-  async createUser(userData) {
-    const response = await this.post('/users', userData);
-    if (response.success) {
-      toast.success('Usuario creado exitosamente');
+    // OBTENER BRANDING
+    async getBranding() {
+      console.log('🎨 FETCHING BRANDING...');
+      try {
+        const result = await this.get('/gym/branding');
+        console.log('✅ BRANDING RECEIVED:', result);
+        return result;
+      } catch (error) {
+        console.log('❌ BRANDING FAILED:', error.message);
+        throw error;
+      }
     }
-    return response;
-  }
-  
-  // ================================
-  // 🎫 MÉTODOS DE MEMBRESÍAS
-  // ================================
-  
-  async getMemberships(params = {}) {
-    const response = await api.get('/api/memberships', { params });
-    return response.data;
-  }
-  
-  async getExpiredMemberships(days = 0) {
-    const response = await api.get('/api/memberships/expired', { params: { days } });
-    return response.data;
-  }
-  
-  async getExpiringSoonMemberships(days = 7) {
-    const response = await api.get('/api/memberships/expiring-soon', { params: { days } });
-    return response.data;
-  }
-  
-  // ================================
-  // 💰 MÉTODOS DE PAGOS
-  // ================================
-  
-  async getPayments(params = {}) {
-    const response = await api.get('/api/payments', { params });
-    return response.data;
-  }
-  
-  async createPayment(paymentData) {
-    const response = await this.post('/payments', paymentData);
-    if (response.success) {
-      toast.success('Pago registrado exitosamente');
+    
+    // ================================
+    // 🔐 MÉTODOS DE AUTENTICACIÓN
+    // ================================
+    
+    // ✅ LOGIN CORREGIDO - Sin interferencia del interceptor
+    async login(credentials) {
+      console.log('🔐 ATTEMPTING LOGIN...');
+      
+      try {
+        const response = await this.post('/auth/login', credentials);
+        
+        if (response.success && response.data.token) {
+          localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.token);
+          console.log('✅ LOGIN SUCCESSFUL');
+          // NO mostrar toast aquí, lo maneja LoginPage
+        }
+        
+        return response;
+      } catch (error) {
+        console.log('❌ LOGIN FAILED in apiService:', error.message);
+        // NO mostrar toast aquí, lo maneja LoginPage
+        throw error; // Propagar el error al LoginPage
+      }
     }
-    return response;
-  }
-  
-  async getPendingTransfers() {
-    return await this.get('/payments/transfers/pending');
-  }
-  
-  // ================================
-  // 📊 MÉTODOS DE REPORTES
-  // ================================
-  
-  async getPaymentReports(params = {}) {
-    const response = await api.get('/api/payments/reports', { params });
-    return response.data;
-  }
-  
-  async getUserStats() {
-    return await this.get('/users/stats');
-  }
-  
-  async getMembershipStats() {
-    return await this.get('/memberships/stats');
-  }
-  
-  // ================================
-  // 🛒 MÉTODOS DEL CARRITO
-  // ================================
-  
-  async getCart() {
-    return await this.get('/cart');
-  }
-  
-  async updateCart(items) {
-    return await this.post('/cart', { items });
-  }
-  
-  // ================================
-  // 🔧 MÉTODOS UTILITARIOS
-  // ================================
-  
-  // HEALTH CHECK
-  async healthCheck() {
-    console.log('🔌 HEALTH CHECK...');
-    try {
-      const result = await this.get('/health');
-      console.log('✅ HEALTH CHECK SUCCESS:', result);
-      return result;
-    } catch (error) {
-      console.log('❌ HEALTH CHECK FAILED:', error.message);
-      throw error;
+    
+    // REGISTRO
+    async register(userData) {
+      console.log('📝 ATTEMPTING REGISTRATION...');
+      const response = await this.post('/auth/register', userData);
+      
+      if (response.success) {
+        console.log('✅ REGISTRATION SUCCESSFUL');
+        toast.success('Registro exitoso');
+      }
+      
+      return response;
     }
-  }
+    
+    // PERFIL
+    async getProfile() {
+      return await this.get('/auth/profile');
+    }
+    
+    // ================================
+    // 👥 MÉTODOS DE USUARIOS
+    // ================================
+    
+    async getUsers(params = {}) {
+      const response = await api.get('/api/users', { params });
+      return response.data;
+    }
+    
+    async createUser(userData) {
+      const response = await this.post('/users', userData);
+      if (response.success) {
+        toast.success('Usuario creado exitosamente');
+      }
+      return response;
+    }
+    
+    // ================================
+    // 🎫 MÉTODOS DE MEMBRESÍAS
+    // ================================
+    
+    async getMemberships(params = {}) {
+      const response = await api.get('/api/memberships', { params });
+      return response.data;
+    }
+    
+    async getExpiredMemberships(days = 0) {
+      const response = await api.get('/api/memberships/expired', { params: { days } });
+      return response.data;
+    }
+    
+    async getExpiringSoonMemberships(days = 7) {
+      const response = await api.get('/api/memberships/expiring-soon', { params: { days } });
+      return response.data;
+    }
+    
+    // ================================
+    // 💰 MÉTODOS DE PAGOS
+    // ================================
+    
+    async getPayments(params = {}) {
+      const response = await api.get('/api/payments', { params });
+      return response.data;
+    }
+    
+    async createPayment(paymentData) {
+      const response = await this.post('/payments', paymentData);
+      if (response.success) {
+        toast.success('Pago registrado exitosamente');
+      }
+      return response;
+    }
+    
+    async getPendingTransfers() {
+      return await this.get('/payments/transfers/pending');
+    }
+    
+    // ================================
+    // 📊 MÉTODOS DE REPORTES
+    // ================================
+    
+    async getPaymentReports(params = {}) {
+      const response = await api.get('/api/payments/reports', { params });
+      return response.data;
+    }
+    
+    async getUserStats() {
+      return await this.get('/users/stats');
+    }
+    
+    async getMembershipStats() {
+      return await this.get('/memberships/stats');
+    }
+    
+    // ================================
+    // 🛒 MÉTODOS DEL CARRITO
+    // ================================
+    
+    async getCart() {
+      return await this.get('/cart');
+    }
+    
+    async updateCart(items) {
+      return await this.post('/cart', { items });
+    }
+    
+    // ================================
+    // 🔧 MÉTODOS UTILITARIOS
+    // ================================
+    
+    // HEALTH CHECK
+    async healthCheck() {
+      console.log('🔌 HEALTH CHECK...');
+      try {
+        const result = await this.get('/health');
+        console.log('✅ HEALTH CHECK SUCCESS:', result);
+        return result;
+      } catch (error) {
+        console.log('❌ HEALTH CHECK FAILED:', error.message);
+        throw error;
+      }
+    }
 
-  // ✅ NUEVO: OBTENER CONTENIDO DE LANDING PAGE
-async getLandingContent() {
-  console.log('📄 FETCHING LANDING CONTENT...');
-  try {
-    const result = await this.get('/content/landing');
-    console.log('✅ LANDING CONTENT RECEIVED:', result);
-    return result;
-  } catch (error) {
-    console.log('❌ LANDING CONTENT FAILED:', error.message);
-    throw error;
-  }
-}
-  
-  // VERIFICAR CONEXIÓN MEJORADA
-  async checkBackendConnection() {
+    // ✅ NUEVO: OBTENER CONTENIDO DE LANDING PAGE
+  async getLandingContent() {
+    console.log('📄 FETCHING LANDING CONTENT...');
     try {
-      console.log('🔌 CHECKING BACKEND CONNECTION...');
-      
-      const startTime = Date.now();
-      const response = await api.get('/api/health');
-      const responseTime = Date.now() - startTime;
-      
-      if (response.data.success) {
-        console.log('✅ BACKEND CONNECTED SUCCESSFULLY');
-        console.log(`⚡ Response time: ${responseTime}ms`);
-        console.log('📦 Health data:', response.data);
+      const result = await this.get('/content/landing');
+      console.log('✅ LANDING CONTENT RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ LANDING CONTENT FAILED:', error.message);
+      throw error;
+    }
+  }
+    
+    // VERIFICAR CONEXIÓN MEJORADA
+    async checkBackendConnection() {
+      try {
+        console.log('🔌 CHECKING BACKEND CONNECTION...');
+        
+        const startTime = Date.now();
+        const response = await api.get('/api/health');
+        const responseTime = Date.now() - startTime;
+        
+        if (response.data.success) {
+          console.log('✅ BACKEND CONNECTED SUCCESSFULLY');
+          console.log(`⚡ Response time: ${responseTime}ms`);
+          console.log('📦 Health data:', response.data);
+          
+          return { 
+            connected: true, 
+            data: response.data, 
+            responseTime,
+            status: 'connected'
+          };
+        } else {
+          console.warn('⚠️ BACKEND RESPONDED WITH ERROR');
+          return { 
+            connected: false, 
+            error: 'Backend error response',
+            status: 'error'
+          };
+        }
+      } catch (error) {
+        console.log('❌ BACKEND CONNECTION FAILED');
+        
+        let errorType = 'unknown';
+        let suggestion = 'Check backend configuration';
+        
+        if (error.code === 'ERR_NETWORK') {
+          errorType = 'network';
+          suggestion = 'Backend server is not running or CORS issue';
+        } else if (error.response?.status === 404) {
+          errorType = 'endpoint_not_found';
+          suggestion = 'Health check endpoint missing in backend';
+        } else if (error.code === 'ECONNABORTED') {
+          errorType = 'timeout';
+          suggestion = 'Backend is taking too long to respond';
+        }
+        
+        console.log(`💡 Suggestion: ${suggestion}`);
         
         return { 
-          connected: true, 
-          data: response.data, 
-          responseTime,
-          status: 'connected'
-        };
-      } else {
-        console.warn('⚠️ BACKEND RESPONDED WITH ERROR');
-        return { 
           connected: false, 
-          error: 'Backend error response',
-          status: 'error'
+          error: error.message,
+          errorType,
+          suggestion,
+          status: 'disconnected'
         };
       }
-    } catch (error) {
-      console.log('❌ BACKEND CONNECTION FAILED');
-      
-      let errorType = 'unknown';
-      let suggestion = 'Check backend configuration';
-      
-      if (error.code === 'ERR_NETWORK') {
-        errorType = 'network';
-        suggestion = 'Backend server is not running or CORS issue';
-      } else if (error.response?.status === 404) {
-        errorType = 'endpoint_not_found';
-        suggestion = 'Health check endpoint missing in backend';
-      } else if (error.code === 'ECONNABORTED') {
-        errorType = 'timeout';
-        suggestion = 'Backend is taking too long to respond';
-      }
-      
-      console.log(`💡 Suggestion: ${suggestion}`);
-      
-      return { 
-        connected: false, 
-        error: error.message,
-        errorType,
-        suggestion,
-        status: 'disconnected'
-      };
     }
-  }
-  
-  // VERIFICAR AUTENTICACIÓN
-  isAuthenticated() {
-    return !!localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
-  }
-  
-  // OBTENER TOKEN
-  getToken() {
-    return localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
-  }
-  
-  // LOGOUT
-  logout() {
-    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
-    console.log('🚪 USER LOGGED OUT');
-    toast.success('Sesión cerrada exitosamente');
-    window.location.href = '/login';
-  }
+    
+    // VERIFICAR AUTENTICACIÓN
+    isAuthenticated() {
+      return !!localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+    }
+    
+    // OBTENER TOKEN
+    getToken() {
+      return localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+    }
+    
+    // LOGOUT
+    logout() {
+      localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+      console.log('🚪 USER LOGGED OUT');
+      toast.success('Sesión cerrada exitosamente');
+      window.location.href = '/login';
+    }
 }
-
-
-
 
 // 🏭 EXPORTAR INSTANCIA SINGLETON
 const apiService = new ApiService();
