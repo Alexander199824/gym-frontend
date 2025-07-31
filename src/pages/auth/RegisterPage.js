@@ -15,13 +15,8 @@ import {
   User, 
   Phone, 
   Calendar,
-  Dumbbell,
   CheckCircle,
   ArrowLeft,
-  Shield,
-  Star,
-  Trophy,
-  AlertTriangle,
   Check,
   X
 } from 'lucide-react';
@@ -78,17 +73,25 @@ const registerSchema = yup.object({
   whatsapp: yup
     .string()
     .nullable()
-    .when('whatsapp', {
-      is: (value) => value && value.length > 0,
-      then: (schema) => schema
-        .matches(/^[\+]?[\d\s\-\(\)]+$/, 'El WhatsApp solo puede contener números, espacios, guiones y paréntesis')
-        .min(8, 'El WhatsApp debe tener al menos 8 dígitos')
-        .test('valid-guatemala-whatsapp', 'Formato de WhatsApp inválido para Guatemala', (value) => {
-          if (!value) return true;
-          const cleanPhone = value.replace(/[\s\-\(\)]/g, '');
-          return /^(\+502)?[2-9]\d{7}$/.test(cleanPhone);
-        }),
-      otherwise: (schema) => schema.nullable()
+    .notRequired()
+    .test('valid-whatsapp', 'Formato de WhatsApp inválido para Guatemala', function(value) {
+      if (!value || value.length === 0) return true; // Es opcional
+      
+      // Validar formato si se proporciona
+      if (!/^[\+]?[\d\s\-\(\)]+$/.test(value)) {
+        return this.createError({ message: 'El WhatsApp solo puede contener números, espacios, guiones y paréntesis' });
+      }
+      
+      if (value.length < 8) {
+        return this.createError({ message: 'El WhatsApp debe tener al menos 8 dígitos' });
+      }
+      
+      const cleanPhone = value.replace(/[\s\-\(\)]/g, '');
+      if (!/^(\+502)?[2-9]\d{7}$/.test(cleanPhone)) {
+        return this.createError({ message: 'Formato de WhatsApp inválido para Guatemala' });
+      }
+      
+      return true;
     }),
   password: yup
     .string()
@@ -305,23 +308,8 @@ const RegisterPage = () => {
           </h2>
           
           <p className="text-gray-600 mb-6">
-            Tu cuenta ha sido creada exitosamente. Ahora eres parte de la comunidad fitness más elite de Guatemala.
+            Tu cuenta ha sido creada exitosamente. Ahora eres parte de nuestra comunidad fitness.
           </p>
-          
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center justify-center text-sm text-gray-600">
-              <Trophy className="w-4 h-4 text-primary-500 mr-2" />
-              Primera semana gratis incluida
-            </div>
-            <div className="flex items-center justify-center text-sm text-gray-600">
-              <Star className="w-4 h-4 text-secondary-500 mr-2" />
-              Evaluación física gratuita
-            </div>
-            <div className="flex items-center justify-center text-sm text-gray-600">
-              <Shield className="w-4 h-4 text-success-500 mr-2" />
-              Plan personalizado incluido
-            </div>
-          </div>
           
           <div className="flex justify-center">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
@@ -358,16 +346,11 @@ const RegisterPage = () => {
                   <img 
                     src={config.logo.url}
                     alt={config.logo.alt || 'Logo'}
-                    className="h-8 w-auto object-contain"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
+                    className="h-10 w-auto object-contain sm:h-12"
                   />
-                ) : null}
-                <div className={`${config && config.logo && config.logo.url ? "hidden" : "flex"} w-8 h-8 bg-elite-gradient rounded-xl items-center justify-center`}>
-                  <Dumbbell className="w-5 h-5 text-white" />
-                </div>
+                ) : (
+                  <GymLogo size="md" variant="gradient" showText={false} />
+                )}
                 <span className="font-display font-bold text-lg text-gray-800 hidden sm:inline">
                   {config?.name || 'Elite Fitness Club'}
                 </span>
@@ -397,36 +380,11 @@ const RegisterPage = () => {
               </span>
             </h1>
             <p className="text-xl text-gray-600 max-w-lg mx-auto">
-              Comienza tu transformación hoy mismo. Primera semana gratis para nuevos miembros.
+              Comienza tu transformación hoy mismo. Crea tu cuenta y únete a nuestra comunidad.
             </p>
           </div>
           
-          {/* 🏆 Beneficios destacados */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div className="text-center p-4 bg-white rounded-xl shadow-sm">
-              <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Trophy className="w-6 h-6 text-primary-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">Primera semana gratis</h3>
-              <p className="text-sm text-gray-600">Conoce nuestras instalaciones sin compromiso</p>
-            </div>
-            
-            <div className="text-center p-4 bg-white rounded-xl shadow-sm">
-              <div className="w-12 h-12 bg-secondary-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Star className="w-6 h-6 text-secondary-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">Evaluación gratuita</h3>
-              <p className="text-sm text-gray-600">Análisis completo de tu estado físico</p>
-            </div>
-            
-            <div className="text-center p-4 bg-white rounded-xl shadow-sm">
-              <div className="w-12 h-12 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Shield className="w-6 h-6 text-success-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">Plan personalizado</h3>
-              <p className="text-sm text-gray-600">Diseñado específicamente para ti</p>
-            </div>
-          </div>
+
           
           {/* 📝 FORMULARIO DE REGISTRO */}
           <div className="bg-white rounded-2xl shadow-xl p-8">

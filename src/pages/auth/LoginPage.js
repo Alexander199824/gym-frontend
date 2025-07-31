@@ -217,18 +217,13 @@ const LoginPage = () => {
               <img 
                 src={config.logo.url}
                 alt={config.logo.alt || 'Logo'}
-                className="h-20 w-auto object-contain"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
+                className="h-24 w-auto object-contain sm:h-28 lg:h-32"
               />
-              <div className="hidden">
-                <GymLogo size="xl" variant="gradient" showText={false} />
-              </div>
             </div>
           ) : (
-            <GymLogo size="xl" variant="gradient" showText={false} />
+            <div className="flex justify-center mb-8">
+              <GymLogo size="xl" variant="gradient" showText={false} />
+            </div>
           )}
           
           <div className="mt-8">
@@ -259,9 +254,19 @@ const LoginPage = () => {
         <div className="relative z-10 text-center text-white">
           {/* Logo Elite Fitness */}
           <div className="flex justify-center mb-8">
-            <div className="w-24 h-24 bg-white bg-opacity-20 backdrop-blur-lg rounded-3xl flex items-center justify-center">
-              <Dumbbell className="w-12 h-12 text-white" />
-            </div>
+            {config && config.logo && config.logo.url ? (
+              <div className="w-32 h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48 bg-white bg-opacity-20 backdrop-blur-lg rounded-3xl flex items-center justify-center p-6">
+                <img 
+                  src={config.logo.url}
+                  alt={config.logo.alt || 'Logo'}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="w-32 h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48 bg-white bg-opacity-20 backdrop-blur-lg rounded-3xl flex items-center justify-center">
+                <Dumbbell className="w-16 h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 text-white" />
+              </div>
+            )}
           </div>
           
           {/* Título principal */}
@@ -273,42 +278,6 @@ const LoginPage = () => {
           <p className="text-2xl font-light mb-12 opacity-90">
             {config?.description || 'Transforma tu cuerpo, eleva tu mente'}
           </p>
-          
-          {/* Características */}
-          <div className="space-y-6 max-w-md mx-auto">
-            <div className="flex items-center justify-center space-x-4">
-              <div className="w-3 h-3 bg-white rounded-full opacity-80"></div>
-              <span className="text-lg">Entrenamiento personalizado</span>
-            </div>
-            <div className="flex items-center justify-center space-x-4">
-              <div className="w-3 h-3 bg-white rounded-full opacity-80"></div>
-              <span className="text-lg">Equipos de última generación</span>
-            </div>
-            <div className="flex items-center justify-center space-x-4">
-              <div className="w-3 h-3 bg-white rounded-full opacity-80"></div>
-              <span className="text-lg">Resultados garantizados</span>
-            </div>
-            <div className="flex items-center justify-center space-x-4">
-              <div className="w-3 h-3 bg-white rounded-full opacity-80"></div>
-              <span className="text-lg">Comunidad fitness elite</span>
-            </div>
-          </div>
-          
-          {/* Estadísticas */}
-          <div className="grid grid-cols-3 gap-8 mt-16 pt-16 border-t border-white border-opacity-20">
-            <div className="text-center">
-              <div className="text-3xl font-bold">2000+</div>
-              <div className="text-sm opacity-80">Miembros</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold">50+</div>
-              <div className="text-sm opacity-80">Entrenadores</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold">15+</div>
-              <div className="text-sm opacity-80">Años</div>
-            </div>
-          </div>
         </div>
       </div>
       
@@ -328,22 +297,17 @@ const LoginPage = () => {
         
         <div className="mx-auto w-full max-w-md">
           
-          {/* 🏠 Logo móvil - Usando logo del backend */}
+          {/* 🏠 Logo móvil */}
           <div className="flex justify-center mb-8 lg:hidden">
             {config && config.logo && config.logo.url ? (
               <img 
                 src={config.logo.url}
                 alt={config.logo.alt || 'Logo'}
-                className="h-16 w-auto object-contain"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
+                className="h-20 w-auto object-contain sm:h-24"
               />
-            ) : null}
-            <div className={config && config.logo && config.logo.url ? "hidden" : "block"}>
-              <GymLogo size="lg" variant="gradient" showText={false} />
-            </div>
+            ) : (
+              <GymLogo size="xl" variant="gradient" showText={false} />
+            )}
           </div>
           
           {/* 📝 Título */}
@@ -532,26 +496,6 @@ const LoginPage = () => {
               ← Volver a {config?.name || 'Elite Fitness Club'}
             </Link>
           </div>
-          
-          {/* 🛠️ Información técnica (solo en desarrollo) */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-              <div className="flex items-center mb-2">
-                <AlertCircle className="w-4 h-4 text-blue-600 mr-2" />
-                <span className="text-sm font-semibold text-blue-800">
-                  Información de desarrollo
-                </span>
-              </div>
-              <div className="text-xs text-blue-700 space-y-1">
-                <p><strong>Backend URL:</strong> {process.env.REACT_APP_API_URL || 'http://localhost:5000'}</p>
-                <p><strong>Login tradicional:</strong> /api/auth/login</p>
-                <p><strong>OAuth Endpoint:</strong> /api/auth/google</p>
-                <p><strong>Estado:</strong> {isCredentialsLoading ? 'Cargando credenciales' : isGoogleLoading ? 'Cargando Google' : 'Listo'}</p>
-                <p><strong>Método actual:</strong> {loginMethod}</p>
-                {oauthError && <p><strong>Error OAuth:</strong> {oauthError}</p>}
-              </div>
-            </div>
-          )}
           
         </div>
       </div>
