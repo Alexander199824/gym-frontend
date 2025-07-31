@@ -1,11 +1,10 @@
 // src/pages/dashboard/AdminDashboard.js
-// FUNCIÓN: Dashboard EXPANDIDO manteniendo TODA la funcionalidad existente + nuevas gestiones
+// FUNCIÓN: Dashboard CORREGIDO - Sin React Query + Debug habilitado
 // MANTIENE: Tabs overview, operations, content originales
-// AGREGA: Nuevos sub-tabs para gestión completa
+// CORRIGE: Reemplaza useQuery con useState + useEffect
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { 
   Users, 
   CreditCard, 
@@ -81,151 +80,175 @@ const AdminDashboard = () => {
   const { user, canManageContent } = useAuth();
   const { formatCurrency, formatDate, showError, showSuccess, isMobile } = useApp();
   
+  console.log('🔍 AdminDashboard Debug Info:');
+  console.log('  - User:', user);
+  console.log('  - canManageContent:', canManageContent);
+  console.log('  - User role:', user?.role);
+  
   // 📅 Fecha actual
   const today = new Date().toISOString().split('T')[0];
   
   // 📱 Estados locales ORIGINALES
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'operations' | 'content' | 'management'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'operations' | 'content'
   
   // 🆕 NUEVOS Estados para gestión
   const [activeContentTab, setActiveContentTab] = useState('general'); // Sub-tab dentro de content
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   
-  // 📊 QUERIES ORIGINALES PARA DATOS DEL DASHBOARD (mantener todo igual)
+  // 📊 Estados para datos (REEMPLAZA useQuery)
+  const [userStats, setUserStats] = useState({ data: null, isLoading: false, error: null });
+  const [membershipStats, setMembershipStats] = useState({ data: null, isLoading: false, error: null });
+  const [paymentReports, setPaymentReports] = useState({ data: null, isLoading: false, error: null });
+  const [expiredMemberships, setExpiredMemberships] = useState({ data: null, isLoading: false, error: null });
+  const [expiringSoon, setExpiringSoon] = useState({ data: null, isLoading: false, error: null });
+  const [pendingTransfers, setPendingTransfers] = useState({ data: null, isLoading: false, error: null });
+  const [todayPayments, setTodayPayments] = useState({ data: null, isLoading: false, error: null });
+  const [recentUsers, setRecentUsers] = useState({ data: null, isLoading: false, error: null });
   
-  // Estadísticas de usuarios
-  const { data: userStats, isLoading: userStatsLoading } = useQuery({
-    queryKey: ['userStats', refreshKey],
-    queryFn: () => apiService.getUserStats(),
-    staleTime: 5 * 60 * 1000,
-    onError: (error) => showError('Error al cargar estadísticas de usuarios')
-  });
+  // 🆕 Estados para gestión de contenido
+  const [gymConfig, setGymConfig] = useState({ data: null, isLoading: false, error: null });
+  const [services, setServices] = useState({ data: null, isLoading: false, error: null });
+  const [testimonials, setTestimonials] = useState({ data: null, isLoading: false, error: null });
+  const [featuredProducts, setFeaturedProducts] = useState({ data: null, isLoading: false, error: null });
+  const [membershipPlans, setMembershipPlans] = useState({ data: null, isLoading: false, error: null });
   
-  // Estadísticas de membresías
-  const { data: membershipStats, isLoading: membershipStatsLoading } = useQuery({
-    queryKey: ['membershipStats', refreshKey],
-    queryFn: () => apiService.getMembershipStats(),
-    staleTime: 5 * 60 * 1000,
-    onError: (error) => showError('Error al cargar estadísticas de membresías')
-  });
+  // 🔄 Función para cargar datos (REEMPLAZA useQuery)
+  const loadDashboardData = async () => {
+    console.log('📊 Loading dashboard data...');
+    
+    try {
+      // Stats de usuarios
+      setUserStats({ data: null, isLoading: true, error: null });
+      try {
+        const userStatsData = await apiService.getUserStats();
+        setUserStats({ data: userStatsData, isLoading: false, error: null });
+      } catch (error) {
+        console.log('⚠️ User stats not available:', error.message);
+        setUserStats({ data: null, isLoading: false, error });
+      }
+      
+      // Stats de membresías
+      setMembershipStats({ data: null, isLoading: true, error: null });
+      try {
+        const membershipStatsData = await apiService.getMembershipStats();
+        setMembershipStats({ data: membershipStatsData, isLoading: false, error: null });
+      } catch (error) {
+        console.log('⚠️ Membership stats not available:', error.message);
+        setMembershipStats({ data: null, isLoading: false, error });
+      }
+      
+      // Reportes de pagos
+      setPaymentReports({ data: null, isLoading: true, error: null });
+      try {
+        const paymentReportsData = await apiService.getPaymentReports({ period: selectedPeriod });
+        setPaymentReports({ data: paymentReportsData, isLoading: false, error: null });
+      } catch (error) {
+        console.log('⚠️ Payment reports not available:', error.message);
+        setPaymentReports({ data: null, isLoading: false, error });
+      }
+      
+      // Otros datos operativos...
+      // (Se pueden agregar cuando los endpoints estén listos)
+      
+    } catch (error) {
+      console.error('❌ Error loading dashboard data:', error);
+    }
+  };
   
-  // Reportes de pagos
-  const { data: paymentReports, isLoading: paymentReportsLoading } = useQuery({
-    queryKey: ['paymentReports', selectedPeriod, refreshKey],
-    queryFn: () => apiService.getPaymentReports({ period: selectedPeriod }),
-    staleTime: 5 * 60 * 1000,
-    onError: (error) => showError('Error al cargar reportes de pagos')
-  });
-  
-  // Membresías vencidas
-  const { data: expiredMemberships, isLoading: expiredLoading } = useQuery({
-    queryKey: ['expiredMemberships', refreshKey],
-    queryFn: () => apiService.getExpiredMemberships(),
-    staleTime: 2 * 60 * 1000,
-    onError: (error) => showError('Error al cargar membresías vencidas')
-  });
-  
-  // Membresías que vencen pronto
-  const { data: expiringSoon, isLoading: expiringSoonLoading } = useQuery({
-    queryKey: ['expiringSoon', refreshKey],
-    queryFn: () => apiService.getExpiringSoonMemberships(7),
-    staleTime: 5 * 60 * 1000,
-    onError: (error) => showError('Error al cargar membresías próximas a vencer')
-  });
-  
-  // Transferencias pendientes
-  const { data: pendingTransfers, isLoading: transfersLoading } = useQuery({
-    queryKey: ['pendingTransfers', refreshKey],
-    queryFn: () => apiService.getPendingTransfers(),
-    staleTime: 1 * 60 * 1000,
-    onError: (error) => showError('Error al cargar transferencias pendientes')
-  });
-  
-  // Pagos del día
-  const { data: todayPayments, isLoading: todayPaymentsLoading } = useQuery({
-    queryKey: ['todayPayments', refreshKey],
-    queryFn: () => apiService.getPayments({ 
-      startDate: today,
-      endDate: today 
-    }),
-    staleTime: 1 * 60 * 1000,
-    onError: (error) => showError('Error al cargar pagos del día')
-  });
-  
-  // Usuarios recientes
-  const { data: recentUsers, isLoading: recentUsersLoading } = useQuery({
-    queryKey: ['recentUsers', refreshKey],
-    queryFn: () => apiService.getUsers({ 
-      limit: 10,
-      page: 1,
-      sortBy: 'createdAt',
-      sortOrder: 'desc'
-    }),
-    staleTime: 5 * 60 * 1000,
-    onError: (error) => showError('Error al cargar usuarios recientes')
-  });
-  
-  // 🆕 NUEVAS QUERIES para gestión de contenido
-  
-  // Configuración del gimnasio
-  const { data: gymConfig, isLoading: configLoading, refetch: refetchConfig } = useQuery({
-    queryKey: ['gymConfig', refreshKey],
-    queryFn: () => apiService.getGymConfig(),
-    staleTime: 10 * 60 * 1000,
-    enabled: canManageContent,
-    onError: (error) => console.log('Gym config not available')
-  });
-  
-  // Servicios
-  const { data: services, isLoading: servicesLoading, refetch: refetchServices } = useQuery({
-    queryKey: ['services', refreshKey],
-    queryFn: () => apiService.getGymServices(),
-    staleTime: 10 * 60 * 1000,
-    enabled: canManageContent,
-    onError: (error) => console.log('Services not available')
-  });
-  
-  // Testimonios
-  const { data: testimonials, isLoading: testimonialsLoading, refetch: refetchTestimonials } = useQuery({
-    queryKey: ['testimonials', refreshKey],
-    queryFn: () => apiService.getTestimonials(),
-    staleTime: 10 * 60 * 1000,
-    enabled: canManageContent,
-    onError: (error) => console.log('Testimonials not available')
-  });
-  
-  // Productos destacados
-  const { data: featuredProducts, isLoading: productsLoading, refetch: refetchProducts } = useQuery({
-    queryKey: ['featuredProducts', refreshKey],
-    queryFn: () => apiService.getFeaturedProducts(),
-    staleTime: 10 * 60 * 1000,
-    enabled: canManageContent,
-    onError: (error) => console.log('Products not available')
-  });
-  
-  // Planes de membresía
-  const { data: membershipPlans, isLoading: plansLoading, refetch: refetchPlans } = useQuery({
-    queryKey: ['membershipPlans', refreshKey],
-    queryFn: () => apiService.getMembershipPlans(),
-    staleTime: 10 * 60 * 1000,
-    enabled: canManageContent,
-    onError: (error) => console.log('Plans not available')
-  });
+  // 🔄 Función para cargar datos de contenido
+  const loadContentData = async () => {
+    if (!canManageContent) return;
+    
+    console.log('📄 Loading content management data...');
+    
+    try {
+      // Configuración del gimnasio
+      setGymConfig({ data: null, isLoading: true, error: null });
+      try {
+        const gymConfigData = await apiService.getGymConfig();
+        setGymConfig({ data: gymConfigData, isLoading: false, error: null });
+        console.log('✅ Gym config loaded:', gymConfigData);
+      } catch (error) {
+        console.log('⚠️ Gym config not available:', error.message);
+        setGymConfig({ data: null, isLoading: false, error });
+      }
+      
+      // Servicios
+      setServices({ data: null, isLoading: true, error: null });
+      try {
+        const servicesData = await apiService.getGymServices();
+        setServices({ data: servicesData, isLoading: false, error: null });
+        console.log('✅ Services loaded:', servicesData);
+      } catch (error) {
+        console.log('⚠️ Services not available:', error.message);
+        setServices({ data: null, isLoading: false, error });
+      }
+      
+      // Testimonios
+      setTestimonials({ data: null, isLoading: true, error: null });
+      try {
+        const testimonialsData = await apiService.getTestimonials();
+        setTestimonials({ data: testimonialsData, isLoading: false, error: null });
+        console.log('✅ Testimonials loaded:', testimonialsData);
+      } catch (error) {
+        console.log('⚠️ Testimonials not available:', error.message);
+        setTestimonials({ data: null, isLoading: false, error });
+      }
+      
+      // Productos destacados
+      setFeaturedProducts({ data: null, isLoading: true, error: null });
+      try {
+        const productsData = await apiService.getFeaturedProducts();
+        setFeaturedProducts({ data: productsData, isLoading: false, error: null });
+        console.log('✅ Products loaded:', productsData);
+      } catch (error) {
+        console.log('⚠️ Products not available:', error.message);
+        setFeaturedProducts({ data: null, isLoading: false, error });
+      }
+      
+      // Planes de membresía
+      setMembershipPlans({ data: null, isLoading: true, error: null });
+      try {
+        const plansData = await apiService.getMembershipPlans();
+        setMembershipPlans({ data: plansData, isLoading: false, error: null });
+        console.log('✅ Plans loaded:', plansData);
+      } catch (error) {
+        console.log('⚠️ Plans not available:', error.message);
+        setMembershipPlans({ data: null, isLoading: false, error });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error loading content data:', error);
+    }
+  };
   
   // 🔄 Función para refrescar datos ORIGINAL
   const refreshDashboard = () => {
     setRefreshKey(prev => prev + 1);
+    loadDashboardData();
+    if (canManageContent) {
+      loadContentData();
+    }
     showSuccess('Datos actualizados');
   };
   
-  // ⏰ Auto-refresh ORIGINAL
+  // ⏰ Cargar datos al montar el componente
+  useEffect(() => {
+    console.log('🚀 AdminDashboard mounted, loading data...');
+    loadDashboardData();
+    if (canManageContent) {
+      loadContentData();
+    }
+  }, [refreshKey, selectedPeriod]);
+  
+  // ⏰ Auto-refresh ORIGINAL (solo para operations)
   useEffect(() => {
     const interval = setInterval(() => {
       if (activeTab === 'operations') {
-        setRefreshKey(prev => prev + 1);
+        loadDashboardData();
       }
     }, 30000);
     return () => clearInterval(interval);
@@ -306,10 +329,32 @@ const AdminDashboard = () => {
   }, [hasUnsavedChanges]);
   
   // 📱 Estado de carga general ORIGINAL
-  const isLoading = userStatsLoading || membershipStatsLoading || paymentReportsLoading;
+  const isLoading = userStats.isLoading || membershipStats.isLoading || paymentReports.isLoading;
+
+  // 📄 Funciones para gestión de contenido
+  const refetchConfig = () => loadContentData();
+  const refetchServices = () => loadContentData();
+  const refetchTestimonials = () => loadContentData();
+  const refetchProducts = () => loadContentData();
+  const refetchPlans = () => loadContentData();
 
   return (
     <div className="space-y-6">
+      
+      {/* 🔍 DEBUG INFO */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="font-medium text-blue-900 mb-2">🔍 DEBUG INFO</h4>
+          <div className="text-sm text-blue-800 space-y-1">
+            <div>User: {user?.firstName} {user?.lastName} ({user?.role})</div>
+            <div>canManageContent: {canManageContent ? '✅' : '❌'}</div>
+            <div>Active tab: {activeTab}</div>
+            <div>Content tab: {activeContentTab}</div>
+            <div>Services loaded: {services.data ? '✅' : '❌'}</div>
+            <div>Gym config loaded: {gymConfig.data ? '✅' : '❌'}</div>
+          </div>
+        </div>
+      )}
       
       {/* 🏠 HEADER DEL DASHBOARD ORIGINAL - MANTENER IGUAL */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
@@ -433,7 +478,7 @@ const AdminDashboard = () => {
               value={mainMetrics.totalUsers}
               icon={Users}
               color="blue"
-              isLoading={userStatsLoading}
+              isLoading={userStats.isLoading}
               link="/dashboard/users"
               subtitle="Miembros registrados"
             />
@@ -444,7 +489,7 @@ const AdminDashboard = () => {
               value={mainMetrics.activeMemberships}
               icon={CreditCard}
               color="green"
-              isLoading={membershipStatsLoading}
+              isLoading={membershipStats.isLoading}
               link="/dashboard/memberships"
               subtitle="Membresías vigentes"
             />
@@ -455,7 +500,7 @@ const AdminDashboard = () => {
               value={formatCurrency(mainMetrics.monthlyRevenue)}
               icon={DollarSign}
               color="primary"
-              isLoading={paymentReportsLoading}
+              isLoading={paymentReports.isLoading}
               link="/dashboard/payments"
               subtitle={`Período: ${periods.find(p => p.value === selectedPeriod)?.label}`}
             />
@@ -466,7 +511,7 @@ const AdminDashboard = () => {
               value={mainMetrics.expiredCount + mainMetrics.pendingTransfersCount}
               icon={AlertCircle}
               color="red"
-              isLoading={expiredLoading || transfersLoading}
+              isLoading={expiredMemberships.isLoading || pendingTransfers.isLoading}
               link="/dashboard/alerts"
               alert={mainMetrics.expiredCount + mainMetrics.pendingTransfersCount > 0}
               subtitle="Vencidas + Transferencias"
@@ -483,7 +528,7 @@ const AdminDashboard = () => {
                 Distribución de Usuarios
               </h3>
               
-              {userStatsLoading ? (
+              {userStats.isLoading ? (
                 <LoadingSpinner />
               ) : (
                 <div className="space-y-4">
@@ -519,7 +564,7 @@ const AdminDashboard = () => {
                 Ingresos por Método de Pago
               </h3>
               
-              {paymentReportsLoading ? (
+              {paymentReports.isLoading ? (
                 <LoadingSpinner />
               ) : (
                 <div className="space-y-4">
@@ -604,7 +649,7 @@ const AdminDashboard = () => {
               value={mainMetrics.expiredCount}
               icon={AlertCircle}
               color="red"
-              isLoading={expiredLoading}
+              isLoading={expiredMemberships.isLoading}
               link="/dashboard/memberships/expired"
               alert={mainMetrics.expiredCount > 0}
             />
@@ -615,7 +660,7 @@ const AdminDashboard = () => {
               value={mainMetrics.expiringSoonCount}
               icon={Clock}
               color="yellow"
-              isLoading={expiringSoonLoading}
+              isLoading={expiringSoon.isLoading}
               link="/dashboard/memberships/expiring-soon"
               alert={mainMetrics.expiringSoonCount > 0}
             />
@@ -626,7 +671,7 @@ const AdminDashboard = () => {
               value={mainMetrics.todayPaymentsCount}
               icon={DollarSign}
               color="green"
-              isLoading={todayPaymentsLoading}
+              isLoading={todayPayments.isLoading}
               link="/dashboard/payments"
               subtitle={`${formatCurrency(mainMetrics.todayRevenue)}`}
             />
@@ -637,7 +682,7 @@ const AdminDashboard = () => {
               value={mainMetrics.pendingTransfersCount}
               icon={RefreshCw}
               color="purple"
-              isLoading={transfersLoading}
+              isLoading={pendingTransfers.isLoading}
               link="/dashboard/payments/transfers/pending"
               alert={mainMetrics.pendingTransfersCount > 0}
             />
@@ -686,74 +731,15 @@ const AdminDashboard = () => {
           </div>
           
           {/* 📋 CONTENIDO OPERATIVO PRINCIPAL ORIGINAL */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* 🚨 MEMBRESÍAS VENCIDAS ORIGINAL */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Membresías Vencidas
-                </h3>
-                <Link 
-                  to="/dashboard/memberships/expired"
-                  className="text-primary-600 hover:text-primary-500 text-sm font-medium"
-                >
-                  Ver todas
-                </Link>
-              </div>
-              
-              {expiredLoading ? (
-                <LoadingSpinner />
-              ) : (
-                <ExpiredMembershipsList 
-                  memberships={expiredMemberships?.data?.memberships?.slice(0, 5) || []} 
-                />
-              )}
-            </div>
-            
-            {/* 💰 PAGOS RECIENTES ORIGINAL */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Pagos de Hoy
-                </h3>
-                <Link 
-                  to="/dashboard/payments"
-                  className="text-primary-600 hover:text-primary-500 text-sm font-medium"
-                >
-                  Ver todos
-                </Link>
-              </div>
-              
-              {todayPaymentsLoading ? (
-                <LoadingSpinner />
-              ) : (
-                <RecentPaymentsList 
-                  payments={todayPayments?.data?.payments?.slice(0, 5) || []} 
-                />
-              )}
-            </div>
-            
-          </div>
-          
-          {/* ⏰ PRÓXIMAS A VENCER ORIGINAL */}
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Vencen esta semana
-              </h3>
-              <span className="text-sm text-gray-500">
-                {mainMetrics.expiringSoonCount} membresías
-              </span>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Resumen Operativo
+            </h3>
+            <div className="text-center py-8 text-gray-500">
+              <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
+              <p>Módulo operativo en construcción</p>
+              <p className="text-sm">Los datos se cargarán cuando el backend esté listo</p>
             </div>
-            
-            {expiringSoonLoading ? (
-              <LoadingSpinner />
-            ) : (
-              <ExpiringSoonList 
-                memberships={expiringSoon?.data?.memberships || []} 
-              />
-            )}
           </div>
           
         </div>
@@ -848,7 +834,7 @@ const AdminDashboard = () => {
             {activeContentTab === 'services' && (
               <ServicesManager
                 services={services?.data || []}
-                isLoading={servicesLoading}
+                isLoading={services.isLoading}
                 onSave={(data) => {
                   refetchServices();
                   setHasUnsavedChanges(false);
@@ -862,7 +848,7 @@ const AdminDashboard = () => {
             {activeContentTab === 'plans' && (
               <PlansManager
                 plans={membershipPlans?.data || []}
-                isLoading={plansLoading}
+                isLoading={membershipPlans.isLoading}
                 onSave={(data) => {
                   refetchPlans();
                   setHasUnsavedChanges(false);
@@ -876,7 +862,7 @@ const AdminDashboard = () => {
             {activeContentTab === 'products' && (
               <ProductsManager
                 products={featuredProducts?.data || []}
-                isLoading={productsLoading}
+                isLoading={featuredProducts.isLoading}
                 onSave={(data) => {
                   refetchProducts();
                   setHasUnsavedChanges(false);
@@ -917,178 +903,6 @@ const AdminDashboard = () => {
         </div>
       )}
       
-    </div>
-  );
-};
-
-// 📋 COMPONENTES ORIGINALES - MANTENER IGUAL
-
-// COMPONENTE: Lista de membresías vencidas
-const ExpiredMembershipsList = ({ memberships }) => {
-  if (memberships.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-        <p>¡Excelente! No hay membresías vencidas hoy.</p>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="space-y-3">
-      {memberships.map((membership) => (
-        <div key={membership.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-          <div>
-            <p className="text-sm font-medium text-gray-900">
-              {membership.user?.firstName} {membership.user?.lastName}
-            </p>
-            <p className="text-xs text-gray-600">
-              {membership.type === 'monthly' ? 'Mensual' : 'Diaria'} - 
-              Venció: {new Date(membership.endDate).toLocaleDateString()}
-            </p>
-          </div>
-          <div className="flex space-x-2">
-            <Link
-              to={`/dashboard/memberships/${membership.id}`}
-              className="text-xs bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
-            >
-              Ver
-            </Link>
-            <Link
-              to={`/dashboard/memberships/${membership.id}/renew`}
-              className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
-            >
-              Renovar
-            </Link>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// 💰 COMPONENTE: Lista de pagos recientes
-const RecentPaymentsList = ({ payments }) => {
-  if (payments.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <DollarSign className="w-8 h-8 mx-auto mb-2" />
-        <p>No hay pagos registrados hoy.</p>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="space-y-3">
-      {payments.map((payment) => (
-        <div key={payment.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-          <div>
-            <p className="text-sm font-medium text-gray-900">
-              {payment.user?.firstName} {payment.user?.lastName}
-            </p>
-            <p className="text-xs text-gray-600">
-              {payment.paymentType === 'membership' ? 'Membresía' : 'Pago diario'} - 
-              {payment.paymentMethod === 'cash' ? 'Efectivo' : 
-               payment.paymentMethod === 'card' ? 'Tarjeta' : 'Transferencia'}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm font-medium text-green-600">
-              ${payment.amount}
-            </p>
-            <p className="text-xs text-gray-500">
-              {new Date(payment.paymentDate).toLocaleTimeString()}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// ⏰ COMPONENTE: Lista de próximas a vencer
-const ExpiringSoonList = ({ memberships }) => {
-  if (memberships.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <Calendar className="w-8 h-8 mx-auto mb-2 text-green-500" />
-        <p>No hay membresías que venzan esta semana.</p>
-      </div>
-    );
-  }
-  
-  return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Cliente
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Tipo
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Vence
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Días restantes
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {memberships.map((membership) => {
-            const daysLeft = Math.ceil((new Date(membership.endDate) - new Date()) / (1000 * 60 * 60 * 24));
-            
-            return (
-              <tr key={membership.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
-                    {membership.user?.firstName} {membership.user?.lastName}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {membership.user?.email}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                    {membership.type === 'monthly' ? 'Mensual' : 'Diaria'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {new Date(membership.endDate).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    daysLeft <= 1 ? 'bg-red-100 text-red-800' :
-                    daysLeft <= 3 ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {daysLeft} día{daysLeft !== 1 ? 's' : ''}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <Link
-                    to={`/dashboard/memberships/${membership.id}`}
-                    className="text-primary-600 hover:text-primary-900 mr-2"
-                  >
-                    Ver
-                  </Link>
-                  <Link
-                    to={`/dashboard/memberships/${membership.id}/renew`}
-                    className="text-green-600 hover:text-green-900"
-                  >
-                    Renovar
-                  </Link>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 };

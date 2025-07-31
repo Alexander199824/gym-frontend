@@ -2,6 +2,7 @@
 // UBICACIÓN: /gym-frontend/src/contexts/AuthContext.js
 // FUNCIÓN: Manejo del estado global de autenticación CORREGIDO
 // CAMBIOS: Eliminada redirección automática, retorna datos para que LoginPage maneje redirección
+// 🆕 AGREGADO: canManageContent para gestión de contenido
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import apiService from '../services/apiService';
@@ -142,7 +143,13 @@ function getUserPermissions(role) {
       'register_daily_income',
       'view_reports',
       'view_statistics',
-      'manage_system_settings'
+      'manage_system_settings',
+      'manage_content',           // 🆕 Permiso para gestionar contenido
+      'manage_services',          // 🆕 Permiso para gestionar servicios
+      'manage_products',          // 🆕 Permiso para gestionar productos
+      'manage_plans',             // 🆕 Permiso para gestionar planes
+      'manage_branding',          // 🆕 Permiso para gestionar branding
+      'manage_media'              // 🆕 Permiso para gestionar multimedia
     ]
   };
   
@@ -371,6 +378,37 @@ export function AuthProvider({ children }) {
     return state.user?.role === role;
   };
   
+  // 🎨 HELPER: Verificar si puede gestionar contenido de la web
+  const canManageContent = () => {
+    // Los admins pueden gestionar todo el contenido
+    if (hasRole('admin')) return true;
+    
+    // También se puede dar este permiso específico a otros roles
+    return hasPermission('manage_content') || 
+           hasPermission('manage_system_settings');
+  };
+  
+  // 🏪 HELPER: Verificar si puede gestionar productos de la tienda
+  const canManageStore = () => {
+    return hasRole('admin') || 
+           hasPermission('manage_products') || 
+           hasPermission('manage_store');
+  };
+  
+  // 🎯 HELPER: Verificar si puede gestionar servicios
+  const canManageServices = () => {
+    return hasRole('admin') || 
+           hasPermission('manage_services') || 
+           hasPermission('manage_content');
+  };
+  
+  // 🎫 HELPER: Verificar si puede gestionar planes de membresía
+  const canManagePlans = () => {
+    return hasRole('admin') || 
+           hasPermission('manage_plans') || 
+           hasPermission('manage_memberships');
+  };
+  
   // 🔋 HELPER: Verificar si la sesión está próxima a expirar
   const isSessionExpiring = () => {
     if (!state.sessionExpiry) return false;
@@ -405,6 +443,12 @@ export function AuthProvider({ children }) {
     hasRole,
     isSessionExpiring,
     getDashboardPathForRole,
+    
+    // 🆕 FUNCIONES DE GESTIÓN DE CONTENIDO
+    canManageContent,     // ✅ Gestionar contenido web general
+    canManageStore,       // ✅ Gestionar productos de la tienda
+    canManageServices,    // ✅ Gestionar servicios del gimnasio
+    canManagePlans,       // ✅ Gestionar planes de membresía
     
     // Información adicional
     userRole: state.user?.role,
@@ -465,10 +509,8 @@ export function withAuth(Component, requiredPermissions = []) {
   };
 }
 
-// 📝 NOTAS DE USO:
-// - useAuth() para acceder al estado y funciones
-// - withAuth(Component, ['permission']) para proteger componentes
-// - Los permisos se calculan automáticamente según el rol
-// - La sesión se monitorea automáticamente
-// - El token se guarda automáticamente en localStorage
-// - login() y register() retornan redirectPath para que el componente maneje la redirección
+// 📝 CAMBIOS REALIZADOS:
+// ✅ Agregado canManageContent() que retorna true para admins
+// ✅ Agregados permisos específicos de gestión de contenido
+// ✅ Agregadas funciones canManageStore, canManageServices, canManagePlans
+// ✅ Mantiene TODA la funcionalidad original del AuthContext
