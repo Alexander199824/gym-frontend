@@ -1,7 +1,7 @@
 // src/contexts/AuthContext.js
 // UBICACIÓN: /gym-frontend/src/contexts/AuthContext.js
-// FUNCIÓN: Manejo del estado global de autenticación
-// CONECTA CON: Backend /api/auth/* y localStorage
+// FUNCIÓN: Manejo del estado global de autenticación CORREGIDO
+// CAMBIOS: Eliminada redirección automática, retorna datos para que LoginPage maneje redirección
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import apiService from '../services/apiService';
@@ -157,6 +157,20 @@ function calculateSessionExpiry() {
   return expiry;
 }
 
+// 🏠 HELPER: Determinar ruta de dashboard según rol - MOVIDO AQUÍ
+function getDashboardPath(role) {
+  switch (role) {
+    case 'admin':
+      return '/dashboard/admin';
+    case 'colaborador':
+      return '/dashboard/staff';
+    case 'cliente':
+      return '/dashboard/client';
+    default:
+      return '/dashboard';
+  }
+}
+
 // 🏗️ CREAR CONTEXTOS
 const AuthContext = createContext();
 const AuthDispatchContext = createContext();
@@ -227,28 +241,42 @@ export function AuthProvider({ children }) {
     }
   };
   
-  // Iniciar sesión
+  // ✅ CORREGIDO: Iniciar sesión - SIN redirección automática
   const login = async (credentials) => {
     try {
       dispatch({ type: ACTION_TYPES.AUTH_START });
       
+      console.log('🔑 Iniciando login con credenciales:', { email: credentials.email });
+      
       const response = await apiService.login(credentials);
       
       if (response.success && response.data.user) {
+        console.log('✅ Login exitoso:', {
+          userId: response.data.user.id,
+          userRole: response.data.user.role,
+          userName: `${response.data.user.firstName} ${response.data.user.lastName}`
+        });
+        
         dispatch({ 
           type: ACTION_TYPES.AUTH_SUCCESS, 
           payload: response.data 
         });
         
-        // Redirigir según el rol
-        const redirectPath = getRedirectPath(response.data.user.role);
-        window.location.href = redirectPath;
+        // ✅ RETORNAR DATOS INCLUYENDO RUTA DE REDIRECCIÓN
+        const redirectPath = getDashboardPath(response.data.user.role);
         
-        return response;
+        return {
+          success: true,
+          user: response.data.user,
+          redirectPath,
+          message: 'Login exitoso'
+        };
       } else {
+        dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
         throw new Error(response.message || 'Error en el login');
       }
     } catch (error) {
+      console.error('❌ Error en login:', error);
       dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
       throw error;
     }
@@ -259,19 +287,40 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: ACTION_TYPES.AUTH_START });
       
+      console.log('📝 Iniciando registro:', {
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName
+      });
+      
       const response = await apiService.register(userData);
       
       if (response.success && response.data.user) {
+        console.log('✅ Registro exitoso:', {
+          userId: response.data.user.id,
+          userRole: response.data.user.role
+        });
+        
         dispatch({ 
           type: ACTION_TYPES.AUTH_SUCCESS, 
           payload: response.data 
         });
         
-        return response;
+        // ✅ RETORNAR DATOS INCLUYENDO RUTA DE REDIRECCIÓN
+        const redirectPath = getDashboardPath(response.data.user.role);
+        
+        return {
+          success: true,
+          user: response.data.user,
+          redirectPath,
+          message: 'Registro exitoso'
+        };
       } else {
+        dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
         throw new Error(response.message || 'Error en el registro');
       }
     } catch (error) {
+      console.error('❌ Error en registro:', error);
       dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
       throw error;
     }
@@ -282,7 +331,11 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY);
     dispatch({ type: ACTION_TYPES.LOGOUT });
     toast.success('Sesión cerrada exitosamente');
-    window.location.href = '/login';
+    
+    // ✅ REDIRECCIÓN CONTROLADA - solo al login
+    setTimeout(() => {
+      window.location.href = '/login';
+    }, 500);
   };
   
   // Actualizar perfil del usuario
@@ -308,20 +361,6 @@ export function AuthProvider({ children }) {
     dispatch({ type: ACTION_TYPES.UPDATE_ACTIVITY });
   };
   
-  // ✅ HELPER: Determinar ruta de redirección según rol
-  const getRedirectPath = (role) => {
-    switch (role) {
-      case 'admin':
-        return '/dashboard/admin';
-      case 'colaborador':
-        return '/dashboard/staff';
-      case 'cliente':
-        return '/dashboard/client';
-      default:
-        return '/dashboard';
-    }
-  };
-  
   // 🔒 HELPER: Verificar si el usuario tiene un permiso específico
   const hasPermission = (permission) => {
     return state.permissions.includes(permission);
@@ -343,6 +382,11 @@ export function AuthProvider({ children }) {
     return diffHours <= 24; // Expira en menos de 24 horas
   };
   
+  // ✅ NUEVA FUNCIÓN: Obtener ruta de dashboard para rol específico
+  const getDashboardPathForRole = (role) => {
+    return getDashboardPath(role);
+  };
+  
   // 📦 VALOR DEL CONTEXTO
   const contextValue = {
     // Estado
@@ -360,6 +404,7 @@ export function AuthProvider({ children }) {
     hasPermission,
     hasRole,
     isSessionExpiring,
+    getDashboardPathForRole,
     
     // Información adicional
     userRole: state.user?.role,
@@ -426,3 +471,4 @@ export function withAuth(Component, requiredPermissions = []) {
 // - Los permisos se calculan automáticamente según el rol
 // - La sesión se monitorea automáticamente
 // - El token se guarda automáticamente en localStorage
+// - login() y register() retornan redirectPath para que el componente maneje la redirección

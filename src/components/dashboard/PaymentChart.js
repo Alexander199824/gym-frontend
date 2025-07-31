@@ -1,7 +1,7 @@
 // src/components/dashboard/PaymentChart.js
 // UBICACIÓN: /gym-frontend/src/components/dashboard/PaymentChart.js
-// FUNCIÓN: Gráfico de ingresos diarios usando Chart.js
-// CONECTA CON: Datos de pagos del backend para mostrar tendencias
+// FUNCIÓN: Gráfico de ingresos diarios usando Chart.js CORREGIDO
+// CAMBIOS: Eliminado uso incorrecto de ChartJS como componente React
 
 import React from 'react';
 import {
@@ -17,6 +17,7 @@ import {
   ArcElement
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { BarChart3, TrendingUp, PieChart } from 'lucide-react'; // ✅ Importar íconos correctos
 import { useApp } from '../../contexts/AppContext';
 
 // Registrar componentes de Chart.js
@@ -260,15 +261,32 @@ const PaymentChart = ({
     }
   };
   
+  // 🎨 Función para obtener el ícono correcto según el tipo
+  const getChartIcon = () => {
+    switch (type) {
+      case 'bar':
+        return <BarChart3 className="w-8 h-8 text-gray-400" />;
+      case 'doughnut':
+        return <PieChart className="w-8 h-8 text-gray-400" />;
+      case 'line':
+      default:
+        return <TrendingUp className="w-8 h-8 text-gray-400" />;
+    }
+  };
+  
   // 📊 Mostrar mensaje si no hay datos
   if (processedData.length === 0 && type !== 'doughnut') {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
         <div className="text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ChartJS className="w-8 h-8 text-gray-400" />
+            {/* ✅ CORREGIDO: Usar ícono correcto en lugar de ChartJS */}
+            {getChartIcon()}
           </div>
           <p className="text-sm">No hay datos para mostrar</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Los datos aparecerán cuando haya información disponible
+          </p>
         </div>
       </div>
     );

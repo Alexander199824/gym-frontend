@@ -1,6 +1,6 @@
 // src/pages/auth/LoginPage.js
-// FUNCIÓN: Login MEJORADO con credenciales tradicionales + OAuth Google
-// CONECTA CON: Backend /api/auth/login y /api/auth/google
+// FUNCIÓN: Login CORREGIDO con redirección por rol + OAuth Google preparado
+// CAMBIOS: Manejo correcto de redirección después del login exitoso
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
@@ -52,8 +52,8 @@ const LoginPage = () => {
   const [isCredentialsLoading, setIsCredentialsLoading] = useState(false);
   const [oauthError, setOauthError] = useState(null);
   
-  // 🎯 Obtener ruta de redirección
-  const from = location.state?.from?.pathname || '/dashboard';
+  // 🎯 Obtener ruta de redirección solicitada
+  const from = location.state?.from?.pathname || null;
   
   // 📋 Configuración del formulario tradicional
   const {
@@ -73,16 +73,24 @@ const LoginPage = () => {
   // 🔄 Redirigir si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(from, { replace: true });
+      console.log('👤 Usuario ya autenticado, redirigiendo...');
+      
+      // Si hay una ruta de origen específica, ir ahí
+      if (from) {
+        navigate(from, { replace: true });
+      } else {
+        // Si no, ir al dashboard por defecto (esto debería manejarse desde App.js)
+        navigate('/dashboard', { replace: true });
+      }
     }
   }, [isAuthenticated, navigate, from]);
   
-  // 🔍 Manejar callback de OAuth Google
+  // 🔍 Manejar callback de OAuth Google (preparado para el futuro)
   useEffect(() => {
     handleOAuthCallback();
   }, [searchParams]);
   
-  // 🔐 Función para manejar callback de Google OAuth
+  // 🔐 Función para manejar callback de Google OAuth (PREPARADA PARA EL FUTURO)
   const handleOAuthCallback = async () => {
     const token = searchParams.get('token');
     const refreshToken = searchParams.get('refresh');
@@ -102,10 +110,10 @@ const LoginPage = () => {
       return;
     }
     
-    // ✅ OAuth exitoso
+    // ✅ OAuth exitoso (FUTURO)
     if (token && refreshToken && loginType === 'google') {
       try {
-        console.log('🎉 OAuth Google exitoso:', {
+        console.log('🎉 OAuth Google exitoso (FUTURO):', {
           role,
           userId,
           name: decodeURIComponent(name || ''),
@@ -121,7 +129,7 @@ const LoginPage = () => {
         showSuccess(`¡Bienvenido, ${decodeURIComponent(name || '')}!`);
         
         // Redirigir según el rol
-        const redirectPath = getRoleRedirectPath(role);
+        const redirectPath = getDashboardPathByRole(role);
         navigate(redirectPath, { replace: true });
         
       } catch (error) {
@@ -132,8 +140,8 @@ const LoginPage = () => {
     }
   };
   
-  // 🏠 Obtener ruta de redirección según rol
-  const getRoleRedirectPath = (role) => {
+  // 🏠 Obtener ruta de dashboard según rol
+  const getDashboardPathByRole = (role) => {
     switch (role) {
       case 'admin':
         return '/dashboard/admin';
@@ -146,7 +154,7 @@ const LoginPage = () => {
     }
   };
   
-  // 🔐 Manejar login tradicional con credenciales
+  // ✅ CORREGIDO: Manejar login tradicional con credenciales
   const onCredentialsSubmit = async (data) => {
     try {
       setIsCredentialsLoading(true);
@@ -160,21 +168,35 @@ const LoginPage = () => {
       
       console.log('🔑 Intentando login tradicional para:', cleanData.email);
       
-      // Llamar al método login del contexto
+      // ✅ Llamar al método login del contexto (que NO redirige automáticamente)
       const result = await login(cleanData);
       
       if (result.success) {
-        showSuccess(`¡Bienvenido de vuelta!`);
+        console.log('✅ Login exitoso:', {
+          userId: result.user.id,
+          userRole: result.user.role,
+          redirectPath: result.redirectPath
+        });
         
-        // Redirigir según el rol
-        const redirectPath = getRoleRedirectPath(result.user?.role);
-        navigate(redirectPath, { replace: true });
+        // Mostrar mensaje de éxito
+        showSuccess(`¡Bienvenido de vuelta, ${result.user.firstName}!`);
+        
+        // ✅ REDIRECCIÓN MANUAL DESPUÉS DEL LOGIN EXITOSO
+        // Si hay una ruta de origen específica, ir ahí
+        if (from) {
+          console.log('🎯 Redirigiendo a ruta de origen:', from);
+          navigate(from, { replace: true });
+        } else {
+          // Si no, usar la ruta del rol
+          console.log('🏠 Redirigiendo a dashboard del rol:', result.redirectPath);
+          navigate(result.redirectPath, { replace: true });
+        }
       } else {
         throw new Error(result.message || 'Error al iniciar sesión');
       }
       
     } catch (error) {
-      console.error('Error en login tradicional:', error);
+      console.error('❌ Error en login tradicional:', error);
       
       // Manejar errores específicos
       if (error.response?.status === 401) {
@@ -192,7 +214,7 @@ const LoginPage = () => {
     }
   };
   
-  // 🔐 Iniciar Google OAuth
+  // 🔐 Iniciar Google OAuth (PREPARADO PARA EL FUTURO)
   const handleGoogleLogin = () => {
     setIsGoogleLoading(true);
     setOauthError(null);
@@ -203,12 +225,17 @@ const LoginPage = () => {
       ? `${process.env.REACT_APP_API_URL}/api/auth/google`
       : 'http://localhost:5000/api/auth/google';
     
-    console.log('🚀 Iniciando OAuth Google:', googleLoginUrl);
-    window.location.href = googleLoginUrl;
+    console.log('🚀 Iniciando OAuth Google (PREPARADO):', googleLoginUrl);
+    showError('Google OAuth estará disponible próximamente');
+    setIsGoogleLoading(false);
+    setLoginMethod('credentials');
+    
+    // Para el futuro, descomentar esta línea:
+    // window.location.href = googleLoginUrl;
   };
   
   // 📱 Mostrar estado de carga durante autenticación
-  if (isLoading || (isGoogleLoading && loginMethod === 'google')) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -229,9 +256,7 @@ const LoginPage = () => {
           <div className="mt-8">
             <Loader2 className="w-8 h-8 text-primary-600 animate-spin mx-auto" />
             <p className="text-gray-600 mt-4">
-              {isGoogleLoading && loginMethod === 'google' 
-                ? 'Conectando con Google...' 
-                : 'Verificando autenticación...'}
+              Verificando autenticación...
             </p>
           </div>
         </div>
@@ -431,7 +456,7 @@ const LoginPage = () => {
               </div>
             </div>
             
-            {/* 🔐 BOTÓN DE GOOGLE OAUTH */}
+            {/* 🔐 BOTÓN DE GOOGLE OAUTH (PREPARADO PARA EL FUTURO) */}
             <button
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading || isCredentialsLoading}

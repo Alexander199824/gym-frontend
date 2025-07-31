@@ -1,10 +1,7 @@
 // src/App.js
 // UBICACIÓN: /gym-frontend/src/App.js
-// FUNCIÓN: Componente principal con LANDING PAGE corregida para Elite Fitness
-// CONECTA CON: LandingPage como página principal, login como secundaria
-
-
-
+// FUNCIÓN: Componente principal con rutas CORREGIDAS y redirección por rol
+// CAMBIOS: Mejorado sistema de rutas protegidas y redirección automática
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -35,61 +32,73 @@ const ClientDashboard = React.lazy(() => import('./pages/dashboard/ClientDashboa
 const NotFoundPage = React.lazy(() => import('./pages/error/NotFoundPage'));
 const ForbiddenPage = React.lazy(() => import('./pages/error/ForbiddenPage'));
 
-// 🛡️ COMPONENTE DE RUTA PROTEGIDA
+// 🛡️ COMPONENTE DE RUTA PROTEGIDA MEJORADO
 function ProtectedRoute({ children, requiredRole = null, requiredPermissions = [] }) {
   const { isAuthenticated, isLoading, user, hasPermission, hasRole } = useAuth();
   const location = useLocation();
+  
+  console.log('🛡️ ProtectedRoute Check:', {
+    isAuthenticated,
+    isLoading,
+    user: user ? { id: user.id, role: user.role, name: `${user.firstName} ${user.lastName}` } : null,
+    requiredRole,
+    currentPath: location.pathname
+  });
   
   if (isLoading) {
     return <LoadingSpinner fullScreen message="Verificando autenticación..." />;
   }
   
   if (!isAuthenticated) {
+    console.log('❌ Usuario no autenticado, redirigiendo a login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
   
   if (requiredRole && !hasRole(requiredRole)) {
+    console.log('❌ Usuario sin el rol requerido:', {
+      userRole: user?.role,
+      requiredRole
+    });
     return <Navigate to="/forbidden" replace />;
   }
   
   if (requiredPermissions.length > 0) {
     const hasAllPermissions = requiredPermissions.every(permission => hasPermission(permission));
     if (!hasAllPermissions) {
+      console.log('❌ Usuario sin permisos requeridos:', {
+        userPermissions: user?.permissions,
+        requiredPermissions
+      });
       return <Navigate to="/forbidden" replace />;
     }
   }
   
+  console.log('✅ Acceso autorizado a ruta protegida');
   return children;
 }
 
-// 🎯 COMPONENTE DE RUTA PÚBLICA (solo para no autenticados)
+// 🎯 COMPONENTE DE RUTA PÚBLICA MEJORADO (solo para no autenticados)
 function PublicRoute({ children }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, getDashboardPathForRole } = useAuth();
+  
+  console.log('🎯 PublicRoute Check:', {
+    isAuthenticated,
+    isLoading,
+    user: user ? { id: user.id, role: user.role } : null
+  });
   
   if (isLoading) {
     return <LoadingSpinner fullScreen message="Cargando Elite Fitness..." />;
   }
   
   if (isAuthenticated && user) {
-    const dashboardPath = getDashboardPath(user.role);
+    const dashboardPath = getDashboardPathForRole(user.role);
+    console.log('✅ Usuario autenticado, redirigiendo a dashboard:', dashboardPath);
     return <Navigate to={dashboardPath} replace />;
   }
   
+  console.log('✅ Usuario no autenticado, mostrando página pública');
   return children;
-}
-
-// 🏠 HELPER: Obtener ruta del dashboard según rol
-function getDashboardPath(role) {
-  switch (role) {
-    case 'admin':
-      return '/dashboard/admin';
-    case 'colaborador':
-      return '/dashboard/staff';
-    case 'cliente':
-      return '/dashboard/client';
-    default:
-      return '/dashboard';
-  }
 }
 
 // 🔍 FUNCIÓN DE DEBUG INTEGRADA
@@ -222,7 +231,7 @@ async function debugBackendConnection() {
 
 // 🚀 COMPONENTE PRINCIPAL DE LA APLICACIÓN
 function App() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   const { isMobile, addNotification } = useApp();
   const location = useLocation();
   
@@ -257,6 +266,12 @@ function App() {
   useEffect(() => {
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
       console.log('🧭 Elite Fitness - Navegando a:', location.pathname);
+      console.log('👤 Usuario actual:', user ? {
+        id: user.id,
+        role: user.role,
+        name: `${user.firstName} ${user.lastName}`,
+        authenticated: isAuthenticated
+      } : 'No autenticado');
       
       if (!process.env.REACT_APP_API_URL) {
         console.warn('⚠️ REACT_APP_API_URL no está definida después de la navegación');
@@ -266,7 +281,7 @@ function App() {
         console.warn('⚠️ REACT_APP_LOGO_URL no está definida después de la navegación');
       }
     }
-  }, [location]);
+  }, [location, user, isAuthenticated]);
   
   // 🔔 EFECTO: Notificación de bienvenida (solo una vez)
   useEffect(() => {
@@ -312,6 +327,11 @@ function App() {
             <div>Logo: {process.env.REACT_APP_LOGO_URL ? '✅' : '❌'}</div>
             <div>Nombre: {process.env.REACT_APP_GYM_NAME || '❌'}</div>
             <div>API: {process.env.REACT_APP_API_URL ? '✅' : '❌'}</div>
+            {user && (
+              <div className="mt-2 text-green-300">
+                👤 {user.firstName} ({user.role})
+              </div>
+            )}
             <div className="mt-2 text-yellow-300">
               Revisa la consola para más detalles
             </div>
@@ -360,28 +380,30 @@ function App() {
               </ProtectedRoute>
             }>
               
+              {/* 🔧 Dashboard de Admin */}
               <Route path="admin" element={
                 <ProtectedRoute requiredRole="admin">
                   <AdminDashboard />
                 </ProtectedRoute>
               } />
               
+              {/* 👥 Dashboard de Staff/Colaborador */}
               <Route path="staff" element={
                 <ProtectedRoute requiredRole="colaborador">
                   <StaffDashboard />
                 </ProtectedRoute>
               } />
               
+              {/* 👤 Dashboard de Cliente */}
               <Route path="client" element={
                 <ProtectedRoute requiredRole="cliente">
                   <ClientDashboard />
                 </ProtectedRoute>
               } />
               
+              {/* ✅ REDIRECCIÓN AUTOMÁTICA DESDE /dashboard */}
               <Route index element={
-                isAuthenticated && user ? 
-                  <Navigate to={getDashboardPath(user.role)} replace /> :
-                  <Navigate to="/login" replace />
+                <DashboardRedirect />
               } />
               
             </Route>
@@ -400,25 +422,45 @@ function App() {
   );
 }
 
+// ✅ NUEVO COMPONENTE: Redirección automática desde /dashboard
+function DashboardRedirect() {
+  const { isAuthenticated, user, getDashboardPathForRole } = useAuth();
+  
+  console.log('🎯 DashboardRedirect - Redirigiendo usuario:', {
+    isAuthenticated,
+    user: user ? { id: user.id, role: user.role } : null
+  });
+  
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  const dashboardPath = getDashboardPathForRole(user.role);
+  console.log('🏠 Redirigiendo a dashboard específico:', dashboardPath);
+  
+  return <Navigate to={dashboardPath} replace />;
+}
+
 export default App;
 
-// 📝 NOTAS SOBRE LA NUEVA ESTRUCTURA PROFESIONAL:
+// 📝 CAMBIOS REALIZADOS:
 // 
-// ✅ SPINNER PROFESIONAL:
-// - InitialLoadingSpinner reemplaza la página naranja
-// - Colores suaves y profesionales (azul y gris)
-// - Animaciones elegantes sin ser chillantes
+// ✅ SISTEMA DE RUTAS PROTEGIDAS MEJORADO:
+// - ProtectedRoute con logs detallados para debug
+// - PublicRoute que redirege automáticamente si está autenticado
+// - Mejor manejo de estados de carga
 // 
-// 🎨 PALETA DE COLORES PROFESIONAL:
-// - Azul #3b82f6 como color principal (en lugar de turquesa chillante)
-// - Gris #64748b como color secundario
-// - Verdes y otros colores de estado más suaves
+// ✅ REDIRECCIÓN AUTOMÁTICA CORREGIDA:
+// - DashboardRedirect component para /dashboard
+// - Usa getDashboardPathForRole del contexto
+// - Logs detallados para rastrear redirecciones
 // 
-// 🖼️ LOGO CORREGIDO:
-// - Ahora debería mostrar la imagen del .env correctamente
-// - Fallback elegante con mancuernas si no hay imagen
+// ✅ DEBUG MEJORADO:
+// - Logs de navegación con información del usuario
+// - Debug info en pantalla incluye información del usuario actual
+// - Mejor rastreo de cambios de ruta y autenticación
 // 
-// 🛍️ TIENDA AGREGADA:
-// - Sección completa de productos del gym
-// - Carrito de compras funcional
-// - Productos de ejemplo: ropa, suplementos, accesorios
+// ✅ COMPATIBILIDAD CON OAUTH FUTURO:
+// - Estructura preparada para callbacks de Google OAuth
+// - PublicRoute que maneja redirecciones según rol
+// - Sistema flexible de autenticación múltiple
