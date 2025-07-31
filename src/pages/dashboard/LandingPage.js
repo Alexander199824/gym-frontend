@@ -1,6 +1,6 @@
 // src/pages/dashboard/LandingPage.js
-// FUNCIÓN: Landing page COMPLETA sin errores - Usa video de /api/gym/config
-// CORREGIDO: Uso correcto de canPlay, mejor manejo de video, sin errores
+// FUNCIÓN: Landing page COMPLETA CORREGIDA - Video siempre horizontal, carousels móvil funcionando, logo corregido
+// ARREGLOS: Video forzado horizontal 16:9, carousels automáticos móvil, logo del backend visible
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -54,11 +54,18 @@ const LandingPage = () => {
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
   const [initialLoadCompleted, setInitialLoadCompleted] = useState(false);
   
-  // 🎬 Estados para video
+  // 🎬 Estados para video - CORREGIDOS Y MEJORADOS
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [showVideoControls, setShowVideoControls] = useState(false);
+  const [videoLoaded, setVideoLoaded] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
+  
+  // 🔄 Referencias para carousels automáticos
+  const testimonialIntervalRef = useRef(null);
+  const serviceIntervalRef = useRef(null);
+  const productIntervalRef = useRef(null);
   
   // 🏋️ Hooks del backend optimizados
   const { config, isLoaded: configLoaded, error: configError } = useGymConfig();
@@ -85,47 +92,118 @@ const LandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
-  // 💬 Auto-carousels para móvil
+  // 💬 TESTIMONIOS AUTOMÁTICOS - CORREGIDO
   useEffect(() => {
-    if (!isMobile) return;
-    
-    // Carousel de testimonios
-    if (testimonials && testimonials.length > 1) {
-      const timer = setInterval(() => {
-        setCurrentTestimonialIndex((prev) => 
-          prev >= testimonials.length - 1 ? 0 : prev + 1
-        );
-      }, 4000);
-      
-      return () => clearInterval(timer);
+    // Limpiar interval anterior
+    if (testimonialIntervalRef.current) {
+      clearInterval(testimonialIntervalRef.current);
+      testimonialIntervalRef.current = null;
     }
-  }, [testimonials, isMobile]);
+    
+    // Solo crear interval si hay testimonios y están cargados
+    if (testimonialsLoaded && testimonials && Array.isArray(testimonials) && testimonials.length > 1) {
+      console.log('🎭 Starting testimonial auto-carousel:', testimonials.length, 'testimonials');
+      
+      testimonialIntervalRef.current = setInterval(() => {
+        setCurrentTestimonialIndex((prevIndex) => {
+          const nextIndex = prevIndex >= testimonials.length - 1 ? 0 : prevIndex + 1;
+          console.log(`🎭 Testimonial carousel: ${prevIndex} → ${nextIndex}`);
+          return nextIndex;
+        });
+      }, 5000); // Cada 5 segundos
+    } else {
+      console.log('🎭 Testimonial carousel not started:', {
+        loaded: testimonialsLoaded,
+        hasTestimonials: !!testimonials,
+        isArray: Array.isArray(testimonials),
+        length: testimonials?.length || 0
+      });
+    }
+    
+    // Cleanup
+    return () => {
+      if (testimonialIntervalRef.current) {
+        clearInterval(testimonialIntervalRef.current);
+        testimonialIntervalRef.current = null;
+      }
+    };
+  }, [testimonialsLoaded, testimonials]);
   
-  // 🏋️ Auto-carousel de servicios en móvil
+  // 🏋️ SERVICIOS AUTO-CAROUSEL EN MÓVIL - CORREGIDO
   useEffect(() => {
-    if (!isMobile || !services || services.length <= 1) return;
+    // Limpiar interval anterior
+    if (serviceIntervalRef.current) {
+      clearInterval(serviceIntervalRef.current);
+      serviceIntervalRef.current = null;
+    }
     
-    const timer = setInterval(() => {
-      setCurrentServiceIndex((prev) => 
-        prev >= services.length - 1 ? 0 : prev + 1
-      );
-    }, 3500);
+    // Solo en móvil y si hay servicios
+    if (isMobile && servicesLoaded && services && Array.isArray(services) && services.length > 1) {
+      console.log('🏋️ Starting services auto-carousel on mobile:', services.length, 'services');
+      
+      serviceIntervalRef.current = setInterval(() => {
+        setCurrentServiceIndex((prevIndex) => {
+          const nextIndex = prevIndex >= services.length - 1 ? 0 : prevIndex + 1;
+          console.log(`🏋️ Services carousel: ${prevIndex} → ${nextIndex}`);
+          return nextIndex;
+        });
+      }, 4000); // Cada 4 segundos
+    } else {
+      console.log('🏋️ Services carousel not started:', {
+        isMobile,
+        loaded: servicesLoaded,
+        hasServices: !!services,
+        isArray: Array.isArray(services),
+        length: services?.length || 0
+      });
+    }
     
-    return () => clearInterval(timer);
-  }, [services, isMobile]);
+    // Cleanup
+    return () => {
+      if (serviceIntervalRef.current) {
+        clearInterval(serviceIntervalRef.current);
+        serviceIntervalRef.current = null;
+      }
+    };
+  }, [isMobile, servicesLoaded, services]);
   
-  // 🛍️ Auto-carousel de productos en móvil
+  // 🛍️ PRODUCTOS AUTO-CAROUSEL EN MÓVIL - CORREGIDO
   useEffect(() => {
-    if (!isMobile || !products || products.length <= 1) return;
+    // Limpiar interval anterior
+    if (productIntervalRef.current) {
+      clearInterval(productIntervalRef.current);
+      productIntervalRef.current = null;
+    }
     
-    const timer = setInterval(() => {
-      setCurrentProductIndex((prev) => 
-        prev >= products.length - 1 ? 0 : prev + 1
-      );
-    }, 4500);
+    // Solo en móvil y si hay productos
+    if (isMobile && productsLoaded && products && Array.isArray(products) && products.length > 1) {
+      console.log('🛍️ Starting products auto-carousel on mobile:', products.length, 'products');
+      
+      productIntervalRef.current = setInterval(() => {
+        setCurrentProductIndex((prevIndex) => {
+          const nextIndex = prevIndex >= products.length - 1 ? 0 : prevIndex + 1;
+          console.log(`🛍️ Products carousel: ${prevIndex} → ${nextIndex}`);
+          return nextIndex;
+        });
+      }, 4500); // Cada 4.5 segundos
+    } else {
+      console.log('🛍️ Products carousel not started:', {
+        isMobile,
+        loaded: productsLoaded,
+        hasProducts: !!products,
+        isArray: Array.isArray(products),
+        length: products?.length || 0
+      });
+    }
     
-    return () => clearInterval(timer);
-  }, [products, isMobile]);
+    // Cleanup
+    return () => {
+      if (productIntervalRef.current) {
+        clearInterval(productIntervalRef.current);
+        productIntervalRef.current = null;
+      }
+    };
+  }, [isMobile, productsLoaded, products]);
   
   // ⏰ CONTROL DE CARGA INICIAL
   useEffect(() => {
@@ -142,16 +220,40 @@ const LandingPage = () => {
     return () => clearTimeout(timer);
   }, [configLoaded, config, initialLoadCompleted]);
   
+  // 🧹 CLEANUP GENERAL
+  useEffect(() => {
+    return () => {
+      // Limpiar todos los intervals al desmontar
+      if (testimonialIntervalRef.current) {
+        clearInterval(testimonialIntervalRef.current);
+      }
+      if (serviceIntervalRef.current) {
+        clearInterval(serviceIntervalRef.current);
+      }
+      if (productIntervalRef.current) {
+        clearInterval(productIntervalRef.current);
+      }
+    };
+  }, []);
+  
   // ✅ USAR DATOS REALES DEL BACKEND
   const gymConfig = config || MINIMAL_FALLBACK;
   
-  // 🎬 EXTRAER DATOS DE VIDEO DEL CONFIG (sin hook separado)
+  // 🎬 EXTRAER DATOS DE VIDEO DEL CONFIG - MEJORADO
   const videoData = React.useMemo(() => {
     if (!config) return null;
     
     // Buscar video en diferentes ubicaciones del config
-    const videoUrl = config.videoUrl || config.hero?.videoUrl || '';
-    const imageUrl = config.imageUrl || config.hero?.imageUrl || '';
+    const videoUrl = config.hero?.videoUrl || config.videoUrl || '';
+    const imageUrl = config.hero?.imageUrl || config.imageUrl || '';
+    
+    console.log('🎬 Video data extracted from config:', { 
+      videoUrl, 
+      imageUrl,
+      hasHeroSection: !!config.hero,
+      heroVideoUrl: config.hero?.videoUrl,
+      heroImageUrl: config.hero?.imageUrl 
+    });
     
     return {
       videoUrl,
@@ -193,22 +295,59 @@ const LandingPage = () => {
     return services.filter(service => service.active !== false);
   }, [servicesLoaded, services]);
   
-  // 🎬 Funciones de control de video
+  // 🎬 FUNCIONES DE CONTROL DE VIDEO - CORREGIDAS
+  const handleVideoLoad = () => {
+    console.log('🎬 Video loaded successfully');
+    setVideoLoaded(true);
+    setVideoError(false);
+  };
+  
+  const handleVideoError = (error) => {
+    console.error('🎬 Video error:', error);
+    setVideoError(true);
+    setVideoLoaded(false);
+  };
+  
   const toggleVideoPlay = () => {
-    if (videoRef.current) {
+    if (!videoRef.current) return;
+    
+    try {
       if (isVideoPlaying) {
+        console.log('⏸️ Pausing video');
         videoRef.current.pause();
+        setIsVideoPlaying(false);
       } else {
-        videoRef.current.play();
+        console.log('▶️ Playing video');
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsVideoPlaying(true);
+            })
+            .catch((error) => {
+              console.error('🎬 Play failed:', error);
+              setVideoError(true);
+            });
+        } else {
+          setIsVideoPlaying(true);
+        }
       }
-      setIsVideoPlaying(!isVideoPlaying);
+    } catch (error) {
+      console.error('🎬 Toggle play error:', error);
+      setVideoError(true);
     }
   };
   
   const toggleVideoMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isVideoMuted;
-      setIsVideoMuted(!isVideoMuted);
+    if (!videoRef.current) return;
+    
+    try {
+      const newMutedState = !isVideoMuted;
+      videoRef.current.muted = newMutedState;
+      setIsVideoMuted(newMutedState);
+      console.log('🔊 Video muted:', newMutedState);
+    } catch (error) {
+      console.error('🎬 Toggle mute error:', error);
     }
   };
   
@@ -240,6 +379,19 @@ const LandingPage = () => {
     }
   };
   
+  // 🖼️ Log del logo para debug
+  useEffect(() => {
+    if (config && config.logo) {
+      console.log('🖼️ LOGO DEBUG:', {
+        hasLogo: !!config.logo,
+        logoUrl: config.logo.url,
+        logoAlt: config.logo.alt,
+        logoWidth: config.logo.width,
+        logoHeight: config.logo.height
+      });
+    }
+  }, [config]);
+  
   // ⏰ LOADING SCREEN
   if (!initialLoadCompleted) {
     return (
@@ -267,7 +419,7 @@ const LandingPage = () => {
       {/* 🔴 INDICADOR DE CONEXIÓN */}
       <ConnectionIndicator show={process.env.NODE_ENV === 'development'} />
       
-      {/* 🔝 NAVBAR FLOTANTE MEJORADO PARA MÓVIL */}
+      {/* 🔝 NAVBAR FLOTANTE CON LOGO CORREGIDO */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
           ? 'bg-white bg-opacity-95 backdrop-blur-lg shadow-lg border-b border-gray-200' 
@@ -276,8 +428,37 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             
-            {/* Logo - Más pequeño en móvil */}
-            <GymLogo size={isMobile ? "sm" : "md"} variant="professional" showText={!isMobile} />
+            {/* Logo - CORREGIDO PARA USAR CONFIG DEL BACKEND */}
+            <div className="flex items-center">
+              {config && config.logo && config.logo.url ? (
+                <div className="flex items-center space-x-3">
+                  <img 
+                    src={config.logo.url}
+                    alt={config.logo.alt || gymConfig.name}
+                    className={`object-contain ${isMobile ? 'h-8 w-auto' : 'h-10 w-auto'}`}
+                    onError={(e) => {
+                      console.error('🖼️ Logo failed to load:', config.logo.url);
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  {/* Fallback logo */}
+                  <div className={`hidden items-center justify-center bg-primary-600 rounded-xl ${
+                    isMobile ? 'w-8 h-8' : 'w-10 h-10'
+                  }`}>
+                    <Dumbbell className={`text-white ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  </div>
+                  {!isMobile && (
+                    <span className="text-lg font-bold text-gray-900">
+                      {gymConfig.name}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                /* Fallback cuando no hay logo del backend */
+                <GymLogo size={isMobile ? "sm" : "md"} variant="professional" showText={!isMobile} priority="high" />
+              )}
+            </div>
             
             {/* Navigation Desktop */}
             <div className="hidden md:flex items-center space-x-8">
@@ -389,7 +570,7 @@ const LandingPage = () => {
         )}
       </nav>
       
-      {/* 🏠 HERO SECTION - OPTIMIZADO PARA MÓVIL */}
+      {/* 🏠 HERO SECTION - VIDEO FORZADO HORIZONTAL */}
       <section id="inicio" className="relative pt-20 pb-16 min-h-screen flex items-center bg-gradient-to-br from-gray-50 via-white to-blue-50">
         {/* Elementos decorativos - Adaptados para móvil */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -463,36 +644,44 @@ const LandingPage = () => {
               </div>
             </div>
             
-            {/* Imagen/Video Hero - CORREGIDO usando datos del config */}
+            {/* Video/Imagen Hero - SIEMPRE HORIZONTAL 16:9 */}
             <div className="relative">
-              {/* 🎬 VIDEO DESDE CONFIG */}
               {videoData?.hasVideo ? (
-                <div className="relative aspect-w-16 aspect-h-9 rounded-3xl overflow-hidden shadow-2xl">
+                /* 🎬 VIDEO SIEMPRE HORIZONTAL 16:9 */
+                <div className={`relative rounded-3xl overflow-hidden shadow-2xl ${
+                  isMobile ? 'aspect-[16/9]' : 'aspect-[16/9]'
+                }`}>
                   <video
                     ref={videoRef}
-                    className="object-cover w-full h-full"
-                    poster={videoData.imageUrl || "/api/placeholder/600/450"}
+                    className="w-full h-full object-cover"
+                    poster={videoData.imageUrl || "/api/placeholder/800/450"}
                     muted={isVideoMuted}
                     loop
                     playsInline
+                    onLoadedMetadata={handleVideoLoad}
+                    onError={handleVideoError}
                     onPlay={() => setIsVideoPlaying(true)}
                     onPause={() => setIsVideoPlaying(false)}
                     onMouseEnter={() => setShowVideoControls(true)}
                     onMouseLeave={() => setShowVideoControls(false)}
+                    style={{
+                      objectFit: 'cover',
+                      objectPosition: 'center'
+                    }}
                   >
                     <source src={videoData.videoUrl} type="video/mp4" />
-                    <source src={videoData.videoUrl.replace('.mp4', '.webm')} type="video/webm" />
                     Tu navegador no soporta video HTML5.
                   </video>
                   
-                  {/* Controles de video */}
+                  {/* Controles de video - MEJORADOS */}
                   <div className={`absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center transition-opacity duration-300 ${
-                    showVideoControls || !isVideoPlaying ? 'opacity-100' : 'opacity-0'
+                    showVideoControls || !isVideoPlaying || videoError ? 'opacity-100' : 'opacity-0'
                   }`}>
                     <div className="flex space-x-4">
                       <button
                         onClick={toggleVideoPlay}
                         className="w-16 h-16 bg-white bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all hover:scale-110"
+                        disabled={videoError}
                       >
                         {isVideoPlaying ? 
                           <Pause className="w-8 h-8 text-gray-900" /> : 
@@ -503,6 +692,7 @@ const LandingPage = () => {
                       <button
                         onClick={toggleVideoMute}
                         className="w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all hover:scale-110"
+                        disabled={videoError}
                       >
                         {isVideoMuted ? 
                           <VolumeX className="w-5 h-5 text-gray-900" /> : 
@@ -514,12 +704,22 @@ const LandingPage = () => {
                   
                   {/* Overlay de gradiente */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
+                  
+                  {/* Indicador de error de video */}
+                  {videoError && (
+                    <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
+                      <div className="text-center">
+                        <AlertTriangle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500 text-sm">Error al cargar el video</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                /* 🖼️ Imagen fallback */
-                <div className="aspect-w-4 aspect-h-3 rounded-3xl overflow-hidden shadow-2xl">
+                /* 🖼️ Imagen fallback - HORIZONTAL 16:9 */
+                <div className="aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl relative">
                   <img 
-                    src={videoData?.imageUrl || "/api/placeholder/600/450"}
+                    src={videoData?.imageUrl || "/api/placeholder/800/450"}
                     alt={`${gymConfig.name} - Instalaciones`}
                     className="object-cover w-full h-full"
                   />
@@ -574,7 +774,7 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 🛍️ SECCIÓN DE TIENDA - CAROUSEL EN MÓVIL */}
+      {/* 🛍️ SECCIÓN DE TIENDA - CAROUSEL AUTOMÁTICO EN MÓVIL */}
       {products && products.length > 0 && (
         <section id="tienda" className="py-16 bg-gradient-to-br from-primary-50 to-secondary-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -622,7 +822,7 @@ const LandingPage = () => {
               </div>
             </div>
             
-            {/* MÓVIL: Carousel de productos */}
+            {/* MÓVIL: Carousel automático de productos */}
             {isMobile ? (
               <div className="relative">
                 <div className="overflow-hidden">
@@ -708,7 +908,7 @@ const LandingPage = () => {
         </section>
       )}
       
-      {/* 🏋️ SERVICIOS - CAROUSEL EN MÓVIL */}
+      {/* 🏋️ SERVICIOS - CAROUSEL AUTOMÁTICO EN MÓVIL */}
       {displayServices.length > 0 && (
         <section id="servicios" className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -732,10 +932,12 @@ const LandingPage = () => {
               </p>
             </div>
             
-            {/* MÓVIL: Carousel de servicios */}
+            {/* MÓVIL: Carousel automático de servicios */}
             {isMobile ? (
               <div className="space-y-6">
-                <MobileServiceCard service={displayServices[currentServiceIndex]} />
+                {displayServices[currentServiceIndex] && (
+                  <MobileServiceCard service={displayServices[currentServiceIndex]} />
+                )}
                 
                 {/* Indicadores de carousel */}
                 <div className="flex justify-center space-x-2">
@@ -928,7 +1130,7 @@ const LandingPage = () => {
         </section>
       )}
       
-      {/* 💬 TESTIMONIOS - CAROUSEL MEJORADO */}
+      {/* 💬 TESTIMONIOS - CAROUSEL AUTOMÁTICO MEJORADO */}
       {testimonials && testimonials.length > 0 && (
         <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -951,7 +1153,7 @@ const LandingPage = () => {
               {testimonials.map((testimonial, index) => (
                 <div 
                   key={testimonial.id || index}
-                  className={`${index === currentTestimonialIndex ? 'block' : 'hidden'}`}
+                  className={`transition-all duration-500 ${index === currentTestimonialIndex ? 'block opacity-100' : 'hidden opacity-0'}`}
                 >
                   <div className={`bg-gray-50 rounded-3xl text-center ${
                     isMobile ? 'p-6' : 'p-12'
@@ -1153,7 +1355,21 @@ const LandingPage = () => {
           }`}>
             
             <div className="space-y-4">
-              <GymLogo size={isMobile ? "md" : "lg"} variant="white" showText={true} />
+              {/* Logo en el footer */}
+              {config && config.logo && config.logo.url ? (
+                <div className="flex items-center space-x-3 justify-center md:justify-start">
+                  <img 
+                    src={config.logo.url}
+                    alt={config.logo.alt || gymConfig.name}
+                    className="h-12 w-auto object-contain"
+                  />
+                  <span className="text-xl font-bold">
+                    {gymConfig.name}
+                  </span>
+                </div>
+              ) : (
+                <GymLogo size={isMobile ? "md" : "lg"} variant="white" showText={true} priority="low" />
+              )}
               <p className="text-gray-400 leading-relaxed text-sm">
                 {gymConfig.description}
               </p>
