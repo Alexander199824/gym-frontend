@@ -1,16 +1,16 @@
 // src/hooks/useGymVideo.js
-// FUNCIÓN: Hook COMPLETO para video del gimnasio usando endpoint existente
-// MEJORAS: Usa /api/content/landing que ya existe, manejo graceful como el logo
+// FUNCIÓN: Hook SIMPLIFICADO que usa el video de /api/gym/config
+// MEJORAS: Usa endpoint existente, menos complejidad, mejor rendimiento
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import apiService from '../services/apiService';
 import { requestManager } from '../services/RequestManager';
+import apiService from '../services/apiService';
 
 const useGymVideo = (options = {}) => {
   const {
-    enabled = true,           // Permitir deshabilitar el hook
-    autoRetry = false,        // Deshabilitar reintentos automáticos por defecto
-    priority = 'low'          // Baja prioridad para video
+    enabled = true,
+    autoRetry = false,
+    priority = 'low'
   } = options;
 
   // 🏗️ Estados del hook
@@ -20,13 +20,9 @@ const useGymVideo = (options = {}) => {
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
   
-  // 📱 Referencias para control
   const isMountedRef = useRef(true);
-  const retryCountRef = useRef(0);
-  const maxRetries = autoRetry ? 2 : 0;
-  const retryDelay = 3000;
   
-  // 🔍 Función para obtener video del backend usando endpoint existente
+  // 🔍 Función para obtener video del config del gym
   const fetchGymVideo = useCallback(async (forceRefresh = false) => {
     if (!isMountedRef.current || !enabled) return;
     
@@ -34,7 +30,7 @@ const useGymVideo = (options = {}) => {
       setIsLoading(true);
       setError(null);
       
-      console.group('🎬 FETCHING GYM VIDEO FROM LANDING CONTENT');
+      console.group('🎬 FETCHING GYM VIDEO FROM CONFIG');
       console.log('📊 Current state:', { 
         isLoaded, 
         hasVideo: !!video, 
@@ -42,12 +38,12 @@ const useGymVideo = (options = {}) => {
         enabled 
       });
       
-      // 📡 Usar RequestManager para obtener contenido de landing (endpoint existente)
+      // 📡 Usar RequestManager para obtener config del gym
       const response = await requestManager.executeRequest(
-        '/api/content/landing',
-        () => apiService.getLandingContent(),
+        '/api/gym/config',
+        () => apiService.getGymConfig(),
         {
-          ttl: 15 * 60 * 1000, // 15 minutos de cache
+          ttl: 10 * 60 * 1000, // 10 minutos de cache
           forceRefresh,
           priority: priority
         }
@@ -56,92 +52,78 @@ const useGymVideo = (options = {}) => {
       if (!isMountedRef.current) return;
       
       if (response && response.success && response.data) {
-        console.log('✅ LANDING CONTENT RECEIVED FROM BACKEND');
-        console.log('🎬 Hero section:', response.data.hero);
+        console.log('✅ GYM CONFIG RECEIVED');
+        console.log('🎬 Checking for video data in config...');
         
-        const heroSection = response.data.hero;
+        const gymData = response.data;
         
-        if (heroSection) {
-          console.log('📹 Video URL found:', heroSection.videoUrl || 'None');
-          console.log('🖼️ Image URL found:', heroSection.imageUrl || 'None');
-          console.log('📝 Title:', heroSection.title || 'None');
-          console.log('📄 Description:', heroSection.description || 'None');
-          
-          // 🎬 Procesar datos del video (como el logo, funciona con o sin datos)
-          const processedVideo = {
-            heroVideo: heroSection.videoUrl || null,
-            poster: heroSection.imageUrl || null,
-            title: heroSection.title || 'Elite Fitness Club',
-            description: heroSection.description || 'Descubre nuestras instalaciones',
-            settings: {
-              autoplay: false, // Por políticas de navegadores
-              muted: true,     // true por defecto para cumplir políticas
-              loop: true,
-              controls: true
-            },
-            // 📊 Metadatos adicionales
-            available: !!(heroSection.videoUrl),
-            fallbackImage: heroSection.imageUrl,
-            hasAnyMedia: !!(heroSection.videoUrl || heroSection.imageUrl),
-            // 🎯 CTAs del hero
-            ctaButtons: heroSection.ctaButtons || [],
-            ctaText: heroSection.ctaText || 'Comienza Hoy'
-          };
-          
-          console.log('🎯 PROCESSED VIDEO DATA:', {
-            hasVideo: !!processedVideo.heroVideo,
-            hasPoster: !!processedVideo.poster,
-            hasAnyMedia: processedVideo.hasAnyMedia,
-            title: processedVideo.title,
-            available: processedVideo.available
-          });
-          
-          setVideo(processedVideo);
-          setIsLoaded(true);
-          setLastFetch(Date.now());
-          retryCountRef.current = 0;
-          
-          console.log('✅ GYM VIDEO LOADED SUCCESSFULLY FROM LANDING CONTENT');
-          
-        } else {
-          console.log('⚠️ NO HERO SECTION IN LANDING CONTENT');
-          
-          // Crear datos por defecto como fallback (igual que el logo)
-          const fallbackVideo = {
-            heroVideo: null,
-            poster: null,
-            title: 'Elite Fitness Club',
-            description: 'Tu transformación comienza aquí',
-            settings: {
-              autoplay: false,
-              muted: true,
-              loop: true,
-              controls: true
-            },
-            available: false,
-            fallbackImage: null,
-            hasAnyMedia: false,
-            ctaButtons: [
-              {
-                text: "Únete Ahora",
-                type: "primary",
-                action: "register"
-              }
-            ],
-            ctaText: 'Comienza Hoy'
-          };
-          
-          setVideo(fallbackVideo);
-          setIsLoaded(true);
-          setLastFetch(Date.now());
-          
-          console.log('ℹ️ GYM VIDEO: Using fallback data (no hero section)');
+        // 🎬 Extraer datos de video del config (si existen)
+        let videoData = null;
+        let posterData = null;
+        
+        // Buscar video en diferentes ubicaciones posibles del config
+        if (gymData.hero?.videoUrl) {
+          videoData = gymData.hero.videoUrl;
+          posterData = gymData.hero.imageUrl;
+          console.log('🎬 Video found in hero section');
+        } else if (gymData.videoUrl) {
+          videoData = gymData.videoUrl;
+          posterData = gymData.imageUrl;
+          console.log('🎬 Video found in root config');
+        } else if (gymData.media?.videoUrl) {
+          videoData = gymData.media.videoUrl;
+          posterData = gymData.media.imageUrl;
+          console.log('🎬 Video found in media section');
         }
         
-      } else {
-        console.log('⚠️ NO LANDING CONTENT FROM BACKEND');
+        console.log('📹 Video URL found:', videoData || 'None');
+        console.log('🖼️ Poster URL found:', posterData || 'None');
         
-        // Fallback completo (como el logo cuando no hay config)
+        // 🎬 Procesar datos del video
+        const processedVideo = {
+          heroVideo: videoData || null,
+          poster: posterData || null,
+          title: gymData.name || 'Elite Fitness Club',
+          description: gymData.description || 'Tu transformación comienza aquí',
+          settings: {
+            autoplay: false,
+            muted: true,
+            loop: true,
+            controls: true
+          },
+          // 📊 Metadatos
+          available: !!videoData,
+          fallbackImage: posterData,
+          hasAnyMedia: !!(videoData || posterData),
+          // 🎯 CTAs del hero
+          ctaButtons: [
+            {
+              text: "Únete Ahora",
+              type: "primary",
+              action: "register"
+            }
+          ],
+          ctaText: 'Comienza Hoy'
+        };
+        
+        console.log('🎯 PROCESSED VIDEO DATA:', {
+          hasVideo: !!processedVideo.heroVideo,
+          hasPoster: !!processedVideo.poster,
+          hasAnyMedia: processedVideo.hasAnyMedia,
+          title: processedVideo.title,
+          available: processedVideo.available
+        });
+        
+        setVideo(processedVideo);
+        setIsLoaded(true);
+        setLastFetch(Date.now());
+        
+        console.log('✅ GYM VIDEO LOADED FROM CONFIG');
+        
+      } else {
+        console.log('⚠️ NO CONFIG DATA FROM BACKEND');
+        
+        // Fallback con datos básicos del gym
         const fallbackVideo = {
           heroVideo: null,
           poster: null,
@@ -170,7 +152,7 @@ const useGymVideo = (options = {}) => {
         setIsLoaded(true);
         setLastFetch(Date.now());
         
-        console.log('ℹ️ GYM VIDEO: Using complete fallback data');
+        console.log('ℹ️ GYM VIDEO: Using fallback data');
       }
       
       console.groupEnd();
@@ -180,55 +162,13 @@ const useGymVideo = (options = {}) => {
       
       console.group('🎬 GYM VIDEO FETCH ERROR');
       console.log('💥 Error details:', fetchError.message);
-      console.log('📊 Error response:', fetchError.response?.status);
       
-      // 🔄 Lógica de reintentos solo para errores de red
-      if (autoRetry && retryCountRef.current < maxRetries && fetchError.code === 'ERR_NETWORK') {
-        retryCountRef.current++;
-        console.log(`🔄 RETRYING... Attempt ${retryCountRef.current}/${maxRetries}`);
-        console.log(`⏰ Waiting ${retryDelay}ms before retry`);
-        
-        setTimeout(() => {
-          if (isMountedRef.current) {
-            fetchGymVideo(forceRefresh);
-          }
-        }, retryDelay);
-        
-        console.groupEnd();
-        return;
-      }
-      
-      // 📊 Análisis de errores (pero nunca fallar completamente)
-      let errorInfo = {
-        type: 'unknown_error',
+      setError({
+        type: 'fetch_error',
         message: fetchError.message,
         critical: false,
         suggestion: 'Video is optional - app works without it'
-      };
-      
-      if (fetchError.code === 'ERR_NETWORK') {
-        console.log('🌐 ANALYSIS: Network connection error');
-        console.log('💡 SOLUTION: Check backend server status');
-        
-        errorInfo = {
-          type: 'network_error',
-          message: 'Cannot connect to backend',
-          critical: false,
-          suggestion: 'Check if backend server is running'
-        };
-      } else if (fetchError.response?.status === 404) {
-        console.log('🔍 ANALYSIS: Endpoint not found (404)');
-        console.log('💡 SOLUTION: Backend needs /api/content/landing endpoint');
-        
-        errorInfo = {
-          type: 'endpoint_not_found',
-          message: 'Landing content endpoint not found',
-          critical: false,
-          suggestion: 'Contact administrator to configure landing content'
-        };
-      }
-      
-      setError(errorInfo);
+      });
       
       // ✅ NUNCA fallar - siempre proveer datos por defecto
       const emergencyFallback = {
@@ -268,19 +208,17 @@ const useGymVideo = (options = {}) => {
         setIsLoading(false);
       }
     }
-  }, [isLoaded, video, enabled, autoRetry, priority]);
+  }, [isLoaded, video, enabled, priority]);
   
   // 🔄 Función para refrescar datos
   const refresh = useCallback(() => {
     console.log('🔄 GYM VIDEO: Manual refresh requested');
     setIsLoaded(false);
-    retryCountRef.current = 0;
     fetchGymVideo(true);
   }, [fetchGymVideo]);
   
   // 🧹 Función para limpiar error
   const clearError = useCallback(() => {
-    console.log('🧼 GYM VIDEO: Clearing error state');
     setError(null);
   }, []);
   
@@ -326,24 +264,20 @@ const useGymVideo = (options = {}) => {
     };
   }, [video]);
   
-  // 🎯 Función para verificar si el video se puede reproducir
   const canPlayVideo = useCallback(() => {
     if (!hasVideo()) return false;
     
     const videoUrl = getVideoUrl();
     if (!videoUrl) return false;
     
-    // Verificar si es una URL válida
     try {
       new URL(videoUrl);
       return true;
     } catch {
-      // Si no es URL absoluta, asumir que es relativa y válida
       return videoUrl.startsWith('/') || videoUrl.includes('.');
     }
   }, [hasVideo, getVideoUrl]);
   
-  // 📊 Obtener información completa del video
   const getVideoInfo = useCallback(() => {
     return {
       available: hasVideo(),
@@ -361,14 +295,13 @@ const useGymVideo = (options = {}) => {
     };
   }, [video, hasVideo, canPlayVideo, hasAnyMedia, getVideoUrl, getPosterUrl, getVideoSettings, getHeroContent, lastFetch, error]);
   
-  // 📱 Efecto para cargar video al montar (solo si está habilitado)
+  // 📱 Efecto para cargar video al montar
   useEffect(() => {
     isMountedRef.current = true;
     
-    console.log('🎬 GYM VIDEO HOOK: Initializing...', { enabled });
+    console.log('🎬 GYM VIDEO HOOK: Initializing (using gym config)...', { enabled });
     
     if (enabled && !isLoaded && !isLoading) {
-      // Pequeño delay para dar prioridad a contenido crítico
       const timer = setTimeout(() => {
         if (isMountedRef.current && enabled) {
           fetchGymVideo();
@@ -387,7 +320,7 @@ const useGymVideo = (options = {}) => {
   // 📊 Log de estado cuando cambie (solo en desarrollo)
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
-      console.log('🎬 GYM VIDEO STATE CHANGE:', {
+      console.log('🎬 GYM VIDEO STATE CHANGE (using config):', {
         enabled,
         isLoaded,
         isLoading,
@@ -395,14 +328,13 @@ const useGymVideo = (options = {}) => {
         hasMedia: hasAnyMedia(),
         canPlay: canPlayVideo(),
         hasError: !!error,
-        errorType: error?.type,
         errorState: video?.errorState,
         lastFetch: lastFetch ? new Date(lastFetch).toLocaleTimeString() : 'Never'
       });
     }
   }, [enabled, isLoaded, isLoading, hasVideo, hasAnyMedia, canPlayVideo, error, video?.errorState, lastFetch]);
   
-  // 🎯 RETORNO DEL HOOK (completo como el logo)
+  // 🎯 RETORNO DEL HOOK (manteniendo la misma API)
   return {
     // 📊 Estados principales
     video,
@@ -435,7 +367,7 @@ const useGymVideo = (options = {}) => {
     canPlay: canPlayVideo(),
     videoInfo: getVideoInfo(),
     
-    // 🎯 Estados de conveniencia
+    // 🎯 Estados de conveniencia (manteniendo compatibilidad)
     showVideo: hasVideo() && canPlayVideo(),
     showPoster: hasPoster(),
     showFallback: !hasAnyMedia()

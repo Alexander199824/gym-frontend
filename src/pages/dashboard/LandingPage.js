@@ -1,6 +1,6 @@
 // src/pages/dashboard/LandingPage.js
-// FUNCIÓN: Landing page CORREGIDA - Video opcional sin errores 404
-// MEJORAS: Manejo inteligente de video, no falla si endpoint no existe
+// FUNCIÓN: Landing page COMPLETA sin errores - Usa video de /api/gym/config
+// CORREGIDO: Uso correcto de canPlay, mejor manejo de video, sin errores
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -25,7 +25,6 @@ import useGymServices from '../../hooks/useGymServices';
 import useTestimonials from '../../hooks/useTestimonials';
 import useFeaturedProducts from '../../hooks/useFeaturedProducts';
 import useMembershipPlans from '../../hooks/useMembershipPlans';
-import useGymVideo from '../../hooks/useGymVideo'; // 🎬 Hook de video corregido
 
 // 🎨 Componentes
 import GymLogo from '../../components/common/GymLogo';
@@ -69,20 +68,6 @@ const LandingPage = () => {
   const { products, isLoaded: productsLoaded } = useFeaturedProducts();
   const { plans, isLoaded: plansLoaded } = useMembershipPlans();
   
-  // 🎬 Hook de video CORREGIDO - Solo habilitar si se necesita
-  const { 
-    video, 
-    isLoaded: videoLoaded, 
-    hasVideo, 
-    canPlay, 
-    isEndpointMissing,
-    error: videoError 
-  } = useGymVideo({ 
-    enabled: true,      // Habilitado pero maneja errores gracefully
-    autoRetry: false,   // Sin reintentos automáticos
-    priority: 'low'     // Baja prioridad
-  });
-  
   // 🔄 Redirigir si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) {
@@ -99,13 +84,6 @@ const LandingPage = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-  
-  // 🎬 Auto-play video si está disponible
-  useEffect(() => {
-    if (hasVideo() && videoRef.current) {
-      videoRef.current.load();
-    }
-  }, [video, hasVideo]);
   
   // 💬 Auto-carousels para móvil
   useEffect(() => {
@@ -164,28 +142,26 @@ const LandingPage = () => {
     return () => clearTimeout(timer);
   }, [configLoaded, config, initialLoadCompleted]);
   
-  // 📊 Log de video para debug (solo en desarrollo)
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && videoLoaded) {
-      console.group('🎬 VIDEO STATUS UPDATE');
-      console.log('Video loaded:', videoLoaded);
-      console.log('Has video:', hasVideo());
-      console.log('Can play:', canPlay());
-      console.log('Endpoint missing:', isEndpointMissing);
-      console.log('Video error:', videoError);
-      if (video) {
-        console.log('Video data:', {
-          url: video.heroVideo,
-          poster: video.poster,
-          title: video.title
-        });
-      }
-      console.groupEnd();
-    }
-  }, [videoLoaded, hasVideo, canPlay, isEndpointMissing, videoError, video]);
-  
   // ✅ USAR DATOS REALES DEL BACKEND
   const gymConfig = config || MINIMAL_FALLBACK;
+  
+  // 🎬 EXTRAER DATOS DE VIDEO DEL CONFIG (sin hook separado)
+  const videoData = React.useMemo(() => {
+    if (!config) return null;
+    
+    // Buscar video en diferentes ubicaciones del config
+    const videoUrl = config.videoUrl || config.hero?.videoUrl || '';
+    const imageUrl = config.imageUrl || config.hero?.imageUrl || '';
+    
+    return {
+      videoUrl,
+      imageUrl,
+      hasVideo: !!videoUrl,
+      hasImage: !!imageUrl,
+      title: config.hero?.title || config.name,
+      description: config.hero?.description || config.description
+    };
+  }, [config]);
   
   // 📊 Procesar estadísticas
   const formattedStats = React.useMemo(() => {
@@ -487,15 +463,15 @@ const LandingPage = () => {
               </div>
             </div>
             
-            {/* Imagen/Video Hero - CORREGIDO para video opcional */}
+            {/* Imagen/Video Hero - CORREGIDO usando datos del config */}
             <div className="relative">
-              {/* 🎬 VIDEO DESDE BACKEND (solo si está disponible y puede reproducirse) */}
-              {hasVideo() && canPlay() ? (
+              {/* 🎬 VIDEO DESDE CONFIG */}
+              {videoData?.hasVideo ? (
                 <div className="relative aspect-w-16 aspect-h-9 rounded-3xl overflow-hidden shadow-2xl">
                   <video
                     ref={videoRef}
                     className="object-cover w-full h-full"
-                    poster={video?.poster || "/api/placeholder/600/450"}
+                    poster={videoData.imageUrl || "/api/placeholder/600/450"}
                     muted={isVideoMuted}
                     loop
                     playsInline
@@ -504,8 +480,8 @@ const LandingPage = () => {
                     onMouseEnter={() => setShowVideoControls(true)}
                     onMouseLeave={() => setShowVideoControls(false)}
                   >
-                    <source src={video.heroVideo} type="video/mp4" />
-                    <source src={video.heroVideo.replace('.mp4', '.webm')} type="video/webm" />
+                    <source src={videoData.videoUrl} type="video/mp4" />
+                    <source src={videoData.videoUrl.replace('.mp4', '.webm')} type="video/webm" />
                     Tu navegador no soporta video HTML5.
                   </video>
                   
@@ -540,17 +516,17 @@ const LandingPage = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
                 </div>
               ) : (
-                /* 🖼️ Imagen fallback (siempre se muestra si no hay video) */
+                /* 🖼️ Imagen fallback */
                 <div className="aspect-w-4 aspect-h-3 rounded-3xl overflow-hidden shadow-2xl">
                   <img 
-                    src="/api/placeholder/600/450"
+                    src={videoData?.imageUrl || "/api/placeholder/600/450"}
                     alt={`${gymConfig.name} - Instalaciones`}
                     className="object-cover w-full h-full"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                   
-                  {/* 🎬 Indicador de video próximamente (si endpoint no está implementado) */}
-                  {isEndpointMissing && process.env.NODE_ENV === 'development' && (
+                  {/* Indicador de video próximamente */}
+                  {process.env.NODE_ENV === 'development' && (
                     <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium">
                       🎬 Video próximamente
                     </div>

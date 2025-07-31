@@ -637,18 +637,18 @@ class ApiService {
   // 📄 MÉTODOS DE CONTENIDO
   // ================================
   
-  // OBTENER CONTENIDO DE SECCIONES
-  async getSectionsContent() {
-    console.log('📄 FETCHING SECTIONS CONTENT...');
-    try {
-      const result = await this.get('/gym/sections-content');
-      console.log('✅ SECTIONS CONTENT RECEIVED:', result);
-      return result;
-    } catch (error) {
-      console.log('❌ SECTIONS CONTENT FAILED:', error.message);
-      throw error;
-    }
+// OBTENER CONTENIDO DE SECCIONES (método existente)
+async getSectionsContent() {
+  console.log('📄 FETCHING SECTIONS CONTENT...');
+  try {
+    const result = await this.get('/gym/sections-content');
+    console.log('✅ SECTIONS CONTENT RECEIVED:', result);
+    return result;
+  } catch (error) {
+    console.log('❌ SECTIONS CONTENT FAILED:', error.message);
+    throw error;
   }
+}
   
   // OBTENER NAVEGACIÓN
   async getNavigation() {
@@ -827,6 +827,19 @@ class ApiService {
       throw error;
     }
   }
+
+  // ✅ NUEVO: OBTENER CONTENIDO DE LANDING PAGE
+async getLandingContent() {
+  console.log('📄 FETCHING LANDING CONTENT...');
+  try {
+    const result = await this.get('/content/landing');
+    console.log('✅ LANDING CONTENT RECEIVED:', result);
+    return result;
+  } catch (error) {
+    console.log('❌ LANDING CONTENT FAILED:', error.message);
+    throw error;
+  }
+}
   
   // VERIFICAR CONEXIÓN MEJORADA
   async checkBackendConnection() {
@@ -903,6 +916,9 @@ class ApiService {
     window.location.href = '/login';
   }
 }
+
+
+
 
 // 🏭 EXPORTAR INSTANCIA SINGLETON
 const apiService = new ApiService();
