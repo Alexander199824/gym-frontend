@@ -73,9 +73,9 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ServicesManager from './components/ServicesManager';
 import PlansManager from './components/PlansManager';
 import ProductsManager from './components/ProductsManager';
-//import ContentEditor from './components/ContentEditor';
-//import MediaUploader from './components/MediaUploader';
-//import BrandingEditor from './components/BrandingEditor';
+import ContentEditor from './components/ContentEditor';
+import MediaUploader from './components/MediaUploader';
+import BrandingEditor from './components/BrandingEditor';
 
 const AdminDashboard = () => {
   const { user, canManageContent } = useAuth();
