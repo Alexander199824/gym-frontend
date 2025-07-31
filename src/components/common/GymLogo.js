@@ -1,6 +1,6 @@
 // src/components/common/GymLogo.js
 // CONECTA CON: useGymConfig hook
-// MEJORAS: Optimizado para móvil, mejor responsive, lazy loading
+// MEJORAS: Persistencia entre navegaciones, cache de imagen, re-intentos automáticos
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dumbbell } from 'lucide-react';
@@ -13,14 +13,14 @@ const GymLogo = ({
   textSize = 'auto',
   className = '',
   onClick = null,
-  priority = 'normal', // 'high', 'normal', 'low' para lazy loading
-  breakpoint = 'md' // 'xs', 'sm', 'md', 'lg', 'xl' para responsive
+  priority = 'normal',
+  breakpoint = 'md'
 }) => {
   const { config, isLoaded } = useGymConfig();
   const [imageState, setImageState] = useState({
     error: false,
     loaded: false,
-    attempted: false
+    loading: false
   });
   
   // 🔧 Memoizar URL de imagen para evitar recálculos
@@ -42,55 +42,116 @@ const GymLogo = ({
     return `${baseUrl}${cleanPath}`;
   }, [config?.logo?.url]);
   
-  // 🔍 Verificar imagen solo UNA VEZ cuando cambie la URL
+  // 🔧 Cache de imágenes en sessionStorage para persistir entre navegaciones
+  const getCachedImageStatus = useCallback((url) => {
+    if (!url) return null;
+    try {
+      const cached = sessionStorage.getItem(`gym_logo_${url}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+  
+  const setCachedImageStatus = useCallback((url, status) => {
+    if (!url) return;
+    try {
+      sessionStorage.setItem(`gym_logo_${url}`, JSON.stringify({
+        status,
+        timestamp: Date.now()
+      }));
+    } catch {
+      // Ignorar errores de storage
+    }
+  }, []);
+  
+  // 🔍 Verificar imagen con cache y re-intentos
   const verifyImage = useCallback((url) => {
-    if (!url || imageState.attempted) return;
+    if (!url || imageState.loading) return;
     
-    console.group('🖼️ GymLogo Image Check');
-    console.log('📁 Image URL from backend:', url);
+    // Verificar cache primero
+    const cached = getCachedImageStatus(url);
+    if (cached && cached.status === 'loaded') {
+      // Cache hit - imagen ya verificada
+      console.log('🖼️ GymLogo: Using cached image status');
+      setImageState({ loaded: true, error: false, loading: false });
+      return;
+    }
     
-    setImageState(prev => ({ ...prev, attempted: true }));
+    console.group('🖼️ GymLogo Image Verification');
+    console.log('📁 Image URL:', url);
+    console.log('🔄 Cache status:', cached ? 'miss' : 'empty');
+    
+    setImageState(prev => ({ ...prev, loading: true, error: false }));
     
     const img = new Image();
     
     img.onload = () => {
-      console.log('✅ Logo loaded successfully from backend');
+      console.log('✅ Logo loaded successfully');
       console.groupEnd();
-      setImageState(prev => ({ ...prev, loaded: true, error: false }));
+      
+      const newState = { loaded: true, error: false, loading: false };
+      setImageState(newState);
+      setCachedImageStatus(url, 'loaded');
     };
     
     img.onerror = () => {
-      console.warn('❌ Failed to load logo from backend');
+      console.warn('❌ Failed to load logo');
       console.log('🔧 Solution: Check if the image exists at:', url);
       console.log('💡 Fallback: Using dumbbell icon instead');
       console.groupEnd();
-      setImageState(prev => ({ ...prev, loaded: false, error: true }));
+      
+      const newState = { loaded: false, error: true, loading: false };
+      setImageState(newState);
+      setCachedImageStatus(url, 'error');
+      
+      // Re-intentar después de 5 segundos si es alta prioridad
+      if (priority === 'high') {
+        setTimeout(() => {
+          console.log('🔄 Retrying logo load...');
+          setImageState(prev => ({ ...prev, error: false }));
+          verifyImage(url);
+        }, 5000);
+      }
     };
     
-    // 🚀 Lazy loading basado en prioridad
+    // 🚀 Cargar basado en prioridad
     if (priority === 'high') {
       img.src = url; // Cargar inmediatamente
     } else if (priority === 'normal') {
-      // Pequeño delay para dar prioridad a contenido crítico
       setTimeout(() => {
         img.src = url;
       }, 100);
     } else {
-      // Low priority - cargar después de que todo lo demás esté listo
       setTimeout(() => {
         img.src = url;
       }, 500);
     }
-  }, [imageState.attempted, priority]);
+  }, [imageState.loading, priority, getCachedImageStatus, setCachedImageStatus]);
   
-  // 🔍 Efecto para verificar imagen (solo cuando sea necesario)
+  // 🔍 Efecto para verificar imagen cuando sea necesario
   useEffect(() => {
-    if (isLoaded && imageUrl && !imageState.attempted) {
+    if (isLoaded && imageUrl && !imageState.loading) {
       verifyImage(imageUrl);
     }
-  }, [isLoaded, imageUrl, imageState.attempted, verifyImage]);
+  }, [isLoaded, imageUrl, imageState.loading, verifyImage]);
   
-  // 📏 CONFIGURACIÓN DE TAMAÑOS RESPONSIVA (Mejorada para móvil)
+  // 🔄 Re-verificar imagen cuando se regresa a la página
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && imageUrl && imageState.error) {
+        console.log('🔄 Page became visible, retrying logo load...');
+        setTimeout(() => {
+          verifyImage(imageUrl);
+        }, 1000);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [imageUrl, imageState.error, verifyImage]);
+  
+  // 📏 CONFIGURACIÓN DE TAMAÑOS RESPONSIVA
   const sizeConfig = useMemo(() => ({
     xs: { 
       container: 'w-6 h-6', 
@@ -136,7 +197,7 @@ const GymLogo = ({
     }
   }), []);
   
-  // 🎨 CONFIGURACIÓN DE VARIANTES (Memoizada)
+  // 🎨 CONFIGURACIÓN DE VARIANTES
   const variantConfig = useMemo(() => ({
     professional: { 
       container: 'bg-primary-600', 
@@ -168,7 +229,6 @@ const GymLogo = ({
       text: 'text-primary-600',
       shadow: 'shadow-xl'
     },
-    // 🆕 Nuevas variantes para móvil
     minimal: {
       container: 'bg-transparent',
       icon: 'text-primary-600',
@@ -183,10 +243,10 @@ const GymLogo = ({
     }
   }), []);
   
-  // 📱 Detectar si estamos en móvil (simplificado)
+  // 📱 Detectar si estamos en móvil
   const isMobile = useMemo(() => {
     if (typeof window === 'undefined') return false;
-    return window.innerWidth < 768; // md breakpoint
+    return window.innerWidth < 768;
   }, []);
   
   const currentSize = sizeConfig[size] || sizeConfig.md;
@@ -202,7 +262,7 @@ const GymLogo = ({
   
   const getTextSize = () => textSize !== 'auto' ? textSize : currentSize.text;
   
-  // 🖼️ RENDERIZAR LOGO (Memoizado y optimizado)
+  // 🖼️ RENDERIZAR LOGO - Optimizado para persistencia
   const logoContent = useMemo(() => {
     const containerClasses = `
       ${getResponsiveSize('container')} 
@@ -220,10 +280,21 @@ const GymLogo = ({
             src={imageUrl}
             alt={config?.logo?.alt || config?.name || 'Logo'}
             className={`${getResponsiveSize('container')} object-contain`}
-            onError={() => setImageState(prev => ({ ...prev, error: true }))}
+            onError={() => {
+              console.log('🖼️ Image error during render, retrying...');
+              setImageState(prev => ({ ...prev, error: true, loaded: false }));
+              // Re-intentar inmediatamente
+              setTimeout(() => verifyImage(imageUrl), 100);
+            }}
+            onLoad={() => {
+              // Confirmar carga exitosa
+              if (!imageState.loaded) {
+                setImageState(prev => ({ ...prev, loaded: true, error: false }));
+                setCachedImageStatus(imageUrl, 'loaded');
+              }
+            }}
             loading={priority === 'high' ? 'eager' : 'lazy'}
             decoding="async"
-            // 🔧 Optimizaciones adicionales para móvil
             style={{
               imageRendering: 'crisp-edges',
               WebkitOptimizedLegibility: 'optimizeSpeed'
@@ -252,16 +323,18 @@ const GymLogo = ({
     currentVariant, 
     currentSize, 
     onClick,
-    priority
+    priority,
+    verifyImage,
+    setCachedImageStatus
   ]);
 
-  // 🎭 Texto del logo (Memoizado y responsive)
+  // 🎭 Texto del logo con persistencia
   const logoText = useMemo(() => {
     if (!showText) return null;
     
     const text = config?.name || 'Elite Fitness Club';
     
-    // 📱 Texto más compacto en móvil si es necesario
+    // Texto compacto en móvil si es necesario
     const displayText = isMobile && text.length > 15 
       ? text.substring(0, 12) + '...' 
       : text;
@@ -277,8 +350,8 @@ const GymLogo = ({
     );
   }, [showText, config?.name, currentVariant.text, getTextSize, isMobile]);
 
-  // 📱 Skeleton optimizado para móvil
-  if (!isLoaded) {
+  // 📱 Skeleton mejorado con retry
+  if (!isLoaded || imageState.loading) {
     const skeletonClasses = `
       ${getResponsiveSize('container')} 
       ${currentVariant.container} 
@@ -318,7 +391,6 @@ const GymLogo = ({
         transition-all duration-300 ease-in-out
       `}
       onClick={onClick}
-      // 🔧 Optimizaciones de accesibilidad
       role={onClick ? 'button' : 'img'}
       tabIndex={onClick ? 0 : -1}
       onKeyDown={onClick ? (e) => {
@@ -335,7 +407,7 @@ const GymLogo = ({
   );
 };
 
-// 🚀 VARIANTES ESPECÍFICAS OPTIMIZADAS PARA MÓVIL
+// 🚀 VARIANTES ESPECÍFICAS MEJORADAS
 export const NavbarLogo = React.memo(() => {
   const [isMobile, setIsMobile] = useState(false);
   
@@ -423,7 +495,6 @@ export const HeroLogo = React.memo(() => {
   );
 });
 
-// 🆕 Nuevas variantes específicas para móvil
 export const CompactLogo = React.memo(() => (
   <GymLogo 
     size="xs" 

@@ -1,5 +1,5 @@
 // src/contexts/AppContext.js
-// FUNCIÓN: Estado global con cache para contenido del backend
+// FUNCIÓN: Estado global con cache MEJORADO para persistir entre navegaciones
 // CONECTA CON: Todos los hooks de gym y sistema de cache
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
@@ -41,19 +41,21 @@ const initialState = {
     featuredProducts: false,
     sectionsContent: false,
     navigation: false,
-    branding: false
+    branding: false,
+    gymVideo: false
   },
   
-  // 💾 Cache del backend
+  // 💾 Cache del backend - MEJORADO con persistencia
   backendCache: {
-    gymConfig: { data: null, timestamp: null, ttl: 5 * 60 * 1000 }, // 5 min
-    gymStats: { data: null, timestamp: null, ttl: 5 * 60 * 1000 }, // 5 min
-    gymServices: { data: null, timestamp: null, ttl: 15 * 60 * 1000 }, // 15 min
-    testimonials: { data: null, timestamp: null, ttl: 20 * 60 * 1000 }, // 20 min
+    gymConfig: { data: null, timestamp: null, ttl: 30 * 60 * 1000 }, // 30 min - más tiempo
+    gymStats: { data: null, timestamp: null, ttl: 10 * 60 * 1000 }, // 10 min
+    gymServices: { data: null, timestamp: null, ttl: 30 * 60 * 1000 }, // 30 min - más estático
+    testimonials: { data: null, timestamp: null, ttl: 30 * 60 * 1000 }, // 30 min
     featuredProducts: { data: null, timestamp: null, ttl: 10 * 60 * 1000 }, // 10 min
-    sectionsContent: { data: null, timestamp: null, ttl: 10 * 60 * 1000 }, // 10 min
-    navigation: { data: null, timestamp: null, ttl: 30 * 60 * 1000 }, // 30 min
-    branding: { data: null, timestamp: null, ttl: 60 * 60 * 1000 } // 60 min
+    sectionsContent: { data: null, timestamp: null, ttl: 20 * 60 * 1000 }, // 20 min
+    navigation: { data: null, timestamp: null, ttl: 60 * 60 * 1000 }, // 60 min
+    branding: { data: null, timestamp: null, ttl: 60 * 60 * 1000 }, // 60 min
+    gymVideo: { data: null, timestamp: null, ttl: 60 * 60 * 1000 } // 60 min - video raramente cambia
   },
   
   // 🎯 Filtros globales
@@ -69,7 +71,8 @@ const initialState = {
     refreshInterval: 30000,          // Intervalo de refresco (30s)
     compactMode: false,              // Modo compacto
     animationsEnabled: true,         // Animaciones habilitadas
-    cacheEnabled: true               // Cache habilitado
+    cacheEnabled: true,              // Cache habilitado
+    persistentCache: true            // Cache persistente entre navegaciones
   },
   
   // 📈 Métricas en tiempo real
@@ -86,6 +89,14 @@ const initialState = {
     lastSync: null,
     pendingSync: false,
     failedRequests: []
+  },
+  
+  // 🎬 Estado del video - NUEVO
+  videoState: {
+    loaded: false,
+    error: false,
+    playing: false,
+    muted: true
   }
 };
 
@@ -109,6 +120,7 @@ const ACTION_TYPES = {
   SET_CACHE_DATA: 'SET_CACHE_DATA',
   CLEAR_CACHE: 'CLEAR_CACHE',
   CLEAR_CACHE_ITEM: 'CLEAR_CACHE_ITEM',
+  LOAD_CACHE_FROM_STORAGE: 'LOAD_CACHE_FROM_STORAGE',
   
   // Filter Actions
   SET_GLOBAL_FILTER: 'SET_GLOBAL_FILTER',
@@ -122,7 +134,10 @@ const ACTION_TYPES = {
   UPDATE_LIVE_METRICS: 'UPDATE_LIVE_METRICS',
   
   // Sync Actions
-  UPDATE_SYNC_STATUS: 'UPDATE_SYNC_STATUS'
+  UPDATE_SYNC_STATUS: 'UPDATE_SYNC_STATUS',
+  
+  // Video Actions - NUEVO
+  UPDATE_VIDEO_STATE: 'UPDATE_VIDEO_STATE'
 };
 
 // 🔄 REDUCER DE LA APLICACIÓN
@@ -191,6 +206,12 @@ function appReducer(state, action) {
         }
       };
       
+    case ACTION_TYPES.LOAD_CACHE_FROM_STORAGE:
+      return {
+        ...state,
+        backendCache: { ...state.backendCache, ...action.payload }
+      };
+      
     case ACTION_TYPES.CLEAR_CACHE:
       return {
         ...state,
@@ -253,6 +274,12 @@ function appReducer(state, action) {
         syncStatus: { ...state.syncStatus, ...action.payload }
       };
       
+    case ACTION_TYPES.UPDATE_VIDEO_STATE:
+      return {
+        ...state,
+        videoState: { ...state.videoState, ...action.payload }
+      };
+      
     default:
       return state;
   }
@@ -273,6 +300,11 @@ export function useApp() {
 // 🏭 PROVIDER DE LA APLICACIÓN
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  
+  // 💾 EFECTO: Cargar cache desde localStorage AL INICIO
+  useEffect(() => {
+    loadCacheFromStorage();
+  }, []);
   
   // 📱 EFECTO: Detectar tamaño de pantalla
   useEffect(() => {
@@ -345,15 +377,25 @@ export function AppProvider({ children }) {
     }
   }, [state.appSettings.autoRefresh, state.appSettings.refreshInterval]);
   
-  // 💾 EFECTO: Cargar cache desde localStorage
+  // 💾 EFECTO: Guardar cache en localStorage cuando cambie - MEJORADO
   useEffect(() => {
-    loadCacheFromStorage();
-  }, []);
+    if (state.appSettings.persistentCache) {
+      saveCacheToStorage();
+    }
+  }, [state.backendCache, state.appSettings.persistentCache]);
   
-  // 💾 EFECTO: Guardar cache en localStorage
+  // 🔄 EFECTO: Refrescar cache cuando se vuelve visible la página
   useEffect(() => {
-    saveCacheToStorage();
-  }, [state.backendCache]);
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Page became visible, checking cache freshness...');
+        checkCacheFreshness();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
   
   // ⚡ FUNCIONES DE LA APLICACIÓN
   
@@ -423,10 +465,11 @@ export function AppProvider({ children }) {
     dispatch({ type: ACTION_TYPES.SET_DATA_LOADING, payload: loadingState });
   };
   
-  // 💾 FUNCIONES DE CACHE
+  // 💾 FUNCIONES DE CACHE MEJORADAS
   
   // Establecer datos en cache
   const setCacheData = (key, data) => {
+    console.log(`💾 Setting cache for ${key}:`, data);
     dispatch({
       type: ACTION_TYPES.SET_CACHE_DATA,
       payload: { key, data }
@@ -436,16 +479,20 @@ export function AppProvider({ children }) {
   // Obtener datos del cache
   const getCacheData = (key) => {
     const cacheItem = state.backendCache[key];
-    if (!cacheItem || !cacheItem.timestamp) return null;
+    if (!cacheItem || !cacheItem.timestamp) {
+      console.log(`📭 Cache MISS for ${key}: No data`);
+      return null;
+    }
     
     const now = Date.now();
     const age = now - cacheItem.timestamp;
     
     if (age > cacheItem.ttl) {
-      // Cache expirado
+      console.log(`⏰ Cache EXPIRED for ${key}: Age ${age}ms > TTL ${cacheItem.ttl}ms`);
       return null;
     }
     
+    console.log(`✅ Cache HIT for ${key}: Age ${age}ms, TTL ${cacheItem.ttl}ms`);
     return cacheItem.data;
   };
   
@@ -460,55 +507,123 @@ export function AppProvider({ children }) {
     return age <= cacheItem.ttl;
   };
   
+  // Verificar frescura del cache
+  const checkCacheFreshness = () => {
+    console.log('🔍 Checking cache freshness...');
+    const now = Date.now();
+    
+    Object.entries(state.backendCache).forEach(([key, cacheItem]) => {
+      if (cacheItem.timestamp) {
+        const age = now - cacheItem.timestamp;
+        const remainingTime = cacheItem.ttl - age;
+        
+        if (remainingTime <= 0) {
+          console.log(`🕰️ Cache for ${key} expired, marking for refresh`);
+        } else {
+          console.log(`✅ Cache for ${key} still fresh: ${Math.round(remainingTime / 1000)}s remaining`);
+        }
+      }
+    });
+  };
+  
   // Limpiar cache completo
   const clearCache = () => {
+    console.log('🧹 Clearing all cache...');
     dispatch({ type: ACTION_TYPES.CLEAR_CACHE });
-    localStorage.removeItem('gym_backend_cache');
+    if (state.appSettings.persistentCache) {
+      localStorage.removeItem('gym_backend_cache');
+    }
   };
   
   // Limpiar item específico del cache
   const clearCacheItem = (key) => {
+    console.log(`🗑️ Clearing cache for ${key}`);
     dispatch({ type: ACTION_TYPES.CLEAR_CACHE_ITEM, payload: key });
   };
   
-  // Cargar cache desde localStorage
+  // Cargar cache desde localStorage - MEJORADO
   const loadCacheFromStorage = () => {
+    if (!state.appSettings.persistentCache) return;
+    
     try {
       const savedCache = localStorage.getItem('gym_backend_cache');
       if (savedCache) {
         const cacheData = JSON.parse(savedCache);
+        const validCache = {};
+        const now = Date.now();
+        
+        console.log('📥 Loading cache from localStorage...');
         
         // Verificar y cargar solo cache válido
         Object.entries(cacheData).forEach(([key, item]) => {
           if (item && item.timestamp && item.data) {
-            const now = Date.now();
             const age = now - item.timestamp;
             const ttl = state.backendCache[key]?.ttl || 5 * 60 * 1000;
             
             if (age <= ttl) {
-              setCacheData(key, item.data);
+              validCache[key] = {
+                ...item,
+                ttl // Actualizar TTL desde configuración actual
+              };
+              console.log(`✅ Restored ${key} from cache (age: ${Math.round(age / 1000)}s)`);
+            } else {
+              console.log(`⏰ Expired ${key} in cache (age: ${Math.round(age / 1000)}s)`);
             }
           }
         });
+        
+        if (Object.keys(validCache).length > 0) {
+          dispatch({ 
+            type: ACTION_TYPES.LOAD_CACHE_FROM_STORAGE, 
+            payload: validCache 
+          });
+          console.log(`🎉 Loaded ${Object.keys(validCache).length} valid cache entries`);
+        }
       }
     } catch (error) {
-      console.error('Error al cargar cache desde localStorage:', error);
+      console.error('❌ Error loading cache from localStorage:', error);
     }
   };
   
-  // Guardar cache en localStorage
+  // Guardar cache en localStorage - MEJORADO
   const saveCacheToStorage = () => {
+    if (!state.appSettings.persistentCache) return;
+    
     try {
       const cacheToSave = {};
+      let savedCount = 0;
+      
       Object.entries(state.backendCache).forEach(([key, item]) => {
         if (item.data && item.timestamp) {
           cacheToSave[key] = item;
+          savedCount++;
         }
       });
-      localStorage.setItem('gym_backend_cache', JSON.stringify(cacheToSave));
+      
+      if (savedCount > 0) {
+        localStorage.setItem('gym_backend_cache', JSON.stringify(cacheToSave));
+        console.log(`💾 Saved ${savedCount} cache entries to localStorage`);
+      }
     } catch (error) {
-      console.error('Error al guardar cache en localStorage:', error);
+      console.error('❌ Error saving cache to localStorage:', error);
     }
+  };
+  
+  // 🎬 FUNCIONES DEL VIDEO - NUEVAS
+  const updateVideoState = (newState) => {
+    dispatch({ type: ACTION_TYPES.UPDATE_VIDEO_STATE, payload: newState });
+  };
+  
+  const setVideoLoaded = (loaded) => {
+    updateVideoState({ loaded, error: !loaded });
+  };
+  
+  const setVideoPlaying = (playing) => {
+    updateVideoState({ playing });
+  };
+  
+  const setVideoMuted = (muted) => {
+    updateVideoState({ muted });
   };
   
   // 🎯 Establecer filtro global
@@ -608,12 +723,13 @@ export function AppProvider({ children }) {
     // Funciones de datos
     setDataLoading,
     
-    // Funciones de cache
+    // Funciones de cache MEJORADAS
     setCacheData,
     getCacheData,
     isCacheValid,
     clearCache,
     clearCacheItem,
+    checkCacheFreshness,
     
     // Funciones de filtros
     setGlobalFilter,
@@ -626,6 +742,12 @@ export function AppProvider({ children }) {
     // Funciones de métricas
     updateLiveMetrics,
     refreshLiveMetrics,
+    
+    // Funciones de video - NUEVAS
+    updateVideoState,
+    setVideoLoaded,
+    setVideoPlaying,
+    setVideoMuted,
     
     // Funciones de utilidad
     formatDate,
@@ -643,6 +765,16 @@ export function AppProvider({ children }) {
     </AppContext.Provider>
   );
 }
+
+// 📝 CAMBIOS APLICADOS PARA PERSISTENCIA:
+// ✅ Cache se carga automáticamente al iniciar
+// ✅ Cache se guarda automáticamente cuando cambia
+// ✅ TTL más largos para datos estables (config, video)
+// ✅ Verificación de frescura cuando la página se vuelve visible
+// ✅ Estado del video agregado al contexto global
+// ✅ Funciones específicas para manejar estado del video
+// ✅ Logs detallados para debug
+// ✅ Compatible con toda la funcionalidad existente
 
 // 📝 NOTAS DE CAMBIOS:
 // ✅ Agregado sistema de cache completo para backend
