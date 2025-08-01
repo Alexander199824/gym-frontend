@@ -1,19 +1,20 @@
 // src/pages/dashboard/components/ContentEditor.js
-// FUNCIÓN: Editor CORREGIDO - Muestra datos actuales del backend al abrir
-// CAMBIOS: Mejor inicialización, logs debug, estados de carga
+// FUNCIÓN: Editor MEJORADO - Horarios con capacidad y ocupación de usuarios
+// CAMBIOS: Horarios se cargan automáticamente, gestión de capacidad por horario, seguimiento de ocupación
 
 import React, { useState, useEffect } from 'react';
 import {
   Save, Phone, Mail, MapPin, Globe, Instagram,
   Facebook, Twitter, Youtube, Clock, Users, Award, Target,
-  AlertTriangle, MessageSquare, Star, Trophy, Loader
+  AlertTriangle, MessageSquare, Star, Trophy, Loader, Plus,
+  Minus, Calendar, UserCheck, UserX, Eye, BarChart3, Settings
 } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
 
 const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, isMobile } = useApp();
   
-  // 📱 Estados locales
+  // 📱 Estados locales MEJORADOS
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
@@ -32,14 +33,22 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       youtube: { url: '', active: true },
       whatsapp: { url: '', active: true }
     },
+    // 🆕 HORARIOS MEJORADOS CON CAPACIDAD
     hours: {
-      monday: { open: '06:00', close: '22:00', isOpen: true },
-      tuesday: { open: '06:00', close: '22:00', isOpen: true },
-      wednesday: { open: '06:00', close: '22:00', isOpen: true },
-      thursday: { open: '06:00', close: '22:00', isOpen: true },
-      friday: { open: '06:00', close: '22:00', isOpen: true },
-      saturday: { open: '08:00', close: '20:00', isOpen: true },
-      sunday: { open: '08:00', close: '18:00', isOpen: true }
+      monday: { 
+        open: '06:00', 
+        close: '22:00', 
+        isOpen: true,
+        capacity: 50,           // Capacidad máxima de usuarios
+        reservations: 23,       // Usuarios actualmente reservados
+        timeSlots: []           // Franjas horarias específicas (futuro)
+      },
+      tuesday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 31 },
+      wednesday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 28 },
+      thursday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 35 },
+      friday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 42 },
+      saturday: { open: '08:00', close: '20:00', isOpen: true, capacity: 40, reservations: 38 },
+      sunday: { open: '08:00', close: '18:00', isOpen: true, capacity: 35, reservations: 29 }
     },
     stats: {
       members: 500,
@@ -52,24 +61,25 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [activeSection, setActiveSection] = useState('basic');
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [showCapacityDetails, setShowCapacityDetails] = useState(false);
   
-  // 📅 Días de la semana
+  // 📅 Días de la semana con datos adicionales
   const daysOfWeek = [
-    { key: 'monday', label: 'Lunes' },
-    { key: 'tuesday', label: 'Martes' },
-    { key: 'wednesday', label: 'Miércoles' },
-    { key: 'thursday', label: 'Jueves' },
-    { key: 'friday', label: 'Viernes' },
-    { key: 'saturday', label: 'Sábado' },
-    { key: 'sunday', label: 'Domingo' }
+    { key: 'monday', label: 'Lunes', shortLabel: 'Lun' },
+    { key: 'tuesday', label: 'Martes', shortLabel: 'Mar' },
+    { key: 'wednesday', label: 'Miércoles', shortLabel: 'Mié' },
+    { key: 'thursday', label: 'Jueves', shortLabel: 'Jue' },
+    { key: 'friday', label: 'Viernes', shortLabel: 'Vie' },
+    { key: 'saturday', label: 'Sábado', shortLabel: 'Sáb' },
+    { key: 'sunday', label: 'Domingo', shortLabel: 'Dom' }
   ];
   
-  // 🔗 Secciones del editor
+  // 🔗 Secciones del editor MEJORADAS
   const sections = [
     { id: 'basic', label: 'Información Básica', icon: Target },
     { id: 'contact', label: 'Contacto', icon: Phone },
     { id: 'social', label: 'Redes Sociales', icon: Globe },
-    { id: 'schedule', label: 'Horarios', icon: Clock },
+    { id: 'schedule', label: 'Horarios y Capacidad', icon: Clock }, // 🆕 Actualizado
     { id: 'stats', label: 'Estadísticas', icon: Award }
   ];
   
@@ -82,7 +92,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     { key: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: 'green-600', placeholder: 'https://wa.me/502XXXXXXXX' }
   ];
   
-  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO
+  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO PARA HORARIOS
   useEffect(() => {
     console.log('🔄 ContentEditor - Checking for gym config data:', {
       hasGymConfig: !!gymConfig,
@@ -95,6 +105,37 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       console.log('📥 ContentEditor - Loading data from backend:', gymConfig.data);
       
       const backendData = gymConfig.data;
+      
+      // 🆕 MAPEAR HORARIOS MEJORADOS - CON CAPACIDAD
+      const mapHoursWithDefaults = (backendHours) => {
+        const defaultHours = {
+          monday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 0 },
+          tuesday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 0 },
+          wednesday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 0 },
+          thursday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 0 },
+          friday: { open: '06:00', close: '22:00', isOpen: true, capacity: 50, reservations: 0 },
+          saturday: { open: '08:00', close: '20:00', isOpen: true, capacity: 40, reservations: 0 },
+          sunday: { open: '08:00', close: '18:00', isOpen: true, capacity: 35, reservations: 0 }
+        };
+        
+        // Combinar datos del backend con valores por defecto
+        const combinedHours = {};
+        daysOfWeek.forEach(day => {
+          const backendDay = backendHours?.[day.key];
+          const defaultDay = defaultHours[day.key];
+          
+          combinedHours[day.key] = {
+            open: backendDay?.open || defaultDay.open,
+            close: backendDay?.close || defaultDay.close,
+            isOpen: backendDay?.isOpen !== false, // Default true si no está definido
+            capacity: backendDay?.capacity || defaultDay.capacity,
+            reservations: backendDay?.reservations || 0, // Simulamos reservaciones
+            timeSlots: backendDay?.timeSlots || []
+          };
+        });
+        
+        return combinedHours;
+      };
       
       // Mapear datos del backend con valores por defecto seguros
       const newFormData = {
@@ -133,15 +174,8 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           }
         },
         
-        hours: backendData.hours || {
-          monday: { open: '06:00', close: '22:00', isOpen: true },
-          tuesday: { open: '06:00', close: '22:00', isOpen: true },
-          wednesday: { open: '06:00', close: '22:00', isOpen: true },
-          thursday: { open: '06:00', close: '22:00', isOpen: true },
-          friday: { open: '06:00', close: '22:00', isOpen: true },
-          saturday: { open: '08:00', close: '20:00', isOpen: true },
-          sunday: { open: '08:00', close: '18:00', isOpen: true }
-        },
+        // 🆕 HORARIOS MEJORADOS CON CAPACIDAD
+        hours: mapHoursWithDefaults(backendData.hours),
         
         stats: {
           members: backendData.stats?.members || 500,
@@ -155,7 +189,13 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         name: newFormData.name,
         hasContact: !!newFormData.contact.phone,
         socialPlatforms: Object.keys(newFormData.social).filter(key => newFormData.social[key].url),
-        statsLoaded: Object.keys(newFormData.stats)
+        statsLoaded: Object.keys(newFormData.stats),
+        hoursLoaded: Object.keys(newFormData.hours).map(day => ({
+          day,
+          isOpen: newFormData.hours[day].isOpen,
+          capacity: newFormData.hours[day].capacity,
+          reservations: newFormData.hours[day].reservations
+        }))
       });
       
       setFormData(newFormData);
@@ -165,8 +205,8 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       console.log('⏳ ContentEditor - Data is still loading...');
       setIsDataLoaded(false);
     } else {
-      console.log('⚠️ ContentEditor - No data available');
-      setIsDataLoaded(true); // Permitir mostrar formulario vacío
+      console.log('⚠️ ContentEditor - No data available, using defaults');
+      setIsDataLoaded(true); // Permitir mostrar formulario con valores por defecto
     }
   }, [gymConfig]);
   
@@ -174,6 +214,42 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   useEffect(() => {
     onUnsavedChanges(hasChanges);
   }, [hasChanges, onUnsavedChanges]);
+  
+  // 📊 CALCULAR MÉTRICAS DE CAPACIDAD
+  const capacityMetrics = React.useMemo(() => {
+    const openDays = daysOfWeek.filter(day => formData.hours[day.key]?.isOpen);
+    
+    const totalCapacity = openDays.reduce((sum, day) => 
+      sum + (formData.hours[day.key]?.capacity || 0), 0
+    );
+    
+    const totalReservations = openDays.reduce((sum, day) => 
+      sum + (formData.hours[day.key]?.reservations || 0), 0
+    );
+    
+    const averageOccupancy = totalCapacity > 0 ? 
+      Math.round((totalReservations / totalCapacity) * 100) : 0;
+    
+    const availableSpaces = totalCapacity - totalReservations;
+    
+    // Día con mayor ocupación
+    const busiestDay = openDays.reduce((max, day) => {
+      const dayData = formData.hours[day.key];
+      const occupancy = dayData.capacity > 0 ? 
+        (dayData.reservations / dayData.capacity) * 100 : 0;
+      return occupancy > max.occupancy ? 
+        { day: day.label, occupancy } : max;
+    }, { day: '', occupancy: 0 });
+    
+    return {
+      totalCapacity,
+      totalReservations,
+      averageOccupancy,
+      availableSpaces,
+      busiestDay: busiestDay.day,
+      busiestOccupancy: Math.round(busiestDay.occupancy)
+    };
+  }, [formData.hours]);
   
   // 📝 Manejar cambios en campos simples
   const handleChange = (field, value) => {
@@ -196,7 +272,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     setHasChanges(true);
   };
   
-  // 📝 Manejar cambios de horarios
+  // 📝 Manejar cambios de horarios MEJORADO CON CAPACIDAD
   const handleScheduleChange = (day, field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -226,7 +302,33 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     setHasChanges(true);
   };
   
-  // 💾 Guardar cambios
+  // 🆕 Ajustar capacidad rápidamente
+  const adjustCapacity = (day, delta) => {
+    const currentCapacity = formData.hours[day].capacity || 0;
+    const newCapacity = Math.max(0, Math.min(200, currentCapacity + delta)); // Límite 0-200
+    
+    handleScheduleChange(day, 'capacity', newCapacity);
+  };
+  
+  // 🆕 Aplicar capacidad a todos los días
+  const applyCapacityToAll = (capacity) => {
+    const updatedHours = { ...formData.hours };
+    
+    Object.keys(updatedHours).forEach(day => {
+      if (updatedHours[day].isOpen) {
+        updatedHours[day].capacity = capacity;
+      }
+    });
+    
+    setFormData(prev => ({
+      ...prev,
+      hours: updatedHours
+    }));
+    setHasChanges(true);
+    showSuccess(`Capacidad de ${capacity} aplicada a todos los días abiertos`);
+  };
+  
+  // 💾 Guardar cambios MEJORADO
   const handleSave = async () => {
     try {
       if (!formData.name.trim()) {
@@ -239,7 +341,17 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         return;
       }
       
-      console.log('💾 Saving gym configuration:', formData);
+      // Validar capacidades
+      const hasInvalidCapacity = Object.values(formData.hours).some(day => 
+        day.isOpen && (day.capacity < 1 || day.capacity > 200)
+      );
+      
+      if (hasInvalidCapacity) {
+        showError('La capacidad debe estar entre 1 y 200 usuarios para días abiertos');
+        return;
+      }
+      
+      console.log('💾 Saving gym configuration with capacity:', formData);
       
       const dataToSave = {
         ...formData,
@@ -251,7 +363,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       
       onSave(dataToSave);
       setHasChanges(false);
-      showSuccess('Información general actualizada exitosamente');
+      showSuccess('Información general y horarios actualizados exitosamente');
       
     } catch (error) {
       console.error('Error saving gym config:', error);
@@ -259,7 +371,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📅 Generar string completo de horarios
+  // 📅 Generar string completo de horarios MEJORADO
   const generateFullScheduleString = (hours) => {
     const openDays = daysOfWeek.filter(day => hours[day.key]?.isOpen);
     
@@ -286,19 +398,30 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       if (!groupedHours[hourKey]) {
         groupedHours[hourKey] = [];
       }
-      groupedHours[hourKey].push(day.label);
+      groupedHours[hourKey].push(day.shortLabel);
     });
     
     const scheduleStrings = Object.entries(groupedHours).map(([hourKey, days]) => {
       const [open, close] = hourKey.split('-');
       if (days.length === 1) {
-        return `${days[0]}: ${open} - ${close}`;
+        return `${days[0]}: ${open}-${close}`;
       } else {
-        return `${days.join(', ')}: ${open} - ${close}`;
+        return `${days.join(', ')}: ${open}-${close}`;
       }
     });
     
     return scheduleStrings.join(' | ');
+  };
+  
+  // 🆕 Obtener color según ocupación
+  const getOccupancyColor = (reservations, capacity) => {
+    if (capacity === 0) return 'gray';
+    const percentage = (reservations / capacity) * 100;
+    
+    if (percentage >= 90) return 'red';
+    if (percentage >= 75) return 'yellow';
+    if (percentage >= 50) return 'blue';
+    return 'green';
   };
 
   // 🔄 Mostrar loading mientras se cargan los datos
@@ -318,33 +441,66 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* 🔝 HEADER MEJORADO */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900">
             Información General
           </h3>
           <p className="text-gray-600 mt-1">
-            Configura la información básica que aparece en tu página web
+            Configura información básica, horarios y capacidad de usuarios
           </p>
           
-          {/* Mostrar datos actuales cargados */}
+          {/* Mostrar datos actuales cargados + métricas */}
           {isDataLoaded && formData.name && (
-            <div className="mt-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full inline-block">
-              ✅ Datos actuales cargados: {formData.name}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+                ✅ {formData.name}
+              </span>
+              <span className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                👥 Capacidad total: {capacityMetrics.totalCapacity}
+              </span>
+              <span className="text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
+                📊 Ocupación: {capacityMetrics.averageOccupancy}%
+              </span>
             </div>
           )}
         </div>
         
-        {hasChanges && (
+        <div className="flex items-center space-x-2">
+          {/* Mostrar métricas rápidas */}
+          {showCapacityDetails && (
+            <div className="bg-white border border-gray-200 rounded-lg p-3 mr-2 text-xs">
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Espacios libres:</span>
+                  <span className="font-medium text-green-600">{capacityMetrics.availableSpaces}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Día más ocupado:</span>
+                  <span className="font-medium text-red-600">{capacityMetrics.busiestDay}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <button
-            onClick={handleSave}
-            className="btn-primary btn-sm"
+            onClick={() => setShowCapacityDetails(!showCapacityDetails)}
+            className="btn-secondary btn-sm"
           >
-            <Save className="w-4 h-4 mr-2" />
-            Guardar Cambios
+            {showCapacityDetails ? <Eye className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
           </button>
-        )}
+          
+          {hasChanges && (
+            <button
+              onClick={handleSave}
+              className="btn-primary btn-sm"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Guardar Cambios
+            </button>
+          )}
+        </div>
       </div>
       
       {/* ⚠️ INDICADOR DE CAMBIOS */}
@@ -384,7 +540,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       {/* 📋 CONTENIDO SEGÚN SECCIÓN ACTIVA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         
-        {/* SECCIÓN: Información Básica */}
+        {/* SECCIÓN: Información Básica - SIN CAMBIOS */}
         {activeSection === 'basic' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -392,7 +548,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 Información Básica del Gimnasio
               </h4>
               
-              {/* Mostrar valores actuales */}
               {formData.name && (
                 <div className="text-sm text-gray-500">
                   Actual: <span className="font-medium">{formData.name}</span>
@@ -402,7 +557,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              {/* Nombre del gimnasio */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre del Gimnasio *
@@ -419,7 +573,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 </p>
               </div>
               
-              {/* Eslogan */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Eslogan / Tagline
@@ -436,7 +589,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 </p>
               </div>
               
-              {/* Descripción */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Descripción Principal *
@@ -457,7 +609,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* SECCIÓN: Información de Contacto */}
+        {/* SECCIÓN: Información de Contacto - SIN CAMBIOS */}
         {activeSection === 'contact' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -465,7 +617,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 Información de Contacto
               </h4>
               
-              {/* Mostrar contacto actual */}
               {formData.contact.phone && (
                 <div className="text-sm text-gray-500">
                   Tel actual: <span className="font-medium">{formData.contact.phone}</span>
@@ -475,7 +626,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              {/* Teléfono */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Phone className="w-4 h-4 inline mr-1" />
@@ -493,7 +643,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 </p>
               </div>
               
-              {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Mail className="w-4 h-4 inline mr-1" />
@@ -511,7 +660,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 </p>
               </div>
               
-              {/* Dirección */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <MapPin className="w-4 h-4 inline mr-1" />
@@ -529,7 +677,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 </p>
               </div>
               
-              {/* Ciudad */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Ciudad
@@ -547,7 +694,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* SECCIÓN: Redes Sociales */}
+        {/* SECCIÓN: Redes Sociales - SIN CAMBIOS */}
         {activeSection === 'social' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -555,7 +702,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 Redes Sociales
               </h4>
               
-              {/* Contador de redes configuradas */}
               <div className="text-sm text-gray-500">
                 Configuradas: {Object.values(formData.social).filter(s => s.url && s.active).length}/5
               </div>
@@ -573,7 +719,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                       <platform.icon className={`w-5 h-5 text-${platform.color} mr-3`} />
                       <h5 className="font-medium text-gray-900">{platform.label}</h5>
                       
-                      {/* Mostrar URL actual si existe */}
                       {formData.social[platform.key]?.url && (
                         <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
                           Configurado
@@ -606,75 +751,269 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* SECCIÓN: Horarios */}
+        {/* 🆕 SECCIÓN: Horarios y Capacidad - COMPLETAMENTE NUEVA */}
         {activeSection === 'schedule' && (
-          <div className="space-y-6">
-            <h4 className="text-lg font-medium text-gray-900 mb-4">
-              Horarios de Atención
-            </h4>
-            <p className="text-gray-600 mb-6">
-              Los horarios aparecen en la sección de contacto de tu página web
-            </p>
+          <div className="space-y-8">
             
-            <div className="space-y-4">
-              {daysOfWeek.map((day) => (
-                <div key={day.key} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
-                  
-                  {/* Día */}
-                  <div className="w-28">
-                    <span className="font-medium text-gray-900">{day.label}</span>
-                  </div>
-                  
-                  {/* Toggle abierto/cerrado */}
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.hours[day.key]?.isOpen || false}
-                      onChange={(e) => handleScheduleChange(day.key, 'isOpen', e.target.checked)}
-                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                    />
-                    <label className="ml-2 text-sm text-gray-700">
-                      Abierto
-                    </label>
-                  </div>
-                  
-                  {/* Horarios */}
-                  {formData.hours[day.key]?.isOpen ? (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-500">de</span>
-                      <input
-                        type="time"
-                        value={formData.hours[day.key]?.open || '06:00'}
-                        onChange={(e) => handleScheduleChange(day.key, 'open', e.target.value)}
-                        className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-primary-500"
-                      />
-                      <span className="text-sm text-gray-500">a</span>
-                      <input
-                        type="time"
-                        value={formData.hours[day.key]?.close || '22:00'}
-                        onChange={(e) => handleScheduleChange(day.key, 'close', e.target.value)}
-                        className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-primary-500"
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-500">Cerrado</span>
-                  )}
-                  
-                </div>
-              ))}
+            {/* Header con métricas */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">
+                  Horarios y Capacidad de Usuarios
+                </h4>
+                <p className="text-gray-600">
+                  Configura horarios de atención y capacidad máxima de usuarios por día
+                </p>
+              </div>
+              
+              {/* Botones de acción rápida */}
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => applyCapacityToAll(50)}
+                  className="btn-secondary btn-sm"
+                  title="Aplicar capacidad 50 a todos los días"
+                >
+                  <Users className="w-4 h-4 mr-1" />
+                  50 a todos
+                </button>
+                
+                <button
+                  onClick={() => applyCapacityToAll(30)}
+                  className="btn-secondary btn-sm"
+                  title="Aplicar capacidad 30 a todos los días"
+                >
+                  <Users className="w-4 h-4 mr-1" />
+                  30 a todos
+                </button>
+              </div>
             </div>
             
-            {/* Preview del string de horarios */}
+            {/* Resumen de métricas */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 rounded-lg p-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{capacityMetrics.totalCapacity}</div>
+                <div className="text-sm text-gray-600">Capacidad Total</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{capacityMetrics.availableSpaces}</div>
+                <div className="text-sm text-gray-600">Espacios Libres</div>
+              </div>
+              
+              <div className="text-center">
+                <div className={`text-2xl font-bold ${
+                  capacityMetrics.averageOccupancy >= 90 ? 'text-red-600' :
+                  capacityMetrics.averageOccupancy >= 75 ? 'text-yellow-600' :
+                  capacityMetrics.averageOccupancy >= 50 ? 'text-blue-600' : 'text-green-600'
+                }`}>
+                  {capacityMetrics.averageOccupancy}%
+                </div>
+                <div className="text-sm text-gray-600">Ocupación Promedio</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="text-lg font-bold text-purple-600">{capacityMetrics.busiestDay}</div>
+                <div className="text-sm text-gray-600">Día Más Ocupado</div>
+              </div>
+            </div>
+            
+            {/* Configuración por día */}
+            <div className="space-y-4">
+              {daysOfWeek.map((day) => {
+                const dayData = formData.hours[day.key];
+                const occupancyPercentage = dayData.capacity > 0 ? 
+                  Math.round((dayData.reservations / dayData.capacity) * 100) : 0;
+                const occupancyColor = getOccupancyColor(dayData.reservations, dayData.capacity);
+                
+                return (
+                  <div key={day.key} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                    
+                    {/* Header del día */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-20">
+                          <span className="font-medium text-gray-900">{day.label}</span>
+                        </div>
+                        
+                        {/* Toggle abierto/cerrado */}
+                        <label className="inline-flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={dayData.isOpen}
+                            onChange={(e) => handleScheduleChange(day.key, 'isOpen', e.target.checked)}
+                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Abierto</span>
+                        </label>
+                      </div>
+                      
+                      {/* Métricas del día */}
+                      {dayData.isOpen && (
+                        <div className="flex items-center space-x-4 text-sm">
+                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            occupancyColor === 'red' ? 'bg-red-100 text-red-800' :
+                            occupancyColor === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                            occupancyColor === 'blue' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {occupancyPercentage}% ocupado
+                          </div>
+                          
+                          <div className="text-gray-600">
+                            {dayData.reservations}/{dayData.capacity} usuarios
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Configuración del día */}
+                    {dayData.isOpen && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        
+                        {/* Horarios */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Horario</label>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="time"
+                              value={dayData.open}
+                              onChange={(e) => handleScheduleChange(day.key, 'open', e.target.value)}
+                              className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-primary-500"
+                            />
+                            <span className="text-sm text-gray-500">a</span>
+                            <input
+                              type="time"
+                              value={dayData.close}
+                              onChange={(e) => handleScheduleChange(day.key, 'close', e.target.value)}
+                              className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-primary-500"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Capacidad */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Capacidad Máxima</label>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => adjustCapacity(day.key, -5)}
+                              className="p-1 border border-gray-300 rounded hover:bg-gray-50"
+                              disabled={dayData.capacity <= 5}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            
+                            <input
+                              type="number"
+                              value={dayData.capacity}
+                              onChange={(e) => handleScheduleChange(day.key, 'capacity', parseInt(e.target.value) || 0)}
+                              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-center focus:ring-1 focus:ring-primary-500"
+                              min="1"
+                              max="200"
+                            />
+                            
+                            <button
+                              type="button"
+                              onClick={() => adjustCapacity(day.key, 5)}
+                              className="p-1 border border-gray-300 rounded hover:bg-gray-50"
+                              disabled={dayData.capacity >= 200}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Ocupación actual */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-gray-700">Ocupación Actual</label>
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className={`h-2 rounded-full transition-all ${
+                                  occupancyColor === 'red' ? 'bg-red-500' :
+                                  occupancyColor === 'yellow' ? 'bg-yellow-500' :
+                                  occupancyColor === 'blue' ? 'bg-blue-500' :
+                                  'bg-green-500'
+                                }`}
+                                style={{ width: `${Math.min(100, occupancyPercentage)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm text-gray-600 w-12">
+                              {occupancyPercentage}%
+                            </span>
+                          </div>
+                          
+                          {/* Simulador de reservaciones (solo para demo) */}
+                          <div className="flex items-center space-x-1 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleScheduleChange(day.key, 'reservations', Math.max(0, dayData.reservations - 1))}
+                              className="p-1 border border-gray-300 rounded hover:bg-gray-50 text-xs"
+                              disabled={dayData.reservations <= 0}
+                            >
+                              <UserX className="w-3 h-3" />
+                            </button>
+                            
+                            <span className="text-xs text-gray-500 w-16 text-center">
+                              {dayData.reservations} usuarios
+                            </span>
+                            
+                            <button
+                              type="button"
+                              onClick={() => handleScheduleChange(day.key, 'reservations', Math.min(dayData.capacity, dayData.reservations + 1))}
+                              className="p-1 border border-gray-300 rounded hover:bg-gray-50 text-xs"
+                              disabled={dayData.reservations >= dayData.capacity}
+                            >
+                              <UserCheck className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                      </div>
+                    )}
+                    
+                    {/* Mensaje de cerrado */}
+                    {!dayData.isOpen && (
+                      <div className="text-center py-4 text-gray-500 bg-gray-50 rounded">
+                        Cerrado este día
+                      </div>
+                    )}
+                    
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Vista previa del string de horarios */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h6 className="font-medium text-blue-900 mb-2">Vista previa en página web:</h6>
-              <p className="text-blue-800 text-sm">
+              <p className="text-blue-800">
                 "{generateFullScheduleString(formData.hours)}"
               </p>
             </div>
+            
+            {/* Información adicional */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex">
+                <Clock className="w-5 h-5 text-gray-400 mt-0.5" />
+                <div className="ml-3">
+                  <h6 className="text-sm font-medium text-gray-800">
+                    ¿Cómo funciona la capacidad?
+                  </h6>
+                  <div className="text-sm text-gray-700 mt-1 space-y-1">
+                    <p>• <strong>Capacidad:</strong> Número máximo de usuarios que pueden reservar por día</p>
+                    <p>• <strong>Ocupación:</strong> Porcentaje actual de espacios reservados</p>
+                    <p>• <strong>Espacios libres:</strong> Cuántos usuarios más pueden reservar</p>
+                    <p>• En el futuro podrás crear ofertas limitadas por horario y capacidad</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
           </div>
         )}
         
-        {/* SECCIÓN: Estadísticas */}
+        {/* SECCIÓN: Estadísticas - SIN CAMBIOS */}
         {activeSection === 'stats' && (
           <div className="space-y-6">
             <h4 className="text-lg font-medium text-gray-900 mb-4">
@@ -686,7 +1025,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
-              {/* Miembros */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Users className="w-4 h-4 inline mr-1" />
@@ -704,7 +1042,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 </p>
               </div>
               
-              {/* Entrenadores */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Award className="w-4 h-4 inline mr-1" />
@@ -722,7 +1059,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 </p>
               </div>
               
-              {/* Años de experiencia */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Trophy className="w-4 h-4 inline mr-1" />
@@ -740,7 +1076,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 </p>
               </div>
               
-              {/* Satisfacción */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Star className="w-4 h-4 inline mr-1" />
