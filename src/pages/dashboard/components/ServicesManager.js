@@ -1,15 +1,14 @@
 // src/pages/dashboard/components/ServicesManager.js
-// FUNCIÓN: Gestión completa de servicios del gimnasio
-// INCLUYE: Crear, editar, eliminar, reordenar servicios
+// FUNCIÓN: Gestión SIMPLIFICADA de servicios - SOLO datos que aparecen en LandingPage
+// INCLUYE: title, description, icon, features, active
 
 import React, { useState, useEffect } from 'react';
 import {
   Plus, Edit, Trash2, Save, X, Target, Users, Heart, 
   Dumbbell, Award, Shield, Zap, Star, Check, AlertTriangle,
-  GripVertical, Eye, EyeOff, Upload, Image as ImageIcon
+  Eye, EyeOff
 } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
-import apiService from '../../../services/apiService';
 
 const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, isMobile } = useApp();
@@ -19,36 +18,29 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   const [editingService, setEditingService] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(null);
   
-  // 🎯 Iconos disponibles para servicios
+  // 🎯 Iconos disponibles para servicios - LOS MISMOS QUE USA LA LANDING PAGE
   const availableIcons = [
-    { id: 'target', component: Target, name: 'Objetivo' },
-    { id: 'users', component: Users, name: 'Grupo' },
-    { id: 'heart', component: Heart, name: 'Corazón' },
-    { id: 'dumbbell', component: Dumbbell, name: 'Pesas' },
-    { id: 'award', component: Award, name: 'Premio' },
-    { id: 'shield', component: Shield, name: 'Protección' },
-    { id: 'zap', component: Zap, name: 'Energía' },
-    { id: 'star', component: Star, name: 'Estrella' }
+    { id: 'user-check', component: Target, name: 'Objetivo/Target' },
+    { id: 'users', component: Users, name: 'Grupo/Usuarios' },
+    { id: 'heart', component: Heart, name: 'Corazón/Salud' },
+    { id: 'dumbbell', component: Dumbbell, name: 'Pesas/Gym' }
   ];
   
-  // 📊 Plantilla para nuevo servicio
+  // 📊 Plantilla para nuevo servicio - SOLO campos que aparecen en LandingPage
   const emptyService = {
     id: null,
     title: '',
     description: '',
-    icon: 'target',
-    imageUrl: '',
+    icon: 'user-check', // Por defecto
     features: [],
-    isActive: true,
-    displayOrder: 0
+    active: true
   };
   
   // 🔄 Inicializar servicios locales
   useEffect(() => {
     if (services && Array.isArray(services)) {
-      setLocalServices(services.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
+      setLocalServices(services);
     }
   }, [services]);
   
@@ -60,19 +52,11 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   // 💾 Guardar todos los cambios
   const handleSaveAll = async () => {
     try {
-      // Actualizar orden de servicios
-      const servicesWithOrder = localServices.map((service, index) => ({
-        ...service,
-        displayOrder: index + 1
-      }));
+      console.log('Guardando servicios:', localServices);
       
-      // Aquí harías la llamada al API para guardar todos los servicios
-      console.log('Guardando servicios:', servicesWithOrder);
-      
-      // Simular guardado exitoso
-      showSuccess('Servicios guardados exitosamente');
+      onSave(localServices);
       setHasChanges(false);
-      onSave(servicesWithOrder);
+      showSuccess('Servicios guardados exitosamente');
       
       // Cerrar modo edición
       setEditingService(null);
@@ -89,8 +73,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     setIsCreating(true);
     setEditingService({
       ...emptyService,
-      id: `temp_${Date.now()}`,
-      displayOrder: localServices.length + 1
+      id: `temp_${Date.now()}`
     });
   };
   
@@ -116,8 +99,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
       // Agregar nuevo servicio
       const newService = {
         ...editingService,
-        id: `new_${Date.now()}`,
-        displayOrder: localServices.length + 1
+        id: `new_${Date.now()}`
       };
       setLocalServices([...localServices, newService]);
     } else {
@@ -152,78 +134,10 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   const handleToggleActive = (serviceId) => {
     setLocalServices(localServices.map(service => 
       service.id === serviceId 
-        ? { ...service, isActive: !service.isActive }
+        ? { ...service, active: !service.active }
         : service
     ));
     setHasChanges(true);
-  };
-  
-  // 🔄 Reordenar servicios
-  const handleReorderService = (serviceId, direction) => {
-    const currentIndex = localServices.findIndex(s => s.id === serviceId);
-    if (currentIndex === -1) return;
-    
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= localServices.length) return;
-    
-    const newServices = [...localServices];
-    [newServices[currentIndex], newServices[newIndex]] = [newServices[newIndex], newServices[currentIndex]];
-    
-    setLocalServices(newServices);
-    setHasChanges(true);
-  };
-  
-  // 📷 Subir imagen para servicio
-  const handleImageUpload = async (serviceId, file) => {
-    if (!file) return;
-    
-    try {
-      setUploadingImage(serviceId);
-      
-      // Crear FormData para subir imagen
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      // Simular subida de imagen - aquí harías la llamada real al API
-      console.log('Uploading image for service:', serviceId);
-      
-      // URL simulada de imagen subida
-      const imageUrl = URL.createObjectURL(file);
-      
-      // Actualizar servicio con nueva imagen
-      if (editingService && editingService.id === serviceId) {
-        setEditingService({ ...editingService, imageUrl });
-      } else {
-        setLocalServices(localServices.map(service => 
-          service.id === serviceId 
-            ? { ...service, imageUrl }
-            : service
-        ));
-        setHasChanges(true);
-      }
-      
-      showSuccess('Imagen subida exitosamente');
-      
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      showError('Error al subir imagen');
-    } finally {
-      setUploadingImage(null);
-    }
-  };
-  
-  // 🏷️ Agregar/quitar característica
-  const handleToggleFeature = (feature) => {
-    if (!editingService) return;
-    
-    const currentFeatures = editingService.features || [];
-    const hasFeature = currentFeatures.includes(feature);
-    
-    const newFeatures = hasFeature
-      ? currentFeatures.filter(f => f !== feature)
-      : [...currentFeatures, feature];
-    
-    setEditingService({ ...editingService, features: newFeatures });
   };
 
   if (isLoading) {
@@ -242,10 +156,10 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900">
-            Gestión de Servicios
+            Servicios del Gimnasio
           </h3>
           <p className="text-gray-600 mt-1">
-            Administra los servicios que ofrece tu gimnasio
+            Servicios que aparecen en la página web
           </p>
         </div>
         
@@ -288,7 +202,9 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
       {/* 📋 LISTA DE SERVICIOS */}
       <div className="space-y-4">
         {localServices.map((service, index) => (
-          <div key={service.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div key={service.id} className={`bg-white border rounded-lg overflow-hidden ${
+            !service.active ? 'opacity-60' : ''
+          }`}>
             
             {/* Vista normal del servicio */}
             {(!editingService || editingService.id !== service.id) && (
@@ -298,31 +214,12 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
                   {/* Información del servicio */}
                   <div className="flex items-center space-x-4 flex-1">
                     
-                    {/* Icono y orden */}
-                    <div className="flex items-center space-x-2">
-                      <div className="flex flex-col space-y-1">
-                        <button
-                          onClick={() => handleReorderService(service.id, 'up')}
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                          disabled={index === 0}
-                        >
-                          <GripVertical className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleReorderService(service.id, 'down')}
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                          disabled={index === localServices.length - 1}
-                        >
-                          <GripVertical className="w-4 h-4" />
-                        </button>
-                      </div>
-                      
-                      <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                        {React.createElement(
-                          availableIcons.find(icon => icon.id === service.icon)?.component || Target,
-                          { className: "w-6 h-6 text-primary-600" }
-                        )}
-                      </div>
+                    {/* Icono */}
+                    <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                      {React.createElement(
+                        availableIcons.find(icon => icon.id === service.icon)?.component || Target,
+                        { className: "w-6 h-6 text-primary-600" }
+                      )}
                     </div>
                     
                     {/* Contenido */}
@@ -336,13 +233,13 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
                         <button
                           onClick={() => handleToggleActive(service.id)}
                           className={`p-1 rounded-full ${
-                            service.isActive 
+                            service.active 
                               ? 'text-green-600 hover:bg-green-100' 
                               : 'text-gray-400 hover:bg-gray-100'
                           }`}
-                          title={service.isActive ? 'Activo' : 'Inactivo'}
+                          title={service.active ? 'Activo - Aparece en la página' : 'Inactivo - No aparece'}
                         >
-                          {service.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                          {service.active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                         </button>
                       </div>
                       
@@ -365,17 +262,6 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
                         </div>
                       )}
                     </div>
-                    
-                    {/* Imagen del servicio */}
-                    {service.imageUrl && (
-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
-                        <img
-                          src={service.imageUrl}
-                          alt={service.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
                     
                   </div>
                   
@@ -411,9 +297,6 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
                   onSave={handleSaveService}
                   onCancel={handleCancelEdit}
                   onChange={setEditingService}
-                  onImageUpload={handleImageUpload}
-                  onToggleFeature={handleToggleFeature}
-                  uploadingImage={uploadingImage}
                   isCreating={isCreating}
                 />
               </div>
@@ -430,7 +313,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
               No hay servicios configurados
             </h3>
             <p className="text-gray-600 mb-4">
-              Comienza agregando los servicios que ofrece tu gimnasio
+              Los servicios aparecen en la sección "Servicios" de tu página web
             </p>
             <button
               onClick={handleCreateService}
@@ -447,16 +330,13 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   );
 };
 
-// 📝 COMPONENTE: Formulario de servicio
+// 📝 COMPONENTE: Formulario de servicio simplificado
 const ServiceForm = ({ 
   service, 
   availableIcons, 
   onSave, 
   onCancel, 
   onChange, 
-  onImageUpload, 
-  onToggleFeature,
-  uploadingImage,
   isCreating 
 }) => {
   const [newFeature, setNewFeature] = useState('');
@@ -488,6 +368,17 @@ const ServiceForm = ({
       ...service,
       features: service.features.filter(f => f !== featureToRemove)
     });
+  };
+  
+  const handleToggleFeature = (feature) => {
+    const currentFeatures = service.features || [];
+    const hasFeature = currentFeatures.includes(feature);
+    
+    const newFeatures = hasFeature
+      ? currentFeatures.filter(f => f !== feature)
+      : [...currentFeatures, feature];
+    
+    onChange({ ...service, features: newFeatures });
   };
 
   return (
@@ -535,6 +426,9 @@ const ServiceForm = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="Ej: Entrenamiento Personal"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Aparece como título del servicio en la página
+            </p>
           </div>
           
           {/* Descripción */}
@@ -545,10 +439,13 @@ const ServiceForm = ({
             <textarea
               value={service.description}
               onChange={(e) => onChange({ ...service, description: e.target.value })}
-              rows={3}
+              rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="Describe los beneficios y características del servicio..."
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Aparece como descripción del servicio en la página
+            </p>
           </div>
           
           {/* Icono */}
@@ -556,12 +453,12 @@ const ServiceForm = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Icono
             </label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {availableIcons.map((icon) => (
                 <button
                   key={icon.id}
                   onClick={() => onChange({ ...service, icon: icon.id })}
-                  className={`p-3 border rounded-lg flex flex-col items-center space-y-1 hover:bg-gray-50 ${
+                  className={`p-3 border rounded-lg flex items-center space-x-3 hover:bg-gray-50 ${
                     service.icon === icon.id 
                       ? 'border-primary-500 bg-primary-50' 
                       : 'border-gray-300'
@@ -570,65 +467,19 @@ const ServiceForm = ({
                   <icon.component className={`w-5 h-5 ${
                     service.icon === icon.id ? 'text-primary-600' : 'text-gray-600'
                   }`} />
-                  <span className="text-xs text-gray-600">{icon.name}</span>
+                  <span className="text-sm text-gray-600">{icon.name}</span>
                 </button>
               ))}
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Icono que aparece junto al servicio
+            </p>
           </div>
           
         </div>
         
-        {/* Columna derecha: Imagen y características */}
+        {/* Columna derecha: Características */}
         <div className="space-y-4">
-          
-          {/* Imagen del servicio */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Imagen del Servicio
-            </label>
-            
-            {service.imageUrl ? (
-              <div className="relative">
-                <img
-                  src={service.imageUrl}
-                  alt={service.title}
-                  className="w-full h-32 object-cover rounded-lg"
-                />
-                <button
-                  onClick={() => onChange({ ...service, imageUrl: '' })}
-                  className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  {uploadingImage === service.id ? (
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-                  ) : (
-                    <>
-                      <Upload className="w-8 h-8 mb-2 text-gray-400" />
-                      <p className="mb-2 text-sm text-gray-500">
-                        <span className="font-semibold">Clic para subir imagen</span>
-                      </p>
-                      <p className="text-xs text-gray-500">PNG, JPG hasta 5MB</p>
-                    </>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) onImageUpload(service.id, file);
-                  }}
-                  disabled={uploadingImage === service.id}
-                />
-              </label>
-            )}
-          </div>
           
           {/* Características del servicio */}
           <div>
@@ -638,26 +489,29 @@ const ServiceForm = ({
             
             {/* Características actuales */}
             {service.features && service.features.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
+              <div className="space-y-2 mb-4">
                 {service.features.map((feature, idx) => (
-                  <span
+                  <div
                     key={idx}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-100 text-primary-800"
+                    className="flex items-center justify-between p-3 bg-primary-50 border border-primary-200 rounded-lg"
                   >
-                    {feature}
+                    <span className="text-sm text-primary-800 flex items-center">
+                      <Check className="w-4 h-4 mr-2" />
+                      {feature}
+                    </span>
                     <button
                       onClick={() => handleRemoveFeature(feature)}
-                      className="ml-2 text-primary-600 hover:text-primary-800"
+                      className="text-primary-600 hover:text-primary-800"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-4 h-4" />
                     </button>
-                  </span>
+                  </div>
                 ))}
               </div>
             )}
             
             {/* Agregar nueva característica */}
-            <div className="flex space-x-2 mb-3">
+            <div className="flex space-x-2 mb-4">
               <input
                 type="text"
                 value={newFeature}
@@ -676,13 +530,13 @@ const ServiceForm = ({
             
             {/* Características comunes */}
             <div className="space-y-2">
-              <p className="text-xs text-gray-500 mb-2">Características comunes:</p>
-              <div className="grid grid-cols-1 gap-1">
+              <p className="text-sm font-medium text-gray-700 mb-2">Características comunes:</p>
+              <div className="max-h-48 overflow-y-auto space-y-1">
                 {commonFeatures.map((feature) => (
                   <button
                     key={feature}
-                    onClick={() => onToggleFeature(feature)}
-                    className={`text-left px-3 py-2 text-sm rounded-lg border transition-colors ${
+                    onClick={() => handleToggleFeature(feature)}
+                    className={`w-full text-left px-3 py-2 text-sm rounded-lg border transition-colors ${
                       service.features?.includes(feature)
                         ? 'bg-primary-50 border-primary-200 text-primary-700'
                         : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
@@ -700,6 +554,10 @@ const ServiceForm = ({
                 ))}
               </div>
             </div>
+            
+            <p className="text-xs text-gray-500 mt-3">
+              Las características aparecen como lista de beneficios bajo cada servicio
+            </p>
           </div>
           
         </div>

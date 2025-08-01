@@ -1,16 +1,13 @@
 // src/pages/dashboard/components/PlansManager.js
-// FUNCIÓN: Gestión completa de planes de membresía
-// INCLUYE: Crear, editar, eliminar, configurar precios y características
+// FUNCIÓN: Gestión SIMPLIFICADA de planes - SOLO datos que aparecen en LandingPage
+// INCLUYE: name, price, originalPrice, duration, features, popular, iconName
 
 import React, { useState, useEffect } from 'react';
 import {
   Plus, Edit, Trash2, Save, X, CreditCard, Crown, Calendar,
-  Shield, Star, Check, AlertTriangle, DollarSign, Percent,
-  Tag, Award, Users, Clock, Zap, Target, Eye, EyeOff,
-  TrendingUp, Gift, Package, Heart
+  Shield, Star, Check, AlertTriangle, Percent, Eye, EyeOff
 } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
-import apiService from '../../../services/apiService';
 
 const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, formatCurrency, isMobile } = useApp();
@@ -21,50 +18,37 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // 🎯 Iconos disponibles para planes
+  // 🎯 Iconos disponibles para planes - LOS MISMOS QUE USA LA LANDING PAGE
   const availableIcons = [
     { id: 'crown', component: Crown, name: 'Premium' },
     { id: 'calendar', component: Calendar, name: 'Calendario' },
     { id: 'shield', component: Shield, name: 'Básico' },
-    { id: 'star', component: Star, name: 'Popular' },
-    { id: 'award', component: Award, name: 'Elite' },
-    { id: 'users', component: Users, name: 'Familiar' },
-    { id: 'zap', component: Zap, name: 'Intensivo' },
-    { id: 'target', component: Target, name: 'Objetivo' }
+    { id: 'star', component: Star, name: 'Popular' }
   ];
   
-  // 📅 Tipos de duración
+  // 📅 Tipos de duración - SIMPLIFICADOS
   const durationType = [
-    { value: 'daily', label: 'Diario', description: 'Pago por día' },
-    { value: 'weekly', label: 'Semanal', description: 'Pago por semana' },
-    { value: 'monthly', label: 'Mensual', description: 'Pago mensual' },
-    { value: 'quarterly', label: 'Trimestral', description: 'Pago cada 3 meses' },
-    { value: 'yearly', label: 'Anual', description: 'Pago anual' }
+    { value: 'monthly', label: 'Mensual' },
+    { value: 'quarterly', label: 'Trimestral' },
+    { value: 'yearly', label: 'Anual' }
   ];
   
-  // 📊 Plantilla para nuevo plan
+  // 📊 Plantilla para nuevo plan - SOLO campos que aparecen en LandingPage
   const emptyPlan = {
     id: null,
     name: '',
-    description: '',
     price: 0,
-    originalPrice: null,
+    originalPrice: null, // Para mostrar descuentos
     duration: 'monthly',
     iconName: 'crown',
-    color: '#3b82f6',
     features: [],
-    popular: false,
-    active: true,
-    displayOrder: 0,
-    maxMembers: null,
-    trialDays: 0,
-    setupFee: 0
+    popular: false
   };
   
   // 🔄 Inicializar planes locales
   useEffect(() => {
     if (plans && Array.isArray(plans)) {
-      setLocalPlans(plans.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)));
+      setLocalPlans(plans);
     }
   }, [plans]);
   
@@ -76,10 +60,9 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   // 💾 Guardar todos los cambios
   const handleSaveAll = async () => {
     try {
-      // Validar que hay al menos un plan activo
-      const activePlans = localPlans.filter(plan => plan.active);
-      if (activePlans.length === 0) {
-        showError('Debe haber al menos un plan activo');
+      // Validar que hay al menos un plan
+      if (localPlans.length === 0) {
+        showError('Debe haber al menos un plan');
         return;
       }
       
@@ -90,18 +73,11 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
         return;
       }
       
-      // Actualizar orden de planes
-      const plansWithOrder = localPlans.map((plan, index) => ({
-        ...plan,
-        displayOrder: index + 1
-      }));
+      console.log('Guardando planes:', localPlans);
       
-      console.log('Guardando planes:', plansWithOrder);
-      
-      // Simular guardado exitoso
-      showSuccess('Planes de membresía guardados exitosamente');
+      onSave(localPlans);
       setHasChanges(false);
-      onSave(plansWithOrder);
+      showSuccess('Planes de membresía guardados exitosamente');
       
       // Cerrar modo edición
       setEditingPlan(null);
@@ -118,8 +94,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     setIsCreating(true);
     setEditingPlan({
       ...emptyPlan,
-      id: `temp_${Date.now()}`,
-      displayOrder: localPlans.length + 1
+      id: `temp_${Date.now()}`
     });
   };
   
@@ -159,8 +134,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
       // Agregar nuevo plan
       const newPlan = {
         ...editingPlan,
-        id: `new_${Date.now()}`,
-        displayOrder: localPlans.length + 1
+        id: `new_${Date.now()}`
       };
       setLocalPlans([...localPlans, newPlan]);
     } else {
@@ -184,35 +158,11 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   
   // 🗑️ Eliminar plan
   const handleDeletePlan = (planId) => {
-    const planToDelete = localPlans.find(p => p.id === planId);
-    
-    if (planToDelete && planToDelete.popular) {
-      showError('No puedes eliminar el plan popular. Primero marca otro plan como popular.');
-      return;
-    }
-    
     if (window.confirm('¿Estás seguro de eliminar este plan de membresía?')) {
       setLocalPlans(localPlans.filter(plan => plan.id !== planId));
       setHasChanges(true);
       showSuccess('Plan eliminado');
     }
-  };
-  
-  // 👁️ Toggle activar/desactivar
-  const handleToggleActive = (planId) => {
-    const activePlans = localPlans.filter(plan => plan.active && plan.id !== planId);
-    
-    if (activePlans.length === 0) {
-      showError('Debe haber al menos un plan activo');
-      return;
-    }
-    
-    setLocalPlans(localPlans.map(plan => 
-      plan.id === planId 
-        ? { ...plan, active: !plan.active }
-        : plan
-    ));
-    setHasChanges(true);
   };
   
   // ⭐ Toggle plan popular
@@ -221,21 +171,6 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
       ...plan,
       popular: plan.id === planId ? !plan.popular : false
     })));
-    setHasChanges(true);
-  };
-  
-  // 🔄 Reordenar planes
-  const handleReorderPlan = (planId, direction) => {
-    const currentIndex = localPlans.findIndex(p => p.id === planId);
-    if (currentIndex === -1) return;
-    
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= localPlans.length) return;
-    
-    const newPlans = [...localPlans];
-    [newPlans[currentIndex], newPlans[newIndex]] = [newPlans[newIndex], newPlans[currentIndex]];
-    
-    setLocalPlans(newPlans);
     setHasChanges(true);
   };
   
@@ -261,10 +196,10 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900">
-            Gestión de Planes de Membresía
+            Planes de Membresía
           </h3>
           <p className="text-gray-600 mt-1">
-            Configura los planes que ofrece tu gimnasio
+            Planes que aparecen en la página web
           </p>
         </div>
         
@@ -315,8 +250,6 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
               plan.popular 
                 ? 'border-yellow-400 shadow-lg transform scale-105' 
                 : 'border-gray-200 hover:border-gray-300'
-            } ${
-              !plan.active ? 'opacity-50' : ''
             }`}
           >
             
@@ -341,10 +274,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
                   <div className="w-16 h-16 mx-auto mb-4 bg-primary-100 rounded-full flex items-center justify-center">
                     {React.createElement(
                       availableIcons.find(icon => icon.id === plan.iconName)?.component || Crown,
-                      { 
-                        className: "w-8 h-8 text-primary-600",
-                        style: { color: plan.color }
-                      }
+                      { className: "w-8 h-8 text-primary-600" }
                     )}
                   </div>
                   
@@ -377,13 +307,6 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
                     )}
                   </div>
                   
-                  {/* Descripción */}
-                  {plan.description && (
-                    <p className="text-gray-600 text-sm mb-4">
-                      {plan.description}
-                    </p>
-                  )}
-                  
                 </div>
                 
                 {/* Características */}
@@ -398,59 +321,21 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
                   </div>
                 )}
                 
-                {/* Información adicional */}
-                <div className="space-y-2 text-xs text-gray-500 mb-6">
-                  {plan.trialDays > 0 && (
-                    <div className="flex items-center">
-                      <Gift className="w-4 h-4 mr-2" />
-                      {plan.trialDays} días de prueba gratis
-                    </div>
-                  )}
-                  
-                  {plan.setupFee > 0 && (
-                    <div className="flex items-center">
-                      <Tag className="w-4 h-4 mr-2" />
-                      Costo de inscripción: Q{plan.setupFee}
-                    </div>
-                  )}
-                  
-                  {plan.maxMembers && (
-                    <div className="flex items-center">
-                      <Users className="w-4 h-4 mr-2" />
-                      Máximo {plan.maxMembers} miembros
-                    </div>
-                  )}
-                </div>
-                
                 {/* Acciones */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                   
-                  {/* Controles de estado */}
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleToggleActive(plan.id)}
-                      className={`p-2 rounded-lg ${
-                        plan.active 
-                          ? 'text-green-600 hover:bg-green-50' 
-                          : 'text-gray-400 hover:bg-gray-50'
-                      }`}
-                      title={plan.active ? 'Desactivar' : 'Activar'}
-                    >
-                      {plan.active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </button>
-                    
-                    <button
-                      onClick={() => handleTogglePopular(plan.id)}
-                      className={`p-2 rounded-lg ${
-                        plan.popular 
-                          ? 'text-yellow-600 hover:bg-yellow-50' 
-                          : 'text-gray-400 hover:bg-gray-50'
-                      }`}
-                      title={plan.popular ? 'Quitar de popular' : 'Marcar como popular'}
-                    >
-                      <Star className={`w-4 h-4 ${plan.popular ? 'fill-current' : ''}`} />
-                    </button>
-                  </div>
+                  {/* Popular toggle */}
+                  <button
+                    onClick={() => handleTogglePopular(plan.id)}
+                    className={`p-2 rounded-lg ${
+                      plan.popular 
+                        ? 'text-yellow-600 hover:bg-yellow-50' 
+                        : 'text-gray-400 hover:bg-gray-50'
+                    }`}
+                    title={plan.popular ? 'Quitar de popular' : 'Marcar como popular'}
+                  >
+                    <Star className={`w-4 h-4 ${plan.popular ? 'fill-current' : ''}`} />
+                  </button>
                   
                   {/* Acciones principales */}
                   <div className="flex items-center space-x-2">
@@ -503,7 +388,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
               No hay planes configurados
             </h3>
             <p className="text-gray-600 mb-4">
-              Crea los planes de membresía que ofrece tu gimnasio
+              Los planes aparecen en la sección "Planes de Membresía" de tu página web
             </p>
             <button
               onClick={handleCreatePlan}
@@ -520,7 +405,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   );
 };
 
-// 📝 COMPONENTE: Formulario de plan
+// 📝 COMPONENTE: Formulario de plan simplificado
 const PlanForm = ({ 
   plan, 
   availableIcons, 
@@ -626,20 +511,6 @@ const PlanForm = ({
             />
           </div>
           
-          {/* Descripción */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Descripción
-            </label>
-            <textarea
-              value={plan.description}
-              onChange={(e) => onChange({ ...plan, description: e.target.value })}
-              rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              placeholder="Descripción breve del plan..."
-            />
-          </div>
-          
           {/* Precios */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -666,7 +537,7 @@ const PlanForm = ({
                 value={plan.originalPrice || ''}
                 onChange={(e) => onChange({ ...plan, originalPrice: parseFloat(e.target.value) || null })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Precio antes del descuento"
+                placeholder="Para descuentos"
                 min="0"
                 step="0.01"
               />
@@ -681,7 +552,7 @@ const PlanForm = ({
           {/* Duración */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tipo de Duración
+              Duración
             </label>
             <select
               value={plan.duration}
@@ -690,79 +561,34 @@ const PlanForm = ({
             >
               {durationType.map((duration) => (
                 <option key={duration.value} value={duration.value}>
-                  {duration.label} - {duration.description}
+                  {duration.label}
                 </option>
               ))}
             </select>
           </div>
           
-          {/* Costos adicionales */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Días de prueba gratis
-              </label>
-              <input
-                type="number"
-                value={plan.trialDays}
-                onChange={(e) => onChange({ ...plan, trialDays: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="0"
-                min="0"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Costo de inscripción (Q)
-              </label>
-              <input
-                type="number"
-                value={plan.setupFee}
-                onChange={(e) => onChange({ ...plan, setupFee: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="0"
-                min="0"
-                step="0.01"
-              />
-            </div>
-          </div>
-          
-          {/* Icono y color */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Icono
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {availableIcons.map((icon) => (
-                  <button
-                    key={icon.id}
-                    onClick={() => onChange({ ...plan, iconName: icon.id })}
-                    className={`p-2 border rounded-lg flex flex-col items-center space-y-1 hover:bg-gray-50 ${
-                      plan.iconName === icon.id 
-                        ? 'border-primary-500 bg-primary-50' 
-                        : 'border-gray-300'
-                    }`}
-                  >
-                    <icon.component className={`w-4 h-4 ${
-                      plan.iconName === icon.id ? 'text-primary-600' : 'text-gray-600'
-                    }`} />
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Color del plan
-              </label>
-              <input
-                type="color"
-                value={plan.color}
-                onChange={(e) => onChange({ ...plan, color: e.target.value })}
-                className="w-full h-10 border border-gray-300 rounded-lg"
-              />
+          {/* Icono */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Icono
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {availableIcons.map((icon) => (
+                <button
+                  key={icon.id}
+                  onClick={() => onChange({ ...plan, iconName: icon.id })}
+                  className={`p-3 border rounded-lg flex items-center space-x-2 hover:bg-gray-50 ${
+                    plan.iconName === icon.id 
+                      ? 'border-primary-500 bg-primary-50' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <icon.component className={`w-4 h-4 ${
+                    plan.iconName === icon.id ? 'text-primary-600' : 'text-gray-600'
+                  }`} />
+                  <span className="text-sm">{icon.name}</span>
+                </button>
+              ))}
             </div>
           </div>
           
@@ -844,6 +670,10 @@ const PlanForm = ({
                 ))}
               </div>
             </div>
+            
+            <p className="text-xs text-gray-500 mt-3">
+              Las características aparecen como lista de beneficios en cada plan
+            </p>
           </div>
           
         </div>

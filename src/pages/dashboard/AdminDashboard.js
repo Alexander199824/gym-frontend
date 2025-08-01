@@ -1,7 +1,6 @@
 // src/pages/dashboard/AdminDashboard.js
-// FUNCIÓN: Dashboard CORREGIDO - Sin React Query + Debug habilitado
-// MANTIENE: Tabs overview, operations, content originales
-// CORRIGE: Reemplaza useQuery con useState + useEffect
+// FUNCIÓN: Dashboard SIMPLIFICADO - Solo edita datos que aparecen en LandingPage
+// INCLUYE: Información general, servicios, planes, productos, multimedia
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -17,20 +16,6 @@ import {
   RefreshCw,
   Download,
   Settings,
-  Edit,
-  Eye,
-  Globe,
-  Image,
-  MessageSquare,
-  Star,
-  ShoppingBag,
-  FileText,
-  Palette,
-  Layout,
-  Video,
-  UserPlus,
-  Plus,
-  CheckCircle,
   BarChart3,
   PieChart,
   Activity,
@@ -38,26 +23,11 @@ import {
   Zap,
   Crown,
   Save,
-  Upload,
-  Trash2,
-  Package,
-  Tag,
-  Shield,
-  Award,
-  Heart,
-  Dumbbell,
-  Instagram,
-  Facebook,
-  Twitter,
-  Youtube,
-  Phone,
-  Mail,
-  MapPin,
-  Percent,
-  Check,
-  X,
-  ChevronDown,
-  ChevronUp
+  Globe,
+  Image,
+  ShoppingBag,
+  Info,
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -68,13 +38,12 @@ import DashboardCard from '../../components/common/DashboardCard';
 import QuickActionCard from '../../components/common/QuickActionCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
-// 🆕 NUEVOS Componentes de gestión específica
+// 🆕 COMPONENTES SIMPLIFICADOS - Solo para datos de LandingPage
+import ContentEditor from './components/ContentEditor';
 import ServicesManager from './components/ServicesManager';
 import PlansManager from './components/PlansManager';
 import ProductsManager from './components/ProductsManager';
-import ContentEditor from './components/ContentEditor';
 import MediaUploader from './components/MediaUploader';
-import BrandingEditor from './components/BrandingEditor';
 
 const AdminDashboard = () => {
   const { user, canManageContent } = useAuth();
@@ -93,10 +62,9 @@ const AdminDashboard = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'operations' | 'content'
   
-  // 🆕 NUEVOS Estados para gestión
-  const [activeContentTab, setActiveContentTab] = useState('general'); // Sub-tab dentro de content
+  // 🆕 Estados para gestión de contenido simplificada
+  const [activeContentTab, setActiveContentTab] = useState('general');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   
   // 📊 Estados para datos (REEMPLAZA useQuery)
   const [userStats, setUserStats] = useState({ data: null, isLoading: false, error: null });
@@ -106,14 +74,12 @@ const AdminDashboard = () => {
   const [expiringSoon, setExpiringSoon] = useState({ data: null, isLoading: false, error: null });
   const [pendingTransfers, setPendingTransfers] = useState({ data: null, isLoading: false, error: null });
   const [todayPayments, setTodayPayments] = useState({ data: null, isLoading: false, error: null });
-  const [recentUsers, setRecentUsers] = useState({ data: null, isLoading: false, error: null });
   
-  // 🆕 Estados para gestión de contenido
+  // 🆕 Estados para gestión de contenido - SIMPLIFICADOS
   const [gymConfig, setGymConfig] = useState({ data: null, isLoading: false, error: null });
   const [services, setServices] = useState({ data: null, isLoading: false, error: null });
-  const [testimonials, setTestimonials] = useState({ data: null, isLoading: false, error: null });
-  const [featuredProducts, setFeaturedProducts] = useState({ data: null, isLoading: false, error: null });
   const [membershipPlans, setMembershipPlans] = useState({ data: null, isLoading: false, error: null });
+  const [featuredProducts, setFeaturedProducts] = useState({ data: null, isLoading: false, error: null });
   
   // 🔄 Función para cargar datos (REEMPLAZA useQuery)
   const loadDashboardData = async () => {
@@ -150,15 +116,12 @@ const AdminDashboard = () => {
         setPaymentReports({ data: null, isLoading: false, error });
       }
       
-      // Otros datos operativos...
-      // (Se pueden agregar cuando los endpoints estén listos)
-      
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error);
     }
   };
   
-  // 🔄 Función para cargar datos de contenido
+  // 🔄 Función para cargar datos de contenido - SIMPLIFICADA
   const loadContentData = async () => {
     if (!canManageContent) return;
     
@@ -187,15 +150,15 @@ const AdminDashboard = () => {
         setServices({ data: null, isLoading: false, error });
       }
       
-      // Testimonios
-      setTestimonials({ data: null, isLoading: true, error: null });
+      // Planes de membresía
+      setMembershipPlans({ data: null, isLoading: true, error: null });
       try {
-        const testimonialsData = await apiService.getTestimonials();
-        setTestimonials({ data: testimonialsData, isLoading: false, error: null });
-        console.log('✅ Testimonials loaded:', testimonialsData);
+        const plansData = await apiService.getMembershipPlans();
+        setMembershipPlans({ data: plansData, isLoading: false, error: null });
+        console.log('✅ Plans loaded:', plansData);
       } catch (error) {
-        console.log('⚠️ Testimonials not available:', error.message);
-        setTestimonials({ data: null, isLoading: false, error });
+        console.log('⚠️ Plans not available:', error.message);
+        setMembershipPlans({ data: null, isLoading: false, error });
       }
       
       // Productos destacados
@@ -207,17 +170,6 @@ const AdminDashboard = () => {
       } catch (error) {
         console.log('⚠️ Products not available:', error.message);
         setFeaturedProducts({ data: null, isLoading: false, error });
-      }
-      
-      // Planes de membresía
-      setMembershipPlans({ data: null, isLoading: true, error: null });
-      try {
-        const plansData = await apiService.getMembershipPlans();
-        setMembershipPlans({ data: plansData, isLoading: false, error: null });
-        console.log('✅ Plans loaded:', plansData);
-      } catch (error) {
-        console.log('⚠️ Plans not available:', error.message);
-        setMembershipPlans({ data: null, isLoading: false, error });
       }
       
     } catch (error) {
@@ -275,43 +227,37 @@ const AdminDashboard = () => {
     { value: 'quarter', label: 'Este trimestre' }
   ];
   
-  // 🆕 Sub-tabs para gestión de contenido
+  // 🆕 Tabs simplificados para gestión de contenido
   const contentTabs = [
     {
       id: 'general',
       title: 'Información General',
-      icon: Settings,
-      description: 'Nombre, logo, descripción'
+      icon: Info,
+      description: 'Nombre, descripción, contacto'
     },
     {
       id: 'services',
       title: 'Servicios',
       icon: Target,
-      description: 'Gestionar servicios del gimnasio'
+      description: 'Servicios del gimnasio'
     },
     {
       id: 'plans',
       title: 'Planes de Membresía',
       icon: CreditCard,
-      description: 'Crear y editar planes'
+      description: 'Planes y precios'
     },
     {
       id: 'products',
       title: 'Productos',
       icon: ShoppingBag,
-      description: 'Gestionar tienda'
+      description: 'Tienda del gimnasio'
     },
     {
       id: 'media',
       title: 'Multimedia',
       icon: Image,
-      description: 'Videos, imágenes, logo'
-    },
-    {
-      id: 'branding',
-      title: 'Branding',
-      icon: Palette,
-      description: 'Colores y estilos'
+      description: 'Logo, imágenes, videos'
     }
   ];
   
@@ -331,12 +277,11 @@ const AdminDashboard = () => {
   // 📱 Estado de carga general ORIGINAL
   const isLoading = userStats.isLoading || membershipStats.isLoading || paymentReports.isLoading;
 
-  // 📄 Funciones para gestión de contenido
+  // 📄 Funciones para gestión de contenido - SIMPLIFICADAS
   const refetchConfig = () => loadContentData();
   const refetchServices = () => loadContentData();
-  const refetchTestimonials = () => loadContentData();
-  const refetchProducts = () => loadContentData();
   const refetchPlans = () => loadContentData();
+  const refetchProducts = () => loadContentData();
 
   return (
     <div className="space-y-6">
@@ -366,7 +311,7 @@ const AdminDashboard = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Bienvenido, {user?.firstName}. Control total de tu gimnasio.
+            Bienvenido, {user?.firstName}. Gestiona tu página web y gimnasio.
           </p>
         </div>
         
@@ -412,7 +357,7 @@ const AdminDashboard = () => {
         </div>
       </div>
       
-      {/* 🔗 NAVEGACIÓN POR TABS EXPANDIDA */}
+      {/* 🔗 NAVEGACIÓN POR TABS */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto">
           
@@ -442,7 +387,7 @@ const AdminDashboard = () => {
             Operaciones Diarias
           </button>
           
-          {/* TAB EXPANDIDO: Gestión de Contenido */}
+          {/* TAB SIMPLIFICADO: Gestión de Página Web */}
           {canManageContent && (
             <button
               onClick={() => setActiveTab('content')}
@@ -453,7 +398,7 @@ const AdminDashboard = () => {
               }`}
             >
               <Globe className="w-4 h-4 inline mr-2" />
-              Gestión de Contenido
+              Gestión de Página Web
               {hasUnsavedChanges && activeTab === 'content' && (
                 <span className="ml-1 w-2 h-2 bg-yellow-500 rounded-full inline-block"></span>
               )}
@@ -699,7 +644,7 @@ const AdminDashboard = () => {
               <QuickActionCard
                 title="Nuevo Cliente"
                 description="Registrar nuevo usuario"
-                icon={UserPlus}
+                icon={Users}
                 color="blue"
                 link="/dashboard/users/create"
               />
@@ -745,11 +690,11 @@ const AdminDashboard = () => {
         </div>
       )}
       
-      {/* TAB: GESTIÓN DE CONTENIDO - EXPANDIDO CON NUEVAS FUNCIONALIDADES */}
+      {/* TAB: GESTIÓN DE PÁGINA WEB - SIMPLIFICADO */}
       {activeTab === 'content' && canManageContent && (
         <div className="space-y-6">
           
-          {/* 🌐 HEADER DE GESTIÓN DE CONTENIDO MEJORADO */}
+          {/* 🌐 HEADER DE GESTIÓN DE PÁGINA WEB */}
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 border border-blue-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -758,10 +703,10 @@ const AdminDashboard = () => {
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900">
-                    Gestión Completa de Contenido
+                    Gestión de Página Web
                   </h3>
                   <p className="text-gray-600 mt-1">
-                    Administra todos los aspectos de tu página web desde aquí.
+                    Edita toda la información que aparece en tu página web.
                   </p>
                 </div>
               </div>
@@ -771,7 +716,7 @@ const AdminDashboard = () => {
                 {hasUnsavedChanges && (
                   <button
                     onClick={() => {
-                      // Implementar guardar cambios globales
+                      // Los componentes individuales manejan el guardado
                       setHasUnsavedChanges(false);
                       showSuccess('Cambios guardados');
                     }}
@@ -787,14 +732,14 @@ const AdminDashboard = () => {
                   target="_blank"
                   className="btn-secondary btn-sm"
                 >
-                  <Eye className="w-4 h-4 mr-1" />
-                  Vista Previa
+                  <Globe className="w-4 h-4 mr-1" />
+                  Ver Página Web
                 </Link>
               </div>
             </div>
           </div>
           
-          {/* 🔗 SUB-NAVEGACIÓN PARA GESTIÓN DE CONTENIDO */}
+          {/* 🔗 SUB-NAVEGACIÓN PARA GESTIÓN DE PÁGINA WEB */}
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex space-x-1 overflow-x-auto">
               {contentTabs.map((tab) => (
@@ -880,19 +825,6 @@ const AdminDashboard = () => {
                   refetchConfig();
                   setHasUnsavedChanges(false);
                   showSuccess('Multimedia actualizada');
-                }}
-                onUnsavedChanges={(hasChanges) => setHasUnsavedChanges(hasChanges)}
-              />
-            )}
-            
-            {/* SUB-TAB: Branding */}
-            {activeContentTab === 'branding' && (
-              <BrandingEditor
-                gymConfig={gymConfig}
-                onSave={(data) => {
-                  refetchConfig();
-                  setHasUnsavedChanges(false);
-                  showSuccess('Branding actualizado');
                 }}
                 onUnsavedChanges={(hasChanges) => setHasUnsavedChanges(hasChanges)}
               />
