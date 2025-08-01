@@ -1,26 +1,23 @@
 // src/pages/dashboard/components/ContentEditor.js
-// FUNCIÓN: Editor SIMPLIFICADO de información general - SOLO datos que aparecen en LandingPage
-// INCLUYE: Nombre, descripción, contacto, redes sociales, horarios, estadísticas
+// FUNCIÓN: Editor CORREGIDO - Muestra datos actuales del backend al abrir
+// CAMBIOS: Mejor inicialización, logs debug, estados de carga
 
 import React, { useState, useEffect } from 'react';
 import {
   Save, Phone, Mail, MapPin, Globe, Instagram,
   Facebook, Twitter, Youtube, Clock, Users, Award, Target,
-  AlertTriangle, MessageSquare, Star, Trophy
+  AlertTriangle, MessageSquare, Star, Trophy, Loader
 } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
 
 const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, isMobile } = useApp();
   
-  // 📱 Estados locales - SOLO campos que aparecen en LandingPage
+  // 📱 Estados locales
   const [formData, setFormData] = useState({
-    // Información básica que aparece en el hero
     name: '',
     tagline: '',
     description: '',
-    
-    // Información de contacto que aparece en footer/contacto
     contact: {
       phone: '',
       email: '',
@@ -28,8 +25,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       city: '',
       zipCode: ''
     },
-    
-    // Redes sociales que aparecen en footer
     social: {
       facebook: { url: '', active: true },
       instagram: { url: '', active: true },
@@ -37,8 +32,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       youtube: { url: '', active: true },
       whatsapp: { url: '', active: true }
     },
-    
-    // Horarios que aparecen en la sección de contacto
     hours: {
       monday: { open: '06:00', close: '22:00', isOpen: true },
       tuesday: { open: '06:00', close: '22:00', isOpen: true },
@@ -48,8 +41,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       saturday: { open: '08:00', close: '20:00', isOpen: true },
       sunday: { open: '08:00', close: '18:00', isOpen: true }
     },
-    
-    // Estadísticas que aparecen en el hero
     stats: {
       members: 500,
       trainers: 8,
@@ -60,6 +51,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   
   const [hasChanges, setHasChanges] = useState(false);
   const [activeSection, setActiveSection] = useState('basic');
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   
   // 📅 Días de la semana
   const daysOfWeek = [
@@ -72,7 +64,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     { key: 'sunday', label: 'Domingo' }
   ];
   
-  // 🔗 Secciones del editor - SIMPLIFICADAS
+  // 🔗 Secciones del editor
   const sections = [
     { id: 'basic', label: 'Información Básica', icon: Target },
     { id: 'contact', label: 'Contacto', icon: Phone },
@@ -90,31 +82,58 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     { key: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: 'green-600', placeholder: 'https://wa.me/502XXXXXXXX' }
   ];
   
-  // 🔄 Inicializar con datos existentes
+  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO
   useEffect(() => {
-    if (gymConfig?.data) {
-      console.log('🔄 Initializing ContentEditor with data:', gymConfig.data);
+    console.log('🔄 ContentEditor - Checking for gym config data:', {
+      hasGymConfig: !!gymConfig,
+      isLoading: gymConfig?.isLoading,
+      hasData: !!gymConfig?.data,
+      dataKeys: gymConfig?.data ? Object.keys(gymConfig.data) : []
+    });
+    
+    if (gymConfig?.data && !gymConfig.isLoading) {
+      console.log('📥 ContentEditor - Loading data from backend:', gymConfig.data);
       
-      // Mapear datos del backend al formato local
-      setFormData({
-        name: gymConfig.data.name || '',
-        tagline: gymConfig.data.tagline || '',
-        description: gymConfig.data.description || '',
+      const backendData = gymConfig.data;
+      
+      // Mapear datos del backend con valores por defecto seguros
+      const newFormData = {
+        name: backendData.name || '',
+        tagline: backendData.tagline || '',
+        description: backendData.description || '',
+        
         contact: {
-          phone: gymConfig.data.contact?.phone || '',
-          email: gymConfig.data.contact?.email || '',
-          address: gymConfig.data.contact?.address || '',
-          city: gymConfig.data.contact?.city || '',
-          zipCode: gymConfig.data.contact?.zipCode || ''
+          phone: backendData.contact?.phone || '',
+          email: backendData.contact?.email || '',
+          address: backendData.contact?.address || '',
+          city: backendData.contact?.city || '',
+          zipCode: backendData.contact?.zipCode || ''
         },
+        
         social: {
-          facebook: gymConfig.data.social?.facebook || { url: '', active: true },
-          instagram: gymConfig.data.social?.instagram || { url: '', active: true },
-          twitter: gymConfig.data.social?.twitter || { url: '', active: true },
-          youtube: gymConfig.data.social?.youtube || { url: '', active: true },
-          whatsapp: gymConfig.data.social?.whatsapp || { url: '', active: true }
+          facebook: {
+            url: backendData.social?.facebook?.url || '',
+            active: backendData.social?.facebook?.active !== false
+          },
+          instagram: {
+            url: backendData.social?.instagram?.url || '',
+            active: backendData.social?.instagram?.active !== false
+          },
+          twitter: {
+            url: backendData.social?.twitter?.url || '',
+            active: backendData.social?.twitter?.active !== false
+          },
+          youtube: {
+            url: backendData.social?.youtube?.url || '',
+            active: backendData.social?.youtube?.active !== false
+          },
+          whatsapp: {
+            url: backendData.social?.whatsapp?.url || '',
+            active: backendData.social?.whatsapp?.active !== false
+          }
         },
-        hours: gymConfig.data.hours || {
+        
+        hours: backendData.hours || {
           monday: { open: '06:00', close: '22:00', isOpen: true },
           tuesday: { open: '06:00', close: '22:00', isOpen: true },
           wednesday: { open: '06:00', close: '22:00', isOpen: true },
@@ -123,13 +142,31 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           saturday: { open: '08:00', close: '20:00', isOpen: true },
           sunday: { open: '08:00', close: '18:00', isOpen: true }
         },
+        
         stats: {
-          members: gymConfig.data.stats?.members || 500,
-          trainers: gymConfig.data.stats?.trainers || 8,
-          experience: gymConfig.data.stats?.experience || 10,
-          satisfaction: gymConfig.data.stats?.satisfaction || 95
+          members: backendData.stats?.members || 500,
+          trainers: backendData.stats?.trainers || 8,
+          experience: backendData.stats?.experience || 10,
+          satisfaction: backendData.stats?.satisfaction || 95
         }
+      };
+      
+      console.log('✅ ContentEditor - Data mapped successfully:', {
+        name: newFormData.name,
+        hasContact: !!newFormData.contact.phone,
+        socialPlatforms: Object.keys(newFormData.social).filter(key => newFormData.social[key].url),
+        statsLoaded: Object.keys(newFormData.stats)
       });
+      
+      setFormData(newFormData);
+      setIsDataLoaded(true);
+      
+    } else if (gymConfig?.isLoading) {
+      console.log('⏳ ContentEditor - Data is still loading...');
+      setIsDataLoaded(false);
+    } else {
+      console.log('⚠️ ContentEditor - No data available');
+      setIsDataLoaded(true); // Permitir mostrar formulario vacío
     }
   }, [gymConfig]);
   
@@ -147,7 +184,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     setHasChanges(true);
   };
   
-  // 📝 Manejar cambios anidados (contact, social, stats)
+  // 📝 Manejar cambios anidados
   const handleNestedChange = (section, field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -192,7 +229,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   // 💾 Guardar cambios
   const handleSave = async () => {
     try {
-      // Validaciones básicas
       if (!formData.name.trim()) {
         showError('El nombre del gimnasio es obligatorio');
         return;
@@ -205,10 +241,8 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       
       console.log('💾 Saving gym configuration:', formData);
       
-      // Preparar datos para enviar al backend
       const dataToSave = {
         ...formData,
-        // Generar full schedule string para mostrar en landing
         hours: {
           ...formData.hours,
           full: generateFullScheduleString(formData.hours)
@@ -234,7 +268,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
     
     if (openDays.length === 7) {
-      // Todos los días abiertos, verificar si tienen el mismo horario
       const firstDayHours = hours[openDays[0].key];
       const allSameHours = openDays.every(day => 
         hours[day.key].open === firstDayHours.open && 
@@ -246,7 +279,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       }
     }
     
-    // Agrupar días con horarios similares
     const groupedHours = {};
     openDays.forEach(day => {
       const dayHours = hours[day.key];
@@ -257,7 +289,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       groupedHours[hourKey].push(day.label);
     });
     
-    // Crear string descriptivo
     const scheduleStrings = Object.entries(groupedHours).map(([hourKey, days]) => {
       const [open, close] = hourKey.split('-');
       if (days.length === 1) {
@@ -269,6 +300,20 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     
     return scheduleStrings.join(' | ');
   };
+
+  // 🔄 Mostrar loading mientras se cargan los datos
+  if (gymConfig?.isLoading || !isDataLoaded) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+            <p className="text-gray-600">Cargando información actual del gimnasio...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -282,6 +327,13 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           <p className="text-gray-600 mt-1">
             Configura la información básica que aparece en tu página web
           </p>
+          
+          {/* Mostrar datos actuales cargados */}
+          {isDataLoaded && formData.name && (
+            <div className="mt-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full inline-block">
+              ✅ Datos actuales cargados: {formData.name}
+            </div>
+          )}
         </div>
         
         {hasChanges && (
@@ -335,9 +387,18 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         {/* SECCIÓN: Información Básica */}
         {activeSection === 'basic' && (
           <div className="space-y-6">
-            <h4 className="text-lg font-medium text-gray-900 mb-4">
-              Información Básica del Gimnasio
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-medium text-gray-900 mb-4">
+                Información Básica del Gimnasio
+              </h4>
+              
+              {/* Mostrar valores actuales */}
+              {formData.name && (
+                <div className="text-sm text-gray-500">
+                  Actual: <span className="font-medium">{formData.name}</span>
+                </div>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
@@ -399,9 +460,18 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         {/* SECCIÓN: Información de Contacto */}
         {activeSection === 'contact' && (
           <div className="space-y-6">
-            <h4 className="text-lg font-medium text-gray-900 mb-4">
-              Información de Contacto
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-medium text-gray-900 mb-4">
+                Información de Contacto
+              </h4>
+              
+              {/* Mostrar contacto actual */}
+              {formData.contact.phone && (
+                <div className="text-sm text-gray-500">
+                  Tel actual: <span className="font-medium">{formData.contact.phone}</span>
+                </div>
+              )}
+            </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
@@ -480,9 +550,17 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         {/* SECCIÓN: Redes Sociales */}
         {activeSection === 'social' && (
           <div className="space-y-6">
-            <h4 className="text-lg font-medium text-gray-900 mb-4">
-              Redes Sociales
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-medium text-gray-900 mb-4">
+                Redes Sociales
+              </h4>
+              
+              {/* Contador de redes configuradas */}
+              <div className="text-sm text-gray-500">
+                Configuradas: {Object.values(formData.social).filter(s => s.url && s.active).length}/5
+              </div>
+            </div>
+            
             <p className="text-gray-600 mb-6">
               Las redes sociales aparecen en el footer de tu página web
             </p>
@@ -494,6 +572,13 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                     <div className="flex items-center">
                       <platform.icon className={`w-5 h-5 text-${platform.color} mr-3`} />
                       <h5 className="font-medium text-gray-900">{platform.label}</h5>
+                      
+                      {/* Mostrar URL actual si existe */}
+                      {formData.social[platform.key]?.url && (
+                        <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                          Configurado
+                        </span>
+                      )}
                     </div>
                     
                     <label className="inline-flex items-center">

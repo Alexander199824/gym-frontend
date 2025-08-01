@@ -1,47 +1,26 @@
 // src/pages/dashboard/AdminDashboard.js
-// FUNCIÓN: Dashboard SIMPLIFICADO - Solo edita datos que aparecen en LandingPage
-// INCLUYE: Información general, servicios, planes, productos, multimedia
+// FUNCIÓN: Dashboard ACTUALIZADO - Integra componentes corregidos que muestran datos actuales
+// CAMBIOS: Mejor manejo de datos del backend, logs mejorados, estados de carga
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Users, 
-  CreditCard, 
-  DollarSign, 
-  TrendingUp, 
-  AlertCircle,
-  Calendar,
-  Clock,
-  ArrowRight,
-  RefreshCw,
-  Download,
-  Settings,
-  BarChart3,
-  PieChart,
-  Activity,
-  Target,
-  Zap,
-  Crown,
-  Save,
-  Globe,
-  Image,
-  ShoppingBag,
-  Info,
-  CheckCircle,
-  Package,
-  Truck,
-  Plus
+  Users, CreditCard, DollarSign, TrendingUp, AlertCircle,
+  Calendar, Clock, ArrowRight, RefreshCw, Download, Settings,
+  BarChart3, PieChart, Activity, Target, Zap, Crown, Save,
+  Globe, Image, ShoppingBag, Info, CheckCircle, Package,
+  Truck, Plus, Loader
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// 📊 Componentes específicos del dashboard ORIGINALES
+// 📊 Componentes específicos del dashboard
 import DashboardCard from '../../components/common/DashboardCard';
 import QuickActionCard from '../../components/common/QuickActionCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
-// 🆕 COMPONENTES SIMPLIFICADOS - Solo para datos de LandingPage
+// 🆕 COMPONENTES CORREGIDOS para gestión de contenido
 import ContentEditor from './components/ContentEditor';
 import ServicesManager from './components/ServicesManager';
 import PlansManager from './components/PlansManager';
@@ -60,16 +39,16 @@ const AdminDashboard = () => {
   // 📅 Fecha actual
   const today = new Date().toISOString().split('T')[0];
   
-  // 📱 Estados locales ORIGINALES
+  // 📱 Estados locales para operaciones
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'operations' | 'content' | 'inventory'
+  const [activeTab, setActiveTab] = useState('overview');
   
-  // 🆕 Estados para gestión de contenido simplificada
+  // 🆕 Estados para gestión de contenido
   const [activeContentTab, setActiveContentTab] = useState('general');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
-  // 📊 Estados para datos (REEMPLAZA useQuery)
+  // 📊 Estados para datos operativos
   const [userStats, setUserStats] = useState({ data: null, isLoading: false, error: null });
   const [membershipStats, setMembershipStats] = useState({ data: null, isLoading: false, error: null });
   const [paymentReports, setPaymentReports] = useState({ data: null, isLoading: false, error: null });
@@ -78,16 +57,16 @@ const AdminDashboard = () => {
   const [pendingTransfers, setPendingTransfers] = useState({ data: null, isLoading: false, error: null });
   const [todayPayments, setTodayPayments] = useState({ data: null, isLoading: false, error: null });
   
-  // 🆕 Estados para gestión de contenido - SIMPLIFICADOS
-  const [gymConfig, setGymConfig] = useState({ data: null, isLoading: false, error: null });
-  const [services, setServices] = useState({ data: null, isLoading: false, error: null });
-  const [membershipPlans, setMembershipPlans] = useState({ data: null, isLoading: false, error: null });
-  const [featuredProducts, setFeaturedProducts] = useState({ data: null, isLoading: false, error: null });
+  // 🆕 Estados para datos de contenido - MEJORADOS
+  const [gymConfigData, setGymConfigData] = useState({ data: null, isLoading: false, error: null });
+  const [servicesData, setServicesData] = useState({ data: null, isLoading: false, error: null });
+  const [membershipPlansData, setMembershipPlansData] = useState({ data: null, isLoading: false, error: null });
+  const [featuredProductsData, setFeaturedProductsData] = useState({ data: null, isLoading: false, error: null });
   
   // 🛍️ Estados para gestión de inventario
   const [inventoryStats, setInventoryStats] = useState({ data: null, isLoading: false, error: null });
   
-  // 🔄 Función para cargar datos (REEMPLAZA useQuery)
+  // 🔄 CARGAR DATOS OPERATIVOS
   const loadDashboardData = async () => {
     console.log('📊 Loading dashboard data...');
     
@@ -127,7 +106,7 @@ const AdminDashboard = () => {
     }
   };
   
-  // 🔄 Función para cargar datos de contenido - SIMPLIFICADA
+  // 🔄 CARGAR DATOS DE CONTENIDO - MEJORADO
   const loadContentData = async () => {
     if (!canManageContent) return;
     
@@ -135,47 +114,51 @@ const AdminDashboard = () => {
     
     try {
       // Configuración del gimnasio
-      setGymConfig({ data: null, isLoading: true, error: null });
+      setGymConfigData({ data: null, isLoading: true, error: null });
       try {
-        const gymConfigData = await apiService.getGymConfig();
-        setGymConfig({ data: gymConfigData, isLoading: false, error: null });
-        console.log('✅ Gym config loaded:', gymConfigData);
+        const gymConfigResponse = await apiService.getGymConfig();
+        const configData = gymConfigResponse?.data || gymConfigResponse;
+        setGymConfigData({ data: configData, isLoading: false, error: null });
+        console.log('✅ Gym config loaded for AdminDashboard:', configData);
       } catch (error) {
         console.log('⚠️ Gym config not available:', error.message);
-        setGymConfig({ data: null, isLoading: false, error });
+        setGymConfigData({ data: null, isLoading: false, error });
       }
       
       // Servicios
-      setServices({ data: null, isLoading: true, error: null });
+      setServicesData({ data: null, isLoading: true, error: null });
       try {
-        const servicesData = await apiService.getGymServices();
-        setServices({ data: servicesData, isLoading: false, error: null });
-        console.log('✅ Services loaded:', servicesData);
+        const servicesResponse = await apiService.getGymServices();
+        const services = servicesResponse?.data || servicesResponse;
+        setServicesData({ data: services, isLoading: false, error: null });
+        console.log('✅ Services loaded for AdminDashboard:', services);
       } catch (error) {
         console.log('⚠️ Services not available:', error.message);
-        setServices({ data: null, isLoading: false, error });
+        setServicesData({ data: null, isLoading: false, error });
       }
       
       // Planes de membresía
-      setMembershipPlans({ data: null, isLoading: true, error: null });
+      setMembershipPlansData({ data: null, isLoading: true, error: null });
       try {
-        const plansData = await apiService.getMembershipPlans();
-        setMembershipPlans({ data: plansData, isLoading: false, error: null });
-        console.log('✅ Plans loaded:', plansData);
+        const plansResponse = await apiService.getMembershipPlans();
+        const plans = plansResponse?.data || plansResponse;
+        setMembershipPlansData({ data: plans, isLoading: false, error: null });
+        console.log('✅ Plans loaded for AdminDashboard:', plans);
       } catch (error) {
         console.log('⚠️ Plans not available:', error.message);
-        setMembershipPlans({ data: null, isLoading: false, error });
+        setMembershipPlansData({ data: null, isLoading: false, error });
       }
       
       // Productos destacados
-      setFeaturedProducts({ data: null, isLoading: true, error: null });
+      setFeaturedProductsData({ data: null, isLoading: true, error: null });
       try {
-        const productsData = await apiService.getFeaturedProducts();
-        setFeaturedProducts({ data: productsData, isLoading: false, error: null });
-        console.log('✅ Products loaded:', productsData);
+        const productsResponse = await apiService.getFeaturedProducts();
+        const products = productsResponse?.data || productsResponse;
+        setFeaturedProductsData({ data: products, isLoading: false, error: null });
+        console.log('✅ Products loaded for AdminDashboard:', products);
       } catch (error) {
         console.log('⚠️ Products not available:', error.message);
-        setFeaturedProducts({ data: null, isLoading: false, error });
+        setFeaturedProductsData({ data: null, isLoading: false, error });
       }
       
     } catch (error) {
@@ -183,7 +166,7 @@ const AdminDashboard = () => {
     }
   };
   
-  // 📦 Función para cargar datos de inventario
+  // 📦 Cargar datos de inventario
   const loadInventoryData = async () => {
     console.log('📦 Loading inventory data...');
     
@@ -202,7 +185,7 @@ const AdminDashboard = () => {
     }
   };
   
-  // 🔄 Función para refrescar datos ORIGINAL
+  // 🔄 Refrescar datos
   const refreshDashboard = () => {
     setRefreshKey(prev => prev + 1);
     loadDashboardData();
@@ -224,7 +207,7 @@ const AdminDashboard = () => {
     }
   }, [refreshKey, selectedPeriod]);
   
-  // ⏰ Auto-refresh ORIGINAL (solo para operations)
+  // ⏰ Auto-refresh para operaciones
   useEffect(() => {
     const interval = setInterval(() => {
       if (activeTab === 'operations') {
@@ -241,7 +224,7 @@ const AdminDashboard = () => {
     }
   }, [activeTab]);
   
-  // 📊 Calcular métricas principales ORIGINAL
+  // 📊 Calcular métricas principales
   const mainMetrics = {
     totalUsers: userStats?.data?.totalActiveUsers || 0,
     activeMemberships: membershipStats?.data?.activeMemberships || 0,
@@ -263,7 +246,7 @@ const AdminDashboard = () => {
     totalSalesToday: inventoryStats?.data?.salesToday || 0
   };
   
-  // 🎯 Períodos disponibles ORIGINAL
+  // 🎯 Períodos disponibles
   const periods = [
     { value: 'today', label: 'Hoy' },
     { value: 'week', label: 'Esta semana' },
@@ -271,37 +254,42 @@ const AdminDashboard = () => {
     { value: 'quarter', label: 'Este trimestre' }
   ];
   
-  // 🆕 Tabs simplificados para gestión de contenido
+  // 🆕 Tabs para gestión de contenido - ACTUALIZADOS
   const contentTabs = [
     {
       id: 'general',
       title: 'Información General',
       icon: Info,
-      description: 'Nombre, descripción, contacto, horarios'
+      description: 'Nombre, descripción, contacto, horarios, estadísticas',
+      dataLoaded: !!gymConfigData.data && !gymConfigData.isLoading
     },
     {
       id: 'services',
       title: 'Servicios',
       icon: Target,
-      description: 'Servicios del gimnasio'
+      description: 'Servicios del gimnasio',
+      dataLoaded: !!servicesData.data && !servicesData.isLoading
     },
     {
       id: 'plans',
       title: 'Planes de Membresía',
       icon: CreditCard,
-      description: 'Planes y precios'
+      description: 'Planes y precios',
+      dataLoaded: !!membershipPlansData.data && !membershipPlansData.isLoading
     },
     {
       id: 'products',
       title: 'Productos',
       icon: ShoppingBag,
-      description: 'Tienda del gimnasio'
+      description: 'Tienda del gimnasio',
+      dataLoaded: !!featuredProductsData.data && !featuredProductsData.isLoading
     },
     {
       id: 'media',
       title: 'Multimedia',
       icon: Image,
-      description: 'Logo, imágenes, videos'
+      description: 'Logo, imágenes, videos',
+      dataLoaded: !!gymConfigData.data && !gymConfigData.isLoading
     }
   ];
   
@@ -318,19 +306,45 @@ const AdminDashboard = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
   
-  // 📱 Estado de carga general ORIGINAL
+  // 📱 Estado de carga general
   const isLoading = userStats.isLoading || membershipStats.isLoading || paymentReports.isLoading;
 
-  // 📄 Funciones para gestión de contenido - SIMPLIFICADAS
-  const refetchConfig = () => loadContentData();
-  const refetchServices = () => loadContentData();
-  const refetchPlans = () => loadContentData();
-  const refetchProducts = () => loadContentData();
+  // 📄 FUNCIONES DE GUARDADO PARA COMPONENTES
+  const handleSaveConfig = (data) => {
+    console.log('💾 AdminDashboard - Saving gym config:', data);
+    // Aquí iría la llamada a apiService.updateGymConfig(data)
+    // Por ahora simulamos éxito
+    showSuccess('Configuración guardada (simulado)');
+  };
+  
+  const handleSaveServices = (data) => {
+    console.log('💾 AdminDashboard - Saving services:', data);
+    // Aquí iría la llamada a apiService.updateGymServices(data)
+    showSuccess('Servicios guardados (simulado)');
+  };
+  
+  const handleSavePlans = (data) => {
+    console.log('💾 AdminDashboard - Saving plans:', data);
+    // Aquí iría la llamada a apiService.updateMembershipPlans(data)
+    showSuccess('Planes guardados (simulado)');
+  };
+  
+  const handleSaveProducts = (data) => {
+    console.log('💾 AdminDashboard - Saving products:', data);
+    // Aquí iría la llamada a apiService.updateFeaturedProducts(data)
+    showSuccess('Productos guardados (simulado)');
+  };
+  
+  const handleSaveMedia = (data) => {
+    console.log('💾 AdminDashboard - Saving media:', data);
+    // Aquí iría la llamada para actualizar multimedia
+    showSuccess('Multimedia guardada (simulado)');
+  };
 
   return (
     <div className="space-y-6">
       
-      {/* 🔍 DEBUG INFO */}
+      {/* 🔍 DEBUG INFO MEJORADO */}
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="font-medium text-blue-900 mb-2">🔍 DEBUG INFO</h4>
@@ -339,13 +353,13 @@ const AdminDashboard = () => {
             <div>canManageContent: {canManageContent ? '✅' : '❌'}</div>
             <div>Active tab: {activeTab}</div>
             <div>Content tab: {activeContentTab}</div>
-            <div>Services loaded: {services.data ? '✅' : '❌'}</div>
-            <div>Gym config loaded: {gymConfig.data ? '✅' : '❌'}</div>
+            <div>Data loaded: Config {gymConfigData.data ? '✅' : '❌'} | Services {servicesData.data ? '✅' : '❌'} | Plans {membershipPlansData.data ? '✅' : '❌'}</div>
+            <div>Content loading: Config {gymConfigData.isLoading ? '⏳' : '✅'} | Services {servicesData.isLoading ? '⏳' : '✅'}</div>
           </div>
         </div>
       )}
       
-      {/* 🏠 HEADER DEL DASHBOARD ORIGINAL - MANTENER IGUAL */}
+      {/* 🏠 HEADER DEL DASHBOARD */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center space-x-3 mb-2">
@@ -360,7 +374,7 @@ const AdminDashboard = () => {
         </div>
         
         <div className="flex items-center space-x-4 mt-4 lg:mt-0">
-          {/* 📅 Selector de período ORIGINAL */}
+          {/* 📅 Selector de período */}
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
@@ -373,7 +387,7 @@ const AdminDashboard = () => {
             ))}
           </select>
           
-          {/* 🔄 Botón de refresh ORIGINAL */}
+          {/* 🔄 Botón de refresh */}
           <button
             onClick={refreshDashboard}
             className="btn-secondary btn-sm"
@@ -382,7 +396,7 @@ const AdminDashboard = () => {
             <RefreshCw className="w-4 h-4" />
           </button>
           
-          {/* 📊 Botón de reportes ORIGINAL */}
+          {/* 📊 Botón de reportes */}
           <Link
             to="/dashboard/reports"
             className="btn-primary btn-sm"
@@ -405,7 +419,7 @@ const AdminDashboard = () => {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto">
           
-          {/* TAB ORIGINAL: Resumen Ejecutivo */}
+          {/* TAB: Resumen Ejecutivo */}
           <button
             onClick={() => setActiveTab('overview')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
@@ -418,7 +432,7 @@ const AdminDashboard = () => {
             Resumen Ejecutivo
           </button>
           
-          {/* TAB ORIGINAL: Operaciones */}
+          {/* TAB: Operaciones */}
           <button
             onClick={() => setActiveTab('operations')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
@@ -431,7 +445,7 @@ const AdminDashboard = () => {
             Operaciones Diarias
           </button>
           
-          {/* TAB SIMPLIFICADO: Gestión de Página Web */}
+          {/* TAB: Gestión de Página Web */}
           {canManageContent && (
             <button
               onClick={() => setActiveTab('content')}
@@ -449,7 +463,7 @@ const AdminDashboard = () => {
             </button>
           )}
           
-          {/* 🆕 TAB: Gestión de Inventario/Tienda */}
+          {/* TAB: Gestión de Inventario/Tienda */}
           <button
             onClick={() => setActiveTab('inventory')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
@@ -467,14 +481,13 @@ const AdminDashboard = () => {
       
       {/* 📊 CONTENIDO SEGÚN TAB ACTIVO */}
       
-      {/* TAB: RESUMEN EJECUTIVO - MANTENER ORIGINAL COMPLETO */}
+      {/* TAB: RESUMEN EJECUTIVO */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
           
-          {/* 📊 MÉTRICAS PRINCIPALES EJECUTIVAS ORIGINALES */}
+          {/* 📊 MÉTRICAS PRINCIPALES EJECUTIVAS */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
-            {/* 👥 Total de usuarios ORIGINAL */}
             <DashboardCard
               title="Usuarios Activos"
               value={mainMetrics.totalUsers}
@@ -485,7 +498,6 @@ const AdminDashboard = () => {
               subtitle="Miembros registrados"
             />
             
-            {/* 🎫 Membresías activas ORIGINAL */}
             <DashboardCard
               title="Membresías Activas"
               value={mainMetrics.activeMemberships}
@@ -496,7 +508,6 @@ const AdminDashboard = () => {
               subtitle="Membresías vigentes"
             />
             
-            {/* 💰 Ingresos del período ORIGINAL */}
             <DashboardCard
               title="Ingresos"
               value={formatCurrency(mainMetrics.monthlyRevenue)}
@@ -507,7 +518,6 @@ const AdminDashboard = () => {
               subtitle={`Período: ${periods.find(p => p.value === selectedPeriod)?.label}`}
             />
             
-            {/* 📦 Productos en inventario */}
             <DashboardCard
               title="Productos Activos"
               value={inventoryMetrics.totalProducts}
@@ -520,10 +530,10 @@ const AdminDashboard = () => {
             
           </div>
           
-          {/* 📈 GRÁFICOS Y ANÁLISIS EJECUTIVOS ORIGINALES */}
+          {/* 📈 GRÁFICOS Y ANÁLISIS EJECUTIVOS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* 📊 Distribución de usuarios por rol ORIGINAL */}
+            {/* 📊 Distribución de usuarios por rol */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 Distribución de Usuarios
@@ -559,7 +569,7 @@ const AdminDashboard = () => {
               )}
             </div>
             
-            {/* 💳 Métodos de pago ORIGINAL */}
+            {/* 💳 Métodos de pago */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 Ingresos por Método de Pago
@@ -593,7 +603,7 @@ const AdminDashboard = () => {
             
           </div>
           
-          {/* 🎯 ACCIONES EJECUTIVAS RÁPIDAS ORIGINAL */}
+          {/* 🎯 ACCIONES EJECUTIVAS RÁPIDAS */}
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Acciones Ejecutivas
@@ -637,14 +647,13 @@ const AdminDashboard = () => {
         </div>
       )}
       
-      {/* TAB: OPERACIONES DIARIAS - MANTENER ORIGINAL COMPLETO */}
+      {/* TAB: OPERACIONES DIARIAS */}
       {activeTab === 'operations' && (
         <div className="space-y-6">
           
-          {/* 📊 MÉTRICAS OPERATIVAS DEL DÍA ORIGINALES */}
+          {/* 📊 MÉTRICAS OPERATIVAS DEL DÍA */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
-            {/* ⚠️ Membresías vencidas ORIGINAL */}
             <DashboardCard
               title="Vencidas Hoy"
               value={mainMetrics.expiredCount}
@@ -655,7 +664,6 @@ const AdminDashboard = () => {
               alert={mainMetrics.expiredCount > 0}
             />
             
-            {/* ⏰ Vencen pronto ORIGINAL */}
             <DashboardCard
               title="Vencen esta semana"
               value={mainMetrics.expiringSoonCount}
@@ -666,7 +674,6 @@ const AdminDashboard = () => {
               alert={mainMetrics.expiringSoonCount > 0}
             />
             
-            {/* 💰 Pagos del día ORIGINAL */}
             <DashboardCard
               title="Pagos Hoy"
               value={mainMetrics.todayPaymentsCount}
@@ -677,7 +684,6 @@ const AdminDashboard = () => {
               subtitle={`${formatCurrency(mainMetrics.todayRevenue)}`}
             />
             
-            {/* 🛍️ Ventas de productos hoy */}
             <DashboardCard
               title="Ventas Tienda Hoy"
               value={inventoryMetrics.totalSalesToday}
@@ -690,7 +696,7 @@ const AdminDashboard = () => {
             
           </div>
           
-          {/* 🎯 ACCIONES RÁPIDAS OPERATIVAS ORIGINAL */}
+          {/* 🎯 ACCIONES RÁPIDAS OPERATIVAS */}
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Acciones Rápidas Operativas
@@ -731,7 +737,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           
-          {/* 📋 CONTENIDO OPERATIVO PRINCIPAL ORIGINAL */}
+          {/* 📋 CONTENIDO OPERATIVO PRINCIPAL */}
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Resumen Operativo
@@ -746,7 +752,7 @@ const AdminDashboard = () => {
         </div>
       )}
       
-      {/* TAB: GESTIÓN DE PÁGINA WEB - SIMPLIFICADO */}
+      {/* TAB: GESTIÓN DE PÁGINA WEB - ACTUALIZADO */}
       {activeTab === 'content' && canManageContent && (
         <div className="space-y-6">
           
@@ -772,7 +778,6 @@ const AdminDashboard = () => {
                 {hasUnsavedChanges && (
                   <button
                     onClick={() => {
-                      // Los componentes individuales manejan el guardado
                       setHasUnsavedChanges(false);
                       showSuccess('Cambios guardados');
                     }}
@@ -802,14 +807,17 @@ const AdminDashboard = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveContentTab(tab.id)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex items-center ${
                     activeContentTab === tab.id
                       ? 'bg-primary-100 text-primary-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
                 >
-                  <tab.icon className="w-4 h-4 inline mr-2" />
+                  <tab.icon className="w-4 h-4 mr-2" />
                   {tab.title}
+                  {tab.dataLoaded && (
+                    <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
+                  )}
                 </button>
               ))}
             </div>
@@ -821,68 +829,48 @@ const AdminDashboard = () => {
             {/* SUB-TAB: Información General */}
             {activeContentTab === 'general' && (
               <ContentEditor 
-                gymConfig={gymConfig}
-                onSave={(data) => {
-                  refetchConfig();
-                  setHasUnsavedChanges(false);
-                  showSuccess('Información general actualizada');
-                }}
-                onUnsavedChanges={(hasChanges) => setHasUnsavedChanges(hasChanges)}
+                gymConfig={gymConfigData}
+                onSave={handleSaveConfig}
+                onUnsavedChanges={setHasUnsavedChanges}
               />
             )}
             
             {/* SUB-TAB: Servicios */}
             {activeContentTab === 'services' && (
               <ServicesManager
-                services={services?.data || []}
-                isLoading={services.isLoading}
-                onSave={(data) => {
-                  refetchServices();
-                  setHasUnsavedChanges(false);
-                  showSuccess('Servicios actualizados');
-                }}
-                onUnsavedChanges={(hasChanges) => setHasUnsavedChanges(hasChanges)}
+                services={servicesData.data}
+                isLoading={servicesData.isLoading}
+                onSave={handleSaveServices}
+                onUnsavedChanges={setHasUnsavedChanges}
               />
             )}
             
             {/* SUB-TAB: Planes de Membresía */}
             {activeContentTab === 'plans' && (
               <PlansManager
-                plans={membershipPlans?.data || []}
-                isLoading={membershipPlans.isLoading}
-                onSave={(data) => {
-                  refetchPlans();
-                  setHasUnsavedChanges(false);
-                  showSuccess('Planes actualizados');
-                }}
-                onUnsavedChanges={(hasChanges) => setHasUnsavedChanges(hasChanges)}
+                plans={membershipPlansData.data}
+                isLoading={membershipPlansData.isLoading}
+                onSave={handleSavePlans}
+                onUnsavedChanges={setHasUnsavedChanges}
               />
             )}
             
             {/* SUB-TAB: Productos */}
             {activeContentTab === 'products' && (
               <ProductsManager
-                products={featuredProducts?.data || []}
-                isLoading={featuredProducts.isLoading}
-                onSave={(data) => {
-                  refetchProducts();
-                  setHasUnsavedChanges(false);
-                  showSuccess('Productos actualizados');
-                }}
-                onUnsavedChanges={(hasChanges) => setHasUnsavedChanges(hasChanges)}
+                products={featuredProductsData.data}
+                isLoading={featuredProductsData.isLoading}
+                onSave={handleSaveProducts}
+                onUnsavedChanges={setHasUnsavedChanges}
               />
             )}
             
             {/* SUB-TAB: Multimedia */}
             {activeContentTab === 'media' && (
               <MediaUploader
-                gymConfig={gymConfig}
-                onSave={(data) => {
-                  refetchConfig();
-                  setHasUnsavedChanges(false);
-                  showSuccess('Multimedia actualizada');
-                }}
-                onUnsavedChanges={(hasChanges) => setHasUnsavedChanges(hasChanges)}
+                gymConfig={gymConfigData}
+                onSave={handleSaveMedia}
+                onUnsavedChanges={setHasUnsavedChanges}
               />
             )}
             
@@ -891,7 +879,7 @@ const AdminDashboard = () => {
         </div>
       )}
       
-      {/* 🆕 TAB: GESTIÓN DE INVENTARIO Y VENTAS */}
+      {/* TAB: GESTIÓN DE INVENTARIO Y VENTAS */}
       {activeTab === 'inventory' && (
         <div className="space-y-6">
           

@@ -1,35 +1,34 @@
 // src/pages/dashboard/components/MediaUploader.js
-// FUNCIÓN: Gestor MEJORADO de multimedia - Subida a Cloudinary para archivos grandes
-// INCLUYE: logo, hero image, hero video - Optimizado para LandingPage
+// FUNCIÓN: Gestor SIMPLIFICADO de multimedia - SIN Cloudinary
+// CAMBIOS: Muestra datos actuales del backend, sin mensajes de Cloudinary
 
 import React, { useState, useEffect } from 'react';
 import {
-  Upload, Trash2, Eye, Save, X, Image as ImageIcon,
+  Upload, Trash2, Save, X, Image as ImageIcon,
   Video, AlertTriangle, Play, Pause, Link, ExternalLink,
-  Cloud, Check, Loader, FileImage, FileVideo, Maximize,
-  Download, Copy, RefreshCw, Zap
+  Check, Loader, FileImage, FileVideo, Copy, RefreshCw,
+  Eye, Download
 } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
-import apiService from '../../../services/apiService';
 
 const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, isMobile } = useApp();
   
-  // 📱 Estados locales - SOLO archivos que aparecen en LandingPage
+  // 📱 Estados locales
   const [mediaFiles, setMediaFiles] = useState({
-    logo: null,          // Logo que aparece en navbar y footer
-    heroImage: null,     // Imagen principal del hero
-    heroVideo: null      // Video principal del hero
+    logo: null,
+    heroImage: null,
+    heroVideo: null
   });
   
   const [hasChanges, setHasChanges] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState({});
   const [activeTab, setActiveTab] = useState('logo');
   const [videoUrl, setVideoUrl] = useState('');
   const [isAddingVideo, setIsAddingVideo] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // 🔗 Categorías de medios - SOLO lo que aparece en landing
+  // 🔗 Categorías de medios
   const mediaTabs = [
     { 
       id: 'logo', 
@@ -44,60 +43,71 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
       label: 'Imagen/Video Principal', 
       icon: Video, 
       description: 'Imagen o video que aparece en la sección principal',
-      maxSize: '100MB',
+      maxSize: '50MB',
       formats: 'Imagen: JPG, PNG | Video: MP4, WebM'
     }
   ];
   
-  // 📊 Límites de archivo para Cloudinary
-  const fileLimits = {
-    logo: {
-      maxSize: 5 * 1024 * 1024, // 5MB
-      acceptedTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'],
-      acceptedExtensions: ['.png', '.jpg', '.jpeg', '.svg']
-    },
-    heroImage: {
-      maxSize: 25 * 1024 * 1024, // 25MB para imágenes
-      acceptedTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
-      acceptedExtensions: ['.png', '.jpg', '.jpeg', '.webp']
-    },
-    heroVideo: {
-      maxSize: 100 * 1024 * 1024, // 100MB para videos
-      acceptedTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
-      acceptedExtensions: ['.mp4', '.webm', '.mov']
-    }
-  };
-  
-  // 🔄 Inicializar con archivos existentes
+  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO
   useEffect(() => {
-    if (gymConfig?.data) {
-      console.log('🔄 Initializing MediaUploader with data:', gymConfig.data);
+    console.log('🔄 MediaUploader - Checking for gym config data:', {
+      hasGymConfig: !!gymConfig,
+      isLoading: gymConfig?.isLoading,
+      hasData: !!gymConfig?.data,
+      dataKeys: gymConfig?.data ? Object.keys(gymConfig.data) : []
+    });
+    
+    if (gymConfig?.data && !gymConfig.isLoading) {
+      console.log('📥 MediaUploader - Loading data from backend:', gymConfig.data);
       
-      setMediaFiles({
-        logo: gymConfig.data.logo ? {
-          url: gymConfig.data.logo.url || gymConfig.data.logo,
-          alt: gymConfig.data.logo.alt || 'Logo',
-          width: gymConfig.data.logo.width,
-          height: gymConfig.data.logo.height,
-          cloudinaryId: gymConfig.data.logo.cloudinaryId,
-          isCloudinary: !!gymConfig.data.logo.cloudinaryId
+      const backendData = gymConfig.data;
+      
+      // Mapear datos del backend
+      const newMediaFiles = {
+        logo: backendData.logo ? {
+          url: backendData.logo.url || backendData.logo,
+          alt: backendData.logo.alt || 'Logo',
+          width: backendData.logo.width,
+          height: backendData.logo.height,
+          name: 'Logo actual',
+          type: 'image',
+          isExternal: true
         } : null,
         
-        heroImage: gymConfig.data.hero?.imageUrl ? {
-          url: gymConfig.data.hero.imageUrl,
+        heroImage: backendData.hero?.imageUrl ? {
+          url: backendData.hero.imageUrl,
           alt: 'Imagen Principal',
-          cloudinaryId: gymConfig.data.hero.imageCloudinaryId,
-          isCloudinary: !!gymConfig.data.hero.imageCloudinaryId
+          name: 'Imagen principal actual',
+          type: 'image',
+          isExternal: true
         } : null,
         
-        heroVideo: gymConfig.data.hero?.videoUrl ? {
-          url: gymConfig.data.hero.videoUrl,
-          name: 'Video Principal',
-          isExternal: !gymConfig.data.hero.videoCloudinaryId,
-          cloudinaryId: gymConfig.data.hero.videoCloudinaryId,
-          isCloudinary: !!gymConfig.data.hero.videoCloudinaryId
+        heroVideo: backendData.hero?.videoUrl ? {
+          url: backendData.hero.videoUrl,
+          name: 'Video principal actual',
+          type: 'video',
+          isExternal: !backendData.hero.videoUrl.includes(window.location.origin)
         } : null
+      };
+      
+      console.log('✅ MediaUploader - Data mapped successfully:', {
+        hasLogo: !!newMediaFiles.logo,
+        hasHeroImage: !!newMediaFiles.heroImage,
+        hasHeroVideo: !!newMediaFiles.heroVideo,
+        logoUrl: newMediaFiles.logo?.url,
+        heroImageUrl: newMediaFiles.heroImage?.url,
+        heroVideoUrl: newMediaFiles.heroVideo?.url
       });
+      
+      setMediaFiles(newMediaFiles);
+      setIsDataLoaded(true);
+      
+    } else if (gymConfig?.isLoading) {
+      console.log('⏳ MediaUploader - Data is still loading...');
+      setIsDataLoaded(false);
+    } else {
+      console.log('⚠️ MediaUploader - No data available');
+      setIsDataLoaded(true);
     }
   }, [gymConfig]);
   
@@ -106,137 +116,25 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     onUnsavedChanges(hasChanges);
   }, [hasChanges, onUnsavedChanges]);
   
-  // 📁 Validar archivo antes de subir
-  const validateFile = (file, category) => {
-    const limits = fileLimits[category];
-    
-    // Validar tamaño
-    if (file.size > limits.maxSize) {
-      const maxSizeMB = Math.round(limits.maxSize / (1024 * 1024));
-      throw new Error(`El archivo es muy grande. Máximo permitido: ${maxSizeMB}MB`);
-    }
-    
-    // Validar tipo
-    if (!limits.acceptedTypes.includes(file.type)) {
-      throw new Error(`Formato no válido. Formatos permitidos: ${limits.acceptedExtensions.join(', ')}`);
-    }
-    
-    return true;
-  };
-  
-  // 📤 Subir archivo a Cloudinary via backend
-  const uploadToCloudinary = async (file, category, onProgress) => {
-    try {
-      console.log(`📤 Uploading ${category} to Cloudinary:`, {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      });
-      
-      // Crear FormData
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('category', category);
-      formData.append('folder', `gym-${category}`); // Organizar en carpetas
-      
-      // Configurar transformaciones según el tipo
-      if (category === 'logo') {
-        formData.append('transformations', JSON.stringify({
-          width: 200,
-          height: 200,
-          crop: 'fit',
-          format: 'auto',
-          quality: 'auto'
-        }));
-      } else if (category === 'heroImage') {
-        formData.append('transformations', JSON.stringify({
-          width: 1920,
-          height: 1080,
-          crop: 'fill',
-          format: 'auto',
-          quality: 'auto:good'
-        }));
-      } else if (category === 'heroVideo') {
-        formData.append('transformations', JSON.stringify({
-          width: 1920,
-          height: 1080,
-          crop: 'fill',
-          quality: 'auto:good',
-          format: 'mp4'
-        }));
-      }
-      
-      // Simular progreso para demo (reemplazar con llamada real al backend)
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress += Math.random() * 30;
-        if (progress > 95) progress = 95;
-        onProgress(Math.round(progress));
-      }, 500);
-      
-      // Simular respuesta exitosa (reemplazar con apiService.uploadMedia(formData))
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      clearInterval(progressInterval);
-      onProgress(100);
-      
-      // Respuesta simulada de Cloudinary
-      const mockCloudinaryResponse = {
-        url: URL.createObjectURL(file), // URL temporal para demo
-        secureUrl: URL.createObjectURL(file),
-        publicId: `gym-${category}/${Date.now()}`,
-        cloudinaryId: `cloudinary_${Date.now()}`,
-        width: 1920,
-        height: 1080,
-        format: file.type.split('/')[1],
-        resourceType: file.type.startsWith('image/') ? 'image' : 'video',
-        bytes: file.size,
-        transformations: {
-          optimized: true,
-          responsive: true
-        }
-      };
-      
-      console.log('✅ Cloudinary upload successful:', mockCloudinaryResponse);
-      return mockCloudinaryResponse;
-      
-    } catch (error) {
-      console.error('❌ Cloudinary upload failed:', error);
-      throw error;
-    }
-  };
-  
-  // 📁 Manejar subida de archivos
+  // 📁 Manejar subida de archivos SIMPLIFICADA
   const handleFileUpload = async (file, category) => {
     if (!file) return;
     
     try {
-      // Validar archivo
-      validateFile(file, category);
-      
       setUploadingFile(category);
-      setUploadProgress({ [category]: 0 });
       
-      // Subir a Cloudinary
-      const cloudinaryResponse = await uploadToCloudinary(
-        file, 
-        category,
-        (progress) => setUploadProgress({ [category]: progress })
-      );
+      // Crear URL temporal para preview inmediato
+      const tempUrl = URL.createObjectURL(file);
       
       // Preparar datos del archivo
       const fileData = {
-        url: cloudinaryResponse.secureUrl || cloudinaryResponse.url,
-        cloudinaryId: cloudinaryResponse.publicId,
-        isCloudinary: true,
+        url: tempUrl, // URL temporal para preview
         name: file.name,
         type: file.type,
         size: file.size,
-        width: cloudinaryResponse.width,
-        height: cloudinaryResponse.height,
-        format: cloudinaryResponse.format,
-        uploadedAt: new Date().toISOString(),
-        transformations: cloudinaryResponse.transformations
+        isExternal: false,
+        file: file, // Mantener referencia al archivo original
+        uploadedAt: new Date().toISOString()
       };
       
       // Actualizar estado según categoría
@@ -246,43 +144,32 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
       }));
       
       setHasChanges(true);
-      showSuccess(`${category === 'logo' ? 'Logo' : category === 'heroImage' ? 'Imagen' : 'Video'} subido exitosamente`);
+      showSuccess(`${category === 'logo' ? 'Logo' : category === 'heroImage' ? 'Imagen' : 'Video'} cargado`);
       
     } catch (error) {
-      console.error('Error uploading file:', error);
-      showError(error.message || 'Error al subir el archivo');
+      console.error('Error loading file:', error);
+      showError(error.message || 'Error al cargar el archivo');
     } finally {
       setUploadingFile(null);
-      setUploadProgress({});
     }
   };
   
   // 🗑️ Eliminar archivo
-  const handleDeleteFile = async (category) => {
+  const handleDeleteFile = (category) => {
     if (window.confirm('¿Estás seguro de eliminar este archivo?')) {
+      // Liberar URL temporal si existe
       const file = mediaFiles[category];
-      
-      try {
-        // Si es un archivo de Cloudinary, eliminarlo del servidor
-        if (file?.isCloudinary && file?.cloudinaryId) {
-          console.log(`🗑️ Deleting ${category} from Cloudinary:`, file.cloudinaryId);
-          
-          // Aquí iría la llamada al backend para eliminar de Cloudinary
-          // await apiService.deleteMedia(file.cloudinaryId);
-        }
-        
-        setMediaFiles(prev => ({
-          ...prev,
-          [category]: null
-        }));
-        
-        setHasChanges(true);
-        showSuccess('Archivo eliminado');
-        
-      } catch (error) {
-        console.error('Error deleting file:', error);
-        showError('Error al eliminar archivo');
+      if (file?.url && file.url.startsWith('blob:')) {
+        URL.revokeObjectURL(file.url);
       }
+      
+      setMediaFiles(prev => ({
+        ...prev,
+        [category]: null
+      }));
+      
+      setHasChanges(true);
+      showSuccess('Archivo eliminado');
     }
   };
   
@@ -303,8 +190,8 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     const videoData = {
       url: videoUrl,
       name: 'Video desde URL',
+      type: 'video',
       isExternal: true,
-      isCloudinary: false,
       uploadedAt: new Date().toISOString()
     };
     
@@ -340,16 +227,12 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
           url: mediaFiles.logo.url,
           alt: mediaFiles.logo.alt || 'Logo',
           width: mediaFiles.logo.width,
-          height: mediaFiles.logo.height,
-          cloudinaryId: mediaFiles.logo.cloudinaryId,
-          isCloudinary: mediaFiles.logo.isCloudinary
+          height: mediaFiles.logo.height
         } : null,
         
         hero: {
           imageUrl: mediaFiles.heroImage?.url || '',
-          imageCloudinaryId: mediaFiles.heroImage?.cloudinaryId || '',
           videoUrl: mediaFiles.heroVideo?.url || '',
-          videoCloudinaryId: mediaFiles.heroVideo?.cloudinaryId || '',
           videoIsExternal: mediaFiles.heroVideo?.isExternal || false
         }
       };
@@ -366,12 +249,26 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
   
   // 📊 Formatear tamaño de archivo
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
+
+  // 🔄 Mostrar loading mientras se cargan los datos
+  if (gymConfig?.isLoading || !isDataLoaded) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+            <p className="text-gray-600">Cargando multimedia actual...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -385,6 +282,27 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
           <p className="text-gray-600 mt-1">
             Logo, imagen y video que aparecen en tu página web
           </p>
+          
+          {/* Mostrar archivos actuales cargados */}
+          {isDataLoaded && (
+            <div className="mt-2 flex space-x-2">
+              {mediaFiles.logo && (
+                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                  ✅ Logo cargado
+                </span>
+              )}
+              {mediaFiles.heroImage && (
+                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                  ✅ Imagen cargada
+                </span>
+              )}
+              {mediaFiles.heroVideo && (
+                <span className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                  ✅ Video cargado
+                </span>
+              )}
+            </div>
+          )}
         </div>
         
         {hasChanges && (
@@ -463,8 +381,8 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                   <div className="flex-1">
                     <h5 className="font-medium text-gray-900 flex items-center">
                       {mediaFiles.logo.name || 'Logo'}
-                      {mediaFiles.logo.isCloudinary && (
-                        <Cloud className="w-4 h-4 ml-2 text-blue-500" title="Alojado en Cloudinary" />
+                      {mediaFiles.logo.isExternal && (
+                        <ExternalLink className="w-4 h-4 ml-2 text-blue-500" title="Archivo externo" />
                       )}
                     </h5>
                     
@@ -476,7 +394,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                         <div>Dimensiones: {mediaFiles.logo.width} × {mediaFiles.logo.height}px</div>
                       )}
                       {mediaFiles.logo.uploadedAt && (
-                        <div>Subido: {new Date(mediaFiles.logo.uploadedAt).toLocaleDateString()}</div>
+                        <div>Actualizado: {new Date(mediaFiles.logo.uploadedAt).toLocaleDateString()}</div>
                       )}
                     </div>
                     
@@ -500,6 +418,16 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                         Copiar URL
                       </button>
                       
+                      <a
+                        href={mediaFiles.logo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary btn-sm"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        Ver
+                      </a>
+                      
                       <button
                         onClick={() => handleDeleteFile('logo')}
                         className="btn-secondary btn-sm text-red-600 hover:bg-red-50"
@@ -516,16 +444,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 <label className="flex flex-col items-center justify-center cursor-pointer">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                     {uploadingFile === 'logo' ? (
-                      <div className="relative">
-                        <Loader className="w-8 h-8 text-primary-600 animate-spin" />
-                        {uploadProgress.logo !== undefined && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-xs font-medium text-primary-600">
-                              {uploadProgress.logo}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      <Loader className="w-8 h-8 text-primary-600 animate-spin" />
                     ) : (
                       <ImageIcon className="w-8 h-8 text-gray-400" />
                     )}
@@ -538,17 +457,6 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                     Arrastra y suelta tu logo aquí, o haz clic para seleccionar<br />
                     PNG, JPG o SVG hasta 5MB
                   </p>
-                  
-                  {uploadingFile === 'logo' && uploadProgress.logo !== undefined && (
-                    <div className="w-full max-w-xs mt-4">
-                      <div className="bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadProgress.logo}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
                   
                   <input
                     type="file"
@@ -570,7 +478,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                   </h6>
                   <p className="text-sm text-blue-700 mt-1">
                     El logo aparece en la barra de navegación superior y en el footer de la página web.
-                    Se optimiza automáticamente para diferentes tamaños de pantalla.
+                    Se adapta automáticamente para diferentes tamaños de pantalla.
                   </p>
                 </div>
               </div>
@@ -586,7 +494,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 Imagen/Video Principal
               </h4>
               <div className="text-right">
-                <span className="text-sm text-gray-500 block">Imagen: 25MB | Video: 100MB</span>
+                <span className="text-sm text-gray-500 block">Imagen: 25MB | Video: 50MB</span>
                 <span className="text-xs text-gray-400">JPG, PNG, MP4, WebM</span>
               </div>
             </div>
@@ -596,9 +504,6 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
               <div className="space-y-4">
                 <h5 className="font-medium text-gray-900 flex items-center">
                   Video Principal
-                  {mediaFiles.heroVideo.isCloudinary && (
-                    <Cloud className="w-4 h-4 ml-2 text-blue-500" title="Alojado en Cloudinary" />
-                  )}
                   {mediaFiles.heroVideo.isExternal && (
                     <ExternalLink className="w-4 h-4 ml-2 text-green-500" title="Video externo" />
                   )}
@@ -634,8 +539,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                   <div>
                     <h6 className="font-medium text-gray-900">{mediaFiles.heroVideo.name}</h6>
                     <div className="text-sm text-gray-500">
-                      {mediaFiles.heroVideo.isExternal ? 'Video externo' : 
-                       mediaFiles.heroVideo.isCloudinary ? 'Alojado en Cloudinary' : 'Video subido'}
+                      {mediaFiles.heroVideo.isExternal ? 'Video externo' : 'Video subido'}
                       {mediaFiles.heroVideo.size && ` • ${formatFileSize(mediaFiles.heroVideo.size)}`}
                     </div>
                   </div>
@@ -666,8 +570,8 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
               <div className="space-y-4">
                 <h5 className="font-medium text-gray-900 flex items-center">
                   Imagen Principal
-                  {mediaFiles.heroImage.isCloudinary && (
-                    <Cloud className="w-4 h-4 ml-2 text-blue-500" title="Alojado en Cloudinary" />
+                  {mediaFiles.heroImage.isExternal && (
+                    <ExternalLink className="w-4 h-4 ml-2 text-blue-500" title="Imagen externa" />
                   )}
                 </h5>
                 
@@ -736,24 +640,8 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                       Subir Imagen o Video
                     </p>
                     <p className="text-sm text-gray-500 text-center mb-4">
-                      Imagen: JPG, PNG hasta 25MB • Video: MP4, WebM hasta 100MB<br />
-                      <span className="text-blue-600">Se optimizan automáticamente con Cloudinary</span>
+                      Imagen: JPG, PNG hasta 25MB • Video: MP4, WebM hasta 50MB
                     </p>
-                    
-                    {/* Progress bar si está subiendo */}
-                    {uploadingFile && (uploadProgress.heroImage !== undefined || uploadProgress.heroVideo !== undefined) && (
-                      <div className="w-full max-w-md mx-auto mb-4">
-                        <div className="bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${uploadProgress.heroImage || uploadProgress.heroVideo || 0}%` }}
-                          ></div>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-2">
-                          Subiendo... {uploadProgress.heroImage || uploadProgress.heroVideo || 0}%
-                        </p>
-                      </div>
-                    )}
                     
                     <div className="flex space-x-3 justify-center">
                       <label className="btn-secondary cursor-pointer">
@@ -838,8 +726,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                   </h6>
                   <p className="text-sm text-blue-700 mt-1">
                     Aparece en la sección principal (hero) de tu página web, junto al título y descripción del gimnasio.
-                    Si tienes video, se mostrará el video. Si no, se mostrará la imagen. 
-                    <strong>Los archivos se optimizan automáticamente para web.</strong>
+                    Si tienes video, se mostrará el video. Si no, se mostrará la imagen.
                   </p>
                 </div>
               </div>

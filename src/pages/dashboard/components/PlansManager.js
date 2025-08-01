@@ -1,11 +1,12 @@
 // src/pages/dashboard/components/PlansManager.js
-// FUNCIÓN: Gestión SIMPLIFICADA de planes - SOLO datos que aparecen en LandingPage
-// INCLUYE: name, price, originalPrice, duration, features, popular, iconName
+// FUNCIÓN: Gestión CORREGIDA de planes - Muestra datos actuales del backend
+// CAMBIOS: Mejor inicialización, estados de carga, logs debug
 
 import React, { useState, useEffect } from 'react';
 import {
   Plus, Edit, Trash2, Save, X, CreditCard, Crown, Calendar,
-  Shield, Star, Check, AlertTriangle, Percent, Eye, EyeOff
+  Shield, Star, Check, AlertTriangle, Percent, Eye, EyeOff,
+  Loader
 } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
 
@@ -17,8 +18,9 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   const [editingPlan, setEditingPlan] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // 🎯 Iconos disponibles para planes - LOS MISMOS QUE USA LA LANDING PAGE
+  // 🎯 Iconos disponibles para planes
   const availableIcons = [
     { id: 'crown', component: Crown, name: 'Premium' },
     { id: 'calendar', component: Calendar, name: 'Calendario' },
@@ -26,31 +28,71 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     { id: 'star', component: Star, name: 'Popular' }
   ];
   
-  // 📅 Tipos de duración - SIMPLIFICADOS
+  // 📅 Tipos de duración
   const durationType = [
     { value: 'monthly', label: 'Mensual' },
     { value: 'quarterly', label: 'Trimestral' },
     { value: 'yearly', label: 'Anual' }
   ];
   
-  // 📊 Plantilla para nuevo plan - SOLO campos que aparecen en LandingPage
+  // 📊 Plantilla para nuevo plan
   const emptyPlan = {
     id: null,
     name: '',
     price: 0,
-    originalPrice: null, // Para mostrar descuentos
+    originalPrice: null,
     duration: 'monthly',
     iconName: 'crown',
     features: [],
     popular: false
   };
   
-  // 🔄 Inicializar planes locales
+  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO
   useEffect(() => {
-    if (plans && Array.isArray(plans)) {
-      setLocalPlans(plans);
+    console.log('🔄 PlansManager - Checking for plans data:', {
+      hasPlans: !!plans,
+      isLoading,
+      isArray: Array.isArray(plans),
+      length: Array.isArray(plans) ? plans.length : 0,
+      plans: plans
+    });
+    
+    if (!isLoading) {
+      if (plans && Array.isArray(plans)) {
+        console.log('📥 PlansManager - Loading plans from backend:', plans);
+        
+        // Mapear planes con estructura esperada
+        const mappedPlans = plans.map((plan, index) => ({
+          id: plan.id || `plan_${index}`,
+          name: plan.name || '',
+          price: parseFloat(plan.price) || 0,
+          originalPrice: plan.originalPrice ? parseFloat(plan.originalPrice) : null,
+          duration: plan.duration || 'monthly',
+          iconName: plan.iconName || 'crown',
+          features: Array.isArray(plan.features) ? plan.features : [],
+          popular: plan.popular === true
+        }));
+        
+        console.log('✅ PlansManager - Plans mapped successfully:', {
+          total: mappedPlans.length,
+          popular: mappedPlans.filter(p => p.popular).length,
+          names: mappedPlans.map(p => p.name),
+          prices: mappedPlans.map(p => p.price)
+        });
+        
+        setLocalPlans(mappedPlans);
+        setIsDataLoaded(true);
+        
+      } else {
+        console.log('⚠️ PlansManager - No plans data or invalid format');
+        setLocalPlans([]);
+        setIsDataLoaded(true);
+      }
+    } else {
+      console.log('⏳ PlansManager - Data is still loading...');
+      setIsDataLoaded(false);
     }
-  }, [plans]);
+  }, [plans, isLoading]);
   
   // 🔔 Notificar cambios sin guardar
   useEffect(() => {
@@ -100,6 +142,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   
   // ✏️ Editar plan existente
   const handleEditPlan = (plan) => {
+    console.log('📝 Editing plan:', plan);
     setEditingPlan({ ...plan });
     setIsCreating(false);
   };
@@ -180,11 +223,16 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     return Math.round(((originalPrice - price) / originalPrice) * 100);
   };
 
-  if (isLoading) {
+  // 🔄 Mostrar loading mientras se cargan los datos
+  if (isLoading || !isDataLoaded) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-        <span className="ml-3 text-gray-600">Cargando planes de membresía...</span>
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+            <p className="text-gray-600">Cargando planes de membresía actuales...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -201,6 +249,20 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
           <p className="text-gray-600 mt-1">
             Planes que aparecen en la página web
           </p>
+          
+          {/* Mostrar planes actuales cargados */}
+          {isDataLoaded && localPlans.length > 0 && (
+            <div className="mt-2 flex space-x-2">
+              <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                ✅ {localPlans.length} planes cargados
+              </span>
+              {localPlans.filter(p => p.popular).length > 0 && (
+                <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
+                  ⭐ {localPlans.filter(p => p.popular).length} popular
+                </span>
+              )}
+            </div>
+          )}
         </div>
         
         <div className="flex space-x-3">
@@ -280,7 +342,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
                   
                   {/* Nombre */}
                   <h4 className="text-xl font-bold text-gray-900 mb-2">
-                    {plan.name}
+                    {plan.name || 'Sin nombre'}
                   </h4>
                   
                   {/* Precio */}
@@ -405,7 +467,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   );
 };
 
-// 📝 COMPONENTE: Formulario de plan simplificado
+// 📝 COMPONENTE: Formulario de plan
 const PlanForm = ({ 
   plan, 
   availableIcons, 
@@ -470,7 +532,7 @@ const PlanForm = ({
       {/* Título del formulario */}
       <div className="flex items-center justify-between">
         <h4 className="text-lg font-medium text-gray-900">
-          {isCreating ? 'Crear Nuevo Plan' : 'Editar Plan'}
+          {isCreating ? 'Crear Nuevo Plan' : `Editar: ${plan.name || 'Plan'}`}
         </h4>
         
         <div className="flex space-x-2">

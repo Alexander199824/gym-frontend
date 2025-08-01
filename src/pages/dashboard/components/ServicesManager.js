@@ -1,12 +1,12 @@
 // src/pages/dashboard/components/ServicesManager.js
-// FUNCIÓN: Gestión SIMPLIFICADA de servicios - SOLO datos que aparecen en LandingPage
-// INCLUYE: title, description, icon, features, active
+// FUNCIÓN: Gestión CORREGIDA de servicios - Muestra datos actuales del backend
+// CAMBIOS: Mejor inicialización, estados de carga, logs debug
 
 import React, { useState, useEffect } from 'react';
 import {
   Plus, Edit, Trash2, Save, X, Target, Users, Heart, 
   Dumbbell, Award, Shield, Zap, Star, Check, AlertTriangle,
-  Eye, EyeOff
+  Eye, EyeOff, Loader
 } from 'lucide-react';
 import { useApp } from '../../../contexts/AppContext';
 
@@ -18,8 +18,9 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   const [editingService, setEditingService] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // 🎯 Iconos disponibles para servicios - LOS MISMOS QUE USA LA LANDING PAGE
+  // 🎯 Iconos disponibles para servicios
   const availableIcons = [
     { id: 'user-check', component: Target, name: 'Objetivo/Target' },
     { id: 'users', component: Users, name: 'Grupo/Usuarios' },
@@ -27,22 +28,59 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     { id: 'dumbbell', component: Dumbbell, name: 'Pesas/Gym' }
   ];
   
-  // 📊 Plantilla para nuevo servicio - SOLO campos que aparecen en LandingPage
+  // 📊 Plantilla para nuevo servicio
   const emptyService = {
     id: null,
     title: '',
     description: '',
-    icon: 'user-check', // Por defecto
+    icon: 'user-check',
     features: [],
     active: true
   };
   
-  // 🔄 Inicializar servicios locales
+  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO
   useEffect(() => {
-    if (services && Array.isArray(services)) {
-      setLocalServices(services);
+    console.log('🔄 ServicesManager - Checking for services data:', {
+      hasServices: !!services,
+      isLoading,
+      isArray: Array.isArray(services),
+      length: Array.isArray(services) ? services.length : 0,
+      services: services
+    });
+    
+    if (!isLoading) {
+      if (services && Array.isArray(services)) {
+        console.log('📥 ServicesManager - Loading services from backend:', services);
+        
+        // Mapear servicios con estructura esperada
+        const mappedServices = services.map((service, index) => ({
+          id: service.id || `service_${index}`,
+          title: service.title || '',
+          description: service.description || '',
+          icon: service.icon || 'user-check',
+          features: Array.isArray(service.features) ? service.features : [],
+          active: service.active !== false
+        }));
+        
+        console.log('✅ ServicesManager - Services mapped successfully:', {
+          total: mappedServices.length,
+          active: mappedServices.filter(s => s.active).length,
+          titles: mappedServices.map(s => s.title)
+        });
+        
+        setLocalServices(mappedServices);
+        setIsDataLoaded(true);
+        
+      } else {
+        console.log('⚠️ ServicesManager - No services data or invalid format');
+        setLocalServices([]);
+        setIsDataLoaded(true);
+      }
+    } else {
+      console.log('⏳ ServicesManager - Data is still loading...');
+      setIsDataLoaded(false);
     }
-  }, [services]);
+  }, [services, isLoading]);
   
   // 🔔 Notificar cambios sin guardar
   useEffect(() => {
@@ -79,6 +117,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   
   // ✏️ Editar servicio existente
   const handleEditService = (service) => {
+    console.log('📝 Editing service:', service);
     setEditingService({ ...service });
     setIsCreating(false);
   };
@@ -140,11 +179,16 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     setHasChanges(true);
   };
 
-  if (isLoading) {
+  // 🔄 Mostrar loading mientras se cargan los datos
+  if (isLoading || !isDataLoaded) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-        <span className="ml-3 text-gray-600">Cargando servicios...</span>
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+            <p className="text-gray-600">Cargando servicios actuales...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -161,6 +205,13 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
           <p className="text-gray-600 mt-1">
             Servicios que aparecen en la página web
           </p>
+          
+          {/* Mostrar servicios actuales cargados */}
+          {isDataLoaded && localServices.length > 0 && (
+            <div className="mt-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full inline-block">
+              ✅ {localServices.length} servicios cargados ({localServices.filter(s => s.active).length} activos)
+            </div>
+          )}
         </div>
         
         <div className="flex space-x-3">
@@ -226,7 +277,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
                         <h4 className="text-lg font-medium text-gray-900">
-                          {service.title}
+                          {service.title || 'Sin título'}
                         </h4>
                         
                         {/* Estado activo/inactivo */}
@@ -244,7 +295,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
                       </div>
                       
                       <p className="text-gray-600 mt-1">
-                        {service.description}
+                        {service.description || 'Sin descripción'}
                       </p>
                       
                       {/* Características */}
@@ -330,7 +381,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   );
 };
 
-// 📝 COMPONENTE: Formulario de servicio simplificado
+// 📝 COMPONENTE: Formulario de servicio
 const ServiceForm = ({ 
   service, 
   availableIcons, 
@@ -387,7 +438,7 @@ const ServiceForm = ({
       {/* Título del formulario */}
       <div className="flex items-center justify-between">
         <h4 className="text-lg font-medium text-gray-900">
-          {isCreating ? 'Crear Nuevo Servicio' : 'Editar Servicio'}
+          {isCreating ? 'Crear Nuevo Servicio' : `Editar: ${service.title || 'Servicio'}`}
         </h4>
         
         <div className="flex space-x-2">
