@@ -1,6 +1,6 @@
 // src/pages/dashboard/AdminDashboard.js
-// FUNCIÓN: Dashboard ACTUALIZADO - Integra componentes corregidos que muestran datos actuales
-// CAMBIOS: Mejor manejo de datos del backend, logs mejorados, estados de carga
+// FUNCIÓN: Dashboard ACTUALIZADO - Interfaz mejorada, header simplificado, debug discreto
+// CAMBIOS: Eliminado header de gestión web, debug info discreto, interfaz más limpia
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -9,7 +9,7 @@ import {
   Calendar, Clock, ArrowRight, RefreshCw, Download, Settings,
   BarChart3, PieChart, Activity, Target, Zap, Crown, Save,
   Globe, Image, ShoppingBag, Info, CheckCircle, Package,
-  Truck, Plus, Loader
+  Truck, Plus, Loader, Bug
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -31,11 +31,6 @@ const AdminDashboard = () => {
   const { user, canManageContent } = useAuth();
   const { formatCurrency, formatDate, showError, showSuccess, isMobile } = useApp();
   
-  console.log('🔍 AdminDashboard Debug Info:');
-  console.log('  - User:', user);
-  console.log('  - canManageContent:', canManageContent);
-  console.log('  - User role:', user?.role);
-  
   // 📅 Fecha actual
   const today = new Date().toISOString().split('T')[0];
   
@@ -47,6 +42,9 @@ const AdminDashboard = () => {
   // 🆕 Estados para gestión de contenido
   const [activeContentTab, setActiveContentTab] = useState('general');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // 🐛 Estado para debug info
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
   
   // 📊 Estados para datos operativos
   const [userStats, setUserStats] = useState({ data: null, isLoading: false, error: null });
@@ -342,20 +340,32 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       
-      {/* 🔍 DEBUG INFO MEJORADO */}
+      {/* 🐛 DEBUG INFO DISCRETO - En esquina inferior derecha */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-medium text-blue-900 mb-2">🔍 DEBUG INFO</h4>
-          <div className="text-sm text-blue-800 space-y-1">
-            <div>User: {user?.firstName} {user?.lastName} ({user?.role})</div>
-            <div>canManageContent: {canManageContent ? '✅' : '❌'}</div>
-            <div>Active tab: {activeTab}</div>
-            <div>Content tab: {activeContentTab}</div>
-            <div>Data loaded: Config {gymConfigData.data ? '✅' : '❌'} | Services {servicesData.data ? '✅' : '❌'} | Plans {membershipPlansData.data ? '✅' : '❌'}</div>
-            <div>Content loading: Config {gymConfigData.isLoading ? '⏳' : '✅'} | Services {servicesData.isLoading ? '⏳' : '✅'}</div>
-          </div>
+        <div className="fixed bottom-4 right-4 z-50">
+          <button
+            onClick={() => setShowDebugInfo(!showDebugInfo)}
+            className="w-8 h-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200"
+            title="Debug Info"
+          >
+            <Bug className="w-4 h-4" />
+          </button>
+          
+          {showDebugInfo && (
+            <div className="absolute bottom-10 right-0 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 shadow-lg min-w-80">
+              <div className="font-medium mb-2">🔍 DEBUG INFO</div>
+              <div className="space-y-1">
+                <div>User: {user?.firstName} {user?.lastName} ({user?.role})</div>
+                <div>canManageContent: {canManageContent ? '✅' : '❌'}</div>
+                <div>Active tab: {activeTab}</div>
+                <div>Content tab: {activeContentTab}</div>
+                <div>Data loaded: Config {gymConfigData.data ? '✅' : '❌'} | Services {servicesData.data ? '✅' : '❌'} | Plans {membershipPlansData.data ? '✅' : '❌'}</div>
+                <div>Content loading: Config {gymConfigData.isLoading ? '⏳' : '✅'} | Services {servicesData.isLoading ? '⏳' : '✅'}</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
       
@@ -445,7 +455,7 @@ const AdminDashboard = () => {
             Operaciones Diarias
           </button>
           
-          {/* TAB: Gestión de Página Web */}
+          {/* TAB: Gestión de Página Web - SIMPLIFICADO */}
           {canManageContent && (
             <button
               onClick={() => setActiveTab('content')}
@@ -456,7 +466,7 @@ const AdminDashboard = () => {
               }`}
             >
               <Globe className="w-4 h-4 inline mr-2" />
-              Gestión de Página Web
+              Página Web
               {hasUnsavedChanges && activeTab === 'content' && (
                 <span className="ml-1 w-2 h-2 bg-yellow-500 rounded-full inline-block"></span>
               )}
@@ -495,7 +505,7 @@ const AdminDashboard = () => {
               color="blue"
               isLoading={userStats.isLoading}
               link="/dashboard/users"
-              subtitle="Miembros registrados"
+              subtitle="Total registrados"
             />
             
             <DashboardCard
@@ -505,27 +515,27 @@ const AdminDashboard = () => {
               color="green"
               isLoading={membershipStats.isLoading}
               link="/dashboard/memberships"
-              subtitle="Membresías vigentes"
+              subtitle="Total vigentes"
             />
             
             <DashboardCard
-              title="Ingresos"
+              title="Ingresos Totales"
               value={formatCurrency(mainMetrics.monthlyRevenue)}
               icon={DollarSign}
               color="primary"
               isLoading={paymentReports.isLoading}
               link="/dashboard/payments"
-              subtitle={`Período: ${periods.find(p => p.value === selectedPeriod)?.label}`}
+              subtitle="Total del período"
             />
             
             <DashboardCard
-              title="Productos Activos"
+              title="Productos Totales"
               value={inventoryMetrics.totalProducts}
               icon={Package}
               color="purple"
               isLoading={inventoryStats.isLoading}
               link="#"
-              subtitle="En catálogo"
+              subtitle="Total en catálogo"
             />
             
           </div>
@@ -655,43 +665,43 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
             <DashboardCard
-              title="Vencidas Hoy"
+              title="Vencidas"
               value={mainMetrics.expiredCount}
               icon={AlertCircle}
               color="red"
               isLoading={expiredMemberships.isLoading}
               link="/dashboard/memberships/expired"
-              alert={mainMetrics.expiredCount > 0}
+              subtitle="Hoy"
             />
             
             <DashboardCard
-              title="Vencen esta semana"
+              title="Por Vencer"
               value={mainMetrics.expiringSoonCount}
               icon={Clock}
               color="yellow"
               isLoading={expiringSoon.isLoading}
               link="/dashboard/memberships/expiring-soon"
-              alert={mainMetrics.expiringSoonCount > 0}
+              subtitle="Esta semana"
             />
             
             <DashboardCard
-              title="Pagos Hoy"
+              title="Pagos"
               value={mainMetrics.todayPaymentsCount}
               icon={DollarSign}
               color="green"
               isLoading={todayPayments.isLoading}
               link="/dashboard/payments"
-              subtitle={`${formatCurrency(mainMetrics.todayRevenue)}`}
+              subtitle="Hoy"
             />
             
             <DashboardCard
-              title="Ventas Tienda Hoy"
+              title="Ventas"
               value={inventoryMetrics.totalSalesToday}
               icon={ShoppingBag}
               color="purple"
               isLoading={inventoryStats.isLoading}
               link="#"
-              subtitle="Productos vendidos"
+              subtitle="Hoy"
             />
             
           </div>
@@ -752,28 +762,34 @@ const AdminDashboard = () => {
         </div>
       )}
       
-      {/* TAB: GESTIÓN DE PÁGINA WEB - ACTUALIZADO */}
+      {/* TAB: PÁGINA WEB - SIMPLIFICADO SIN HEADER GRANDE */}
       {activeTab === 'content' && canManageContent && (
         <div className="space-y-6">
           
-          {/* 🌐 HEADER DE GESTIÓN DE PÁGINA WEB */}
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Globe className="w-6 h-6 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Gestión de Página Web
-                  </h3>
-                  <p className="text-gray-600 mt-1">
-                    Edita toda la información que aparece en tu página web.
-                  </p>
-                </div>
+          {/* 🔗 SUB-NAVEGACIÓN PARA GESTIÓN DE PÁGINA WEB */}
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex space-x-1 overflow-x-auto">
+                {contentTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveContentTab(tab.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex items-center ${
+                      activeContentTab === tab.id
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    <tab.icon className="w-4 h-4 mr-2" />
+                    {tab.title}
+                    {tab.dataLoaded && (
+                      <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
+                    )}
+                  </button>
+                ))}
               </div>
               
-              {/* Botones de acción globales */}
+              {/* Botones de acción */}
               <div className="flex space-x-2">
                 {hasUnsavedChanges && (
                   <button
@@ -784,42 +800,10 @@ const AdminDashboard = () => {
                     className="btn-primary btn-sm"
                   >
                     <Save className="w-4 h-4 mr-1" />
-                    Guardar Todo
+                    Guardar
                   </button>
                 )}
-                
-                <Link
-                  to="/"
-                  target="_blank"
-                  className="btn-secondary btn-sm"
-                >
-                  <Globe className="w-4 h-4 mr-1" />
-                  Ver Página Web
-                </Link>
               </div>
-            </div>
-          </div>
-          
-          {/* 🔗 SUB-NAVEGACIÓN PARA GESTIÓN DE PÁGINA WEB */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex space-x-1 overflow-x-auto">
-              {contentTabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveContentTab(tab.id)}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex items-center ${
-                    activeContentTab === tab.id
-                      ? 'bg-primary-100 text-primary-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4 mr-2" />
-                  {tab.title}
-                  {tab.dataLoaded && (
-                    <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
-                  )}
-                </button>
-              ))}
             </div>
           </div>
           
@@ -999,7 +983,7 @@ const AdminDashboard = () => {
               
               <div className="mt-8">
                 <p className="text-sm text-gray-500">
-                  Por ahora, los productos se gestionan desde la tab "Gestión de Página Web" → "Productos"
+                  Por ahora, los productos se gestionan desde la tab "Página Web" → "Productos"
                 </p>
               </div>
             </div>
