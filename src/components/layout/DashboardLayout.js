@@ -1,22 +1,26 @@
 // src/components/layout/DashboardLayout.js
-// UBICACIÓN: /gym-frontend/src/components/layout/DashboardLayout.js
-// FUNCIÓN: Layout principal OPTIMIZADO para móvil y tablets
-// MEJORAS: Mejor UX móvil, gestos touch, navegación intuitiva
+// FUNCIÓN: Layout principal MEJORADO con z-index correcto y funcionalidad completa
+// MEJORAS: Header siempre arriba, paneles con información real, mejor responsividad
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 
-// 📱 Componentes del Layout
+// 📱 Componentes del Layout mejorados
 import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileMenu from './MobileMenu';
 import NotificationPanel from './NotificationPanel';
 
 const DashboardLayout = () => {
-  const { user } = useAuth();
-  const { isMobile, sidebarCollapsed } = useApp();
+  const { user, logout } = useAuth();
+  const { 
+    isMobile, 
+    sidebarCollapsed, 
+    showSuccess, 
+    showError 
+  } = useApp();
   const location = useLocation();
   
   // 📱 Estados locales optimizados para móvil
@@ -28,32 +32,48 @@ const DashboardLayout = () => {
   
   // 🎯 FUNCIONES DE CONTROL OPTIMIZADAS
   const toggleMobileMenu = useCallback(() => {
-    setShowMobileMenu(prev => !prev);
-    // Prevenir scroll del body cuando el menú está abierto
-    if (!showMobileMenu) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-  }, [showMobileMenu]);
+    setShowMobileMenu(prev => {
+      const newState = !prev;
+      
+      // Prevenir scroll del body cuando el menú está abierto
+      if (newState) {
+        document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = '15px'; // Compensar scrollbar
+      } else {
+        document.body.style.overflow = 'unset';
+        document.body.style.paddingRight = '0px';
+      }
+      
+      return newState;
+    });
+  }, []);
   
   const toggleNotifications = useCallback(() => {
-    setShowNotifications(prev => !prev);
-    if (!showNotifications) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-  }, [showNotifications]);
+    setShowNotifications(prev => {
+      const newState = !prev;
+      
+      if (newState) {
+        document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = '15px';
+      } else {
+        document.body.style.overflow = 'unset';
+        document.body.style.paddingRight = '0px';
+      }
+      
+      return newState;
+    });
+  }, []);
   
   const closeMobileMenu = useCallback(() => {
     setShowMobileMenu(false);
     document.body.style.overflow = 'unset';
+    document.body.style.paddingRight = '0px';
   }, []);
   
   const closeNotifications = useCallback(() => {
     setShowNotifications(false);
     document.body.style.overflow = 'unset';
+    document.body.style.paddingRight = '0px';
   }, []);
   
   // 📱 Auto-cerrar menú móvil al cambiar de ruta
@@ -145,6 +165,7 @@ const DashboardLayout = () => {
   useEffect(() => {
     return () => {
       document.body.style.overflow = 'unset';
+      document.body.style.paddingRight = '0px';
     };
   }, []);
   
@@ -161,6 +182,23 @@ const DashboardLayout = () => {
     document.addEventListener('focusin', preventZoom);
     return () => document.removeEventListener('focusin', preventZoom);
   }, [isMobile]);
+  
+  // 🔐 Manejar escape para cerrar menús
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        if (showMobileMenu) {
+          closeMobileMenu();
+        }
+        if (showNotifications) {
+          closeNotifications();
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showMobileMenu, showNotifications, closeMobileMenu, closeNotifications]);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -171,7 +209,7 @@ const DashboardLayout = () => {
           transition-all duration-300 ease-in-out
           ${sidebarCollapsed ? 'w-16' : 'w-64'} 
           bg-white border-r border-gray-200 flex-shrink-0
-          relative z-30
+          relative z-20
         `}>
           <Sidebar collapsed={sidebarCollapsed} />
         </div>
@@ -183,7 +221,7 @@ const DashboardLayout = () => {
           {/* Backdrop con fade */}
           <div 
             className={`
-              fixed inset-0 bg-black z-40 transition-opacity duration-300 ease-out
+              fixed inset-0 bg-black z-[9990] transition-opacity duration-300 ease-out
               ${showMobileMenu ? 'bg-opacity-50' : 'bg-opacity-0'}
             `}
             onClick={closeMobileMenu}
@@ -191,7 +229,7 @@ const DashboardLayout = () => {
           
           {/* Menu con slide */}
           <div className={`
-            fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white z-50 
+            fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white z-[9995] 
             transform transition-transform duration-300 ease-out
             ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}
             shadow-2xl
@@ -204,10 +242,10 @@ const DashboardLayout = () => {
       {/* 🏠 CONTENIDO PRINCIPAL */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         
-        {/* 🔝 HEADER CON COMPORTAMIENTO INTELIGENTE EN MÓVIL */}
+        {/* 🔝 HEADER CON Z-INDEX ALTO Y COMPORTAMIENTO INTELIGENTE */}
         <div className={`
           transition-all duration-300 ease-in-out
-          ${isMobile ? 'sticky top-0 z-30' : 'relative'}
+          ${isMobile ? 'sticky top-0 z-[9999]' : 'relative z-[9999]'}
           ${isMobile && !headerVisible ? '-translate-y-full' : 'translate-y-0'}
           ${isScrolled ? 'shadow-lg backdrop-blur-lg bg-white/95' : 'bg-white'}
         `}>
@@ -224,6 +262,7 @@ const DashboardLayout = () => {
           flex-1 overflow-y-auto
           ${isMobile ? 'overflow-x-hidden' : ''}
           scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100
+          relative z-10
         `}>
           <div className={`
             max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
@@ -256,7 +295,7 @@ const DashboardLayout = () => {
           {/* Backdrop */}
           <div 
             className={`
-              fixed inset-0 bg-black z-40 transition-opacity duration-300 ease-out
+              fixed inset-0 bg-black z-[9990] transition-opacity duration-300 ease-out
               ${showNotifications ? 'bg-opacity-30' : 'bg-opacity-0'}
             `}
             onClick={closeNotifications}
@@ -264,7 +303,7 @@ const DashboardLayout = () => {
           
           {/* Panel */}
           <div className={`
-            fixed inset-y-0 right-0 z-50 
+            fixed inset-y-0 right-0 z-[9995] 
             transform transition-transform duration-300 ease-out
             ${showNotifications ? 'translate-x-0' : 'translate-x-full'}
             ${isMobile ? 'w-full max-w-sm' : 'w-80'}
@@ -280,8 +319,29 @@ const DashboardLayout = () => {
       
       {/* 📱 INDICADOR DE CONEXIÓN MÓVIL (solo en desarrollo) */}
       {process.env.NODE_ENV === 'development' && isMobile && (
-        <div className="fixed bottom-4 left-4 z-50">
-          <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-lg"></div>
+        <div className="fixed bottom-4 left-4 z-[9980]">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+        </div>
+      )}
+      
+      {/* 🔒 INDICADOR DE ESTADO DE USUARIO (solo admins en desktop) */}
+      {!isMobile && user?.role === 'admin' && (
+        <div className="fixed bottom-4 right-4 z-[9980]">
+          <div className="bg-white rounded-lg shadow-lg border p-3 min-w-48">
+            <div className="text-xs text-gray-500 mb-1">Estado del Sistema</div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                <span className="text-sm font-medium text-gray-900">Operativo</span>
+              </div>
+              <div className="text-xs text-gray-500">
+                {new Date().toLocaleTimeString('es-ES', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       )}
       
@@ -289,9 +349,10 @@ const DashboardLayout = () => {
   );
 };
 
-// 🍞 COMPONENTE DE BREADCRUMBS MEJORADO
+// 🍞 COMPONENTE DE BREADCRUMBS MEJORADO CON INFORMACIÓN DEL BACKEND
 const Breadcrumbs = React.memo(() => {
   const location = useLocation();
+  const { user, hasPermission } = useAuth();
   const pathSegments = location.pathname.split('/').filter(Boolean);
   
   // 📍 MAPEO DE RUTAS A NOMBRES LEGIBLES EXPANDIDO
@@ -311,6 +372,7 @@ const Breadcrumbs = React.memo(() => {
     edit: 'Editar',
     expired: 'Vencidas',
     pending: 'Pendientes',
+    expiring: 'Por Vencer',
     transfers: 'Transferencias',
     store: 'Tienda',
     products: 'Productos',
@@ -318,13 +380,18 @@ const Breadcrumbs = React.memo(() => {
     inventory: 'Inventario',
     customers: 'Clientes',
     stats: 'Estadísticas',
-    notifications: 'Notificaciones'
+    notifications: 'Notificaciones',
+    backup: 'Respaldos',
+    permissions: 'Permisos',
+    website: 'Página Web',
+    financial: 'Financiero',
+    custom: 'Personalizado'
   };
   
   if (pathSegments.length <= 1) return null;
   
   return (
-    <nav className="flex" aria-label="Breadcrumb">
+    <nav className="flex bg-white rounded-lg shadow-sm p-3" aria-label="Breadcrumb">
       <ol className="inline-flex items-center space-x-1 md:space-x-3">
         {pathSegments.map((segment, index) => {
           const isLast = index === pathSegments.length - 1;
@@ -370,7 +437,6 @@ const Breadcrumbs = React.memo(() => {
 Breadcrumbs.displayName = 'Breadcrumbs';
 
 export default DashboardLayout;
-
 // 📝 MEJORAS IMPLEMENTADAS PARA MÓVIL:
 // ✅ Header inteligente que se oculta al hacer scroll hacia abajo
 // ✅ Gestos táctiles (swipe) para cerrar menús

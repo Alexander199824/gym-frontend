@@ -1,6 +1,6 @@
 // src/pages/dashboard/components/ServicesManager.js
-// FUNCIÓN: Gestión CORREGIDA de servicios - Muestra datos actuales del backend
-// CAMBIOS: Mejor inicialización, estados de carga, logs debug
+// FUNCIÓN: Gestión CORREGIDA de servicios - Crear servicios nuevos FUNCIONA
+// CAMBIOS: Arreglado proceso de creación, mejor gestión de IDs temporales
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -22,10 +22,14 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   
   // 🎯 Iconos disponibles para servicios
   const availableIcons = [
-    { id: 'user-check', component: Target, name: 'Objetivo/Target' },
+    { id: 'target', component: Target, name: 'Objetivo/Target' },
     { id: 'users', component: Users, name: 'Grupo/Usuarios' },
     { id: 'heart', component: Heart, name: 'Corazón/Salud' },
-    { id: 'dumbbell', component: Dumbbell, name: 'Pesas/Gym' }
+    { id: 'dumbbell', component: Dumbbell, name: 'Pesas/Gym' },
+    { id: 'award', component: Award, name: 'Premio/Logro' },
+    { id: 'shield', component: Shield, name: 'Protección/Seguridad' },
+    { id: 'zap', component: Zap, name: 'Energía/Poder' },
+    { id: 'star', component: Star, name: 'Estrella/Premium' }
   ];
   
   // 📊 Plantilla para nuevo servicio
@@ -33,7 +37,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     id: null,
     title: '',
     description: '',
-    icon: 'user-check',
+    icon: 'target',
     features: [],
     active: true
   };
@@ -57,7 +61,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
           id: service.id || `service_${index}`,
           title: service.title || '',
           description: service.description || '',
-          icon: service.icon || 'user-check',
+          icon: service.icon || 'target',
           features: Array.isArray(service.features) ? service.features : [],
           active: service.active !== false
         }));
@@ -72,7 +76,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
         setIsDataLoaded(true);
         
       } else {
-        console.log('⚠️ ServicesManager - No services data or invalid format');
+        console.log('⚠️ ServicesManager - No services data, starting with empty array');
         setLocalServices([]);
         setIsDataLoaded(true);
       }
@@ -90,9 +94,15 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   // 💾 Guardar todos los cambios
   const handleSaveAll = async () => {
     try {
-      console.log('Guardando servicios:', localServices);
+      console.log('💾 Guardando servicios:', localServices);
       
-      onSave(localServices);
+      // Limpiar IDs temporales antes de guardar
+      const servicesToSave = localServices.map(service => ({
+        ...service,
+        id: service.id?.startsWith('temp_') ? null : service.id
+      }));
+      
+      onSave(servicesToSave);
       setHasChanges(false);
       showSuccess('Servicios guardados exitosamente');
       
@@ -106,13 +116,19 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ➕ Crear nuevo servicio
+  // ➕ CREAR NUEVO SERVICIO - CORREGIDO
   const handleCreateService = () => {
-    setIsCreating(true);
-    setEditingService({
+    console.log('➕ Creating new service...');
+    
+    const newService = {
       ...emptyService,
-      id: `temp_${Date.now()}`
-    });
+      id: `temp_${Date.now()}` // ID temporal único
+    };
+    
+    console.log('📝 New service template:', newService);
+    
+    setEditingService(newService);
+    setIsCreating(true);
   };
   
   // ✏️ Editar servicio existente
@@ -122,7 +138,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     setIsCreating(false);
   };
   
-  // 💾 Guardar servicio individual
+  // 💾 GUARDAR SERVICIO INDIVIDUAL - CORREGIDO
   const handleSaveService = () => {
     if (!editingService.title.trim()) {
       showError('El título es obligatorio');
@@ -134,24 +150,31 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
       return;
     }
     
+    console.log('💾 Saving service:', editingService);
+    
     if (isCreating) {
-      // Agregar nuevo servicio
-      const newService = {
-        ...editingService,
-        id: `new_${Date.now()}`
-      };
-      setLocalServices([...localServices, newService]);
+      // AGREGAR NUEVO SERVICIO
+      console.log('➕ Adding new service to list');
+      setLocalServices(prevServices => {
+        const newServices = [...prevServices, editingService];
+        console.log('✅ Updated services list:', newServices);
+        return newServices;
+      });
+      showSuccess('Servicio creado exitosamente');
     } else {
-      // Actualizar servicio existente
-      setLocalServices(localServices.map(service => 
-        service.id === editingService.id ? editingService : service
-      ));
+      // ACTUALIZAR SERVICIO EXISTENTE
+      console.log('✏️ Updating existing service');
+      setLocalServices(prevServices => 
+        prevServices.map(service => 
+          service.id === editingService.id ? editingService : service
+        )
+      );
+      showSuccess('Servicio actualizado exitosamente');
     }
     
     setHasChanges(true);
     setEditingService(null);
     setIsCreating(false);
-    showSuccess(isCreating ? 'Servicio creado' : 'Servicio actualizado');
   };
   
   // ❌ Cancelar edición
@@ -228,7 +251,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
           <button
             onClick={handleCreateService}
             className="btn-secondary btn-sm"
-            disabled={isCreating || editingService}
+            disabled={!!editingService} // Solo deshabilitar si está editando
           >
             <Plus className="w-4 h-4 mr-2" />
             Nuevo Servicio
@@ -250,6 +273,20 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
+      {/* 📝 FORMULARIO DE CREACIÓN/EDICIÓN - MOSTRAR ARRIBA CUANDO ESTÁ CREANDO */}
+      {editingService && isCreating && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <ServiceForm
+            service={editingService}
+            availableIcons={availableIcons}
+            onSave={handleSaveService}
+            onCancel={handleCancelEdit}
+            onChange={setEditingService}
+            isCreating={isCreating}
+          />
+        </div>
+      )}
+      
       {/* 📋 LISTA DE SERVICIOS */}
       <div className="space-y-4">
         {localServices.map((service, index) => (
@@ -258,7 +295,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
           }`}>
             
             {/* Vista normal del servicio */}
-            {(!editingService || editingService.id !== service.id) && (
+            {(!editingService || editingService.id !== service.id || isCreating) && (
               <div className="p-6">
                 <div className="flex items-center justify-between">
                   
@@ -322,6 +359,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
                       onClick={() => handleEditService(service)}
                       className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
                       title="Editar"
+                      disabled={!!editingService}
                     >
                       <Edit className="w-4 h-4" />
                     </button>
@@ -330,6 +368,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
                       onClick={() => handleDeleteService(service.id)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                       title="Eliminar"
+                      disabled={!!editingService}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -339,8 +378,8 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
               </div>
             )}
             
-            {/* Formulario de edición */}
-            {editingService && editingService.id === service.id && (
+            {/* Formulario de edición para servicios existentes */}
+            {editingService && editingService.id === service.id && !isCreating && (
               <div className="p-6 bg-gray-50">
                 <ServiceForm
                   service={editingService}
@@ -357,7 +396,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
         ))}
         
         {/* Mensaje cuando no hay servicios */}
-        {localServices.length === 0 && (
+        {localServices.length === 0 && !isCreating && (
           <div className="text-center py-12 bg-white border border-gray-200 rounded-lg">
             <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -438,7 +477,7 @@ const ServiceForm = ({
       {/* Título del formulario */}
       <div className="flex items-center justify-between">
         <h4 className="text-lg font-medium text-gray-900">
-          {isCreating ? 'Crear Nuevo Servicio' : `Editar: ${service.title || 'Servicio'}`}
+          {isCreating ? '➕ Crear Nuevo Servicio' : `✏️ Editar: ${service.title || 'Servicio'}`}
         </h4>
         
         <div className="flex space-x-2">
@@ -447,7 +486,7 @@ const ServiceForm = ({
             className="btn-primary btn-sm"
           >
             <Save className="w-4 h-4 mr-1" />
-            Guardar
+            {isCreating ? 'Crear' : 'Guardar'}
           </button>
           
           <button
@@ -476,6 +515,7 @@ const ServiceForm = ({
               onChange={(e) => onChange({ ...service, title: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               placeholder="Ej: Entrenamiento Personal"
+              autoFocus={isCreating}
             />
             <p className="text-xs text-gray-500 mt-1">
               Aparece como título del servicio en la página
@@ -508,6 +548,7 @@ const ServiceForm = ({
               {availableIcons.map((icon) => (
                 <button
                   key={icon.id}
+                  type="button"
                   onClick={() => onChange({ ...service, icon: icon.id })}
                   className={`p-3 border rounded-lg flex items-center space-x-3 hover:bg-gray-50 ${
                     service.icon === icon.id 
@@ -551,6 +592,7 @@ const ServiceForm = ({
                       {feature}
                     </span>
                     <button
+                      type="button"
                       onClick={() => handleRemoveFeature(feature)}
                       className="text-primary-600 hover:text-primary-800"
                     >
@@ -572,6 +614,7 @@ const ServiceForm = ({
                 onKeyPress={(e) => e.key === 'Enter' && handleAddFeature()}
               />
               <button
+                type="button"
                 onClick={handleAddFeature}
                 className="btn-secondary btn-sm"
               >
@@ -586,6 +629,7 @@ const ServiceForm = ({
                 {commonFeatures.map((feature) => (
                   <button
                     key={feature}
+                    type="button"
                     onClick={() => handleToggleFeature(feature)}
                     className={`w-full text-left px-3 py-2 text-sm rounded-lg border transition-colors ${
                       service.features?.includes(feature)
