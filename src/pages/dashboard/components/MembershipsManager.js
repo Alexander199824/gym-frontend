@@ -1,0 +1,1060 @@
+// src/pages/dashboard/components/MembershipsManager.js
+// FUNCIÓN: Gestión completa de membresías - Crear, renovar, cancelar, vencimientos
+// CONECTA CON: Backend API /api/memberships/*
+
+import React, { useState, useEffect } from 'react';
+import {
+  CreditCard, Plus, Search, Filter, Edit, RefreshCw, Calendar, Clock,
+  AlertTriangle, CheckCircle, XCircle, Eye, Trash2, RotateCcw,
+  User, DollarSign, TrendingUp, TrendingDown, Bell, Settings,
+  FileText, Download, Upload, MoreHorizontal, Loader, X
+} from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useApp } from '../../../contexts/AppContext';
+import apiService from '../../../services/apiService';
+
+const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
+  const { user: currentUser, hasPermission } = useAuth();
+  const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
+  
+  // 📊 Estados principales
+  const [memberships, setMemberships] = useState([]);
+  const [membershipStats, setMembershipStats] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // 🔍 Estados de filtros y búsqueda
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedType, setSelectedType] = useState('all');
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+  
+  // 📄 Estados de paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [membershipsPerPage] = useState(isMobile ? 10 : 20);
+  const [totalMemberships, setTotalMemberships] = useState(0);
+  
+  // 🔔 Estados para alertas especiales
+  const [expiredMemberships, setExpiredMemberships] = useState([]);
+  const [expiringSoon, setExpiringSoon] = useState([]);
+  const [showExpiredAlert, setShowExpiredAlert] = useState(false);
+  const [showExpiringAlert, setShowExpiringAlert] = useState(false);
+  
+  // 🆕 Estados para crear/editar membresía
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+  const [editingMembership, setEditingMembership] = useState(null);
+  const [membershipFormData, setMembershipFormData] = useState({
+    userId: '',
+    type: 'monthly',
+    price: 250.00,
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: '',
+    preferredSchedule: {},
+    notes: '',
+    autoRenew: false
+  });
+  
+  // 🎫 Tipos de membresía disponibles
+  const membershipTypes = [
+    { value: 'daily', label: 'Diaria', duration: 1, color: 'bg-blue-100 text-blue-800', price: 25 },
+    { value: 'weekly', label: 'Semanal', duration: 7, color: 'bg-green-100 text-green-800', price: 150 },
+    { value: 'monthly', label: 'Mensual', duration: 30, color: 'bg-purple-100 text-purple-800', price: 250 },
+    { value: 'quarterly', label: 'Trimestral', duration: 90, color: 'bg-orange-100 text-orange-800', price: 600 },
+    { value: 'annual', label: 'Anual', duration: 365, color: 'bg-red-100 text-red-800', price: 2400 }
+  ];
+  
+  // 📊 Estados de membresía
+  const membershipStatuses = [
+    { value: 'active', label: 'Activa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+    { value: 'expired', label: 'Vencida', color: 'bg-red-100 text-red-800', icon: XCircle },
+    { value: 'cancelled', label: 'Cancelada', color: 'bg-gray-100 text-gray-800', icon: XCircle },
+    { value: 'suspended', label: 'Suspendida', color: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle }
+  ];
+  
+  // 🔄 CARGAR DATOS
+  const loadMemberships = async () => {
+    try {
+      setLoading(true);
+      
+      const params = {
+        page: currentPage,
+        limit: membershipsPerPage,
+        search: searchTerm || undefined,
+        status: selectedStatus !== 'all' ? selectedStatus : undefined,
+        type: selectedType !== 'all' ? selectedType : undefined,
+        sortBy,
+        sortOrder
+      };
+      
+      console.log('🔄 Loading memberships with params:', params);
+      
+      const response = await apiService.get('/memberships', { params });
+      const membershipData = response.data || response;
+      
+      if (membershipData.memberships && Array.isArray(membershipData.memberships)) {
+        setMemberships(membershipData.memberships);
+        setTotalMemberships(membershipData.pagination?.total || membershipData.memberships.length);
+      } else if (Array.isArray(membershipData)) {
+        setMemberships(membershipData);
+        setTotalMemberships(membershipData.length);
+      } else {
+        console.warn('⚠️ Memberships data format unexpected:', membershipData);
+        setMemberships([]);
+        setTotalMemberships(0);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error loading memberships:', error);
+      showError('Error al cargar membresías');
+      setMemberships([]);
+      setTotalMemberships(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // 📊 CARGAR ESTADÍSTICAS
+  const loadMembershipStats = async () => {
+    try {
+      const stats = await apiService.getMembershipStats();
+      console.log('📊 Membership stats loaded:', stats);
+      setMembershipStats(stats);
+    } catch (error) {
+      console.error('❌ Error loading membership stats:', error);
+      setMembershipStats({
+        totalMemberships: 0,
+        activeMemberships: 0,
+        expiredMemberships: 0,
+        expiringSoon: 0
+      });
+    }
+  };
+  
+  // 🔔 CARGAR ALERTAS DE VENCIMIENTO
+  const loadExpirationAlerts = async () => {
+    try {
+      // Membresías vencidas
+      const expiredResponse = await apiService.getExpiredMemberships(0);
+      const expiredData = expiredResponse.data || expiredResponse;
+      setExpiredMemberships(Array.isArray(expiredData) ? expiredData : expiredData.memberships || []);
+      
+      // Membresías por vencer (próximos 7 días)
+      const expiringResponse = await apiService.getExpiringSoonMemberships(7);
+      const expiringData = expiringResponse.data || expiringResponse;
+      setExpiringSoon(Array.isArray(expiringData) ? expiringData : expiringData.memberships || []);
+      
+    } catch (error) {
+      console.error('❌ Error loading expiration alerts:', error);
+      setExpiredMemberships([]);
+      setExpiringSoon([]);
+    }
+  };
+  
+  // ⏰ Cargar datos al montar y cuando cambien filtros
+  useEffect(() => {
+    loadMemberships();
+  }, [currentPage, searchTerm, selectedStatus, selectedType, sortBy, sortOrder]);
+  
+  useEffect(() => {
+    loadMembershipStats();
+    loadExpirationAlerts();
+  }, []);
+  
+  // 🔍 FILTRAR MEMBRESÍAS (para datos locales)
+  const filteredMemberships = memberships.filter(membership => {
+    const memberName = `${membership.user?.firstName || ''} ${membership.user?.lastName || ''}`.toLowerCase();
+    const matchesSearch = !searchTerm || 
+      memberName.includes(searchTerm.toLowerCase()) ||
+      membership.user?.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = selectedStatus === 'all' || membership.status === selectedStatus;
+    const matchesType = selectedType === 'all' || membership.type === selectedType;
+    
+    return matchesSearch && matchesStatus && matchesType;
+  });
+  
+  // 📊 FUNCIONES DE MEMBRESÍA
+  
+  // Crear/Actualizar membresía
+  const handleSaveMembership = async () => {
+    try {
+      setSaving(true);
+      
+      // Validaciones
+      if (!membershipFormData.userId) {
+        showError('Debe seleccionar un usuario');
+        return;
+      }
+      
+      if (!membershipFormData.startDate) {
+        showError('Fecha de inicio es obligatoria');
+        return;
+      }
+      
+      if (membershipFormData.price <= 0) {
+        showError('El precio debe ser mayor a 0');
+        return;
+      }
+      
+      // Calcular fecha de fin si no se proporcionó
+      let endDate = membershipFormData.endDate;
+      if (!endDate) {
+        const startDate = new Date(membershipFormData.startDate);
+        const typeInfo = membershipTypes.find(t => t.value === membershipFormData.type);
+        const duration = typeInfo?.duration || 30;
+        
+        const calculatedEndDate = new Date(startDate);
+        calculatedEndDate.setDate(calculatedEndDate.getDate() + duration);
+        endDate = calculatedEndDate.toISOString().split('T')[0];
+      }
+      
+      const membershipData = {
+        ...membershipFormData,
+        endDate,
+        preferredSchedule: Object.keys(membershipFormData.preferredSchedule).length > 0 
+          ? membershipFormData.preferredSchedule 
+          : undefined
+      };
+      
+      let response;
+      if (editingMembership) {
+        response = await apiService.put(`/memberships/${editingMembership.id}`, membershipData);
+        showSuccess('Membresía actualizada exitosamente');
+      } else {
+        response = await apiService.post('/memberships', membershipData);
+        showSuccess('Membresía creada exitosamente');
+      }
+      
+      // Recargar datos
+      await loadMemberships();
+      await loadMembershipStats();
+      await loadExpirationAlerts();
+      
+      // Cerrar modal
+      setShowMembershipModal(false);
+      setEditingMembership(null);
+      resetMembershipForm();
+      
+      // Notificar cambios guardados
+      if (onSave) {
+        onSave({ type: 'membership', action: editingMembership ? 'updated' : 'created' });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error saving membership:', error);
+      const errorMsg = error.response?.data?.message || 'Error al guardar membresía';
+      showError(errorMsg);
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  // Renovar membresía
+  const handleRenewMembership = async (membershipId, months = 1) => {
+    try {
+      const typeInfo = membershipTypes.find(t => t.value === 'monthly');
+      const price = typeInfo?.price || 250;
+      
+      await apiService.post(`/memberships/${membershipId}/renew`, {
+        months,
+        price: price * months
+      });
+      
+      showSuccess(`Membresía renovada por ${months} mes${months > 1 ? 'es' : ''}`);
+      
+      await loadMemberships();
+      await loadMembershipStats();
+      await loadExpirationAlerts();
+      
+    } catch (error) {
+      console.error('❌ Error renewing membership:', error);
+      showError('Error al renovar membresía');
+    }
+  };
+  
+  // Cancelar membresía
+  const handleCancelMembership = async (membershipId, reason = '') => {
+    if (!window.confirm('¿Estás seguro de cancelar esta membresía?')) {
+      return;
+    }
+    
+    try {
+      await apiService.post(`/memberships/${membershipId}/cancel`, {
+        reason: reason || 'Cancelación solicitada por administrador'
+      });
+      
+      showSuccess('Membresía cancelada exitosamente');
+      
+      await loadMemberships();
+      await loadMembershipStats();
+      await loadExpirationAlerts();
+      
+    } catch (error) {
+      console.error('❌ Error cancelling membership:', error);
+      showError('Error al cancelar membresía');
+    }
+  };
+  
+  // Reset form
+  const resetMembershipForm = () => {
+    setMembershipFormData({
+      userId: '',
+      type: 'monthly',
+      price: 250.00,
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: '',
+      preferredSchedule: {},
+      notes: '',
+      autoRenew: false
+    });
+  };
+  
+  // Abrir modal para editar
+  const handleEditMembership = (membership) => {
+    setEditingMembership(membership);
+    setMembershipFormData({
+      userId: membership.userId || membership.user?.id || '',
+      type: membership.type || 'monthly',
+      price: membership.price || 250.00,
+      startDate: membership.startDate ? membership.startDate.split('T')[0] : '',
+      endDate: membership.endDate ? membership.endDate.split('T')[0] : '',
+      preferredSchedule: membership.preferredSchedule || {},
+      notes: membership.notes || '',
+      autoRenew: membership.autoRenew || false
+    });
+    setShowMembershipModal(true);
+  };
+  
+  // Abrir modal para crear
+  const handleNewMembership = () => {
+    setEditingMembership(null);
+    resetMembershipForm();
+    setShowMembershipModal(true);
+  };
+  
+  // 📊 Obtener información del tipo de membresía
+  const getTypeInfo = (type) => {
+    return membershipTypes.find(t => t.value === type) || membershipTypes[2]; // Default: monthly
+  };
+  
+  // 📊 Obtener información del estado
+  const getStatusInfo = (status) => {
+    return membershipStatuses.find(s => s.value === status) || membershipStatuses[0]; // Default: active
+  };
+  
+  // 📊 Determinar estado actual de la membresía
+  const getCurrentStatus = (membership) => {
+    const now = new Date();
+    const endDate = new Date(membership.endDate);
+    
+    if (membership.status === 'cancelled') return 'cancelled';
+    if (membership.status === 'suspended') return 'suspended';
+    if (endDate < now) return 'expired';
+    return 'active';
+  };
+  
+  // 📄 Cálculo de paginación
+  const totalPages = Math.max(1, Math.ceil(totalMemberships / membershipsPerPage));
+
+  return (
+    <div className="space-y-6">
+      
+      {/* 🔝 HEADER */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+            <CreditCard className="w-6 h-6 mr-2 text-purple-600" />
+            Gestión de Membresías
+          </h3>
+          <p className="text-gray-600 mt-1">
+            Administra membresías, renovaciones y vencimientos
+          </p>
+        </div>
+        
+        <div className="flex items-center space-x-3 mt-4 lg:mt-0">
+          <button
+            onClick={() => loadMemberships()}
+            className="btn-secondary btn-sm"
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </button>
+          
+          {hasPermission('create_memberships') && (
+            <button
+              onClick={handleNewMembership}
+              className="btn-primary btn-sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nueva Membresía
+            </button>
+          )}
+        </div>
+      </div>
+      
+      {/* 🔔 ALERTAS DE VENCIMIENTO */}
+      {(expiredMemberships.length > 0 || expiringSoon.length > 0) && (
+        <div className="space-y-3">
+          {/* Membresías vencidas */}
+          {expiredMemberships.length > 0 && (
+            <div className="bg-red-50 border-l-4 border-red-400 p-4">
+              <div className="flex items-center">
+                <XCircle className="w-5 h-5 text-red-400" />
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">
+                    {expiredMemberships.length} Membresía{expiredMemberships.length !== 1 ? 's' : ''} Vencida{expiredMemberships.length !== 1 ? 's' : ''}
+                  </h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>Hay membresías que requieren renovación inmediata.</p>
+                    <button
+                      onClick={() => setShowExpiredAlert(!showExpiredAlert)}
+                      className="font-medium underline hover:no-underline"
+                    >
+                      {showExpiredAlert ? 'Ocultar' : 'Ver'} detalles
+                    </button>
+                  </div>
+                  
+                  {showExpiredAlert && (
+                    <div className="mt-3 max-h-40 overflow-y-auto">
+                      {expiredMemberships.slice(0, 5).map(membership => (
+                        <div key={membership.id} className="flex items-center justify-between py-1">
+                          <span className="text-sm">
+                            {membership.user?.firstName} {membership.user?.lastName}
+                          </span>
+                          <button
+                            onClick={() => handleRenewMembership(membership.id)}
+                            className="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded"
+                          >
+                            Renovar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Membresías por vencer */}
+          {expiringSoon.length > 0 && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    {expiringSoon.length} Membresía{expiringSoon.length !== 1 ? 's' : ''} por Vencer
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <p>Membresías que vencen en los próximos 7 días.</p>
+                    <button
+                      onClick={() => setShowExpiringAlert(!showExpiringAlert)}
+                      className="font-medium underline hover:no-underline"
+                    >
+                      {showExpiringAlert ? 'Ocultar' : 'Ver'} detalles
+                    </button>
+                  </div>
+                  
+                  {showExpiringAlert && (
+                    <div className="mt-3 max-h-40 overflow-y-auto">
+                      {expiringSoon.slice(0, 5).map(membership => (
+                        <div key={membership.id} className="flex items-center justify-between py-1">
+                          <span className="text-sm">
+                            {membership.user?.firstName} {membership.user?.lastName} - Vence: {formatDate(membership.endDate, 'dd/MM/yyyy')}
+                          </span>
+                          <button
+                            onClick={() => handleRenewMembership(membership.id)}
+                            className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-2 py-1 rounded"
+                          >
+                            Renovar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* 📊 ESTADÍSTICAS RÁPIDAS */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <CreditCard className="w-8 h-8 text-purple-600" />
+            <div className="ml-3">
+              <div className="text-2xl font-bold text-purple-900">
+                {membershipStats.totalMemberships || 0}
+              </div>
+              <div className="text-sm text-purple-600">Total Membresías</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className="ml-3">
+              <div className="text-2xl font-bold text-green-900">
+                {membershipStats.activeMemberships || 0}
+              </div>
+              <div className="text-sm text-green-600">Activas</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <XCircle className="w-8 h-8 text-red-600" />
+            <div className="ml-3">
+              <div className="text-2xl font-bold text-red-900">
+                {membershipStats.expiredMemberships || 0}
+              </div>
+              <div className="text-sm text-red-600">Vencidas</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Clock className="w-8 h-8 text-yellow-600" />
+            <div className="ml-3">
+              <div className="text-2xl font-bold text-yellow-900">
+                {membershipStats.expiringSoon || 0}
+              </div>
+              <div className="text-sm text-yellow-600">Por Vencer</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* 🔍 FILTROS Y BÚSQUEDA */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          {/* Búsqueda */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por usuario..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+          
+          {/* Filtro por estado */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          >
+            <option value="all">Todos los estados</option>
+            {membershipStatuses.map(status => (
+              <option key={status.value} value={status.value}>
+                {status.label}
+              </option>
+            ))}
+          </select>
+          
+          {/* Filtro por tipo */}
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          >
+            <option value="all">Todos los tipos</option>
+            {membershipTypes.map(type => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+          
+          {/* Ordenamiento */}
+          <select
+            value={`${sortBy}-${sortOrder}`}
+            onChange={(e) => {
+              const [field, order] = e.target.value.split('-');
+              setSortBy(field);
+              setSortOrder(order);
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          >
+            <option value="createdAt-desc">Más recientes</option>
+            <option value="createdAt-asc">Más antiguos</option>
+            <option value="endDate-asc">Vencen primero</option>
+            <option value="endDate-desc">Vencen último</option>
+            <option value="price-desc">Mayor precio</option>
+            <option value="price-asc">Menor precio</option>
+          </select>
+          
+        </div>
+      </div>
+      
+      {/* 📋 TABLA DE MEMBRESÍAS */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader className="w-6 h-6 animate-spin text-purple-600 mr-2" />
+            <span className="text-gray-600">Cargando membresías...</span>
+          </div>
+        ) : filteredMemberships.length === 0 ? (
+          <div className="text-center py-12">
+            <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay membresías</h3>
+            <p className="text-gray-600 mb-4">
+              {searchTerm || selectedStatus !== 'all' || selectedType !== 'all' 
+                ? 'No se encontraron membresías con los filtros aplicados'
+                : 'Comienza creando tu primera membresía'
+              }
+            </p>
+            {hasPermission('create_memberships') && (
+              <button onClick={handleNewMembership} className="btn-primary">
+                <Plus className="w-4 h-4 mr-2" />
+                Crear Membresía
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Usuario
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tipo
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Precio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Período
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredMemberships.map((membership) => {
+                    const typeInfo = getTypeInfo(membership.type);
+                    const currentStatus = getCurrentStatus(membership);
+                    const statusInfo = getStatusInfo(currentStatus);
+                    const StatusIcon = statusInfo.icon;
+                    
+                    return (
+                      <tr key={membership.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              {membership.user?.profileImage ? (
+                                <img
+                                  className="h-10 w-10 rounded-full object-cover"
+                                  src={membership.user.profileImage}
+                                  alt={`${membership.user.firstName} ${membership.user.lastName}`}
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                  <span className="text-sm font-medium text-purple-800">
+                                    {membership.user?.firstName?.[0] || 'U'}{membership.user?.lastName?.[0] || ''}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {membership.user?.firstName} {membership.user?.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {membership.user?.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
+                            {typeInfo.label}
+                          </span>
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatCurrency(membership.price)}
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div>
+                            <div className="flex items-center">
+                              <Calendar className="w-4 h-4 mr-1" />
+                              {formatDate(membership.startDate, 'dd/MM/yyyy')}
+                            </div>
+                            <div className="flex items-center mt-1">
+                              <Clock className="w-4 h-4 mr-1" />
+                              {formatDate(membership.endDate, 'dd/MM/yyyy')}
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                            <StatusIcon className="w-3 h-3 mr-1" />
+                            {statusInfo.label}
+                          </span>
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end space-x-2">
+                            {/* Renovar */}
+                            {(currentStatus === 'expired' || currentStatus === 'active') && hasPermission('renew_memberships') && (
+                              <button
+                                onClick={() => handleRenewMembership(membership.id)}
+                                className="text-green-600 hover:text-green-800"
+                                title="Renovar membresía"
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </button>
+                            )}
+                            
+                            {/* Editar */}
+                            {hasPermission('edit_memberships') && (
+                              <button
+                                onClick={() => handleEditMembership(membership)}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="Editar membresía"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+                            
+                            {/* Cancelar */}
+                            {currentStatus === 'active' && hasPermission('cancel_memberships') && (
+                              <button
+                                onClick={() => handleCancelMembership(membership.id)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Cancelar membresía"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-gray-200">
+              {filteredMemberships.map((membership) => {
+                const typeInfo = getTypeInfo(membership.type);
+                const currentStatus = getCurrentStatus(membership);
+                const statusInfo = getStatusInfo(currentStatus);
+                const StatusIcon = statusInfo.icon;
+                
+                return (
+                  <div key={membership.id} className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          {membership.user?.profileImage ? (
+                            <img
+                              className="h-12 w-12 rounded-full object-cover"
+                              src={membership.user.profileImage}
+                              alt={`${membership.user.firstName} ${membership.user.lastName}`}
+                            />
+                          ) : (
+                            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                              <span className="text-lg font-medium text-purple-800">
+                                {membership.user?.firstName?.[0] || 'U'}{membership.user?.lastName?.[0] || ''}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-3">
+                          <div className="text-sm font-medium text-gray-900">
+                            {membership.user?.firstName} {membership.user?.lastName}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {membership.user?.email}
+                          </div>
+                          <div className="flex items-center mt-1 space-x-2">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
+                              {typeInfo.label}
+                            </span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                              <StatusIcon className="w-3 h-3 mr-1" />
+                              {statusInfo.label}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            {formatCurrency(membership.price)} • {formatDate(membership.startDate, 'dd/MM')} - {formatDate(membership.endDate, 'dd/MM')}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        {(currentStatus === 'expired' || currentStatus === 'active') && hasPermission('renew_memberships') && (
+                          <button
+                            onClick={() => handleRenewMembership(membership.id)}
+                            className="text-green-600 hover:text-green-800"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        )}
+                        
+                        {hasPermission('edit_memberships') && (
+                          <button
+                            onClick={() => handleEditMembership(membership)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* 📄 PAGINACIÓN */}
+            {totalPages > 1 && (
+              <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <p className="text-sm text-gray-700">
+                      Mostrando {((currentPage - 1) * membershipsPerPage) + 1} a {Math.min(currentPage * membershipsPerPage, totalMemberships)} de {totalMemberships} membresías
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Anterior
+                    </button>
+                    
+                    <span className="text-sm text-gray-700">
+                      {currentPage} de {totalPages}
+                    </span>
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      
+      {/* 🆕 MODAL PARA CREAR/EDITAR MEMBRESÍA */}
+      {showMembershipModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+            
+            {/* Header del modal */}
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {editingMembership ? 'Editar Membresía' : 'Nueva Membresía'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowMembershipModal(false);
+                    setEditingMembership(null);
+                    resetMembershipForm();
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Contenido del modal */}
+            <div className="px-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Usuario */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Usuario *
+                  </label>
+                  <input
+                    type="text"
+                    value={membershipFormData.userId}
+                    onChange={(e) => setMembershipFormData(prev => ({ ...prev, userId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="ID del usuario"
+                    disabled={editingMembership}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {editingMembership ? 'No se puede cambiar el usuario una vez creada la membresía' : 'Ingrese el ID del usuario'}
+                  </p>
+                </div>
+                
+                {/* Tipo */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Membresía *
+                  </label>
+                  <select
+                    value={membershipFormData.type}
+                    onChange={(e) => {
+                      const selectedType = membershipTypes.find(t => t.value === e.target.value);
+                      setMembershipFormData(prev => ({ 
+                        ...prev, 
+                        type: e.target.value,
+                        price: selectedType?.price || prev.price
+                      }));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    {membershipTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label} - {formatCurrency(type.price)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Precio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Precio *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={membershipFormData.price}
+                    onChange={(e) => setMembershipFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+                
+                {/* Fecha de inicio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha de Inicio *
+                  </label>
+                  <input
+                    type="date"
+                    value={membershipFormData.startDate}
+                    onChange={(e) => setMembershipFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                </div>
+                
+                {/* Fecha de fin */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha de Fin (opcional)
+                  </label>
+                  <input
+                    type="date"
+                    value={membershipFormData.endDate}
+                    onChange={(e) => setMembershipFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Se calculará automáticamente si no se especifica
+                  </p>
+                </div>
+                
+                {/* Notas */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Notas
+                  </label>
+                  <textarea
+                    value={membershipFormData.notes}
+                    onChange={(e) => setMembershipFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    placeholder="Notas adicionales sobre la membresía..."
+                  />
+                </div>
+                
+                {/* Auto renovar */}
+                <div className="md:col-span-2">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={membershipFormData.autoRenew}
+                      onChange={(e) => setMembershipFormData(prev => ({ ...prev, autoRenew: e.target.checked }))}
+                      className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Auto-renovar membresía</span>
+                  </label>
+                </div>
+                
+              </div>
+            </div>
+            
+            {/* Footer del modal */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowMembershipModal(false);
+                  setEditingMembership(null);
+                  resetMembershipForm();
+                }}
+                className="btn-secondary"
+                disabled={saving}
+              >
+                Cancelar
+              </button>
+              
+              <button
+                onClick={handleSaveMembership}
+                disabled={saving}
+                className="btn-primary"
+              >
+                {saving ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin mr-2" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    {editingMembership ? 'Actualizar' : 'Crear'} Membresía
+                  </>
+                )}
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      )}
+      
+    </div>
+  );
+};
+
+export default MembershipsManager;
