@@ -744,7 +744,7 @@ class ApiService {
     }
     
     // ================================
-    // 👥 MÉTODOS DE USUARIOS
+    // 👥 MÉTODOS DE USUARIOS MEJORADOS
     // ================================
     
     async getUsers(params = {}) {
@@ -759,14 +759,114 @@ class ApiService {
       }
       return response;
     }
+
+    // 📊 OBTENER ESTADÍSTICAS DE USUARIOS CON FALLBACK MEJORADO
+    async getUserStats() {
+      console.log('📊 FETCHING USER STATISTICS...');
+      try {
+        const response = await this.get('/users/stats');
+        console.log('✅ USER STATS FROM BACKEND:', response);
+        return response.data || response;
+      } catch (error) {
+        console.warn('⚠️ getUserStats fallback to manual calculation');
+        
+        // Fallback: intentar calcular manualmente desde usuarios
+        try {
+          const users = await this.getUsers();
+          const userArray = Array.isArray(users) ? users : users.data || [];
+          
+          const stats = {
+            totalUsers: userArray.length,
+            totalActiveUsers: userArray.length,
+            activeUsers: userArray.filter(u => u.status === 'active').length,
+            roleStats: userArray.reduce((acc, user) => {
+              acc[user.role] = (acc[user.role] || 0) + 1;
+              return acc;
+            }, {}),
+            newUsersThisMonth: userArray.filter(user => {
+              const createdAt = new Date(user.createdAt || user.created_at);
+              const thisMonth = new Date();
+              return createdAt.getMonth() === thisMonth.getMonth() && 
+                     createdAt.getFullYear() === thisMonth.getFullYear();
+            }).length
+          };
+          
+          console.log('✅ User stats calculated manually:', stats);
+          return stats;
+          
+        } catch (fallbackError) {
+          console.error('❌ Both getUserStats methods failed:', fallbackError);
+          
+          // Último fallback: datos por defecto
+          return {
+            totalUsers: 0,
+            totalActiveUsers: 0,
+            activeUsers: 0,
+            roleStats: {
+              admin: 0,
+              colaborador: 0,
+              cliente: 0
+            },
+            newUsersThisMonth: 0
+          };
+        }
+      }
+    }
     
     // ================================
-    // 🎫 MÉTODOS DE MEMBRESÍAS
+    // 🎫 MÉTODOS DE MEMBRESÍAS MEJORADOS
     // ================================
     
     async getMemberships(params = {}) {
       const response = await api.get('/api/memberships', { params });
       return response.data;
+    }
+
+    // 📊 OBTENER ESTADÍSTICAS DE MEMBRESÍAS CON FALLBACK MEJORADO
+    async getMembershipStats() {
+      console.log('📊 FETCHING MEMBERSHIP STATISTICS...');
+      try {
+        const response = await this.get('/memberships/stats');
+        console.log('✅ MEMBERSHIP STATS FROM BACKEND:', response);
+        return response.data || response;
+      } catch (error) {
+        console.warn('⚠️ getMembershipStats fallback to manual calculation');
+        
+        try {
+          const memberships = await this.getMemberships();
+          const membershipArray = Array.isArray(memberships) ? memberships : memberships.data || [];
+          
+          const now = new Date();
+          const stats = {
+            totalMemberships: membershipArray.length,
+            activeMemberships: membershipArray.filter(m => {
+              const endDate = new Date(m.endDate || m.end_date);
+              return endDate > now && (m.status === 'active' || !m.status);
+            }).length,
+            expiredMemberships: membershipArray.filter(m => {
+              const endDate = new Date(m.endDate || m.end_date);
+              return endDate <= now;
+            }).length,
+            expiringSoon: membershipArray.filter(m => {
+              const endDate = new Date(m.endDate || m.end_date);
+              const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+              return endDate > now && endDate <= weekAhead;
+            }).length
+          };
+          
+          console.log('✅ Membership stats calculated manually:', stats);
+          return stats;
+          
+        } catch (fallbackError) {
+          console.error('❌ Both getMembershipStats methods failed:', fallbackError);
+          return {
+            totalMemberships: 0,
+            activeMemberships: 0,
+            expiredMemberships: 0,
+            expiringSoon: 0
+          };
+        }
+      }
     }
     
     async getExpiredMemberships(days = 0) {
@@ -780,7 +880,7 @@ class ApiService {
     }
     
     // ================================
-    // 💰 MÉTODOS DE PAGOS
+    // 💰 MÉTODOS DE PAGOS MEJORADOS
     // ================================
     
     async getPayments(params = {}) {
@@ -799,22 +899,80 @@ class ApiService {
     async getPendingTransfers() {
       return await this.get('/payments/transfers/pending');
     }
-    
-    // ================================
-    // 📊 MÉTODOS DE REPORTES
-    // ================================
-    
+
+    // 📊 OBTENER REPORTES DE PAGOS CON FALLBACK MEJORADO
     async getPaymentReports(params = {}) {
-      const response = await api.get('/api/payments/reports', { params });
-      return response.data;
+      console.log('📊 FETCHING PAYMENT REPORTS...');
+      try {
+        const response = await api.get('/api/payments/reports', { params });
+        console.log('✅ PAYMENT REPORTS FROM BACKEND:', response.data);
+        return response.data;
+      } catch (error) {
+        console.warn('⚠️ getPaymentReports fallback to manual calculation');
+        
+        try {
+          const payments = await this.getPayments(params);
+          const paymentArray = Array.isArray(payments) ? payments : payments.data || [];
+          
+          const totalIncome = paymentArray.reduce((sum, payment) => {
+            return sum + parseFloat(payment.amount || 0);
+          }, 0);
+          
+          const incomeByMethod = paymentArray.reduce((acc, payment) => {
+            const method = payment.method || 'unknown';
+            const existing = acc.find(item => item.method === method);
+            
+            if (existing) {
+              existing.total += parseFloat(payment.amount || 0);
+            } else {
+              acc.push({
+                method: method,
+                total: parseFloat(payment.amount || 0)
+              });
+            }
+            
+            return acc;
+          }, []);
+          
+          const stats = {
+            totalIncome,
+            totalPayments: paymentArray.length,
+            incomeByMethod,
+            averagePayment: paymentArray.length > 0 ? totalIncome / paymentArray.length : 0
+          };
+          
+          console.log('✅ Payment reports calculated manually:', stats);
+          return stats;
+          
+        } catch (fallbackError) {
+          console.error('❌ Both getPaymentReports methods failed:', fallbackError);
+          return {
+            totalIncome: 0,
+            totalPayments: 0,
+            incomeByMethod: [],
+            averagePayment: 0
+          };
+        }
+      }
     }
-    
-    async getUserStats() {
-      return await this.get('/users/stats');
-    }
-    
-    async getMembershipStats() {
-      return await this.get('/memberships/stats');
+
+    // 🆕 OBTENER ESTADO DE SALUD DEL SISTEMA
+    async getSystemHealth() {
+      console.log('🔍 FETCHING SYSTEM HEALTH...');
+      try {
+        const response = await this.get('/system/health');
+        console.log('✅ SYSTEM HEALTH FROM BACKEND:', response);
+        return response.data || response;
+      } catch (error) {
+        console.log('❌ SYSTEM HEALTH FAILED:', error.message);
+        
+        // Fallback básico
+        return {
+          status: 'unknown',
+          uptime: 'unknown',
+          lastCheck: new Date().toISOString()
+        };
+      }
     }
     
     // ================================

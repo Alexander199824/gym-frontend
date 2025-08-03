@@ -1,6 +1,5 @@
 // src/components/layout/DashboardLayout.js
-// FUNCIÓN: Layout principal MEJORADO con z-index correcto y funcionalidad completa
-// MEJORAS: Header siempre arriba, paneles con información real, mejor responsividad
+// FUNCIÓN: Layout principal LIMPIO - SIN cuadro grande, solo indicador circular simple
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
@@ -12,6 +11,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileMenu from './MobileMenu';
 import NotificationPanel from './NotificationPanel';
+import SystemStatusIndicator from '../common/SystemStatusIndicator'; // 🆕 INDICADOR SIMPLE
 
 const DashboardLayout = () => {
   const { user, logout } = useAuth();
@@ -317,33 +317,8 @@ const DashboardLayout = () => {
         </>
       )}
       
-      {/* 📱 INDICADOR DE CONEXIÓN MÓVIL (solo en desarrollo) */}
-      {process.env.NODE_ENV === 'development' && isMobile && (
-        <div className="fixed bottom-4 left-4 z-[9980]">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-        </div>
-      )}
-      
-      {/* 🔒 INDICADOR DE ESTADO DE USUARIO (solo admins en desktop) */}
-      {!isMobile && user?.role === 'admin' && (
-        <div className="fixed bottom-4 right-4 z-[9980]">
-          <div className="bg-white rounded-lg shadow-lg border p-3 min-w-48">
-            <div className="text-xs text-gray-500 mb-1">Estado del Sistema</div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-sm font-medium text-gray-900">Operativo</span>
-              </div>
-              <div className="text-xs text-gray-500">
-                {new Date().toLocaleTimeString('es-ES', { 
-                  hour: '2-digit', 
-                  minute: '2-digit' 
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 🟢 INDICADOR CIRCULAR SIMPLE DEL SISTEMA (esquina inferior izquierda) */}
+      <SystemStatusIndicator show={true} />
       
     </div>
   );
@@ -437,6 +412,8 @@ const Breadcrumbs = React.memo(() => {
 Breadcrumbs.displayName = 'Breadcrumbs';
 
 export default DashboardLayout;
+
+
 // 📝 MEJORAS IMPLEMENTADAS PARA MÓVIL:
 // ✅ Header inteligente que se oculta al hacer scroll hacia abajo
 // ✅ Gestos táctiles (swipe) para cerrar menús
