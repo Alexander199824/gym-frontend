@@ -1,6 +1,6 @@
 // src/pages/dashboard/components/ProfileManager.js
-// FUNCIÓN: Gestión completa del perfil de usuario - Información personal, seguridad, preferencias
-// CONECTA CON: Backend API /api/auth/profile
+// FUNCIÓN: Gestión completa del perfil con VALIDACIONES y estructura correcta del README
+// CORREGIDO: Compatible con LoadingSpinner existente, rutas correctas del backend, validaciones completas
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -12,6 +12,9 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
 import apiService from '../../../services/apiService';
+
+// ✅ IMPORTACIÓN CORRECTA: Usar ProfileLoader del LoadingSpinner existente
+import { ProfileLoader, ButtonSpinner } from '../../../components/common/LoadingSpinner';
 
 const ProfileManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, updateUser, hasPermission } = useAuth();
@@ -27,7 +30,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   
-  // 👤 Estados de información personal
+  // 👤 Estados de información personal - ESTRUCTURA CORRECTA DEL README
   const [personalInfo, setPersonalInfo] = useState({
     firstName: '',
     lastName: '',
@@ -43,8 +46,14 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       relationship: ''
     },
     bio: '',
-    profileImage: ''
+    profileImage: '',
+    isActive: true,
+    role: ''
   });
+  
+  // ⚠️ Estados de validación
+  const [validationErrors, setValidationErrors] = useState({});
+  const [isUnderAge, setIsUnderAge] = useState(false);
   
   // 🔐 Estados de seguridad
   const [securityInfo, setSecurityInfo] = useState({
@@ -111,17 +120,141 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   ];
   
-  // 🔄 CARGAR DATOS DEL PERFIL
+  // 🔍 FUNCIONES DE VALIDACIÓN
+  
+  // Validar nombres (solo letras, espacios, acentos, guiones)
+  const validateName = (name) => {
+    const nameRegex = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-']+$/;
+    if (!name.trim()) {
+      return 'Este campo es obligatorio';
+    }
+    if (name.trim().length < 2) {
+      return 'Debe tener al menos 2 caracteres';
+    }
+    if (!nameRegex.test(name)) {
+      return 'Solo se permiten letras, espacios, acentos y guiones';
+    }
+    if (name.length > 50) {
+      return 'Máximo 50 caracteres';
+    }
+    return null;
+  };
+  
+  // Validar teléfono (solo números, espacios, guiones, paréntesis, signo +)
+  const validatePhone = (phone) => {
+    if (!phone.trim()) return null; // Opcional
+    
+    const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+    if (!phoneRegex.test(phone)) {
+      return 'Solo se permiten números, espacios, guiones, paréntesis y signo +';
+    }
+    if (phone.replace(/\s/g, '').length < 8) {
+      return 'Debe tener al menos 8 dígitos';
+    }
+    return null;
+  };
+  
+  // Validar email
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) {
+      return 'Email es obligatorio';
+    }
+    if (!emailRegex.test(email)) {
+      return 'Formato de email inválido';
+    }
+    return null;
+  };
+  
+  // Calcular edad y validar restricción de 13 años
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+  
+  // Validar fecha de nacimiento
+  const validateDateOfBirth = (dateOfBirth) => {
+    if (!dateOfBirth) return null; // Opcional
+    
+    const age = calculateAge(dateOfBirth);
+    if (age === null) return 'Fecha inválida';
+    
+    if (age < 13) {
+      return 'Debes tener al menos 13 años para usar esta plataforma';
+    }
+    
+    if (age > 120) {
+      return 'Fecha de nacimiento inválida';
+    }
+    
+    return null;
+  };
+  
+  // Validar todos los campos
+  const validateAllFields = () => {
+    const errors = {};
+    
+    // Validar nombres
+    const firstNameError = validateName(personalInfo.firstName);
+    if (firstNameError) errors.firstName = firstNameError;
+    
+    const lastNameError = validateName(personalInfo.lastName);
+    if (lastNameError) errors.lastName = lastNameError;
+    
+    // Validar email
+    const emailError = validateEmail(personalInfo.email);
+    if (emailError) errors.email = emailError;
+    
+    // Validar teléfono
+    const phoneError = validatePhone(personalInfo.phone);
+    if (phoneError) errors.phone = phoneError;
+    
+    // Validar fecha de nacimiento
+    const dateError = validateDateOfBirth(personalInfo.dateOfBirth);
+    if (dateError) errors.dateOfBirth = dateError;
+    
+    // Validar contacto de emergencia
+    if (personalInfo.emergencyContact.name) {
+      const emergencyNameError = validateName(personalInfo.emergencyContact.name);
+      if (emergencyNameError) errors.emergencyName = emergencyNameError;
+    }
+    
+    if (personalInfo.emergencyContact.phone) {
+      const emergencyPhoneError = validatePhone(personalInfo.emergencyContact.phone);
+      if (emergencyPhoneError) errors.emergencyPhone = emergencyPhoneError;
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  // 🔄 CARGAR DATOS DEL PERFIL - ESTRUCTURA CORRECTA DEL README
   const loadProfileData = async () => {
     try {
       setLoading(true);
+      console.log('📊 Loading profile data from backend...');
       
       const response = await apiService.getProfile();
-      const userData = response.data || response;
+      console.log('✅ Profile data received:', response);
+      
+      // Estructura según README: response.data.user
+      const userData = response.data?.user || response.user || response.data || response;
       
       if (userData) {
-        // Mapear datos personales
-        setPersonalInfo({
+        console.log('👤 User data structure:', userData);
+        
+        // Mapear datos personales según estructura del README
+        const mappedPersonalInfo = {
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           email: userData.email || '',
@@ -136,8 +269,16 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
             relationship: ''
           },
           bio: userData.bio || '',
-          profileImage: userData.profileImage || ''
-        });
+          profileImage: userData.profileImage || '',
+          isActive: userData.isActive !== false,
+          role: userData.role || 'cliente'
+        };
+        
+        setPersonalInfo(mappedPersonalInfo);
+        
+        // Verificar si es menor de edad
+        const age = calculateAge(mappedPersonalInfo.dateOfBirth);
+        setIsUnderAge(age !== null && age < 13);
         
         // Mapear preferencias
         setPreferences({
@@ -165,43 +306,78 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
           totalWorkouts: userData.stats?.totalWorkouts || 0,
           achievements: userData.stats?.achievements || []
         });
+        
+        console.log('✅ Profile data mapped successfully');
+        
+        // Actualizar el contexto de usuario si es necesario
+        if (updateUser) {
+          updateUser({
+            ...currentUser,
+            ...userData
+          });
+        }
+        
+      } else {
+        console.warn('⚠️ No user data found in response');
+        showError('No se pudo cargar la información del perfil');
       }
       
     } catch (error) {
       console.error('❌ Error loading profile data:', error);
-      showError('Error al cargar datos del perfil');
+      
+      if (error.response?.status === 401) {
+        showError('Sesión expirada. Redirigiendo...');
+        // El interceptor manejará la redirección
+      } else if (error.response?.status === 404) {
+        showError('Perfil no encontrado');
+      } else {
+        showError('Error al cargar datos del perfil: ' + (error.response?.data?.message || error.message));
+      }
     } finally {
       setLoading(false);
     }
   };
   
-  // 💾 GUARDAR INFORMACIÓN PERSONAL
+  // 💾 GUARDAR INFORMACIÓN PERSONAL - USANDO PATCH COMO DICE EL README
   const savePersonalInfo = async () => {
     try {
       setSaving(true);
       
-      // Validaciones
-      if (!personalInfo.firstName.trim() || !personalInfo.lastName.trim()) {
-        showError('Nombre y apellido son obligatorios');
+      // Validar todos los campos antes de enviar
+      if (!validateAllFields()) {
+        showError('Por favor corrige los errores antes de guardar');
         return;
       }
       
-      if (!personalInfo.email.trim()) {
-        showError('Email es obligatorio');
-        return;
+      console.log('💾 Saving personal info...');
+      
+      // Preparar datos según estructura del README
+      const dataToSend = {
+        firstName: personalInfo.firstName.trim(),
+        lastName: personalInfo.lastName.trim(),
+        phone: personalInfo.phone.trim(),
+        dateOfBirth: personalInfo.dateOfBirth || undefined,
+        address: personalInfo.address.trim() || undefined,
+        city: personalInfo.city.trim() || undefined,
+        zipCode: personalInfo.zipCode.trim() || undefined,
+        bio: personalInfo.bio.trim() || undefined
+      };
+      
+      // Agregar contacto de emergencia solo si tiene datos
+      if (personalInfo.emergencyContact.name.trim() || personalInfo.emergencyContact.phone.trim()) {
+        dataToSend.emergencyContact = {
+          name: personalInfo.emergencyContact.name.trim(),
+          phone: personalInfo.emergencyContact.phone.trim(),
+          relationship: personalInfo.emergencyContact.relationship || 'otro'
+        };
       }
       
-      const response = await apiService.put('/auth/profile', {
-        firstName: personalInfo.firstName,
-        lastName: personalInfo.lastName,
-        phone: personalInfo.phone,
-        dateOfBirth: personalInfo.dateOfBirth,
-        address: personalInfo.address,
-        city: personalInfo.city,
-        zipCode: personalInfo.zipCode,
-        emergencyContact: personalInfo.emergencyContact.name ? personalInfo.emergencyContact : undefined,
-        bio: personalInfo.bio
-      });
+      console.log('📤 Data to send:', dataToSend);
+      
+      // Usar updateProfile que usa PATCH como dice el README
+      const response = await apiService.updateProfile(dataToSend);
+      
+      console.log('✅ Profile updated successfully:', response);
       
       showSuccess('Información personal actualizada exitosamente');
       
@@ -224,8 +400,15 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       
     } catch (error) {
       console.error('❌ Error saving personal info:', error);
-      const errorMsg = error.response?.data?.message || 'Error al actualizar información personal';
-      showError(errorMsg);
+      
+      if (error.response?.status === 422) {
+        const errors = error.response.data?.errors || {};
+        setValidationErrors(errors);
+        showError('Por favor corrige los errores marcados');
+      } else {
+        const errorMsg = error.response?.data?.message || 'Error al actualizar información personal';
+        showError(errorMsg);
+      }
     } finally {
       setSaving(false);
     }
@@ -236,7 +419,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     try {
       setSaving(true);
       
-      // Validaciones
+      // Validaciones de contraseña
       if (!securityInfo.currentPassword) {
         showError('Contraseña actual es obligatoria');
         return;
@@ -252,7 +435,16 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         return;
       }
       
-      await apiService.post('/auth/change-password', {
+      // Validación de seguridad de contraseña
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+      if (!passwordRegex.test(securityInfo.newPassword)) {
+        showError('La contraseña debe contener al menos una minúscula, una mayúscula y un número');
+        return;
+      }
+      
+      console.log('🔐 Changing password...');
+      
+      await apiService.changePassword({
         currentPassword: securityInfo.currentPassword,
         newPassword: securityInfo.newPassword
       });
@@ -269,27 +461,33 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       
     } catch (error) {
       console.error('❌ Error changing password:', error);
-      const errorMsg = error.response?.data?.message || 'Error al cambiar contraseña';
-      showError(errorMsg);
+      
+      if (error.response?.status === 401) {
+        showError('Contraseña actual incorrecta');
+      } else {
+        const errorMsg = error.response?.data?.message || 'Error al cambiar contraseña';
+        showError(errorMsg);
+      }
     } finally {
       setSaving(false);
     }
   };
   
-  // 📸 SUBIR IMAGEN DE PERFIL
+  // 📸 SUBIR IMAGEN DE PERFIL - RUTA CORRECTA DEL README
   const uploadProfileImage = async (file) => {
     try {
       setUploadingImage(true);
+      console.log('📸 Uploading profile image...');
       
       const formData = new FormData();
       formData.append('image', file);
       
-      const response = await apiService.post('/auth/profile/image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      // Usar uploadProfileImage que usa la ruta exacta del README
+      const response = await apiService.uploadProfileImage(formData);
       
+      console.log('✅ Image uploaded successfully:', response);
+      
+      // Estructura según README: response.data.profileImage
       const imageUrl = response.data?.profileImage || response.profileImage;
       
       if (imageUrl) {
@@ -308,11 +506,21 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         
         showSuccess('Imagen de perfil actualizada exitosamente');
         setImagePreview(null);
+      } else {
+        console.warn('⚠️ No image URL received from server');
+        showError('No se recibió la URL de la imagen');
       }
       
     } catch (error) {
       console.error('❌ Error uploading profile image:', error);
-      showError('Error al subir imagen de perfil');
+      
+      if (error.response?.status === 413) {
+        showError('La imagen es demasiado grande. Máximo 5MB');
+      } else if (error.response?.status === 422) {
+        showError('Formato de imagen no válido. Usa JPG, PNG o WebP');
+      } else {
+        showError('Error al subir imagen de perfil: ' + (error.response?.data?.message || error.message));
+      }
     } finally {
       setUploadingImage(false);
     }
@@ -324,12 +532,13 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     if (!file) return;
     
     // Validar tipo de archivo
-    if (!file.type.startsWith('image/')) {
-      showError('Por favor selecciona una imagen válida');
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      showError('Formato no válido. Usa JPG, PNG o WebP');
       return;
     }
     
-    // Validar tamaño (5MB max)
+    // Validar tamaño (5MB max según README)
     if (file.size > 5 * 1024 * 1024) {
       showError('La imagen no debe superar los 5MB');
       return;
@@ -350,8 +559,9 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
   const savePreferences = async () => {
     try {
       setSaving(true);
+      console.log('💾 Saving preferences...');
       
-      await apiService.put('/auth/profile/preferences', preferences);
+      await apiService.updatePreferences(preferences);
       
       showSuccess('Preferencias actualizadas exitosamente');
       setHasUnsavedChanges(false);
@@ -362,7 +572,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       
     } catch (error) {
       console.error('❌ Error saving preferences:', error);
-      showError('Error al guardar preferencias');
+      showError('Error al guardar preferencias: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }
@@ -382,25 +592,99 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, [hasUnsavedChanges, onUnsavedChanges]);
   
-  // 📝 Manejar cambio de información personal
+  // 📝 Manejar cambio de información personal con FILTRADO PREVENTIVO
   const handlePersonalInfoChange = (field, value) => {
+    let filteredValue = value;
+    
+    // 🚫 FILTRADO PREVENTIVO: Bloquear caracteres no permitidos
+    if (field === 'firstName' || field === 'lastName') {
+      // Solo permitir letras, espacios, acentos y guiones - FILTRAR TODO LO DEMÁS
+      filteredValue = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s\-']/g, '');
+    } else if (field === 'phone') {
+      // Solo permitir números, espacios, guiones, paréntesis y signo +
+      filteredValue = value.replace(/[^\d\s\-\(\)\+]/g, '');
+    }
+    
     setPersonalInfo(prev => ({
       ...prev,
-      [field]: value
+      [field]: filteredValue
     }));
     setHasUnsavedChanges(true);
+    
+    // Validación en tiempo real solo para errores estructurales
+    let error = null;
+    if (field === 'firstName' || field === 'lastName') {
+      if (!filteredValue.trim()) {
+        error = 'Este campo es obligatorio';
+      } else if (filteredValue.trim().length < 2) {
+        error = 'Debe tener al menos 2 caracteres';
+      } else if (filteredValue.length > 50) {
+        error = 'Máximo 50 caracteres';
+      }
+    } else if (field === 'phone') {
+      if (filteredValue.trim() && filteredValue.replace(/\s/g, '').length < 8) {
+        error = 'Debe tener al menos 8 dígitos';
+      }
+    } else if (field === 'dateOfBirth') {
+      error = validateDateOfBirth(filteredValue);
+      const age = calculateAge(filteredValue);
+      setIsUnderAge(age !== null && age < 13);
+    }
+    
+    setValidationErrors(prev => ({
+      ...prev,
+      [field]: error
+    }));
   };
   
-  // 📝 Manejar cambio de contacto de emergencia
+  // 📝 Manejar cambio de contacto de emergencia con FILTRADO PREVENTIVO
   const handleEmergencyContactChange = (field, value) => {
+    let filteredValue = value;
+    
+    // 🚫 FILTRADO PREVENTIVO: Bloquear caracteres no permitidos
+    if (field === 'name') {
+      // Solo permitir letras, espacios, acentos y guiones - FILTRAR TODO LO DEMÁS
+      filteredValue = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s\-']/g, '');
+    } else if (field === 'phone') {
+      // Solo permitir números, espacios, guiones, paréntesis y signo +
+      filteredValue = value.replace(/[^\d\s\-\(\)\+]/g, '');
+    }
+    
     setPersonalInfo(prev => ({
       ...prev,
       emergencyContact: {
         ...prev.emergencyContact,
-        [field]: value
+        [field]: filteredValue
       }
     }));
     setHasUnsavedChanges(true);
+    
+    // Validación en tiempo real solo para errores estructurales
+    let error = null;
+    if (field === 'name') {
+      if (filteredValue.trim() && filteredValue.trim().length < 2) {
+        error = 'Debe tener al menos 2 caracteres';
+      } else if (filteredValue.length > 50) {
+        error = 'Máximo 50 caracteres';
+      }
+    } else if (field === 'phone') {
+      if (filteredValue.trim() && filteredValue.replace(/\s/g, '').length < 8) {
+        error = 'Debe tener al menos 8 dígitos';
+      }
+    }
+    
+    if (error) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [`emergency${field.charAt(0).toUpperCase() + field.slice(1)}`]: error
+      }));
+    } else {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[`emergency${field.charAt(0).toUpperCase() + field.slice(1)}`];
+        return newErrors;
+      });
+    }
   };
   
   // 📝 Manejar cambio de preferencias
@@ -424,6 +708,11 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     setHasUnsavedChanges(true);
   };
 
+  // ✅ MOSTRAR LOADING USANDO ProfileLoader
+  if (loading) {
+    return <ProfileLoader message="Cargando información del perfil..." />;
+  }
+
   return (
     <div className="space-y-6">
       
@@ -444,6 +733,13 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
             <div className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
               <AlertTriangle className="w-4 h-4 mr-1" />
               Cambios sin guardar
+            </div>
+          )}
+          
+          {isUnderAge && (
+            <div className="flex items-center bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
+              <XCircle className="w-4 h-4 mr-1" />
+              Menor de edad - Restricciones aplicadas
             </div>
           )}
           
@@ -477,13 +773,13 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
             {/* Botón para cambiar imagen */}
             <label className="absolute bottom-0 right-0 bg-white text-indigo-600 rounded-full p-2 cursor-pointer hover:bg-gray-100 transition-colors shadow-lg">
               {uploadingImage ? (
-                <Loader className="w-4 h-4 animate-spin" />
+                <ButtonSpinner size="sm" color="primary" />
               ) : (
                 <Camera className="w-4 h-4" />
               )}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
                 onChange={handleImageSelect}
                 className="hidden"
                 disabled={uploadingImage}
@@ -504,10 +800,16 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
               </span>
               <span className="flex items-center">
                 <Award className="w-4 h-4 mr-1" />
-                {currentUser?.role === 'admin' ? 'Administrador' : 
-                 currentUser?.role === 'colaborador' ? 'Personal' : 'Cliente'}
+                {personalInfo.role === 'admin' ? 'Administrador' : 
+                 personalInfo.role === 'colaborador' ? 'Personal' : 'Cliente'}
               </span>
             </div>
+            
+            {isUnderAge && (
+              <div className="mt-2 bg-red-500/20 text-red-100 px-3 py-1 rounded-full text-xs inline-block">
+                ⚠️ Cuenta con restricciones por edad
+              </div>
+            )}
           </div>
           
         </div>
@@ -552,11 +854,11 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                 <h4 className="text-lg font-medium text-gray-900">Información Personal</h4>
                 <button
                   onClick={savePersonalInfo}
-                  disabled={saving}
-                  className="btn-primary btn-sm"
+                  disabled={saving || Object.keys(validationErrors).length > 0}
+                  className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
                   {saving ? (
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
+                    <ButtonSpinner size="sm" className="mr-2" />
                   ) : (
                     <Save className="w-4 h-4 mr-2" />
                   )}
@@ -574,8 +876,14 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                     type="text"
                     value={personalInfo.firstName}
                     onChange={(e) => handlePersonalInfoChange('firstName', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                      validationErrors.firstName ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Solo letras y espacios"
                   />
+                  {validationErrors.firstName && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.firstName}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -586,8 +894,14 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                     type="text"
                     value={personalInfo.lastName}
                     onChange={(e) => handlePersonalInfoChange('lastName', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                      validationErrors.lastName ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Solo letras y espacios"
                   />
+                  {validationErrors.lastName && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.lastName}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -614,21 +928,38 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                     type="tel"
                     value={personalInfo.phone}
                     onChange={(e) => handlePersonalInfoChange('phone', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="+502 1234-5678"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                      validationErrors.phone ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Solo números: +502 1234-5678"
                   />
+                  {validationErrors.phone && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.phone}</p>
+                  )}
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Fecha de Nacimiento
+                    {isUnderAge && <span className="text-red-500 ml-1">⚠️</span>}
                   </label>
                   <input
                     type="date"
                     value={personalInfo.dateOfBirth}
                     onChange={(e) => handlePersonalInfoChange('dateOfBirth', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                      validationErrors.dateOfBirth ? 'border-red-500' : 'border-gray-300'
+                    } ${isUnderAge ? 'bg-red-50' : ''}`}
+                    disabled={isUnderAge}
                   />
+                  {validationErrors.dateOfBirth && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.dateOfBirth}</p>
+                  )}
+                  {isUnderAge && (
+                    <p className="text-red-500 text-xs mt-1">
+                      No puedes cambiar tu fecha de nacimiento si eres menor de 13 años
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -667,7 +998,11 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Cuéntanos un poco sobre ti..."
+                    maxLength={500}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {personalInfo.bio.length}/500 caracteres
+                  </p>
                 </div>
                 
               </div>
@@ -687,9 +1022,14 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                       type="text"
                       value={personalInfo.emergencyContact.name}
                       onChange={(e) => handleEmergencyContactChange('name', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Nombre completo"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                        validationErrors.emergencyName ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Solo letras y espacios"
                     />
+                    {validationErrors.emergencyName && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.emergencyName}</p>
+                    )}
                   </div>
                   
                   <div>
@@ -700,9 +1040,14 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                       type="tel"
                       value={personalInfo.emergencyContact.phone}
                       onChange={(e) => handleEmergencyContactChange('phone', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="+502 1234-5678"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                        validationErrors.emergencyPhone ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Solo números: +502 1234-5678"
                     />
+                    {validationErrors.emergencyPhone && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.emergencyPhone}</p>
+                    )}
                   </div>
                   
                   <div>
@@ -743,10 +1088,10 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                   <button
                     onClick={changePassword}
                     disabled={saving}
-                    className="btn-primary btn-sm"
+                    className="btn-primary btn-sm flex items-center"
                   >
                     {saving ? (
-                      <Loader className="w-4 h-4 animate-spin mr-2" />
+                      <ButtonSpinner size="sm" className="mr-2" />
                     ) : (
                       <Key className="w-4 h-4 mr-2" />
                     )}
@@ -798,7 +1143,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                 <div className="mt-4 text-sm text-gray-600">
                   <ul className="list-disc list-inside space-y-1">
                     <li>La contraseña debe tener al menos 6 caracteres</li>
-                    <li>Incluye números y letras para mayor seguridad</li>
+                    <li>Debe incluir al menos una minúscula, una mayúscula y un número</li>
                     <li>Evita usar información personal</li>
                   </ul>
                 </div>
@@ -843,10 +1188,10 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                 <button
                   onClick={savePreferences}
                   disabled={saving}
-                  className="btn-primary btn-sm"
+                  className="btn-primary btn-sm flex items-center"
                 >
                   {saving ? (
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
+                    <ButtonSpinner size="sm" className="mr-2" />
                   ) : (
                     <Save className="w-4 h-4 mr-2" />
                   )}
@@ -1048,6 +1393,12 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Horario preferido:</span>
                       <span className="font-medium">{userStats.favoriteTime}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Edad:</span>
+                      <span className="font-medium">
+                        {personalInfo.dateOfBirth ? `${calculateAge(personalInfo.dateOfBirth)} años` : '—'}
+                      </span>
                     </div>
                   </div>
                 </div>

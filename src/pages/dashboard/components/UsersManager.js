@@ -52,6 +52,9 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     },
     isActive: true
   });
+
+  // 🔒 Estados para validaciones
+  const [fieldErrors, setFieldErrors] = useState({});
   
   // 📊 Roles disponibles
   const userRoles = [
@@ -59,6 +62,227 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'colaborador', label: 'Personal', color: 'bg-blue-100 text-blue-800' },
     { value: 'admin', label: 'Administrador', color: 'bg-purple-100 text-purple-800' }
   ];
+
+  // 🛡️ FUNCIONES DE VALIDACIÓN
+  
+  // Validar solo letras y espacios (nombres)
+  const validateName = (value) => {
+    // Solo letras, espacios, acentos y algunos caracteres especiales de nombres
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]*$/;
+    return nameRegex.test(value);
+  };
+
+  // Validar solo números y caracteres permitidos en teléfono
+  const validatePhone = (value) => {
+    // Solo números, espacios, guiones, paréntesis y signo +
+    const phoneRegex = /^[0-9\s\-\(\)\+]*$/;
+    return phoneRegex.test(value);
+  };
+
+  // Validar formato de email básico
+  const validateEmail = (value) => {
+    const emailRegex = /^[a-zA-Z0-9._-]*@?[a-zA-Z0-9.-]*\.?[a-zA-Z]*$/;
+    return emailRegex.test(value);
+  };
+
+  // Validar email completo (para verificación final)
+  const isValidEmail = (email) => {
+    const fullEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return fullEmailRegex.test(email);
+  };
+
+  // Validar contraseña (mínimo 6 caracteres, al menos una letra y un número)
+  const validatePassword = (password) => {
+    if (password.length === 0) return true; // Permitir vacío para edición
+    if (password.length < 6) return false;
+    
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    
+    return hasLetter && hasNumber;
+  };
+
+  // Calcular edad basada en fecha de nacimiento
+  const calculateAge = (birthDate) => {
+    if (!birthDate) return null;
+    
+    const today = new Date();
+    const birth = new Date(birthDate);
+    
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  };
+
+  // Validar edad mínima (13 años)
+  const validateAge = (birthDate) => {
+    if (!birthDate) return true; // Fecha opcional
+    
+    const age = calculateAge(birthDate);
+    return age === null || age >= 13;
+  };
+
+  // Función para limpiar y validar entrada de texto
+  const handleTextInput = (value, field, validator) => {
+    let cleanValue = value;
+    
+    // Aplicar validación específica
+    if (validator && !validator(value)) {
+      return userFormData[field]; // Mantener valor anterior si no es válido
+    }
+    
+    // Limpiezas específicas por tipo de campo
+    switch (field) {
+      case 'firstName':
+      case 'lastName':
+        // Remover números y caracteres especiales no permitidos
+        cleanValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]/g, '');
+        // Limitar longitud
+        cleanValue = cleanValue.substring(0, 50);
+        // Capitalizar primera letra de cada palabra
+        cleanValue = cleanValue.replace(/\b\w/g, l => l.toUpperCase());
+        break;
+        
+      case 'phone':
+        // Solo números y caracteres permitidos
+        cleanValue = value.replace(/[^0-9\s\-\(\)\+]/g, '');
+        // Limitar longitud
+        cleanValue = cleanValue.substring(0, 20);
+        break;
+        
+      case 'email':
+        // Convertir a minúsculas y remover espacios
+        cleanValue = value.toLowerCase().replace(/\s/g, '');
+        // Limitar longitud
+        cleanValue = cleanValue.substring(0, 100);
+        break;
+        
+      default:
+        break;
+    }
+    
+    return cleanValue;
+  };
+
+  // Función para manejar cambios en el formulario con validación
+  const handleFormChange = (field, value, isNested = false, nestedField = null) => {
+    let processedValue = value;
+    
+    // Procesar valor según el tipo de campo
+    if (field === 'firstName' || field === 'lastName') {
+      processedValue = handleTextInput(value, field, validateName);
+    } else if (field === 'phone' || (isNested && nestedField === 'phone')) {
+      processedValue = handleTextInput(value, 'phone', validatePhone);
+    } else if (field === 'email') {
+      processedValue = handleTextInput(value, field, validateEmail);
+    } else if (isNested && nestedField === 'name') {
+      processedValue = handleTextInput(value, 'firstName', validateName);
+    }
+    // Para otros campos como dateOfBirth, password, role, etc., usar el valor tal como viene
+    
+    // Actualizar estado
+    if (isNested) {
+      setUserFormData(prev => ({
+        ...prev,
+        [field]: {
+          ...prev[field],
+          [nestedField]: processedValue
+        }
+      }));
+    } else {
+      setUserFormData(prev => ({
+        ...prev,
+        [field]: processedValue
+      }));
+    }
+    
+    // Limpiar errores del campo si existe
+    if (fieldErrors[field] || (isNested && fieldErrors[`${field}.${nestedField}`])) {
+      const errorKey = isNested ? `${field}.${nestedField}` : field;
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
+    
+    // Validación en tiempo real para fecha de nacimiento
+    if (field === 'dateOfBirth' && value) {
+      const age = calculateAge(value);
+      if (age !== null && age < 13) {
+        setFieldErrors(prev => ({
+          ...prev,
+          dateOfBirth: `El usuario debe tener al menos 13 años. Edad actual: ${age} años`
+        }));
+      }
+    }
+  };
+
+  // Validar formulario completo
+  const validateForm = () => {
+    const errors = {};
+    
+    // Validar nombre
+    if (!userFormData.firstName.trim()) {
+      errors.firstName = 'El nombre es obligatorio';
+    } else if (userFormData.firstName.trim().length < 2) {
+      errors.firstName = 'El nombre debe tener al menos 2 caracteres';
+    }
+    
+    // Validar apellido
+    if (!userFormData.lastName.trim()) {
+      errors.lastName = 'El apellido es obligatorio';
+    } else if (userFormData.lastName.trim().length < 2) {
+      errors.lastName = 'El apellido debe tener al menos 2 caracteres';
+    }
+    
+    // Validar email
+    if (!userFormData.email.trim()) {
+      errors.email = 'El email es obligatorio';
+    } else if (!isValidEmail(userFormData.email)) {
+      errors.email = 'El formato del email no es válido';
+    }
+    
+    // Validar contraseña (solo para usuarios nuevos)
+    if (!editingUser) {
+      if (!userFormData.password.trim()) {
+        errors.password = 'La contraseña es obligatoria para usuarios nuevos';
+      } else if (!validatePassword(userFormData.password)) {
+        errors.password = 'La contraseña debe tener al menos 6 caracteres, incluir letras y números';
+      }
+    } else if (userFormData.password.trim() && !validatePassword(userFormData.password)) {
+      errors.password = 'La contraseña debe tener al menos 6 caracteres, incluir letras y números';
+    }
+    
+    // Validar teléfono (opcional pero si se proporciona debe ser válido)
+    if (userFormData.phone.trim() && userFormData.phone.replace(/[\s\-\(\)\+]/g, '').length < 8) {
+      errors.phone = 'El teléfono debe tener al menos 8 dígitos';
+    }
+    
+    // Validar edad mínima (13 años)
+    if (userFormData.dateOfBirth && !validateAge(userFormData.dateOfBirth)) {
+      const age = calculateAge(userFormData.dateOfBirth);
+      errors.dateOfBirth = `El usuario debe tener al menos 13 años. Edad actual: ${age} años`;
+    }
+    
+    // Validar contacto de emergencia (si se proporciona nombre, debe tener teléfono)
+    if (userFormData.emergencyContact.name.trim() && !userFormData.emergencyContact.phone.trim()) {
+      errors['emergencyContact.phone'] = 'El teléfono es obligatorio si proporciona un contacto de emergencia';
+    }
+    
+    if (userFormData.emergencyContact.phone.trim() && 
+        userFormData.emergencyContact.phone.replace(/[\s\-\(\)\+]/g, '').length < 8) {
+      errors['emergencyContact.phone'] = 'El teléfono del contacto debe tener al menos 8 dígitos';
+    }
+    
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
   
   // 🔄 CARGAR DATOS
   const loadUsers = async () => {
@@ -164,24 +388,14 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   
   // Crear usuario
   const handleCreateUser = async () => {
+    // Validar formulario
+    if (!validateForm()) {
+      showError('Por favor corrige los errores en el formulario');
+      return;
+    }
+
     try {
       setSaving(true);
-      
-      // Validaciones
-      if (!userFormData.firstName.trim() || !userFormData.lastName.trim()) {
-        showError('Nombre y apellido son obligatorios');
-        return;
-      }
-      
-      if (!userFormData.email.trim()) {
-        showError('Email es obligatorio');
-        return;
-      }
-      
-      if (!editingUser && !userFormData.password.trim()) {
-        showError('Contraseña es obligatoria para usuarios nuevos');
-        return;
-      }
       
       const userData = {
         ...userFormData,
@@ -270,6 +484,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       },
       isActive: true
     });
+    setFieldErrors({});
   };
   
   // Abrir modal para editar
@@ -289,6 +504,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       },
       isActive: user.isActive !== false
     });
+    setFieldErrors({});
     setShowUserModal(true);
   };
   
@@ -735,7 +951,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* 🆕 MODAL PARA CREAR/EDITAR USUARIO */}
+      {/* 🆕 MODAL PARA CREAR/EDITAR USUARIO - CON VALIDACIONES */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -771,10 +987,19 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                   <input
                     type="text"
                     value={userFormData.firstName}
-                    onChange={(e) => setUserFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => handleFormChange('firstName', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      fieldErrors.firstName ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="Juan"
+                    maxLength="50"
                   />
+                  {fieldErrors.firstName && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {fieldErrors.firstName}
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -784,10 +1009,19 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                   <input
                     type="text"
                     value={userFormData.lastName}
-                    onChange={(e) => setUserFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => handleFormChange('lastName', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      fieldErrors.lastName ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="Pérez"
+                    maxLength="50"
                   />
+                  {fieldErrors.lastName && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {fieldErrors.lastName}
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -797,10 +1031,19 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                   <input
                     type="email"
                     value={userFormData.email}
-                    onChange={(e) => setUserFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => handleFormChange('email', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      fieldErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="juan@ejemplo.com"
+                    maxLength="100"
                   />
+                  {fieldErrors.email && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {fieldErrors.email}
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -810,10 +1053,23 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                   <input
                     type="password"
                     value={userFormData.password}
-                    onChange={(e) => setUserFormData(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder={editingUser ? 'Dejar vacío para no cambiar' : 'Contraseña segura'}
+                    onChange={(e) => handleFormChange('password', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      fieldErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    placeholder={editingUser ? 'Dejar vacío para no cambiar' : 'Mínimo 6 caracteres'}
                   />
+                  {fieldErrors.password && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {fieldErrors.password}
+                    </p>
+                  )}
+                  {!editingUser && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Debe contener al menos 6 caracteres, incluir letras y números
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -823,10 +1079,22 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                   <input
                     type="tel"
                     value={userFormData.phone}
-                    onChange={(e) => setUserFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => handleFormChange('phone', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      fieldErrors.phone ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                     placeholder="+502 1234-5678"
+                    maxLength="20"
                   />
+                  {fieldErrors.phone && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {fieldErrors.phone}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Solo números y caracteres: + - ( ) espacios
+                  </p>
                 </div>
                 
                 <div>
@@ -835,7 +1103,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                   </label>
                   <select
                     value={userFormData.role}
-                    onChange={(e) => setUserFormData(prev => ({ ...prev, role: e.target.value }))}
+                    onChange={(e) => handleFormChange('role', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     {userRoles.map(role => (
@@ -853,9 +1121,21 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                   <input
                     type="date"
                     value={userFormData.dateOfBirth}
-                    onChange={(e) => setUserFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) => handleFormChange('dateOfBirth', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      fieldErrors.dateOfBirth ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 13)).toISOString().split('T')[0]}
                   />
+                  {fieldErrors.dateOfBirth && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {fieldErrors.dateOfBirth}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Edad mínima permitida: 13 años
+                  </p>
                 </div>
                 
                 <div>
@@ -863,7 +1143,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                     <input
                       type="checkbox"
                       checked={userFormData.isActive}
-                      onChange={(e) => setUserFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+                      onChange={(e) => handleFormChange('isActive', e.target.checked)}
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <span className="ml-2 text-sm text-gray-700">Usuario activo</span>
@@ -884,13 +1164,14 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                       <input
                         type="text"
                         value={userFormData.emergencyContact.name}
-                        onChange={(e) => setUserFormData(prev => ({
-                          ...prev,
-                          emergencyContact: { ...prev.emergencyContact, name: e.target.value }
-                        }))}
+                        onChange={(e) => handleFormChange('emergencyContact', e.target.value, true, 'name')}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="María Pérez"
+                        maxLength="50"
                       />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Solo letras y espacios permitidos
+                      </p>
                     </div>
                     
                     <div>
@@ -900,13 +1181,22 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                       <input
                         type="tel"
                         value={userFormData.emergencyContact.phone}
-                        onChange={(e) => setUserFormData(prev => ({
-                          ...prev,
-                          emergencyContact: { ...prev.emergencyContact, phone: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        onChange={(e) => handleFormChange('emergencyContact', e.target.value, true, 'phone')}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          fieldErrors['emergencyContact.phone'] ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        }`}
                         placeholder="+502 1234-5678"
+                        maxLength="20"
                       />
+                      {fieldErrors['emergencyContact.phone'] && (
+                        <p className="mt-1 text-sm text-red-600 flex items-center">
+                          <AlertCircle className="w-4 h-4 mr-1" />
+                          {fieldErrors['emergencyContact.phone']}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-gray-500">
+                        Solo números y caracteres: + - ( ) espacios
+                      </p>
                     </div>
                   </div>
                 </div>

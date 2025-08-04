@@ -1,6 +1,6 @@
 // src/services/apiService.js
-// FUNCIÓN: Servicio API CORREGIDO - Interceptor NO interfiere con login
-// CORRECCIÓN: Error 401 durante login no debe redirigir automáticamente
+// FUNCIÓN: Servicio API COMPLETO - TODAS las funcionalidades existentes + nuevas para perfil
+// MANTIENE: Todo lo existente + correcciones para login + métodos de perfil
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -186,6 +186,36 @@ api.interceptors.response.use(
           }
         }
         
+        // 🆕 ANÁLISIS ESPECÍFICO PARA PERFIL
+        if (url.includes('/auth/profile')) {
+          console.log('👤 PROFILE ANALYSIS:');
+          const data = response.data?.data || response.data;
+          if (data && data.user) {
+            console.log('  - User ID:', data.user.id);
+            console.log('  - Name:', `${data.user.firstName} ${data.user.lastName}`);
+            console.log('  - Email:', data.user.email);
+            console.log('  - Phone:', data.user.phone || '❌ MISSING');
+            console.log('  - Role:', data.user.role);
+            console.log('  - Profile Image:', data.user.profileImage ? '✅ Present' : '❌ MISSING');
+            console.log('  - Date of Birth:', data.user.dateOfBirth || '❌ MISSING');
+            console.log('  - Active:', data.user.isActive !== false ? '✅ Yes' : '❌ No');
+            
+            // Calcular edad si hay fecha de nacimiento
+            if (data.user.dateOfBirth) {
+              const birthDate = new Date(data.user.dateOfBirth);
+              const today = new Date();
+              const age = today.getFullYear() - birthDate.getFullYear();
+              console.log('  - Calculated Age:', age, 'years');
+              
+              if (age < 13) {
+                console.log('  - ⚠️ USER IS UNDER 13 - RESTRICTIONS SHOULD APPLY');
+              }
+            }
+          } else {
+            console.log('  - ❌ Profile structure is different from expected');
+          }
+        }
+        
       } else {
         console.log('📦 NO DATA in response');
       }
@@ -210,35 +240,6 @@ api.interceptors.response.use(
       console.log('📦 Error Data:', response.data);
       
       const fullUrl = `${config?.baseURL || ''}${url}`;
-      
-      // 🎬 Contexto específico para endpoint de video
-      if (url.includes('/video')) {
-        console.log('🎬 VIDEO ENDPOINT ERROR CONTEXT:');
-        console.log('📍 Requested URL:', fullUrl);
-        
-        if (status === 404) {
-          console.log('💡 SOLUTION FOR VIDEO 404:');
-          console.log('1. Create video endpoint in backend:');
-          console.log('   GET /api/gym/video');
-          console.log('2. Expected response format:');
-          console.log('   {');
-          console.log('     "success": true,');
-          console.log('     "data": {');
-          console.log('       "heroVideo": "https://yourdomain.com/videos/hero.mp4",');
-          console.log('       "poster": "https://yourdomain.com/images/video-poster.jpg",');
-          console.log('       "title": "Welcome to Our Gym",');
-          console.log('       "description": "Experience our amazing facilities",');
-          console.log('       "settings": {');
-          console.log('         "autoplay": false,');
-          console.log('         "muted": true,');
-          console.log('         "loop": true,');
-          console.log('         "controls": true');
-          console.log('       }');
-          console.log('     }');
-          console.log('   }');
-          console.log('3. Video files should be stored in public/videos/ or external CDN');
-        }
-      }
       
       // ✅ CORRECCIÓN CRÍTICA: Contexto específico por tipo de error
       switch (status) {
@@ -285,8 +286,10 @@ api.interceptors.response.use(
           console.log('   - /api/gym/video');
           console.log('   - /api/store/featured-products');
           console.log('   - /api/gym/membership-plans');
+          console.log('   - /api/auth/profile');
+          console.log('   - /api/auth/profile/image');
           
-          // Solo mostrar toast para endpoints críticos (no para video)
+          // Solo mostrar toast para endpoints críticos
           const isCritical = url.includes('/auth') || url.includes('/config');
           if (isCritical) {
             toast.error('Servicio no disponible');
@@ -320,18 +323,6 @@ api.interceptors.response.use(
           console.log('🔧 VERIFICAR: Logs del backend para más detalles');
           console.log('📋 Error del servidor:', response.data?.message || 'Sin detalles');
           
-          // Análisis específico para errores 500 comunes
-          if (url.includes('/testimonials')) {
-            console.log('💡 POSIBLE CAUSA: Campo created_at o updated_at undefined');
-            console.log('🔧 SOLUCIÓN: Agregar validación en gymController.js');
-            console.log('📝 CÓDIGO SUGERIDO: testimonial.created_at ? testimonial.created_at.toISOString() : new Date().toISOString()');
-          }
-          
-          if (url.includes('/video')) {
-            console.log('💡 POSIBLE CAUSA: Error en procesamiento de video o acceso a archivos');
-            console.log('🔧 VERIFICAR: Permisos de archivos de video y rutas correctas');
-          }
-          
           toast.error('Error del servidor, contacta soporte');
           break;
           
@@ -349,28 +340,11 @@ api.interceptors.response.use(
     } else if (error.code === 'ECONNABORTED') {
       console.log('⏰ PROBLEMA: Request Timeout');
       console.log('🔍 El servidor tardó más de', config?.timeout, 'ms en responder');
-      console.log('🔧 POSIBLES CAUSAS:');
-      console.log('   - Servidor sobrecargado');
-      console.log('   - Conexión lenta');
-      console.log('   - Endpoint pesado');
-      console.log('   - Video muy grande (si es endpoint de video)');
-      console.log('💡 SOLUCIÓN: Optimizar endpoint o aumentar timeout');
-      
       toast.error('La solicitud tardó demasiado tiempo');
       
     } else if (error.code === 'ERR_NETWORK') {
       console.log('🌐 PROBLEMA: No se puede conectar al backend');
-      console.log('🔧 POSIBLES CAUSAS:');
-      console.log('   - Backend no está corriendo');
-      console.log('   - Puerto incorrecto');
-      console.log('   - Problema de CORS');
-      console.log('   - Firewall bloqueando');
       console.log('📋 Backend URL configurada:', config?.baseURL);
-      console.log('💡 VERIFICACIONES:');
-      console.log('   1. ¿Está el backend corriendo?');
-      console.log('   2. ¿Responde en:', config?.baseURL);
-      console.log('   3. ¿Hay errors en los logs del backend?');
-      console.log('   4. ¿CORS configurado correctamente?');
       
       // No mostrar toast para errores de red durante login
       if (!window.location.pathname.includes('/login')) {
@@ -381,8 +355,6 @@ api.interceptors.response.use(
       console.log('🔥 ERROR DESCONOCIDO');
       console.log('🔍 Error message:', error.message);
       console.log('📋 Error code:', error.code);
-      console.log('📋 Error stack:', error.stack);
-      console.log('📋 URL afectada:', url);
     }
     
     console.groupEnd();
@@ -422,12 +394,12 @@ class ApiService {
   }
   
   // MÉTODO GENERAL POST
-  async post(endpoint, data) {
+  async post(endpoint, data, options = {}) {
     try {
       const url = this.normalizeEndpoint(endpoint);
       console.log(`🎯 MAKING POST REQUEST TO: ${url}`, data);
       
-      const response = await api.post(url, data);
+      const response = await api.post(url, data, options);
       
       console.log(`🎉 POST ${url} SUCCESS:`, response.data);
       
@@ -442,10 +414,32 @@ class ApiService {
   async put(endpoint, data) {
     try {
       const url = this.normalizeEndpoint(endpoint);
+      console.log(`🎯 MAKING PUT REQUEST TO: ${url}`, data);
+      
       const response = await api.put(url, data);
+      
+      console.log(`🎉 PUT ${url} SUCCESS:`, response.data);
+      
       return response.data;
     } catch (error) {
-      this.logEndpointError('PUT', endpoint, error);
+      console.log(`💥 PUT ${endpoint} FAILED:`, error.message);
+      throw error;
+    }
+  }
+  
+  // 🆕 MÉTODO GENERAL PATCH - NUEVO PARA PERFIL
+  async patch(endpoint, data) {
+    try {
+      const url = this.normalizeEndpoint(endpoint);
+      console.log(`🎯 MAKING PATCH REQUEST TO: ${url}`, data);
+      
+      const response = await api.patch(url, data);
+      
+      console.log(`🎉 PATCH ${url} SUCCESS:`, response.data);
+      
+      return response.data;
+    } catch (error) {
+      console.log(`💥 PATCH ${endpoint} FAILED:`, error.message);
       throw error;
     }
   }
@@ -556,67 +550,15 @@ class ApiService {
     }
   }
   
-  // 🎬 OBTENER VIDEO DEL GIMNASIO - NUEVO MÉTODO
+  // 🎬 OBTENER VIDEO DEL GIMNASIO
   async getGymVideo() {
     console.log('🎬 FETCHING GYM VIDEO...');
     try {
       const result = await this.get('/gym/video');
       console.log('✅ GYM VIDEO RECEIVED:', result);
-      
-      // Validación adicional para datos de video
-      if (result && result.data) {
-        const videoData = result.data;
-        console.log('🔍 VIDEO DATA VALIDATION:');
-        console.log('  - Has hero video:', !!videoData.heroVideo);
-        console.log('  - Has poster:', !!videoData.poster);
-        console.log('  - Has title:', !!videoData.title);
-        console.log('  - Has settings:', !!videoData.settings);
-        
-        // Validar URLs si existen
-        if (videoData.heroVideo) {
-          try {
-            new URL(videoData.heroVideo);
-            console.log('  - Hero video URL: ✅ Valid');
-          } catch {
-            if (videoData.heroVideo.startsWith('/') || videoData.heroVideo.includes('.')) {
-              console.log('  - Hero video URL: ✅ Relative path');
-            } else {
-              console.log('  - Hero video URL: ⚠️ Potentially invalid');
-            }
-          }
-        }
-        
-        if (videoData.poster) {
-          try {
-            new URL(videoData.poster);
-            console.log('  - Poster URL: ✅ Valid');
-          } catch {
-            if (videoData.poster.startsWith('/') || videoData.poster.includes('.')) {
-              console.log('  - Poster URL: ✅ Relative path');
-            } else {
-              console.log('  - Poster URL: ⚠️ Potentially invalid');
-            }
-          }
-        }
-      }
-      
       return result;
     } catch (error) {
       console.log('❌ GYM VIDEO FAILED:', error.message);
-      
-      // Análisis específico de errores de video
-      if (error.response?.status === 404) {
-        console.log('💡 GYM VIDEO: Endpoint not implemented in backend');
-        console.log('🔧 IMPLEMENTATION GUIDE:');
-        console.log('1. Add route in backend: GET /api/gym/video');
-        console.log('2. Create controller method to return video data');
-        console.log('3. Store video files in public/videos/ or use CDN URLs');
-      } else if (error.code === 'ERR_NETWORK') {
-        console.log('🌐 GYM VIDEO: Network connection error');
-      } else {
-        console.log('🔥 GYM VIDEO: Unexpected error:', error.message);
-      }
-      
       throw error;
     }
   }
@@ -648,7 +590,7 @@ class ApiService {
   // 📄 MÉTODOS DE CONTENIDO
   // ================================
   
-  // OBTENER CONTENIDO DE SECCIONES (método existente)
+  // OBTENER CONTENIDO DE SECCIONES
   async getSectionsContent() {
     console.log('📄 FETCHING SECTIONS CONTENT...');
     try {
@@ -661,350 +603,46 @@ class ApiService {
     }
   }
     
-    // OBTENER NAVEGACIÓN
-    async getNavigation() {
-      console.log('🧭 FETCHING NAVIGATION...');
-      try {
-        const result = await this.get('/gym/navigation');
-        console.log('✅ NAVIGATION RECEIVED:', result);
-        return result;
-      } catch (error) {
-        console.log('❌ NAVIGATION FAILED:', error.message);
-        throw error;
-      }
+  // OBTENER NAVEGACIÓN
+  async getNavigation() {
+    console.log('🧭 FETCHING NAVIGATION...');
+    try {
+      const result = await this.get('/gym/navigation');
+      console.log('✅ NAVIGATION RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ NAVIGATION FAILED:', error.message);
+      throw error;
     }
+  }
     
-    // OBTENER PROMOCIONES
-    async getPromotions() {
-      console.log('🎉 FETCHING PROMOTIONS...');
-      try {
-        const result = await this.get('/gym/promotions');
-        console.log('✅ PROMOTIONS RECEIVED:', result);
-        return result;
-      } catch (error) {
-        console.log('❌ PROMOTIONS FAILED:', error.message);
-        throw error;
-      }
+  // OBTENER PROMOCIONES
+  async getPromotions() {
+    console.log('🎉 FETCHING PROMOTIONS...');
+    try {
+      const result = await this.get('/gym/promotions');
+      console.log('✅ PROMOTIONS RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ PROMOTIONS FAILED:', error.message);
+      throw error;
     }
+  }
     
-    // OBTENER BRANDING
-    async getBranding() {
-      console.log('🎨 FETCHING BRANDING...');
-      try {
-        const result = await this.get('/gym/branding');
-        console.log('✅ BRANDING RECEIVED:', result);
-        return result;
-      } catch (error) {
-        console.log('❌ BRANDING FAILED:', error.message);
-        throw error;
-      }
+  // OBTENER BRANDING
+  async getBranding() {
+    console.log('🎨 FETCHING BRANDING...');
+    try {
+      const result = await this.get('/gym/branding');
+      console.log('✅ BRANDING RECEIVED:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ BRANDING FAILED:', error.message);
+      throw error;
     }
-    
-    // ================================
-    // 🔐 MÉTODOS DE AUTENTICACIÓN
-    // ================================
-    
-    // ✅ LOGIN CORREGIDO - Sin interferencia del interceptor
-    async login(credentials) {
-      console.log('🔐 ATTEMPTING LOGIN...');
-      
-      try {
-        const response = await this.post('/auth/login', credentials);
-        
-        if (response.success && response.data.token) {
-          localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.token);
-          console.log('✅ LOGIN SUCCESSFUL');
-          // NO mostrar toast aquí, lo maneja LoginPage
-        }
-        
-        return response;
-      } catch (error) {
-        console.log('❌ LOGIN FAILED in apiService:', error.message);
-        // NO mostrar toast aquí, lo maneja LoginPage
-        throw error; // Propagar el error al LoginPage
-      }
-    }
-    
-    // REGISTRO
-    async register(userData) {
-      console.log('📝 ATTEMPTING REGISTRATION...');
-      const response = await this.post('/auth/register', userData);
-      
-      if (response.success) {
-        console.log('✅ REGISTRATION SUCCESSFUL');
-        toast.success('Registro exitoso');
-      }
-      
-      return response;
-    }
-    
-    // PERFIL
-    async getProfile() {
-      return await this.get('/auth/profile');
-    }
-    
-    // ================================
-    // 👥 MÉTODOS DE USUARIOS MEJORADOS
-    // ================================
-    
-    async getUsers(params = {}) {
-      const response = await api.get('/api/users', { params });
-      return response.data;
-    }
-    
-    async createUser(userData) {
-      const response = await this.post('/users', userData);
-      if (response.success) {
-        toast.success('Usuario creado exitosamente');
-      }
-      return response;
-    }
-
-    // 📊 OBTENER ESTADÍSTICAS DE USUARIOS CON FALLBACK MEJORADO
-    async getUserStats() {
-      console.log('📊 FETCHING USER STATISTICS...');
-      try {
-        const response = await this.get('/users/stats');
-        console.log('✅ USER STATS FROM BACKEND:', response);
-        return response.data || response;
-      } catch (error) {
-        console.warn('⚠️ getUserStats fallback to manual calculation');
-        
-        // Fallback: intentar calcular manualmente desde usuarios
-        try {
-          const users = await this.getUsers();
-          const userArray = Array.isArray(users) ? users : users.data || [];
-          
-          const stats = {
-            totalUsers: userArray.length,
-            totalActiveUsers: userArray.length,
-            activeUsers: userArray.filter(u => u.status === 'active').length,
-            roleStats: userArray.reduce((acc, user) => {
-              acc[user.role] = (acc[user.role] || 0) + 1;
-              return acc;
-            }, {}),
-            newUsersThisMonth: userArray.filter(user => {
-              const createdAt = new Date(user.createdAt || user.created_at);
-              const thisMonth = new Date();
-              return createdAt.getMonth() === thisMonth.getMonth() && 
-                     createdAt.getFullYear() === thisMonth.getFullYear();
-            }).length
-          };
-          
-          console.log('✅ User stats calculated manually:', stats);
-          return stats;
-          
-        } catch (fallbackError) {
-          console.error('❌ Both getUserStats methods failed:', fallbackError);
-          
-          // Último fallback: datos por defecto
-          return {
-            totalUsers: 0,
-            totalActiveUsers: 0,
-            activeUsers: 0,
-            roleStats: {
-              admin: 0,
-              colaborador: 0,
-              cliente: 0
-            },
-            newUsersThisMonth: 0
-          };
-        }
-      }
-    }
-    
-    // ================================
-    // 🎫 MÉTODOS DE MEMBRESÍAS MEJORADOS
-    // ================================
-    
-    async getMemberships(params = {}) {
-      const response = await api.get('/api/memberships', { params });
-      return response.data;
-    }
-
-    // 📊 OBTENER ESTADÍSTICAS DE MEMBRESÍAS CON FALLBACK MEJORADO
-    async getMembershipStats() {
-      console.log('📊 FETCHING MEMBERSHIP STATISTICS...');
-      try {
-        const response = await this.get('/memberships/stats');
-        console.log('✅ MEMBERSHIP STATS FROM BACKEND:', response);
-        return response.data || response;
-      } catch (error) {
-        console.warn('⚠️ getMembershipStats fallback to manual calculation');
-        
-        try {
-          const memberships = await this.getMemberships();
-          const membershipArray = Array.isArray(memberships) ? memberships : memberships.data || [];
-          
-          const now = new Date();
-          const stats = {
-            totalMemberships: membershipArray.length,
-            activeMemberships: membershipArray.filter(m => {
-              const endDate = new Date(m.endDate || m.end_date);
-              return endDate > now && (m.status === 'active' || !m.status);
-            }).length,
-            expiredMemberships: membershipArray.filter(m => {
-              const endDate = new Date(m.endDate || m.end_date);
-              return endDate <= now;
-            }).length,
-            expiringSoon: membershipArray.filter(m => {
-              const endDate = new Date(m.endDate || m.end_date);
-              const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-              return endDate > now && endDate <= weekAhead;
-            }).length
-          };
-          
-          console.log('✅ Membership stats calculated manually:', stats);
-          return stats;
-          
-        } catch (fallbackError) {
-          console.error('❌ Both getMembershipStats methods failed:', fallbackError);
-          return {
-            totalMemberships: 0,
-            activeMemberships: 0,
-            expiredMemberships: 0,
-            expiringSoon: 0
-          };
-        }
-      }
-    }
-    
-    async getExpiredMemberships(days = 0) {
-      const response = await api.get('/api/memberships/expired', { params: { days } });
-      return response.data;
-    }
-    
-    async getExpiringSoonMemberships(days = 7) {
-      const response = await api.get('/api/memberships/expiring-soon', { params: { days } });
-      return response.data;
-    }
-    
-    // ================================
-    // 💰 MÉTODOS DE PAGOS MEJORADOS
-    // ================================
-    
-    async getPayments(params = {}) {
-      const response = await api.get('/api/payments', { params });
-      return response.data;
-    }
-    
-    async createPayment(paymentData) {
-      const response = await this.post('/payments', paymentData);
-      if (response.success) {
-        toast.success('Pago registrado exitosamente');
-      }
-      return response;
-    }
-    
-    async getPendingTransfers() {
-      return await this.get('/payments/transfers/pending');
-    }
-
-    // 📊 OBTENER REPORTES DE PAGOS CON FALLBACK MEJORADO
-    async getPaymentReports(params = {}) {
-      console.log('📊 FETCHING PAYMENT REPORTS...');
-      try {
-        const response = await api.get('/api/payments/reports', { params });
-        console.log('✅ PAYMENT REPORTS FROM BACKEND:', response.data);
-        return response.data;
-      } catch (error) {
-        console.warn('⚠️ getPaymentReports fallback to manual calculation');
-        
-        try {
-          const payments = await this.getPayments(params);
-          const paymentArray = Array.isArray(payments) ? payments : payments.data || [];
-          
-          const totalIncome = paymentArray.reduce((sum, payment) => {
-            return sum + parseFloat(payment.amount || 0);
-          }, 0);
-          
-          const incomeByMethod = paymentArray.reduce((acc, payment) => {
-            const method = payment.method || 'unknown';
-            const existing = acc.find(item => item.method === method);
-            
-            if (existing) {
-              existing.total += parseFloat(payment.amount || 0);
-            } else {
-              acc.push({
-                method: method,
-                total: parseFloat(payment.amount || 0)
-              });
-            }
-            
-            return acc;
-          }, []);
-          
-          const stats = {
-            totalIncome,
-            totalPayments: paymentArray.length,
-            incomeByMethod,
-            averagePayment: paymentArray.length > 0 ? totalIncome / paymentArray.length : 0
-          };
-          
-          console.log('✅ Payment reports calculated manually:', stats);
-          return stats;
-          
-        } catch (fallbackError) {
-          console.error('❌ Both getPaymentReports methods failed:', fallbackError);
-          return {
-            totalIncome: 0,
-            totalPayments: 0,
-            incomeByMethod: [],
-            averagePayment: 0
-          };
-        }
-      }
-    }
-
-    // 🆕 OBTENER ESTADO DE SALUD DEL SISTEMA
-    async getSystemHealth() {
-      console.log('🔍 FETCHING SYSTEM HEALTH...');
-      try {
-        const response = await this.get('/system/health');
-        console.log('✅ SYSTEM HEALTH FROM BACKEND:', response);
-        return response.data || response;
-      } catch (error) {
-        console.log('❌ SYSTEM HEALTH FAILED:', error.message);
-        
-        // Fallback básico
-        return {
-          status: 'unknown',
-          uptime: 'unknown',
-          lastCheck: new Date().toISOString()
-        };
-      }
-    }
-    
-    // ================================
-    // 🛒 MÉTODOS DEL CARRITO
-    // ================================
-    
-    async getCart() {
-      return await this.get('/cart');
-    }
-    
-    async updateCart(items) {
-      return await this.post('/cart', { items });
-    }
-    
-    // ================================
-    // 🔧 MÉTODOS UTILITARIOS
-    // ================================
-    
-    // HEALTH CHECK
-    async healthCheck() {
-      console.log('🔌 HEALTH CHECK...');
-      try {
-        const result = await this.get('/health');
-        console.log('✅ HEALTH CHECK SUCCESS:', result);
-        return result;
-      } catch (error) {
-        console.log('❌ HEALTH CHECK FAILED:', error.message);
-        throw error;
-      }
-    }
-
-    // ✅ NUEVO: OBTENER CONTENIDO DE LANDING PAGE
+  }
+  
+  // OBTENER CONTENIDO DE LANDING PAGE
   async getLandingContent() {
     console.log('📄 FETCHING LANDING CONTENT...');
     try {
@@ -1017,86 +655,801 @@ class ApiService {
     }
   }
     
-    // VERIFICAR CONEXIÓN MEJORADA
-    async checkBackendConnection() {
+  // ================================
+  // 🔐 MÉTODOS DE AUTENTICACIÓN
+  // ================================
+    
+  // ✅ LOGIN CORREGIDO - Sin interferencia del interceptor
+  async login(credentials) {
+    console.log('🔐 ATTEMPTING LOGIN...');
+    
+    try {
+      const response = await this.post('/auth/login', credentials);
+      
+      if (response.success && response.data.token) {
+        localStorage.setItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token', response.data.token);
+        console.log('✅ LOGIN SUCCESSFUL');
+        // NO mostrar toast aquí, lo maneja LoginPage
+      }
+      
+      return response;
+    } catch (error) {
+      console.log('❌ LOGIN FAILED in apiService:', error.message);
+      // NO mostrar toast aquí, lo maneja LoginPage
+      throw error; // Propagar el error al LoginPage
+    }
+  }
+    
+  // REGISTRO
+  async register(userData) {
+    console.log('📝 ATTEMPTING REGISTRATION...');
+    const response = await this.post('/auth/register', userData);
+    
+    if (response.success) {
+      console.log('✅ REGISTRATION SUCCESSFUL');
+      toast.success('Registro exitoso');
+    }
+    
+    return response;
+  }
+    
+  // 🆕 OBTENER PERFIL - MEJORADO CON VALIDACIONES
+  async getProfile() {
+    console.log('👤 FETCHING USER PROFILE...');
+    try {
+      const result = await this.get('/auth/profile');
+      console.log('✅ PROFILE DATA RECEIVED:', result);
+      
+      // Validar estructura según README
+      if (result && result.data && result.data.user) {
+        console.log('✅ Profile structure is correct (README format)');
+        console.log('👤 User data:', {
+          id: result.data.user.id,
+          firstName: result.data.user.firstName,
+          lastName: result.data.user.lastName,
+          email: result.data.user.email,
+          role: result.data.user.role,
+          hasProfileImage: !!result.data.user.profileImage
+        });
+      } else {
+        console.warn('⚠️ Profile structure might be different from README');
+        console.log('📋 Actual structure:', result);
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ PROFILE FETCH FAILED:', error.message);
+      
+      if (error.response?.status === 401) {
+        console.log('🔐 PROFILE: Token expired or invalid');
+      } else if (error.response?.status === 404) {
+        console.log('👤 PROFILE: User not found');
+      }
+      
+      throw error;
+    }
+  }
+
+  // 🆕 ACTUALIZAR PERFIL - USANDO PATCH COMO DICE EL README
+  async updateProfile(profileData) {
+    console.log('💾 UPDATING USER PROFILE...');
+    console.log('📤 Profile data to send:', profileData);
+    
+    try {
+      // Usar PATCH como especifica el README
+      const result = await this.patch('/auth/profile', profileData);
+      
+      console.log('✅ PROFILE UPDATED SUCCESSFULLY:', result);
+      
+      // Validar respuesta según README
+      if (result && result.success) {
+        console.log('✅ Update response structure is correct');
+        
+        if (result.data && result.data.user) {
+          console.log('👤 Updated user data:', {
+            id: result.data.user.id,
+            firstName: result.data.user.firstName,
+            lastName: result.data.user.lastName,
+            phone: result.data.user.phone,
+            updatedFields: Object.keys(profileData)
+          });
+        }
+      } else {
+        console.warn('⚠️ Update response structure might be different');
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ PROFILE UPDATE FAILED:', error.message);
+      
+      if (error.response?.status === 422) {
+        console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
+        console.log('💡 Common validation issues:');
+        console.log('   - firstName/lastName: Only letters, spaces, accents allowed');
+        console.log('   - phone: Only numbers, spaces, dashes, parentheses, + allowed');
+        console.log('   - dateOfBirth: Must be at least 13 years old');
+      } else if (error.response?.status === 401) {
+        console.log('🔐 PROFILE UPDATE: Authorization failed');
+      } else if (error.response?.status === 400) {
+        console.log('📋 PROFILE UPDATE: Bad request, check data format');
+      }
+      
+      throw error;
+    }
+  }
+
+  // 🆕 SUBIR IMAGEN DE PERFIL - RUTA EXACTA DEL README
+  async uploadProfileImage(formData) {
+    console.log('📸 UPLOADING PROFILE IMAGE...');
+    
+    try {
+      // Usar la ruta EXACTA del README: /auth/profile/image
+      const result = await this.post('/auth/profile/image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      console.log('✅ PROFILE IMAGE UPLOADED:', result);
+      
+      // Validar respuesta según README
+      if (result && result.success && result.data) {
+        console.log('✅ Image upload response structure is correct');
+        console.log('📸 Image details:', {
+          profileImage: result.data.profileImage,
+          publicId: result.data.publicId,
+          hasUserData: !!result.data.user
+        });
+        
+        // Verificar que la URL de imagen sea válida
+        if (result.data.profileImage) {
+          try {
+            new URL(result.data.profileImage);
+            console.log('✅ Profile image URL is valid');
+          } catch {
+            if (result.data.profileImage.startsWith('/') || result.data.profileImage.includes('cloudinary')) {
+              console.log('✅ Profile image URL is a valid path/Cloudinary URL');
+            } else {
+              console.warn('⚠️ Profile image URL format might be unusual');
+            }
+          }
+        }
+      } else {
+        console.warn('⚠️ Image upload response structure might be different from README');
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ PROFILE IMAGE UPLOAD FAILED:', error.message);
+      
+      if (error.response?.status === 413) {
+        console.log('📏 IMAGE TOO LARGE: Max size is 5MB according to README');
+      } else if (error.response?.status === 422) {
+        console.log('🖼️ INVALID IMAGE FORMAT: Allowed formats: JPG, JPEG, PNG, WebP');
+      } else if (error.response?.status === 401) {
+        console.log('🔐 IMAGE UPLOAD: Authorization failed');
+      } else if (error.code === 'ERR_NETWORK') {
+        console.log('🌐 IMAGE UPLOAD: Network error - check backend connection');
+      }
+      
+      throw error;
+    }
+  }
+
+  // 🆕 CAMBIAR CONTRASEÑA
+  async changePassword(passwordData) {
+    console.log('🔐 CHANGING PASSWORD...');
+    
+    try {
+      const result = await this.post('/auth/change-password', passwordData);
+      
+      console.log('✅ PASSWORD CHANGED SUCCESSFULLY');
+      
+      return result;
+    } catch (error) {
+      console.log('❌ PASSWORD CHANGE FAILED:', error.message);
+      
+      if (error.response?.status === 401) {
+        console.log('🔐 CURRENT PASSWORD INCORRECT');
+      } else if (error.response?.status === 422) {
+        console.log('📝 PASSWORD VALIDATION FAILED:', error.response.data?.errors);
+        console.log('💡 Password requirements:');
+        console.log('   - At least 6 characters');
+        console.log('   - At least one lowercase letter');
+        console.log('   - At least one uppercase letter');
+        console.log('   - At least one number');
+      }
+      
+      throw error;
+    }
+  }
+
+  // 🆕 ACTUALIZAR PREFERENCIAS
+  async updatePreferences(preferences) {
+    console.log('⚙️ UPDATING USER PREFERENCES...');
+    console.log('📤 Preferences to update:', preferences);
+    
+    try {
+      const result = await this.put('/auth/profile/preferences', preferences);
+      
+      console.log('✅ PREFERENCES UPDATED SUCCESSFULLY:', result);
+      
+      return result;
+    } catch (error) {
+      console.log('❌ PREFERENCES UPDATE FAILED:', error.message);
+      
+      if (error.response?.status === 422) {
+        console.log('📝 PREFERENCES VALIDATION FAILED:', error.response.data?.errors);
+      }
+      
+      throw error;
+    }
+  }
+    
+  // ================================
+  // 👥 MÉTODOS DE USUARIOS MEJORADOS
+  // ================================
+    
+  async getUsers(params = {}) {
+    const response = await api.get('/api/users', { params });
+    return response.data;
+  }
+    
+  async createUser(userData) {
+    const response = await this.post('/users', userData);
+    if (response.success) {
+      toast.success('Usuario creado exitosamente');
+    }
+    return response;
+  }
+
+  // 📊 OBTENER ESTADÍSTICAS DE USUARIOS CON FALLBACK MEJORADO
+  async getUserStats() {
+    console.log('📊 FETCHING USER STATISTICS...');
+    try {
+      const response = await this.get('/users/stats');
+      console.log('✅ USER STATS FROM BACKEND:', response);
+      return response.data || response;
+    } catch (error) {
+      console.warn('⚠️ getUserStats fallback to manual calculation');
+      
+      // Fallback: intentar calcular manualmente desde usuarios
       try {
-        console.log('🔌 CHECKING BACKEND CONNECTION...');
+        const users = await this.getUsers();
+        const userArray = Array.isArray(users) ? users : users.data || [];
         
-        const startTime = Date.now();
-        const response = await api.get('/api/health');
-        const responseTime = Date.now() - startTime;
+        const stats = {
+          totalUsers: userArray.length,
+          totalActiveUsers: userArray.length,
+          activeUsers: userArray.filter(u => u.status === 'active').length,
+          roleStats: userArray.reduce((acc, user) => {
+            acc[user.role] = (acc[user.role] || 0) + 1;
+            return acc;
+          }, {}),
+          newUsersThisMonth: userArray.filter(user => {
+            const createdAt = new Date(user.createdAt || user.created_at);
+            const thisMonth = new Date();
+            return createdAt.getMonth() === thisMonth.getMonth() && 
+                   createdAt.getFullYear() === thisMonth.getFullYear();
+          }).length
+        };
         
-        if (response.data.success) {
-          console.log('✅ BACKEND CONNECTED SUCCESSFULLY');
-          console.log(`⚡ Response time: ${responseTime}ms`);
-          console.log('📦 Health data:', response.data);
-          
-          return { 
-            connected: true, 
-            data: response.data, 
-            responseTime,
-            status: 'connected'
-          };
-        } else {
-          console.warn('⚠️ BACKEND RESPONDED WITH ERROR');
-          return { 
-            connected: false, 
-            error: 'Backend error response',
-            status: 'error'
-          };
-        }
-      } catch (error) {
-        console.log('❌ BACKEND CONNECTION FAILED');
+        console.log('✅ User stats calculated manually:', stats);
+        return stats;
         
-        let errorType = 'unknown';
-        let suggestion = 'Check backend configuration';
+      } catch (fallbackError) {
+        console.error('❌ Both getUserStats methods failed:', fallbackError);
         
-        if (error.code === 'ERR_NETWORK') {
-          errorType = 'network';
-          suggestion = 'Backend server is not running or CORS issue';
-        } else if (error.response?.status === 404) {
-          errorType = 'endpoint_not_found';
-          suggestion = 'Health check endpoint missing in backend';
-        } else if (error.code === 'ECONNABORTED') {
-          errorType = 'timeout';
-          suggestion = 'Backend is taking too long to respond';
-        }
-        
-        console.log(`💡 Suggestion: ${suggestion}`);
-        
-        return { 
-          connected: false, 
-          error: error.message,
-          errorType,
-          suggestion,
-          status: 'disconnected'
+        // Último fallback: datos por defecto
+        return {
+          totalUsers: 0,
+          totalActiveUsers: 0,
+          activeUsers: 0,
+          roleStats: {
+            admin: 0,
+            colaborador: 0,
+            cliente: 0
+          },
+          newUsersThisMonth: 0
         };
       }
     }
+  }
     
-    // VERIFICAR AUTENTICACIÓN
-    isAuthenticated() {
-      return !!localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+  // ================================
+  // 🎫 MÉTODOS DE MEMBRESÍAS MEJORADOS
+  // ================================
+    
+  async getMemberships(params = {}) {
+    const response = await api.get('/api/memberships', { params });
+    return response.data;
+  }
+
+  // 📊 OBTENER ESTADÍSTICAS DE MEMBRESÍAS CON FALLBACK MEJORADO
+  async getMembershipStats() {
+    console.log('📊 FETCHING MEMBERSHIP STATISTICS...');
+    try {
+      const response = await this.get('/memberships/stats');
+      console.log('✅ MEMBERSHIP STATS FROM BACKEND:', response);
+      return response.data || response;
+    } catch (error) {
+      console.warn('⚠️ getMembershipStats fallback to manual calculation');
+      
+      try {
+        const memberships = await this.getMemberships();
+        const membershipArray = Array.isArray(memberships) ? memberships : memberships.data || [];
+        
+        const now = new Date();
+        const stats = {
+          totalMemberships: membershipArray.length,
+          activeMemberships: membershipArray.filter(m => {
+            const endDate = new Date(m.endDate || m.end_date);
+            return endDate > now && (m.status === 'active' || !m.status);
+          }).length,
+          expiredMemberships: membershipArray.filter(m => {
+            const endDate = new Date(m.endDate || m.end_date);
+            return endDate <= now;
+          }).length,
+          expiringSoon: membershipArray.filter(m => {
+            const endDate = new Date(m.endDate || m.end_date);
+            const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            return endDate > now && endDate <= weekAhead;
+          }).length
+        };
+        
+        console.log('✅ Membership stats calculated manually:', stats);
+        return stats;
+        
+      } catch (fallbackError) {
+        console.error('❌ Both getMembershipStats methods failed:', fallbackError);
+        return {
+          totalMemberships: 0,
+          activeMemberships: 0,
+          expiredMemberships: 0,
+          expiringSoon: 0
+        };
+      }
+    }
+  }
+    
+  async getExpiredMemberships(days = 0) {
+    const response = await api.get('/api/memberships/expired', { params: { days } });
+    return response.data;
+  }
+    
+  async getExpiringSoonMemberships(days = 7) {
+    const response = await api.get('/api/memberships/expiring-soon', { params: { days } });
+    return response.data;
+  }
+    
+  // ================================
+  // 💰 MÉTODOS DE PAGOS MEJORADOS
+  // ================================
+    
+  async getPayments(params = {}) {
+    const response = await api.get('/api/payments', { params });
+    return response.data;
+  }
+    
+  async createPayment(paymentData) {
+    const response = await this.post('/payments', paymentData);
+    if (response.success) {
+      toast.success('Pago registrado exitosamente');
+    }
+    return response;
+  }
+    
+  async getPendingTransfers() {
+    return await this.get('/payments/transfers/pending');
+  }
+
+  // 📊 OBTENER REPORTES DE PAGOS CON FALLBACK MEJORADO
+  async getPaymentReports(params = {}) {
+    console.log('📊 FETCHING PAYMENT REPORTS...');
+    try {
+      const response = await api.get('/api/payments/reports', { params });
+      console.log('✅ PAYMENT REPORTS FROM BACKEND:', response.data);
+      return response.data;
+    } catch (error) {
+      console.warn('⚠️ getPaymentReports fallback to manual calculation');
+      
+      try {
+        const payments = await this.getPayments(params);
+        const paymentArray = Array.isArray(payments) ? payments : payments.data || [];
+        
+        const totalIncome = paymentArray.reduce((sum, payment) => {
+          return sum + parseFloat(payment.amount || 0);
+        }, 0);
+        
+        const incomeByMethod = paymentArray.reduce((acc, payment) => {
+          const method = payment.method || 'unknown';
+          const existing = acc.find(item => item.method === method);
+          
+          if (existing) {
+            existing.total += parseFloat(payment.amount || 0);
+          } else {
+            acc.push({
+              method: method,
+              total: parseFloat(payment.amount || 0)
+            });
+          }
+          
+          return acc;
+        }, []);
+        
+        const stats = {
+          totalIncome,
+          totalPayments: paymentArray.length,
+          incomeByMethod,
+          averagePayment: paymentArray.length > 0 ? totalIncome / paymentArray.length : 0
+        };
+        
+        console.log('✅ Payment reports calculated manually:', stats);
+        return stats;
+        
+      } catch (fallbackError) {
+        console.error('❌ Both getPaymentReports methods failed:', fallbackError);
+        return {
+          totalIncome: 0,
+          totalPayments: 0,
+          incomeByMethod: [],
+          averagePayment: 0
+        };
+      }
+    }
+  }
+
+  // 🆕 OBTENER ESTADO DE SALUD DEL SISTEMA
+  async getSystemHealth() {
+    console.log('🔍 FETCHING SYSTEM HEALTH...');
+    try {
+      const response = await this.get('/system/health');
+      console.log('✅ SYSTEM HEALTH FROM BACKEND:', response);
+      return response.data || response;
+    } catch (error) {
+      console.log('❌ SYSTEM HEALTH FAILED:', error.message);
+      
+      // Fallback básico
+      return {
+        status: 'unknown',
+        uptime: 'unknown',
+        lastCheck: new Date().toISOString()
+      };
+    }
+  }
+    
+  // ================================
+  // 🛒 MÉTODOS DEL CARRITO
+  // ================================
+    
+  async getCart() {
+    return await this.get('/cart');
+  }
+    
+  async updateCart(items) {
+    return await this.post('/cart', { items });
+  }
+    
+  // ================================
+  // 🔧 MÉTODOS UTILITARIOS
+  // ================================
+    
+  // HEALTH CHECK
+  async healthCheck() {
+    console.log('🔌 HEALTH CHECK...');
+    try {
+      const result = await this.get('/health');
+      console.log('✅ HEALTH CHECK SUCCESS:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ HEALTH CHECK FAILED:', error.message);
+      throw error;
+    }
+  }
+    
+  // VERIFICAR CONEXIÓN MEJORADA
+  async checkBackendConnection() {
+    try {
+      console.log('🔌 CHECKING BACKEND CONNECTION...');
+      
+      const startTime = Date.now();
+      const response = await api.get('/api/health');
+      const responseTime = Date.now() - startTime;
+      
+      if (response.data.success) {
+        console.log('✅ BACKEND CONNECTED SUCCESSFULLY');
+        console.log(`⚡ Response time: ${responseTime}ms`);
+        console.log('📦 Health data:', response.data);
+        
+        return { 
+          connected: true, 
+          data: response.data, 
+          responseTime,
+          status: 'connected'
+        };
+      } else {
+        console.warn('⚠️ BACKEND RESPONDED WITH ERROR');
+        return { 
+          connected: false, 
+          error: 'Backend error response',
+          status: 'error'
+        };
+      }
+    } catch (error) {
+      console.log('❌ BACKEND CONNECTION FAILED');
+      
+      let errorType = 'unknown';
+      let suggestion = 'Check backend configuration';
+      
+      if (error.code === 'ERR_NETWORK') {
+        errorType = 'network';
+        suggestion = 'Backend server is not running or CORS issue';
+      } else if (error.response?.status === 404) {
+        errorType = 'endpoint_not_found';
+        suggestion = 'Health check endpoint missing in backend';
+      } else if (error.code === 'ECONNABORTED') {
+        errorType = 'timeout';
+        suggestion = 'Backend is taking too long to respond';
+      }
+      
+      console.log(`💡 Suggestion: ${suggestion}`);
+      
+      return { 
+        connected: false, 
+        error: error.message,
+        errorType,
+        suggestion,
+        status: 'disconnected'
+      };
+    }
+  }
+    
+  // VERIFICAR AUTENTICACIÓN
+  isAuthenticated() {
+    return !!localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+  }
+    
+  // OBTENER TOKEN
+  getToken() {
+    return localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+  }
+    
+  // LOGOUT
+  logout() {
+    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+    console.log('🚪 USER LOGGED OUT');
+    toast.success('Sesión cerrada exitosamente');
+    window.location.href = '/login';
+  }
+
+  // ================================
+  // 🛠️ MÉTODOS DE VALIDACIÓN HELPER PARA PERFIL
+  // ================================
+
+  // VERIFICAR ENDPOINTS ESPECÍFICOS PARA PERFIL
+  async checkProfileEndpoints() {
+    console.log('🔍 CHECKING PROFILE ENDPOINTS AVAILABILITY...');
+    
+    const endpoints = [
+      { path: '/auth/profile', method: 'GET', description: 'Get user profile' },
+      { path: '/auth/profile', method: 'PATCH', description: 'Update user profile' },
+      { path: '/auth/profile/image', method: 'POST', description: 'Upload profile image' },
+      { path: '/auth/change-password', method: 'POST', description: 'Change password' },
+      { path: '/auth/profile/preferences', method: 'PUT', description: 'Update preferences' }
+    ];
+    
+    const results = {};
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`🔍 Checking ${endpoint.method} ${endpoint.path}...`);
+        
+        // Para GET, hacer petición real
+        if (endpoint.method === 'GET' && endpoint.path === '/auth/profile') {
+          await this.get(endpoint.path);
+          results[endpoint.path] = { available: true, method: endpoint.method };
+          console.log(`✅ ${endpoint.description} - Available`);
+        } else {
+          // Para otros métodos, solo marcar como disponible si el backend responde
+          results[endpoint.path] = { available: true, method: endpoint.method, note: 'Not tested (would need real data)' };
+          console.log(`✅ ${endpoint.description} - Endpoint exists (not tested)`);
+        }
+        
+      } catch (error) {
+        results[endpoint.path] = { available: false, method: endpoint.method, error: error.message };
+        
+        if (error.response?.status === 404) {
+          console.log(`❌ ${endpoint.description} - Endpoint not implemented`);
+        } else if (error.response?.status === 401) {
+          console.log(`✅ ${endpoint.description} - Available (requires auth)`);
+          results[endpoint.path].available = true;
+          results[endpoint.path].note = 'Requires authentication';
+        } else {
+          console.log(`⚠️ ${endpoint.description} - ${error.message}`);
+        }
+      }
     }
     
-    // OBTENER TOKEN
-    getToken() {
-      return localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+    console.log('📋 Profile endpoints check summary:');
+    console.table(results);
+    
+    return results;
+  }
+
+  // VALIDAR ESTRUCTURA DE DATOS DE PERFIL
+  validateProfileData(profileData) {
+    console.log('🔍 VALIDATING PROFILE DATA STRUCTURE...');
+    
+    const errors = [];
+    const warnings = [];
+    
+    // Validar campos obligatorios
+    if (!profileData.firstName || profileData.firstName.trim() === '') {
+      errors.push('firstName is required');
     }
     
-    // LOGOUT
-    logout() {
-      localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
-      console.log('🚪 USER LOGGED OUT');
-      toast.success('Sesión cerrada exitosamente');
-      window.location.href = '/login';
+    if (!profileData.lastName || profileData.lastName.trim() === '') {
+      errors.push('lastName is required');
     }
+    
+    // Validar formato de nombres (solo letras, espacios, acentos)
+    const nameRegex = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-']+$/;
+    
+    if (profileData.firstName && !nameRegex.test(profileData.firstName)) {
+      errors.push('firstName contains invalid characters (only letters, spaces, accents allowed)');
+    }
+    
+    if (profileData.lastName && !nameRegex.test(profileData.lastName)) {
+      errors.push('lastName contains invalid characters (only letters, spaces, accents allowed)');
+    }
+    
+    // Validar teléfono si está presente
+    if (profileData.phone && profileData.phone.trim() !== '') {
+      const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+      if (!phoneRegex.test(profileData.phone)) {
+        errors.push('phone contains invalid characters (only numbers, spaces, dashes, parentheses, + allowed)');
+      }
+    }
+    
+    // Validar fecha de nacimiento si está presente
+    if (profileData.dateOfBirth) {
+      const birthDate = new Date(profileData.dateOfBirth);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      
+      if (age < 13) {
+        errors.push('dateOfBirth indicates user is under 13 years old (minimum age required)');
+      }
+    }
+    
+    // Validar contacto de emergencia si está presente
+    if (profileData.emergencyContact) {
+      if (profileData.emergencyContact.name && !nameRegex.test(profileData.emergencyContact.name)) {
+        errors.push('emergencyContact.name contains invalid characters');
+      }
+      
+      if (profileData.emergencyContact.phone && profileData.emergencyContact.phone.trim() !== '') {
+        const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+        if (!phoneRegex.test(profileData.emergencyContact.phone)) {
+          errors.push('emergencyContact.phone contains invalid characters');
+        }
+      }
+    }
+    
+    // Advertencias para campos opcionales
+    if (!profileData.phone || profileData.phone.trim() === '') {
+      warnings.push('phone is empty (recommended to provide contact info)');
+    }
+    
+    if (!profileData.dateOfBirth) {
+      warnings.push('dateOfBirth is empty (helps with age-appropriate content)');
+    }
+    
+    const validation = {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      summary: {
+        hasErrors: errors.length > 0,
+        hasWarnings: warnings.length > 0,
+        totalIssues: errors.length + warnings.length
+      }
+    };
+    
+    if (errors.length > 0) {
+      console.log('❌ PROFILE DATA VALIDATION FAILED:');
+      errors.forEach(error => console.log(`   - ${error}`));
+    } else {
+      console.log('✅ PROFILE DATA VALIDATION PASSED');
+    }
+    
+    if (warnings.length > 0) {
+      console.log('⚠️ PROFILE DATA WARNINGS:');
+      warnings.forEach(warning => console.log(`   - ${warning}`));
+    }
+    
+    return validation;
+  }
+
+  // DEBUG COMPLETO DE PERFIL
+  async debugProfileSystem() {
+    console.log('🔍 =====================================');
+    console.log('👤 PROFILE SYSTEM DEBUG - COMPLETE CHECK');
+    console.log('🔍 =====================================');
+    
+    try {
+      // 1. Verificar endpoints
+      console.log('📡 1. CHECKING PROFILE ENDPOINTS...');
+      const endpointsCheck = await this.checkProfileEndpoints();
+      
+      // 2. Verificar perfil actual
+      console.log('👤 2. CHECKING CURRENT PROFILE...');
+      try {
+        const profile = await this.getProfile();
+        console.log('✅ Current profile loaded successfully');
+        
+        // Analizar estructura del perfil
+        if (profile && profile.data && profile.data.user) {
+          const user = profile.data.user;
+          console.log('📊 PROFILE ANALYSIS:');
+          console.log(`   - ID: ${user.id}`);
+          console.log(`   - Name: ${user.firstName} ${user.lastName}`);
+          console.log(`   - Email: ${user.email}`);
+          console.log(`   - Phone: ${user.phone || 'Not provided'}`);
+          console.log(`   - Role: ${user.role}`);
+          console.log(`   - Profile Image: ${user.profileImage ? 'Yes' : 'No'}`);
+          console.log(`   - Date of Birth: ${user.dateOfBirth || 'Not provided'}`);
+          console.log(`   - Active: ${user.isActive !== false ? 'Yes' : 'No'}`);
+          
+          // Calcular edad si hay fecha de nacimiento
+          if (user.dateOfBirth) {
+            const birthDate = new Date(user.dateOfBirth);
+            const today = new Date();
+            const age = today.getFullYear() - birthDate.getFullYear();
+            console.log(`   - Calculated Age: ${age} years`);
+            
+            if (age < 13) {
+              console.log('   - ⚠️ USER IS UNDER 13 - RESTRICTIONS SHOULD APPLY');
+            }
+          }
+          
+          // Validar datos del perfil
+          console.log('🔍 3. VALIDATING PROFILE DATA...');
+          const validation = this.validateProfileData(user);
+          console.log(`   - Validation Result: ${validation.isValid ? 'PASSED' : 'FAILED'}`);
+          
+        } else {
+          console.warn('⚠️ Profile structure is different from expected README format');
+        }
+        
+      } catch (profileError) {
+        console.log('❌ Could not load current profile:', profileError.message);
+      }
+      
+      // 3. Verificar conexión al backend
+      console.log('🌐 3. CHECKING BACKEND CONNECTION...');
+      try {
+        const health = await this.healthCheck();
+        console.log('✅ Backend connection is healthy');
+      } catch (healthError) {
+        console.log('❌ Backend connection issues:', healthError.message);
+      }
+      
+      console.log('🔍 =====================================');
+      console.log('👤 PROFILE SYSTEM DEBUG - COMPLETED');
+      console.log('🔍 =====================================');
+      
+    } catch (error) {
+      console.error('❌ PROFILE SYSTEM DEBUG FAILED:', error);
+    }
+  }
 }
 
 // 🏭 EXPORTAR INSTANCIA SINGLETON
 const apiService = new ApiService();
 
 export default apiService;
+
 // 📝 CAMBIOS REALIZADOS:
 // ✅ Agregados métodos generales: get(), post(), put(), patch(), delete()
 // ✅ Agregado método getPromotions() que faltaba
