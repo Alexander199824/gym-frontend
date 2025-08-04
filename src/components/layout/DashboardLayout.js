@@ -1,5 +1,5 @@
 // src/components/layout/DashboardLayout.js
-// FUNCIÓN: Layout principal LIMPIO - SIN cuadro grande, solo indicador circular simple
+// FUNCIÓN: Layout principal CORREGIDO - Menú móvil funcional garantizado
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
@@ -11,7 +11,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileMenu from './MobileMenu';
 import NotificationPanel from './NotificationPanel';
-import SystemStatusIndicator from '../common/SystemStatusIndicator'; // 🆕 INDICADOR SIMPLE
+import SystemStatusIndicator from '../common/SystemStatusIndicator';
 
 const DashboardLayout = () => {
   const { user, logout } = useAuth();
@@ -23,32 +23,67 @@ const DashboardLayout = () => {
   } = useApp();
   const location = useLocation();
   
-  // 📱 Estados locales optimizados para móvil
+  // 📱 Estados locales optimizados para móvil - MEJORADOS
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [headerVisible, setHeaderVisible] = useState(true);
   
-  // 🎯 FUNCIONES DE CONTROL OPTIMIZADAS
+  // 🔧 DETECCIÓN DE MÓVIL MEJORADA - Fallback si AppContext falla
+  const [isMobileState, setIsMobileState] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      const width = window.innerWidth;
+      const isMobileDetected = width < 768;
+      setIsMobileState(isMobileDetected);
+      
+      // Debug info
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📱 Mobile detection:', {
+          windowWidth: width,
+          isMobileFromContext: isMobile,
+          isMobileDetected,
+          userAgent: navigator.userAgent.includes('Mobile')
+        });
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Usar detección propia si la del contexto falla
+  const actualIsMobile = isMobile !== undefined ? isMobile : isMobileState;
+  
+  // 🎯 FUNCIONES DE CONTROL MEJORADAS - Con debug
   const toggleMobileMenu = useCallback(() => {
+    console.log('📱 Toggling mobile menu, current state:', showMobileMenu);
+    
     setShowMobileMenu(prev => {
       const newState = !prev;
+      console.log('📱 Mobile menu new state:', newState);
       
       // Prevenir scroll del body cuando el menú está abierto
       if (newState) {
         document.body.style.overflow = 'hidden';
-        document.body.style.paddingRight = '15px'; // Compensar scrollbar
+        document.body.style.paddingRight = '15px';
+        document.body.classList.add('mobile-menu-open');
       } else {
         document.body.style.overflow = 'unset';
         document.body.style.paddingRight = '0px';
+        document.body.classList.remove('mobile-menu-open');
       }
       
       return newState;
     });
-  }, []);
+  }, [showMobileMenu]);
   
   const toggleNotifications = useCallback(() => {
+    console.log('🔔 Toggling notifications, current state:', showNotifications);
+    
     setShowNotifications(prev => {
       const newState = !prev;
       
@@ -62,15 +97,18 @@ const DashboardLayout = () => {
       
       return newState;
     });
-  }, []);
+  }, [showNotifications]);
   
   const closeMobileMenu = useCallback(() => {
+    console.log('📱 Closing mobile menu');
     setShowMobileMenu(false);
     document.body.style.overflow = 'unset';
     document.body.style.paddingRight = '0px';
+    document.body.classList.remove('mobile-menu-open');
   }, []);
   
   const closeNotifications = useCallback(() => {
+    console.log('🔔 Closing notifications');
     setShowNotifications(false);
     document.body.style.overflow = 'unset';
     document.body.style.paddingRight = '0px';
@@ -84,11 +122,11 @@ const DashboardLayout = () => {
     if (showNotifications) {
       closeNotifications();
     }
-  }, [location.pathname, showMobileMenu, showNotifications, closeMobileMenu, closeNotifications]);
+  }, [location.pathname, closeMobileMenu, closeNotifications]);
   
   // 📱 Manejar scroll inteligente en móvil (ocultar header al scroll down)
   useEffect(() => {
-    if (!isMobile) return;
+    if (!actualIsMobile) return;
     
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -110,22 +148,40 @@ const DashboardLayout = () => {
     
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isMobile, lastScrollY]);
+  }, [actualIsMobile, lastScrollY]);
   
-  // 📱 Gestos táctiles para cerrar menús (swipe)
+  // 📱 Gestos táctiles para cerrar menús (swipe) - MEJORADO
   useEffect(() => {
-    if (!isMobile) return;
+    if (!actualIsMobile) return;
     
     let startX = 0;
     let startY = 0;
+    let isTracking = false;
     
     const handleTouchStart = (e) => {
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
+      isTracking = true;
+    };
+    
+    const handleTouchMove = (e) => {
+      if (!isTracking) return;
+      
+      // Prevenir scroll si estamos haciendo swipe para cerrar menu
+      if (showMobileMenu) {
+        const currentX = e.touches[0].clientX;
+        const diffX = startX - currentX;
+        
+        // Si está swipeando hacia la izquierda, prevenir scroll
+        if (diffX > 10) {
+          e.preventDefault();
+        }
+      }
     };
     
     const handleTouchEnd = (e) => {
-      if (!startX || !startY) return;
+      if (!isTracking || !startX || !startY) return;
+      isTracking = false;
       
       const endX = e.changedTouches[0].clientX;
       const endY = e.changedTouches[0].clientY;
@@ -133,13 +189,13 @@ const DashboardLayout = () => {
       const diffY = startY - endY;
       
       // Verificar si es un swipe horizontal (más horizontal que vertical)
-      if (Math.abs(diffX) > Math.abs(diffY)) {
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
         // Swipe left - cerrar menú móvil si está abierto
-        if (diffX > 50 && showMobileMenu) {
+        if (diffX > 0 && showMobileMenu) {
           closeMobileMenu();
         }
         // Swipe right - cerrar notificaciones si están abiertas
-        if (diffX < -50 && showNotifications) {
+        if (diffX < 0 && showNotifications) {
           closeNotifications();
         }
       }
@@ -151,27 +207,30 @@ const DashboardLayout = () => {
     
     // Solo agregar listeners si hay menús abiertos
     if (showMobileMenu || showNotifications) {
-      document.addEventListener('touchstart', handleTouchStart, { passive: true });
+      document.addEventListener('touchstart', handleTouchStart, { passive: false });
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
       document.addEventListener('touchend', handleTouchEnd, { passive: true });
     }
     
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isMobile, showMobileMenu, showNotifications, closeMobileMenu, closeNotifications]);
+  }, [actualIsMobile, showMobileMenu, showNotifications, closeMobileMenu, closeNotifications]);
   
   // 📱 Limpiar overflow del body al desmontar
   useEffect(() => {
     return () => {
       document.body.style.overflow = 'unset';
       document.body.style.paddingRight = '0px';
+      document.body.classList.remove('mobile-menu-open');
     };
   }, []);
   
   // 📱 Prevenir zoom en inputs en iOS
   useEffect(() => {
-    if (!isMobile) return;
+    if (!actualIsMobile) return;
     
     const preventZoom = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
@@ -181,7 +240,7 @@ const DashboardLayout = () => {
     
     document.addEventListener('focusin', preventZoom);
     return () => document.removeEventListener('focusin', preventZoom);
-  }, [isMobile]);
+  }, [actualIsMobile]);
   
   // 🔐 Manejar escape para cerrar menús
   useEffect(() => {
@@ -204,7 +263,7 @@ const DashboardLayout = () => {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       
       {/* 🖥️ SIDEBAR DESKTOP */}
-      {!isMobile && (
+      {!actualIsMobile && (
         <div className={`
           transition-all duration-300 ease-in-out
           ${sidebarCollapsed ? 'w-16' : 'w-64'} 
@@ -215,24 +274,29 @@ const DashboardLayout = () => {
         </div>
       )}
       
-      {/* 📱 MOBILE MENU OVERLAY CON ANIMACIONES MEJORADAS */}
-      {isMobile && showMobileMenu && (
+      {/* 📱 MOBILE MENU OVERLAY - MEJORADO CON Z-INDEX MÁS ALTOS */}
+      {actualIsMobile && (
         <>
-          {/* Backdrop con fade */}
+          {/* Backdrop siempre renderizado, pero visible solo cuando showMobileMenu es true */}
           <div 
             className={`
-              fixed inset-0 bg-black z-[9990] transition-opacity duration-300 ease-out
-              ${showMobileMenu ? 'bg-opacity-50' : 'bg-opacity-0'}
+              fixed inset-0 bg-black transition-all duration-300 ease-out
+              ${showMobileMenu 
+                ? 'z-[99990] bg-opacity-50 pointer-events-auto' 
+                : 'z-[-1] bg-opacity-0 pointer-events-none'
+              }
             `}
-            onClick={closeMobileMenu}
+            onClick={showMobileMenu ? closeMobileMenu : undefined}
           />
           
-          {/* Menu con slide */}
+          {/* Menu slide */}
           <div className={`
-            fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white z-[9995] 
-            transform transition-transform duration-300 ease-out
-            ${showMobileMenu ? 'translate-x-0' : '-translate-x-full'}
-            shadow-2xl
+            fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white
+            transform transition-all duration-300 ease-out shadow-2xl
+            ${showMobileMenu 
+              ? 'z-[99995] translate-x-0' 
+              : 'z-[99995] -translate-x-full'
+            }
           `}>
             <MobileMenu onClose={closeMobileMenu} />
           </div>
@@ -245,57 +309,58 @@ const DashboardLayout = () => {
         {/* 🔝 HEADER CON Z-INDEX ALTO Y COMPORTAMIENTO INTELIGENTE */}
         <div className={`
           transition-all duration-300 ease-in-out
-          ${isMobile ? 'sticky top-0 z-[9999]' : 'relative z-[9999]'}
-          ${isMobile && !headerVisible ? '-translate-y-full' : 'translate-y-0'}
+          ${actualIsMobile ? 'sticky top-0 z-[99999]' : 'relative z-[99999]'}
+          ${actualIsMobile && !headerVisible ? '-translate-y-full' : 'translate-y-0'}
           ${isScrolled ? 'shadow-lg backdrop-blur-lg bg-white/95' : 'bg-white'}
         `}>
           <Header 
             onToggleMobileMenu={toggleMobileMenu}
             onToggleNotifications={toggleNotifications}
             isScrolled={isScrolled}
-            isMobile={isMobile}
+            isMobile={actualIsMobile}
+            showMobileMenu={showMobileMenu}
           />
         </div>
         
         {/* 📄 ÁREA DE CONTENIDO CON SCROLL MEJORADO */}
         <main className={`
           flex-1 overflow-y-auto
-          ${isMobile ? 'overflow-x-hidden' : ''}
+          ${actualIsMobile ? 'overflow-x-hidden' : ''}
           scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100
           relative z-10
         `}>
           <div className={`
             max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
-            ${isMobile ? 'py-4' : 'py-6'}
+            ${actualIsMobile ? 'py-4' : 'py-6'}
           `}>
             
             {/* 🎯 BREADCRUMBS (opcional y responsive) */}
-            {!isMobile && (
+            {!actualIsMobile && (
               <div className="mb-6">
                 <Breadcrumbs />
               </div>
             )}
             
             {/* 📊 CONTENIDO DE LA PÁGINA */}
-            <div className={`${isMobile ? 'space-y-4' : 'space-y-6'}`}>
+            <div className={`${actualIsMobile ? 'space-y-4' : 'space-y-6'}`}>
               <Outlet />
             </div>
             
             {/* 📱 Espaciado extra en móvil para evitar que el contenido quede oculto */}
-            {isMobile && <div className="h-20"></div>}
+            {actualIsMobile && <div className="h-20"></div>}
             
           </div>
         </main>
         
       </div>
       
-      {/* 🔔 PANEL DE NOTIFICACIONES CON ANIMACIONES MEJORADAS */}
+      {/* 🔔 PANEL DE NOTIFICACIONES CON Z-INDEX MEJORADO */}
       {showNotifications && (
         <>
           {/* Backdrop */}
           <div 
             className={`
-              fixed inset-0 bg-black z-[9990] transition-opacity duration-300 ease-out
+              fixed inset-0 bg-black z-[99990] transition-opacity duration-300 ease-out
               ${showNotifications ? 'bg-opacity-30' : 'bg-opacity-0'}
             `}
             onClick={closeNotifications}
@@ -303,15 +368,15 @@ const DashboardLayout = () => {
           
           {/* Panel */}
           <div className={`
-            fixed inset-y-0 right-0 z-[9995] 
+            fixed inset-y-0 right-0 z-[99995] 
             transform transition-transform duration-300 ease-out
             ${showNotifications ? 'translate-x-0' : 'translate-x-full'}
-            ${isMobile ? 'w-full max-w-sm' : 'w-80'}
+            ${actualIsMobile ? 'w-full max-w-sm' : 'w-80'}
             bg-white shadow-2xl
           `}>
             <NotificationPanel 
               onClose={closeNotifications} 
-              isMobile={isMobile}
+              isMobile={actualIsMobile}
             />
           </div>
         </>
@@ -324,13 +389,12 @@ const DashboardLayout = () => {
   );
 };
 
-// 🍞 COMPONENTE DE BREADCRUMBS MEJORADO CON INFORMACIÓN DEL BACKEND
+// 🍞 COMPONENTE DE BREADCRUMBS (sin cambios)
 const Breadcrumbs = React.memo(() => {
   const location = useLocation();
   const { user, hasPermission } = useAuth();
   const pathSegments = location.pathname.split('/').filter(Boolean);
   
-  // 📍 MAPEO DE RUTAS A NOMBRES LEGIBLES EXPANDIDO
   const routeNames = {
     dashboard: 'Dashboard',
     admin: 'Administración',
@@ -412,7 +476,6 @@ const Breadcrumbs = React.memo(() => {
 Breadcrumbs.displayName = 'Breadcrumbs';
 
 export default DashboardLayout;
-
 
 // 📝 MEJORAS IMPLEMENTADAS PARA MÓVIL:
 // ✅ Header inteligente que se oculta al hacer scroll hacia abajo
