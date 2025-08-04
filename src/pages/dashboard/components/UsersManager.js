@@ -7,7 +7,7 @@ import {
   Users, Plus, Search, Filter, Edit, Trash2, Eye, UserCheck, UserX,
   Calendar, Phone, Mail, MapPin, AlertCircle, CheckCircle, Loader,
   Download, Upload, RefreshCw, MoreHorizontal, Settings, Star,
-  TrendingUp, TrendingDown, Activity
+  TrendingUp, TrendingDown, Activity, X
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -102,7 +102,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📊 CARGAR ESTADÍSTICAS
+  // 📊 CARGAR ESTADÍSTICAS - CORREGIDO
   const loadUserStats = async () => {
     try {
       const stats = await apiService.getUserStats();
@@ -110,11 +110,28 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       setUserStats(stats);
     } catch (error) {
       console.error('❌ Error loading user stats:', error);
+      // Calcular estadísticas localmente si falla la API
+      const totalUsersCount = totalUsers || users.length;
+      const activeUsersCount = users.filter(user => user.isActive).length;
+      const inactiveUsersCount = totalUsersCount - activeUsersCount;
+      const thisMonth = new Date();
+      const newUsersThisMonth = users.filter(user => {
+        const userDate = new Date(user.createdAt || user.created_at);
+        return userDate.getMonth() === thisMonth.getMonth() && 
+               userDate.getFullYear() === thisMonth.getFullYear();
+      }).length;
+      
+      const roleStats = users.reduce((acc, user) => {
+        acc[user.role] = (acc[user.role] || 0) + 1;
+        return acc;
+      }, {});
+      
       setUserStats({
-        totalUsers: 0,
-        totalActiveUsers: 0,
-        roleStats: {},
-        newUsersThisMonth: 0
+        totalUsers: totalUsersCount,
+        totalActiveUsers: activeUsersCount,
+        totalInactiveUsers: inactiveUsersCount,
+        roleStats,
+        newUsersThisMonth
       });
     }
   };
@@ -125,8 +142,10 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   }, [currentPage, searchTerm, selectedRole, selectedStatus, sortBy, sortOrder]);
   
   useEffect(() => {
-    loadUserStats();
-  }, []);
+    if (users.length > 0 || totalUsers > 0) {
+      loadUserStats();
+    }
+  }, [users, totalUsers]);
   
   // 🔍 FILTRAR USUARIOS (para datos locales)
   const filteredUsers = users.filter(user => {
@@ -288,6 +307,13 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   // 📄 Cálculo de paginación
   const totalPages = Math.max(1, Math.ceil(totalUsers / usersPerPage));
 
+  // 🎨 Función para truncar texto
+  const truncateText = (text, maxLength = 20) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
   return (
     <div className="space-y-6">
       
@@ -325,14 +351,14 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📊 ESTADÍSTICAS RÁPIDAS */}
+      {/* 📊 ESTADÍSTICAS RÁPIDAS - CORREGIDAS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
             <Users className="w-8 h-8 text-blue-600" />
             <div className="ml-3">
               <div className="text-2xl font-bold text-blue-900">
-                {userStats.totalUsers || 0}
+                {userStats.totalUsers || totalUsers || users.length || 0}
               </div>
               <div className="text-sm text-blue-600">Total Usuarios</div>
             </div>
@@ -344,7 +370,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
             <UserCheck className="w-8 h-8 text-green-600" />
             <div className="ml-3">
               <div className="text-2xl font-bold text-green-900">
-                {userStats.totalActiveUsers || 0}
+                {userStats.totalActiveUsers || users.filter(u => u.isActive).length || 0}
               </div>
               <div className="text-sm text-green-600">Activos</div>
             </div>
@@ -368,9 +394,9 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
             <Activity className="w-8 h-8 text-gray-600" />
             <div className="ml-3">
               <div className="text-2xl font-bold text-gray-900">
-                {Object.keys(userStats.roleStats || {}).length}
+                {userStats.totalInactiveUsers || users.filter(u => !u.isActive).length || 0}
               </div>
-              <div className="text-sm text-gray-600">Roles Activos</div>
+              <div className="text-sm text-gray-600">Inactivos</div>
             </div>
           </div>
         </div>
@@ -437,7 +463,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📋 TABLA DE USUARIOS */}
+      {/* 📋 TABLA DE USUARIOS - SIN SCROLL HORIZONTAL */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         
         {loading ? (
@@ -464,27 +490,24 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
           </div>
         ) : (
           <>
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            {/* Desktop Table - OPTIMIZADA PARA NO SCROLL HORIZONTAL */}
+            <div className="hidden md:block">
+              <table className="min-w-full table-fixed divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-1/4 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Usuario
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-1/4 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Contacto
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-1/6 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Rol
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-1/6 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Estado
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Registrado
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="w-1/6 px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Acciones
                     </th>
                   </tr>
@@ -495,7 +518,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                     
                     return (
                       <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
                               {user.profileImage ? (
@@ -512,39 +535,43 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                                 </div>
                               )}
                             </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {user.firstName} {user.lastName}
+                            <div className="ml-4 min-w-0 flex-1">
+                              <div className="text-sm font-medium text-gray-900 truncate" title={`${user.firstName} ${user.lastName}`}>
+                                {truncateText(`${user.firstName} ${user.lastName}`, 15)}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-gray-500 truncate">
                                 ID: {user.id}
                               </div>
                             </div>
                           </div>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4">
                           <div className="text-sm text-gray-900">
                             <div className="flex items-center mb-1">
-                              <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                              {user.email}
+                              <Mail className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                              <span className="truncate" title={user.email}>
+                                {truncateText(user.email, 18)}
+                              </span>
                             </div>
                             {user.phone && (
                               <div className="flex items-center">
-                                <Phone className="w-4 h-4 text-gray-400 mr-2" />
-                                {user.phone}
+                                <Phone className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
+                                <span className="truncate" title={user.phone}>
+                                  {truncateText(user.phone, 12)}
+                                </span>
                               </div>
                             )}
                           </div>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleInfo.color}`}>
                             {roleInfo.label}
                           </span>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-4 text-center">
                           <button
                             onClick={() => handleToggleUserStatus(user.id, user.isActive)}
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
@@ -567,29 +594,25 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                           </button>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDate(user.createdAt || user.created_at, 'dd/MM/yyyy')}
-                        </td>
-                        
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex items-center justify-end space-x-2">
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex items-center justify-center space-x-2">
                             {hasPermission('edit_users') && (
                               <button
                                 onClick={() => handleEditUser(user)}
-                                className="text-blue-600 hover:text-blue-800"
+                                className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg transition-all hover:scale-105"
                                 title="Editar usuario"
                               >
-                                <Edit className="w-4 h-4" />
+                                <Edit className="w-5 h-5" />
                               </button>
                             )}
                             
                             {hasPermission('delete_users') && user.id !== currentUser?.id && (
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
-                                className="text-red-600 hover:text-red-800"
+                                className="bg-red-100 hover:bg-red-200 text-red-700 p-2 rounded-lg transition-all hover:scale-105"
                                 title="Eliminar usuario"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-5 h-5" />
                               </button>
                             )}
                           </div>
@@ -609,7 +632,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                 return (
                   <div key={user.id} className="p-4">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center">
+                      <div className="flex items-center flex-1 min-w-0">
                         <div className="flex-shrink-0">
                           {user.profileImage ? (
                             <img
@@ -625,15 +648,15 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                             </div>
                           )}
                         </div>
-                        <div className="ml-3">
-                          <div className="text-sm font-medium text-gray-900">
+                        <div className="ml-3 min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-900 truncate">
                             {user.firstName} {user.lastName}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 truncate">
                             {user.email}
                           </div>
-                          <div className="flex items-center mt-1">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleInfo.color} mr-2`}>
+                          <div className="flex items-center mt-1 flex-wrap gap-1">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleInfo.color}`}>
                               {roleInfo.label}
                             </span>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -647,11 +670,12 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                         </div>
                       </div>
                       
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
                         {hasPermission('edit_users') && (
                           <button
                             onClick={() => handleEditUser(user)}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg"
+                            title="Editar"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -660,7 +684,8 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                         {hasPermission('delete_users') && user.id !== currentUser?.id && (
                           <button
                             onClick={() => handleDeleteUser(user.id)}
-                            className="text-red-600 hover:text-red-800"
+                            className="bg-red-100 hover:bg-red-200 text-red-700 p-2 rounded-lg"
+                            title="Eliminar"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
