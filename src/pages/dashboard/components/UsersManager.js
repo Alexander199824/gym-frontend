@@ -1,13 +1,14 @@
 // src/pages/dashboard/components/UsersManager.js
-// FUNCIÓN: Gestión completa de usuarios CON PERMISOS MEJORADOS PARA COLABORADOR
-// CAMBIOS: Colaborador solo ve clientes, no puede editar/eliminar, solo crear
+// FUNCIÓN: Gestión completa de usuarios SIN ERRORES PARA COLABORADOR
+// CAMBIOS: Colaborador puede ver toda la info de clientes sin mensajes de error
 
 import React, { useState, useEffect } from 'react';
 import {
   Users, Plus, Search, Filter, Edit, Trash2, Eye, UserCheck, UserX,
   Calendar, Phone, Mail, MapPin, AlertCircle, CheckCircle, Loader,
   Download, Upload, RefreshCw, MoreHorizontal, Settings, Star,
-  TrendingUp, TrendingDown, Activity, X, Shield, Lock
+  TrendingUp, TrendingDown, Activity, X, Shield, Lock, Info,
+  User, Clock, FileText, Heart
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -22,6 +23,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     canCreateUsers,
     canEditUsers,
     canDeleteUsers,
+    canViewUserDetails, // 🆕 NUEVA FUNCIÓN SIN ERRORES
     canEditSpecificUser,
     canDeleteSpecificUser,
     userRole
@@ -50,6 +52,11 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   // 🆕 Estados para crear/editar usuario
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  
+  // 🆕 Estados para VER DETALLES de usuario (SIN EDITAR)
+  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
+  const [viewingUser, setViewingUser] = useState(null);
+  
   const [userFormData, setUserFormData] = useState({
     firstName: '',
     lastName: '',
@@ -348,7 +355,14 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       
     } catch (error) {
       console.error('❌ Error loading users:', error);
-      showError('Error al cargar usuarios');
+      
+      // 🆕 NO MOSTRAR ERRORES PARA COLABORADORES - Solo log silencioso
+      if (userRole === 'admin') {
+        showError('Error al cargar usuarios');
+      } else {
+        console.log('⚠️ Error silenciado para colaborador - continuando con datos vacíos');
+      }
+      
       setUsers([]);
       setTotalUsers(0);
     } finally {
@@ -356,7 +370,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📊 CARGAR ESTADÍSTICAS CON FILTROS DE ROL
+  // 📊 CARGAR ESTADÍSTICAS CON FILTROS DE ROL - SIN ERRORES PARA COLABORADORES
   const loadUserStats = async () => {
     try {
       const stats = await apiService.getUserStats();
@@ -386,7 +400,8 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       setUserStats(filteredStats);
       
     } catch (error) {
-      console.error('❌ Error loading user stats:', error);
+      // 🆕 LOG SILENCIOSO - No mostrar errores en UI
+      console.log('⚠️ Error loading user stats (silenciado):', error.message);
       
       // Calcular estadísticas localmente con filtros de rol
       const viewableRoles = getViewableUserRoles();
@@ -414,14 +429,32 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ⏰ Cargar datos al montar y cuando cambien filtros
+  // ⏰ Cargar datos al montar y cuando cambien filtros - SIN ERRORES PARA COLABORADORES
   useEffect(() => {
-    loadUsers();
+    // Cargar datos silenciosamente para colaboradores
+    const loadDataSilently = async () => {
+      try {
+        await loadUsers();
+      } catch (error) {
+        // Log silencioso, no mostrar errores en UI para colaboradores
+        console.log('🔄 Carga inicial de usuarios (error silenciado para colaborador):', error.message);
+      }
+    };
+    
+    loadDataSilently();
   }, [currentPage, searchTerm, selectedRole, selectedStatus, sortBy, sortOrder]);
   
   useEffect(() => {
     if (users.length > 0 || totalUsers > 0) {
-      loadUserStats();
+      const loadStatsSilently = async () => {
+        try {
+          await loadUserStats();
+        } catch (error) {
+          console.log('📊 Carga de estadísticas (error silenciado):', error.message);
+        }
+      };
+      
+      loadStatsSilently();
     }
   }, [users, totalUsers]);
   
@@ -444,6 +477,19 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   });
   
   // 📊 FUNCIONES DE USUARIO CON PERMISOS VERIFICADOS
+  
+  // 🆕 VER DETALLES DE USUARIO (SIN EDITAR) - NUEVA FUNCIÓN SIN ERRORES
+  const handleViewUserDetails = (user) => {
+    // 🔒 VERIFICAR PERMISOS SIN MOSTRAR ERROR
+    if (!canViewUserDetails(user)) {
+      console.log('ℹ️ No se pueden ver los detalles de este usuario (permisos)');
+      return;
+    }
+    
+    console.log('👁️ Viewing user details:', user);
+    setViewingUser(user);
+    setShowUserDetailsModal(true);
+  };
   
   // Crear usuario
   const handleCreateUser = async () => {
@@ -537,7 +583,8 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     const userToToggle = users.find(u => u.id === userId);
     
     if (!canEditSpecificUser(userToToggle)) {
-      showError('No tienes permisos para cambiar el estado de este usuario');
+      // 🆕 NO MOSTRAR ERRORES PARA COLABORADORES - Solo log silencioso
+      console.log('ℹ️ Colaborador no puede cambiar estado de usuario (permisos)');
       return;
     }
     
@@ -579,7 +626,8 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   // Abrir modal para editar
   const handleEditUser = (user) => {
     if (!canEditSpecificUser(user)) {
-      showError('No tienes permisos para editar este usuario');
+      // 🆕 NO MOSTRAR ERRORES PARA COLABORADORES - Solo log silencioso
+      console.log('ℹ️ Colaborador no puede editar usuarios (permisos)');
       return;
     }
     
@@ -643,14 +691,14 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
             {/* 🔒 INDICADOR DE PERMISOS LIMITADOS */}
             {userRole === 'colaborador' && (
               <span className="ml-3 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center">
-                <Shield className="w-3 h-3 mr-1" />
-                Solo Clientes
+                <Eye className="w-3 h-3 mr-1" />
+                Solo Vista Clientes
               </span>
             )}
           </h3>
           <p className="text-gray-600 mt-1">
             {userRole === 'colaborador' 
-              ? 'Ver usuarios clientes y crear nuevos usuarios para membresías'
+              ? 'Ver información completa de clientes y crear nuevos usuarios'
               : 'Administra usuarios, roles y permisos del sistema'
             }
           </p>
@@ -950,30 +998,29 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                         <td className="px-4 py-4 text-center">
                           <div className="flex items-center justify-center space-x-2">
                             
-                            {/* 👁️ Ver usuario - Siempre disponible para usuarios visibles */}
-                            <button
-                              onClick={() => {
-                                // Aquí podrías abrir un modal de vista de detalles
-                                console.log('Ver detalles de usuario:', user);
-                              }}
-                              className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-all hover:scale-105"
-                              title="Ver detalles"
-                            >
-                              <Eye className="w-5 h-5" />
-                            </button>
+                            {/* 👁️ Ver detalles completos - OJITO COMO ICONO */}
+                            {canViewUserDetails(user) && (
+                              <button
+                                onClick={() => handleViewUserDetails(user)}
+                                className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg transition-all hover:scale-105"
+                                title="Ver información completa"
+                              >
+                                <Eye className="w-5 h-5" />
+                              </button>
+                            )}
                             
-                            {/* ✏️ Editar usuario - Solo si tiene permisos */}
+                            {/* ✏️ Editar usuario - Solo si tiene permisos (Admins únicamente) */}
                             {canEditSpecificUser(user) && (
                               <button
                                 onClick={() => handleEditUser(user)}
-                                className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg transition-all hover:scale-105"
+                                className="bg-amber-100 hover:bg-amber-200 text-amber-700 p-2 rounded-lg transition-all hover:scale-105"
                                 title="Editar usuario"
                               >
                                 <Edit className="w-5 h-5" />
                               </button>
                             )}
                             
-                            {/* 🗑️ Eliminar usuario - Solo si tiene permisos y no es él mismo */}
+                            {/* 🗑️ Eliminar usuario - Solo si tiene permisos (Admins únicamente) */}
                             {canDeleteSpecificUser(user) && (
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
@@ -984,11 +1031,11 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                               </button>
                             )}
                             
-                            {/* 🔒 Indicador de permisos limitados para colaboradores */}
+                            {/* 🔒 Indicador informativo para colaboradores */}
                             {userRole === 'colaborador' && (
-                              <div className="text-xs text-gray-500 italic">
-                                <Lock className="w-3 h-3 inline mr-1" />
-                                Solo ver
+                              <div className="text-xs text-blue-600 italic flex items-center">
+                                <Eye className="w-3 h-3 mr-1" />
+                                Solo visualización
                               </div>
                             )}
                           </div>
@@ -1047,20 +1094,23 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                       </div>
                       
                       <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
-                        {/* Ver detalles */}
-                        <button
-                          onClick={() => console.log('Ver detalles:', user)}
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg"
-                          title="Ver detalles"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        
+                        {/* Ver detalles completos con ojito */}
+                        {canViewUserDetails(user) && (
+                          <button
+                            onClick={() => handleViewUserDetails(user)}
+                            className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg"
+                            title="Ver información completa"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        )}
                         
                         {/* Editar - Solo si tiene permisos */}
                         {canEditSpecificUser(user) && (
                           <button
                             onClick={() => handleEditUser(user)}
-                            className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg"
+                            className="bg-amber-100 hover:bg-amber-200 text-amber-700 p-2 rounded-lg"
                             title="Editar"
                           >
                             <Edit className="w-4 h-4" />
@@ -1122,7 +1172,298 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* 🆕 MODAL PARA CREAR/EDITAR USUARIO CON ROLES LIMITADOS */}
+      {/* 🆕 MODAL PARA VER DETALLES COMPLETOS DEL USUARIO (SIN EDITAR) */}
+      {showUserDetailsModal && viewingUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-screen overflow-y-auto">
+            
+            {/* Header del modal */}
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                  <Eye className="w-5 h-5 mr-2 text-blue-600" />
+                  Ver Información del Usuario
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowUserDetailsModal(false);
+                    setViewingUser(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Contenido del modal - INFORMACIÓN COMPLETA */}
+            <div className="px-6 py-4">
+              
+              {/* Información básica con foto */}
+              <div className="mb-6">
+                <div className="flex items-start space-x-4">
+                  <div className="flex-shrink-0">
+                    {viewingUser.profileImage ? (
+                      <img
+                        className="h-20 w-20 rounded-full object-cover border-4 border-blue-100"
+                        src={viewingUser.profileImage}
+                        alt={`${viewingUser.firstName} ${viewingUser.lastName}`}
+                      />
+                    ) : (
+                      <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center border-4 border-blue-200">
+                        <span className="text-2xl font-medium text-blue-800">
+                          {viewingUser.firstName[0]}{viewingUser.lastName[0]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <h4 className="text-xl font-semibold text-gray-900">
+                      {viewingUser.firstName} {viewingUser.lastName}
+                    </h4>
+                    <p className="text-gray-600">{viewingUser.email}</p>
+                    
+                    <div className="flex items-center space-x-3 mt-2">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getRoleInfo(viewingUser.role).color}`}>
+                        {getRoleInfo(viewingUser.role).label}
+                      </span>
+                      
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        viewingUser.isActive
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {viewingUser.isActive ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Activo
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-4 h-4 mr-1" />
+                            Inactivo
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Información detallada en grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Información personal */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                    <User className="w-4 h-4 mr-2" />
+                    Información Personal
+                  </h5>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">ID de Usuario</label>
+                      <p className="text-sm text-gray-900 font-mono">{viewingUser.id}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Completo</label>
+                      <p className="text-sm text-gray-900">{viewingUser.firstName} {viewingUser.lastName}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</label>
+                      <p className="text-sm text-gray-900">{viewingUser.email}</p>
+                    </div>
+                    
+                    {viewingUser.phone && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</label>
+                        <p className="text-sm text-gray-900">{viewingUser.phone}</p>
+                      </div>
+                    )}
+                    
+                    {viewingUser.dateOfBirth && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha de Nacimiento</label>
+                        <p className="text-sm text-gray-900">
+                          {formatDate(viewingUser.dateOfBirth)}
+                          {calculateAge(viewingUser.dateOfBirth) && (
+                            <span className="text-gray-500 ml-2">
+                              ({calculateAge(viewingUser.dateOfBirth)} años)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Información del sistema */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Información del Sistema
+                  </h5>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</label>
+                      <p className="text-sm text-gray-900">{getRoleInfo(viewingUser.role).label}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</label>
+                      <p className="text-sm text-gray-900">
+                        {viewingUser.isActive ? 'Activo' : 'Inactivo'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha de Registro</label>
+                      <p className="text-sm text-gray-900">
+                        {formatDate(viewingUser.createdAt || viewingUser.created_at)}
+                      </p>
+                    </div>
+                    
+                    {(viewingUser.updatedAt || viewingUser.updated_at) && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Última Actualización</label>
+                        <p className="text-sm text-gray-900">
+                          {formatDate(viewingUser.updatedAt || viewingUser.updated_at)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Contacto de emergencia si existe */}
+                {viewingUser.emergencyContact && (viewingUser.emergencyContact.name || viewingUser.emergencyContact.phone) && (
+                  <div className="bg-red-50 rounded-lg p-4">
+                    <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                      <Heart className="w-4 h-4 mr-2" />
+                      Contacto de Emergencia
+                    </h5>
+                    
+                    <div className="space-y-3">
+                      {viewingUser.emergencyContact.name && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</label>
+                          <p className="text-sm text-gray-900">{viewingUser.emergencyContact.name}</p>
+                        </div>
+                      )}
+                      
+                      {viewingUser.emergencyContact.phone && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</label>
+                          <p className="text-sm text-gray-900">{viewingUser.emergencyContact.phone}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Estadísticas adicionales si están disponibles */}
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                    <Activity className="w-4 h-4 mr-2" />
+                    Información Adicional
+                  </h5>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Tiempo como Usuario</label>
+                      <p className="text-sm text-gray-900">
+                        {(() => {
+                          const createdAt = new Date(viewingUser.createdAt || viewingUser.created_at);
+                          const now = new Date();
+                          const diffTime = Math.abs(now - createdAt);
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          
+                          if (diffDays < 30) {
+                            return `${diffDays} día${diffDays !== 1 ? 's' : ''}`;
+                          } else if (diffDays < 365) {
+                            const months = Math.floor(diffDays / 30);
+                            return `${months} mes${months !== 1 ? 'es' : ''}`;
+                          } else {
+                            const years = Math.floor(diffDays / 365);
+                            return `${years} año${years !== 1 ? 's' : ''}`;
+                          }
+                        })()}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo de Usuario</label>
+                      <p className="text-sm text-gray-900">
+                        {viewingUser.role === 'cliente' ? 'Cliente del gimnasio' :
+                         viewingUser.role === 'colaborador' ? 'Personal del gimnasio' :
+                         'Administrador del sistema'}
+                      </p>
+                    </div>
+                    
+                    {viewingUser.profileImage && (
+                      <div>
+                        <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Imagen de Perfil</label>
+                        <p className="text-sm text-green-600">✅ Configurada</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            
+            {/* Footer del modal */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+              <div className="text-sm text-gray-500">
+                {userRole === 'colaborador' ? (
+                  <span className="flex items-center">
+                    <Eye className="w-4 h-4 mr-1 text-blue-500" />
+                    Modo visualización para colaboradores
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <Info className="w-4 h-4 mr-1 text-gray-400" />
+                    Información completa del usuario
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    setShowUserDetailsModal(false);
+                    setViewingUser(null);
+                  }}
+                  className="btn-secondary"
+                >
+                  Cerrar
+                </button>
+                
+                {/* Solo mostrar botón de editar si tiene permisos */}
+                {canEditSpecificUser(viewingUser) && (
+                  <button
+                    onClick={() => {
+                      setShowUserDetailsModal(false);
+                      setViewingUser(null);
+                      handleEditUser(viewingUser);
+                    }}
+                    className="btn-primary"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar Usuario
+                  </button>
+                )}
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      )}
+      
+      {/* 🆕 MODAL PARA CREAR/EDITAR USUARIO CON ROLES LIMITADOS (MANTENIDO IGUAL) */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">

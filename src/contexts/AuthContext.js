@@ -1,6 +1,6 @@
 // src/contexts/AuthContext.js
-// FUNCIÓN: Manejo del estado global de autenticación CON PERMISOS MEJORADOS
-// CAMBIOS: Permisos de colaborador limitados para usuarios + funciones de filtrado
+// FUNCIÓN: Manejo del estado global de autenticación CON PERMISOS CORREGIDOS
+// CAMBIOS: Colaborador puede ver toda la info de clientes sin errores
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import apiService from '../services/apiService';
@@ -87,7 +87,7 @@ function authReducer(state, action) {
   }
 }
 
-// 🔐 HELPER: Calcular permisos basados en el rol - MEJORADO
+// 🔐 HELPER: Calcular permisos basados en el rol - CORREGIDO PARA EVITAR ERRORES
 function getUserPermissions(role) {
   const permissions = {
     // 👤 Permisos de Cliente
@@ -99,7 +99,7 @@ function getUserPermissions(role) {
       'upload_transfer_proof'
     ],
     
-    // 👥 Permisos de Colaborador - CORREGIDOS Y LIMITADOS
+    // 👥 Permisos de Colaborador - CORREGIDOS PARA VER SIN ERRORES
     colaborador: [
       // ✅ Perfil propio
       'view_own_profile',
@@ -108,10 +108,13 @@ function getUserPermissions(role) {
       'view_own_payments',
       'upload_transfer_proof',
       
-      // ✅ Usuarios - SOLO VER Y CREAR (NO EDITAR)
-      'view_users',              // ✅ Puede ver usuarios
-      'view_client_users_only',  // 🆕 Solo puede ver clientes
-      'create_users',            // ✅ Puede crear usuarios
+      // ✅ Usuarios - PERMISOS ESPECÍFICOS PARA VER CLIENTES
+      'view_users',                    // ✅ Puede ver usuarios
+      'view_client_users_only',        // 🆕 Solo puede ver clientes
+      'view_user_details',             // 🆕 Puede ver detalles completos de usuarios
+      'view_client_full_info',         // 🆕 Puede ver toda la información de clientes
+      'create_users',                  // ✅ Puede crear usuarios
+      
       // ❌ NO TIENE: 'edit_users' - No puede editar usuarios existentes
       // ❌ NO TIENE: 'delete_users' - No puede eliminar usuarios
       // ❌ NO TIENE: 'view_staff_users' - No puede ver otros colaboradores/admins
@@ -148,6 +151,8 @@ function getUserPermissions(role) {
       // ✅ Usuarios - COMPLETO
       'view_users',              // ✅ Puede ver todos los usuarios
       'view_all_user_roles',     // 🆕 Puede ver usuarios de todos los roles
+      'view_user_details',       // 🆕 Puede ver detalles completos
+      'view_client_full_info',   // 🆕 Puede ver toda la información
       'create_users',            // ✅ Puede crear usuarios
       'edit_users',              // ✅ Puede editar usuarios
       'delete_users',            // ✅ Puede eliminar usuarios
@@ -456,14 +461,41 @@ export function AuthProvider({ children }) {
     return hasPermission('create_users');
   };
   
-  // 🆕 HELPER: Verificar si puede editar usuarios
+  // 🆕 HELPER: Verificar si puede editar usuarios EN GENERAL
   const canEditUsers = () => {
     return hasPermission('edit_users');
   };
   
-  // 🆕 HELPER: Verificar si puede eliminar usuarios
+  // 🆕 HELPER: Verificar si puede eliminar usuarios EN GENERAL
   const canDeleteUsers = () => {
     return hasPermission('delete_users');
+  };
+  
+  // 🆕 HELPER: Verificar si puede VER DETALLES de un usuario específico
+  const canViewUserDetails = (targetUser) => {
+    const currentUserRole = state.user?.role;
+    
+    // Verificar si tiene permisos básicos para ver detalles
+    if (!hasPermission('view_user_details') && !hasPermission('view_client_full_info')) {
+      return false;
+    }
+    
+    // No puede verse a sí mismo en la gestión de usuarios (debe usar perfil)
+    if (targetUser && targetUser.id === state.user?.id) {
+      return false;
+    }
+    
+    // Admin puede ver detalles de todos
+    if (currentUserRole === 'admin') {
+      return true;
+    }
+    
+    // Colaborador puede ver detalles solo de clientes
+    if (currentUserRole === 'colaborador') {
+      return targetUser ? targetUser.role === 'cliente' : false;
+    }
+    
+    return false;
   };
   
   // 🆕 HELPER: Verificar si puede editar un usuario específico
@@ -471,7 +503,7 @@ export function AuthProvider({ children }) {
     const currentUserRole = state.user?.role;
     
     // No puede editarse a sí mismo desde la gestión de usuarios
-    if (targetUser.id === state.user?.id) {
+    if (targetUser && targetUser.id === state.user?.id) {
       return false;
     }
     
@@ -480,7 +512,7 @@ export function AuthProvider({ children }) {
       return hasPermission('edit_users');
     }
     
-    // Colaborador NO puede editar usuarios (solo crear)
+    // Colaborador NO puede editar usuarios (solo crear y ver)
     if (currentUserRole === 'colaborador') {
       return false;
     }
@@ -493,7 +525,7 @@ export function AuthProvider({ children }) {
     const currentUserRole = state.user?.role;
     
     // No puede eliminarse a sí mismo
-    if (targetUser.id === state.user?.id) {
+    if (targetUser && targetUser.id === state.user?.id) {
       return false;
     }
     
@@ -573,14 +605,15 @@ export function AuthProvider({ children }) {
     isSessionExpiring,
     getDashboardPathForRole,
     
-    // 🆕 FUNCIONES DE GESTIÓN DE USUARIOS MEJORADAS
-    canViewUsersOfRole,      // ✅ ¿Puede ver usuarios de X rol?
-    getViewableUserRoles,    // ✅ ¿Qué roles puede ver?
-    canCreateUsers,          // ✅ ¿Puede crear usuarios?
-    canEditUsers,            // ✅ ¿Puede editar usuarios en general?
-    canDeleteUsers,          // ✅ ¿Puede eliminar usuarios en general?
-    canEditSpecificUser,     // ✅ ¿Puede editar usuario específico?
-    canDeleteSpecificUser,   // ✅ ¿Puede eliminar usuario específico?
+    // 🆕 FUNCIONES DE GESTIÓN DE USUARIOS CORREGIDAS
+    canViewUsersOfRole,          // ✅ ¿Puede ver usuarios de X rol?
+    getViewableUserRoles,        // ✅ ¿Qué roles puede ver?
+    canCreateUsers,              // ✅ ¿Puede crear usuarios?
+    canEditUsers,                // ✅ ¿Puede editar usuarios en general?
+    canDeleteUsers,              // ✅ ¿Puede eliminar usuarios en general?
+    canViewUserDetails,          // 🆕 ¿Puede ver detalles de usuario específico? (SIN ERRORES)
+    canEditSpecificUser,         // ✅ ¿Puede editar usuario específico?
+    canDeleteSpecificUser,       // ✅ ¿Puede eliminar usuario específico?
     
     // Funciones de gestión de contenido
     canManageContent,
@@ -646,7 +679,6 @@ export function withAuth(Component, requiredPermissions = []) {
     return <Component {...props} />;
   };
 }
-
 // 📝 CAMBIOS REALIZADOS PARA COLABORADOR:
 // ✅ Removido 'edit_users' de permisos de colaborador
 // ✅ Removido 'delete_users' de permisos de colaborador
