@@ -2,7 +2,7 @@
 // UBICACIÓN: /gym-frontend/src/components/layout/Sidebar.js
 // FUNCIÓN: Navegación lateral con menú adaptativo según rol del usuario
 // CONECTA CON: AuthContext para permisos, Router para navegación
-// FUNCIÓN: Menu móvil CORREGIDO con logo desde configuración
+// CAMBIOS: RUTAS CORREGIDAS para coincidir con App.js
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -20,7 +20,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import GymLogo from '../common/GymLogo'; // 🔧 USAR EL COMPONENTE CORRECTO
+import GymLogo from '../common/GymLogo';
 
 const MobileMenu = ({ onClose }) => {
   const { user, logout, hasPermission } = useAuth();
@@ -42,57 +42,57 @@ const MobileMenu = ({ onClose }) => {
       }
     ];
     
-    // 👥 Usuarios
+    // 👥 Usuarios - Solo Admin y Staff con permisos
     if (hasPermission('view_users')) {
       baseItems.push({
         id: 'users',
         label: 'Usuarios',
         icon: Users,
-        path: '/dashboard/users',
+        path: '/dashboard/users', // ✅ RUTA CORREGIDA
         show: true
       });
     }
     
-    // 🎫 Membresías
+    // 🎫 Membresías - Admin y Staff con permisos
     if (hasPermission('view_memberships')) {
       baseItems.push({
         id: 'memberships',
         label: 'Membresías',
         icon: CreditCard,
-        path: '/dashboard/memberships',
+        path: '/dashboard/memberships', // ✅ RUTA CORREGIDA
         show: true
       });
     }
     
-    // 💰 Pagos
+    // 💰 Pagos - Admin, Staff y Clientes pueden ver sus pagos
     if (hasPermission('view_payments')) {
       baseItems.push({
         id: 'payments',
         label: 'Pagos',
         icon: DollarSign,
-        path: '/dashboard/payments',
+        path: '/dashboard/payments', // ✅ RUTA CORREGIDA
         show: true
       });
     }
     
-    // 📊 Reportes
+    // 📊 Reportes - Solo Admin y Staff con permisos
     if (hasPermission('view_reports')) {
       baseItems.push({
         id: 'reports',
         label: 'Reportes',
         icon: BarChart3,
-        path: '/dashboard/reports',
+        path: '/dashboard/reports', // ✅ RUTA CORREGIDA
         show: true
       });
     }
     
-    // ⚙️ Configuración
+    // ⚙️ Configuración - Solo Admin
     if (hasPermission('manage_system_settings')) {
       baseItems.push({
         id: 'settings',
         label: 'Configuración',
         icon: Settings,
-        path: '/dashboard/settings',
+        path: '/dashboard/settings', // ✅ RUTA CORREGIDA
         show: true
       });
     }
@@ -125,7 +125,7 @@ const MobileMenu = ({ onClose }) => {
   return (
     <div className="flex flex-col h-full bg-white">
       
-      {/* 🔝 HEADER - CORREGIDO */}
+      {/* 🔝 HEADER */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <GymLogo size="md" variant="professional" showText={true} />
         
@@ -166,7 +166,7 @@ const MobileMenu = ({ onClose }) => {
         </div>
       </div>
       
-      {/* 📋 NAVEGACIÓN */}
+      {/* 📋 NAVEGACIÓN PRINCIPAL */}
       <nav className="flex-1 p-4 space-y-2">
         {menuItems.map((item) => (
           <Link
@@ -189,8 +189,9 @@ const MobileMenu = ({ onClose }) => {
       
       {/* 🔗 ENLACES ADICIONALES */}
       <div className="p-4 border-t border-gray-200 space-y-2">
+        {/* 👤 Mi Perfil - Disponible para todos */}
         <Link
-          to="/dashboard/profile"
+          to="/dashboard/profile" // ✅ RUTA CORREGIDA
           onClick={onClose}
           className={`
             flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-colors
@@ -204,6 +205,7 @@ const MobileMenu = ({ onClose }) => {
           <span>Mi Perfil</span>
         </Link>
         
+        {/* 🔴 Cerrar Sesión */}
         <button
           onClick={handleLogout}
           className="w-full flex items-center px-3 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 transition-colors"

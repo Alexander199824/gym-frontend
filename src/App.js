@@ -1,7 +1,7 @@
 // src/App.js
 // UBICACIÓN: /gym-frontend/src/App.js
-// FUNCIÓN: Componente principal con rutas CORREGIDAS y redirección por rol
-// CAMBIOS: Mejorado sistema de rutas protegidas y redirección automática
+// FUNCIÓN: Componente principal con rutas COMPLETAS para todos los componentes
+// CAMBIOS: Agregadas rutas para Usuarios, Configuración, Reportes, Perfil y Pagos
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -27,6 +27,14 @@ const DashboardLayout = React.lazy(() => import('./components/layout/DashboardLa
 const AdminDashboard = React.lazy(() => import('./pages/dashboard/AdminDashboard'));
 const StaffDashboard = React.lazy(() => import('./pages/dashboard/StaffDashboard'));
 const ClientDashboard = React.lazy(() => import('./pages/dashboard/ClientDashboard'));
+
+// 🧩 COMPONENTES ESPECÍFICOS DEL DASHBOARD
+const UsersManager = React.lazy(() => import('./pages/dashboard/components/UsersManager'));
+const MembershipsManager = React.lazy(() => import('./pages/dashboard/components/MembershipsManager'));
+const SettingsManager = React.lazy(() => import('./pages/dashboard/components/SettingsManager'));
+const ReportsManager = React.lazy(() => import('./pages/dashboard/components/ReportsManager'));
+const ProfileManager = React.lazy(() => import('./pages/dashboard/components/ProfileManager'));
+const PaymentsManager = React.lazy(() => import('./pages/dashboard/components/PaymentsManager'));
 
 // 🚫 Páginas de Error (Lazy Loading)
 const NotFoundPage = React.lazy(() => import('./pages/error/NotFoundPage'));
@@ -401,6 +409,52 @@ function App() {
                 </ProtectedRoute>
               } />
               
+              {/* ================================
+                  🧩 COMPONENTES ESPECÍFICOS
+              ================================ */}
+              
+              {/* 👥 USUARIOS - Solo Admin y Staff con permisos */}
+              <Route path="users" element={
+                <ProtectedRoute requiredPermissions={['view_users']}>
+                  <UsersManager />
+                </ProtectedRoute>
+              } />
+              
+              {/* 🎫 MEMBRESÍAS - Admin y Staff con permisos */}
+              <Route path="memberships" element={
+                <ProtectedRoute requiredPermissions={['view_memberships']}>
+                  <MembershipsManager />
+                </ProtectedRoute>
+              } />
+              
+              {/* 💰 PAGOS - Admin, Staff y Clientes pueden ver sus pagos */}
+              <Route path="payments" element={
+                <ProtectedRoute requiredPermissions={['view_payments']}>
+                  <PaymentsManager />
+                </ProtectedRoute>
+              } />
+              
+              {/* 📊 REPORTES - Solo Admin y Staff con permisos */}
+              <Route path="reports" element={
+                <ProtectedRoute requiredPermissions={['view_reports']}>
+                  <ReportsManager />
+                </ProtectedRoute>
+              } />
+              
+              {/* ⚙️ CONFIGURACIÓN - Solo Admin */}
+              <Route path="settings" element={
+                <ProtectedRoute requiredPermissions={['manage_system_settings']}>
+                  <SettingsManager />
+                </ProtectedRoute>
+              } />
+              
+              {/* 👤 PERFIL - Todos los usuarios autenticados */}
+              <Route path="profile" element={
+                <ProtectedRoute>
+                  <ProfileManager />
+                </ProtectedRoute>
+              } />
+              
               {/* ✅ REDIRECCIÓN AUTOMÁTICA DESDE /dashboard */}
               <Route index element={
                 <DashboardRedirect />
@@ -422,7 +476,7 @@ function App() {
   );
 }
 
-// ✅ NUEVO COMPONENTE: Redirección automática desde /dashboard
+// ✅ COMPONENTE: Redirección automática desde /dashboard
 function DashboardRedirect() {
   const { isAuthenticated, user, getDashboardPathForRole } = useAuth();
   
