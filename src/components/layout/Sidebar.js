@@ -1,13 +1,10 @@
 // src/components/layout/Sidebar.js
-// UBICACIÓN: /gym-frontend/src/components/layout/Sidebar.js
-// FUNCIÓN: Navegación lateral con menú adaptativo según rol del usuario
-// CONECTA CON: AuthContext para permisos, Router para navegación
-// CAMBIOS: RUTAS CORREGIDAS para coincidir con App.js
+// FUNCIÓN: Sidebar SOLO para desktop - reparado para colapso correcto
+// CAMBIOS: Texto que desaparece correctamente, logout sin errores
 
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  X, 
   Home, 
   Users, 
   CreditCard, 
@@ -16,15 +13,19 @@ import {
   Settings,
   LogOut,
   User,
-  Calendar,
-  AlertCircle
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApp } from '../../contexts/AppContext';
 import GymLogo from '../common/GymLogo';
 
-const MobileMenu = ({ onClose }) => {
+const Sidebar = ({ collapsed }) => {
   const { user, logout, hasPermission } = useAuth();
+  const { toggleSidebar, showSuccess, showError } = useApp();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // 🎯 Verificar si una ruta está activa
   const isActiveRoute = (path) => location.pathname === path;
@@ -42,57 +43,57 @@ const MobileMenu = ({ onClose }) => {
       }
     ];
     
-    // 👥 Usuarios - Solo Admin y Staff con permisos
+    // 👥 Usuarios
     if (hasPermission('view_users')) {
       baseItems.push({
         id: 'users',
         label: 'Usuarios',
         icon: Users,
-        path: '/dashboard/users', // ✅ RUTA CORREGIDA
+        path: '/dashboard/users',
         show: true
       });
     }
     
-    // 🎫 Membresías - Admin y Staff con permisos
+    // 🎫 Membresías
     if (hasPermission('view_memberships')) {
       baseItems.push({
         id: 'memberships',
         label: 'Membresías',
         icon: CreditCard,
-        path: '/dashboard/memberships', // ✅ RUTA CORREGIDA
+        path: '/dashboard/memberships',
         show: true
       });
     }
     
-    // 💰 Pagos - Admin, Staff y Clientes pueden ver sus pagos
+    // 💰 Pagos
     if (hasPermission('view_payments')) {
       baseItems.push({
         id: 'payments',
         label: 'Pagos',
         icon: DollarSign,
-        path: '/dashboard/payments', // ✅ RUTA CORREGIDA
+        path: '/dashboard/payments',
         show: true
       });
     }
     
-    // 📊 Reportes - Solo Admin y Staff con permisos
+    // 📊 Reportes
     if (hasPermission('view_reports')) {
       baseItems.push({
         id: 'reports',
         label: 'Reportes',
         icon: BarChart3,
-        path: '/dashboard/reports', // ✅ RUTA CORREGIDA
+        path: '/dashboard/reports',
         show: true
       });
     }
     
-    // ⚙️ Configuración - Solo Admin
+    // ⚙️ Configuración
     if (hasPermission('manage_system_settings')) {
       baseItems.push({
         id: 'settings',
         label: 'Configuración',
         icon: Settings,
-        path: '/dashboard/settings', // ✅ RUTA CORREGIDA
+        path: '/dashboard/settings',
         show: true
       });
     }
@@ -116,35 +117,69 @@ const MobileMenu = ({ onClose }) => {
   
   const menuItems = getMenuItems();
   
-  // 🔐 Manejar logout
-  const handleLogout = () => {
-    onClose();
-    logout();
-  };
-  
-  return (
-    <div className="flex flex-col h-full bg-white">
+  // 🔐 Manejar logout REPARADO
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      navigate('/login', { replace: true });
+      showSuccess && showSuccess('Sesión cerrada correctamente');
+    } catch (error) {
+      console.error('Error durante logout:', error);
+      showError && showError('Error al cerrar sesión');
       
-      {/* 🔝 HEADER */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <GymLogo size="md" variant="professional" showText={true} />
+      // Fallback si hay error
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } catch {
+        window.location.reload();
+      }
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+      
+      {/* 🔝 HEADER CON TOGGLE */}
+      <div className={`flex items-center justify-between border-b border-gray-200 transition-all duration-300 ${
+        collapsed ? 'p-2' : 'p-4'
+      }`}>
         
+        {/* Logo - SE OCULTA COMPLETAMENTE cuando está colapsado */}
+        {!collapsed && (
+          <div className="transition-opacity duration-300">
+            <GymLogo size="md" variant="professional" showText={true} />
+          </div>
+        )}
+        
+        {/* Botón toggle */}
         <button
-          onClick={onClose}
-          className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+          onClick={toggleSidebar}
+          className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0"
+          title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
         >
-          <X className="w-5 h-5" />
+          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
         </button>
       </div>
       
       {/* 👤 INFORMACIÓN DEL USUARIO */}
-      <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-elite-gradient rounded-full flex items-center justify-center">
+      <div className={`border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50 transition-all duration-300 ${
+        collapsed ? 'p-2' : 'p-4'
+      }`}>
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
+          
+          {/* Avatar - SIEMPRE visible */}
+          <div className="w-10 h-10 bg-elite-gradient rounded-full flex items-center justify-center flex-shrink-0">
             {user?.profileImage ? (
               <img 
                 src={user.profileImage} 
-                alt={user.getFullName()}
+                alt={user ? `${user.firstName} ${user.lastName}` : 'Usuario'}
                 className="w-10 h-10 rounded-full object-cover"
               />
             ) : (
@@ -154,64 +189,104 @@ const MobileMenu = ({ onClose }) => {
             )}
           </div>
           
-          <div>
-            <div className="text-sm font-medium text-gray-900">
-              {user ? `${user.firstName} ${user.lastName}` : 'Usuario'}
+          {/* Información del usuario - DESAPARECE cuando está colapsado */}
+          {!collapsed && (
+            <div className="transition-opacity duration-300 min-w-0 flex-1">
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {user ? `${user.firstName} ${user.lastName}` : 'Usuario'}
+              </div>
+              <div className="text-xs text-gray-500">
+                {user?.role === 'admin' ? 'Administrador' : 
+                 user?.role === 'colaborador' ? 'Personal' : 'Cliente'}
+              </div>
             </div>
-            <div className="text-xs text-gray-500">
-              {user?.role === 'admin' ? 'Administrador' : 
-               user?.role === 'colaborador' ? 'Personal' : 'Cliente'}
-            </div>
-          </div>
+          )}
         </div>
       </div>
       
       {/* 📋 NAVEGACIÓN PRINCIPAL */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className={`flex-1 space-y-2 transition-all duration-300 ${
+        collapsed ? 'p-2' : 'p-4'
+      }`}>
         {menuItems.map((item) => (
           <Link
             key={item.id}
             to={item.path}
-            onClick={onClose}
             className={`
-              flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-colors
+              flex items-center rounded-xl transition-all duration-300
               ${isActiveRoute(item.path) || isActiveSection([item.path])
                 ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-500'
                 : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
               }
+              ${collapsed ? 'p-2 justify-center' : 'px-3 py-3'}
             `}
+            title={collapsed ? item.label : undefined}
           >
-            <item.icon className="w-5 h-5 mr-3" />
-            <span>{item.label}</span>
+            {/* Icono - SIEMPRE visible */}
+            <item.icon className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
+            
+            {/* Texto - DESAPARECE cuando está colapsado */}
+            {!collapsed && (
+              <span className="text-sm font-medium transition-opacity duration-300">
+                {item.label}
+              </span>
+            )}
           </Link>
         ))}
       </nav>
       
       {/* 🔗 ENLACES ADICIONALES */}
-      <div className="p-4 border-t border-gray-200 space-y-2">
-        {/* 👤 Mi Perfil - Disponible para todos */}
+      <div className={`border-t border-gray-200 space-y-2 transition-all duration-300 ${
+        collapsed ? 'p-2' : 'p-4'
+      }`}>
+        
+        {/* 👤 Mi Perfil */}
         <Link
-          to="/dashboard/profile" // ✅ RUTA CORREGIDA
-          onClick={onClose}
+          to="/dashboard/profile"
           className={`
-            flex items-center px-3 py-3 text-sm font-medium rounded-xl transition-colors
+            flex items-center rounded-xl transition-all duration-300
             ${isActiveRoute('/dashboard/profile')
               ? 'bg-primary-50 text-primary-700'
               : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
             }
+            ${collapsed ? 'p-2 justify-center' : 'px-3 py-3'}
           `}
+          title={collapsed ? 'Mi Perfil' : undefined}
         >
-          <User className="w-5 h-5 mr-3" />
-          <span>Mi Perfil</span>
+          <User className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
+          {!collapsed && (
+            <span className="text-sm font-medium transition-opacity duration-300">
+              Mi Perfil
+            </span>
+          )}
         </Link>
         
         {/* 🔴 Cerrar Sesión */}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center px-3 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+          disabled={isLoggingOut}
+          className={`
+            w-full flex items-center rounded-xl text-red-600 hover:bg-red-50 
+            transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed
+            ${collapsed ? 'p-2 justify-center' : 'px-3 py-3'}
+          `}
+          title={collapsed ? 'Cerrar Sesión' : undefined}
         >
-          <LogOut className="w-5 h-5 mr-3" />
-          <span>Cerrar Sesión</span>
+          {/* Icono con spinner */}
+          {isLoggingOut ? (
+            <div className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`}>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
+            </div>
+          ) : (
+            <LogOut className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
+          )}
+          
+          {/* Texto */}
+          {!collapsed && (
+            <span className="text-sm font-medium transition-opacity duration-300">
+              {isLoggingOut ? 'Cerrando...' : 'Cerrar Sesión'}
+            </span>
+          )}
         </button>
       </div>
       
@@ -219,4 +294,4 @@ const MobileMenu = ({ onClose }) => {
   );
 };
 
-export default MobileMenu;
+export default Sidebar;
