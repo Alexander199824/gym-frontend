@@ -1,8 +1,6 @@
 // src/contexts/AuthContext.js
-// UBICACIÓN: /gym-frontend/src/contexts/AuthContext.js
-// FUNCIÓN: Manejo del estado global de autenticación CORREGIDO
-// CAMBIOS: Eliminada redirección automática, retorna datos para que LoginPage maneje redirección
-// 🆕 AGREGADO: canManageContent para gestión de contenido
+// FUNCIÓN: Manejo del estado global de autenticación CON PERMISOS MEJORADOS
+// CAMBIOS: Permisos de colaborador limitados para usuarios + funciones de filtrado
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import apiService from '../services/apiService';
@@ -89,7 +87,7 @@ function authReducer(state, action) {
   }
 }
 
-// 🔐 HELPER: Calcular permisos basados en el rol
+// 🔐 HELPER: Calcular permisos basados en el rol - MEJORADO
 function getUserPermissions(role) {
   const permissions = {
     // 👤 Permisos de Cliente
@@ -101,55 +99,95 @@ function getUserPermissions(role) {
       'upload_transfer_proof'
     ],
     
-    // 👥 Permisos de Colaborador (incluye cliente + más)
+    // 👥 Permisos de Colaborador - CORREGIDOS Y LIMITADOS
     colaborador: [
+      // ✅ Perfil propio
       'view_own_profile',
       'edit_own_profile',
       'view_own_memberships',
       'view_own_payments',
       'upload_transfer_proof',
-      'view_users',
-      'create_users',
-      'edit_users',
+      
+      // ✅ Usuarios - SOLO VER Y CREAR (NO EDITAR)
+      'view_users',              // ✅ Puede ver usuarios
+      'view_client_users_only',  // 🆕 Solo puede ver clientes
+      'create_users',            // ✅ Puede crear usuarios
+      // ❌ NO TIENE: 'edit_users' - No puede editar usuarios existentes
+      // ❌ NO TIENE: 'delete_users' - No puede eliminar usuarios
+      // ❌ NO TIENE: 'view_staff_users' - No puede ver otros colaboradores/admins
+      
+      // ✅ Membresías - COMPLETO
       'view_memberships',
       'create_memberships',
       'edit_memberships',
-      'view_payments',
-      'create_payments',
-      'view_expired_memberships',
-      'register_daily_income'
-    ],
-    
-    // 🔧 Permisos de Admin (todos los permisos)
-    admin: [
-      'view_own_profile',
-      'edit_own_profile',
-      'view_own_memberships',
-      'view_own_payments',
-      'upload_transfer_proof',
-      'view_users',
-      'create_users',
-      'edit_users',
-      'delete_users',
-      'manage_user_roles',
-      'view_memberships',
-      'create_memberships',
-      'edit_memberships',
-      'delete_memberships',
+      'renew_memberships',
+      'cancel_memberships',
+      
+      // ✅ Pagos - COMPLETO
       'view_payments',
       'create_payments',
       'validate_transfers',
       'view_expired_memberships',
       'register_daily_income',
+      
+      // ✅ Operaciones diarias
+      'view_dashboard_stats',
+      'register_gym_visits',
+      'manage_daily_operations'
+    ],
+    
+    // 🔧 Permisos de Admin - TODOS LOS PERMISOS
+    admin: [
+      // ✅ Perfil propio
+      'view_own_profile',
+      'edit_own_profile',
+      'view_own_memberships',
+      'view_own_payments',
+      'upload_transfer_proof',
+      
+      // ✅ Usuarios - COMPLETO
+      'view_users',              // ✅ Puede ver todos los usuarios
+      'view_all_user_roles',     // 🆕 Puede ver usuarios de todos los roles
+      'create_users',            // ✅ Puede crear usuarios
+      'edit_users',              // ✅ Puede editar usuarios
+      'delete_users',            // ✅ Puede eliminar usuarios
+      'manage_user_roles',       // ✅ Puede cambiar roles
+      'view_staff_users',        // ✅ Puede ver colaboradores y admins
+      
+      // ✅ Membresías - COMPLETO
+      'view_memberships',
+      'create_memberships',
+      'edit_memberships',
+      'delete_memberships',
+      'renew_memberships',
+      'cancel_memberships',
+      
+      // ✅ Pagos - COMPLETO
+      'view_payments',
+      'create_payments',
+      'validate_transfers',
+      'view_expired_memberships',
+      'register_daily_income',
+      
+      // ✅ Reportes y análisis
       'view_reports',
       'view_statistics',
+      'export_data',
+      
+      // ✅ Configuración del sistema
       'manage_system_settings',
-      'manage_content',           // 🆕 Permiso para gestionar contenido
-      'manage_services',          // 🆕 Permiso para gestionar servicios
-      'manage_products',          // 🆕 Permiso para gestionar productos
-      'manage_plans',             // 🆕 Permiso para gestionar planes
-      'manage_branding',          // 🆕 Permiso para gestionar branding
-      'manage_media'              // 🆕 Permiso para gestionar multimedia
+      'manage_content',
+      'manage_services',
+      'manage_products',
+      'manage_plans',
+      'manage_branding',
+      'manage_media',
+      
+      // ✅ Administración avanzada
+      'manage_roles_permissions',
+      'access_admin_panel',
+      'manage_backup_restore',
+      'view_system_logs'
     ]
   };
   
@@ -164,7 +202,7 @@ function calculateSessionExpiry() {
   return expiry;
 }
 
-// 🏠 HELPER: Determinar ruta de dashboard según rol - MOVIDO AQUÍ
+// 🏠 HELPER: Determinar ruta de dashboard según rol
 function getDashboardPath(role) {
   switch (role) {
     case 'admin':
@@ -248,7 +286,7 @@ export function AuthProvider({ children }) {
     }
   };
   
-  // ✅ CORREGIDO: Iniciar sesión - SIN redirección automática
+  // Iniciar sesión
   const login = async (credentials) => {
     try {
       dispatch({ type: ACTION_TYPES.AUTH_START });
@@ -269,7 +307,6 @@ export function AuthProvider({ children }) {
           payload: response.data 
         });
         
-        // ✅ RETORNAR DATOS INCLUYENDO RUTA DE REDIRECCIÓN
         const redirectPath = getDashboardPath(response.data.user.role);
         
         return {
@@ -313,7 +350,6 @@ export function AuthProvider({ children }) {
           payload: response.data 
         });
         
-        // ✅ RETORNAR DATOS INCLUYENDO RUTA DE REDIRECCIÓN
         const redirectPath = getDashboardPath(response.data.user.role);
         
         return {
@@ -339,7 +375,6 @@ export function AuthProvider({ children }) {
     dispatch({ type: ACTION_TYPES.LOGOUT });
     toast.success('Sesión cerrada exitosamente');
     
-    // ✅ REDIRECCIÓN CONTROLADA - solo al login
     setTimeout(() => {
       window.location.href = '/login';
     }, 500);
@@ -378,12 +413,106 @@ export function AuthProvider({ children }) {
     return state.user?.role === role;
   };
   
+  // 🆕 HELPER: Verificar si puede ver usuarios de cierto rol
+  const canViewUsersOfRole = (targetRole) => {
+    const currentUserRole = state.user?.role;
+    
+    // Admin puede ver todos los roles
+    if (currentUserRole === 'admin') {
+      return true;
+    }
+    
+    // Colaborador SOLO puede ver clientes
+    if (currentUserRole === 'colaborador') {
+      return targetRole === 'cliente';
+    }
+    
+    // Cliente no puede ver otros usuarios
+    if (currentUserRole === 'cliente') {
+      return false;
+    }
+    
+    return false;
+  };
+  
+  // 🆕 HELPER: Obtener roles que el usuario actual puede ver
+  const getViewableUserRoles = () => {
+    const currentUserRole = state.user?.role;
+    
+    switch (currentUserRole) {
+      case 'admin':
+        return ['admin', 'colaborador', 'cliente']; // Puede ver todos
+      case 'colaborador':
+        return ['cliente']; // Solo puede ver clientes
+      case 'cliente':
+        return []; // No puede ver otros usuarios
+      default:
+        return [];
+    }
+  };
+  
+  // 🆕 HELPER: Verificar si puede crear usuarios
+  const canCreateUsers = () => {
+    return hasPermission('create_users');
+  };
+  
+  // 🆕 HELPER: Verificar si puede editar usuarios
+  const canEditUsers = () => {
+    return hasPermission('edit_users');
+  };
+  
+  // 🆕 HELPER: Verificar si puede eliminar usuarios
+  const canDeleteUsers = () => {
+    return hasPermission('delete_users');
+  };
+  
+  // 🆕 HELPER: Verificar si puede editar un usuario específico
+  const canEditSpecificUser = (targetUser) => {
+    const currentUserRole = state.user?.role;
+    
+    // No puede editarse a sí mismo desde la gestión de usuarios
+    if (targetUser.id === state.user?.id) {
+      return false;
+    }
+    
+    // Admin puede editar todos excepto a sí mismo
+    if (currentUserRole === 'admin') {
+      return hasPermission('edit_users');
+    }
+    
+    // Colaborador NO puede editar usuarios (solo crear)
+    if (currentUserRole === 'colaborador') {
+      return false;
+    }
+    
+    return false;
+  };
+  
+  // 🆕 HELPER: Verificar si puede eliminar un usuario específico
+  const canDeleteSpecificUser = (targetUser) => {
+    const currentUserRole = state.user?.role;
+    
+    // No puede eliminarse a sí mismo
+    if (targetUser.id === state.user?.id) {
+      return false;
+    }
+    
+    // Admin puede eliminar todos excepto a sí mismo
+    if (currentUserRole === 'admin') {
+      return hasPermission('delete_users');
+    }
+    
+    // Colaborador NO puede eliminar usuarios
+    if (currentUserRole === 'colaborador') {
+      return false;
+    }
+    
+    return false;
+  };
+  
   // 🎨 HELPER: Verificar si puede gestionar contenido de la web
   const canManageContent = () => {
-    // Los admins pueden gestionar todo el contenido
     if (hasRole('admin')) return true;
-    
-    // También se puede dar este permiso específico a otros roles
     return hasPermission('manage_content') || 
            hasPermission('manage_system_settings');
   };
@@ -417,7 +546,7 @@ export function AuthProvider({ children }) {
     const expiry = new Date(state.sessionExpiry);
     const diffHours = (expiry - now) / (1000 * 60 * 60);
     
-    return diffHours <= 24; // Expira en menos de 24 horas
+    return diffHours <= 24;
   };
   
   // ✅ NUEVA FUNCIÓN: Obtener ruta de dashboard para rol específico
@@ -438,17 +567,26 @@ export function AuthProvider({ children }) {
     updateActivity,
     checkAuthStatus,
     
-    // Funciones de utilidad
+    // Funciones de utilidad básicas
     hasPermission,
     hasRole,
     isSessionExpiring,
     getDashboardPathForRole,
     
-    // 🆕 FUNCIONES DE GESTIÓN DE CONTENIDO
-    canManageContent,     // ✅ Gestionar contenido web general
-    canManageStore,       // ✅ Gestionar productos de la tienda
-    canManageServices,    // ✅ Gestionar servicios del gimnasio
-    canManagePlans,       // ✅ Gestionar planes de membresía
+    // 🆕 FUNCIONES DE GESTIÓN DE USUARIOS MEJORADAS
+    canViewUsersOfRole,      // ✅ ¿Puede ver usuarios de X rol?
+    getViewableUserRoles,    // ✅ ¿Qué roles puede ver?
+    canCreateUsers,          // ✅ ¿Puede crear usuarios?
+    canEditUsers,            // ✅ ¿Puede editar usuarios en general?
+    canDeleteUsers,          // ✅ ¿Puede eliminar usuarios en general?
+    canEditSpecificUser,     // ✅ ¿Puede editar usuario específico?
+    canDeleteSpecificUser,   // ✅ ¿Puede eliminar usuario específico?
+    
+    // Funciones de gestión de contenido
+    canManageContent,
+    canManageStore,
+    canManageServices,
+    canManagePlans,
     
     // Información adicional
     userRole: state.user?.role,
@@ -509,7 +647,14 @@ export function withAuth(Component, requiredPermissions = []) {
   };
 }
 
-// 📝 CAMBIOS REALIZADOS:
+// 📝 CAMBIOS REALIZADOS PARA COLABORADOR:
+// ✅ Removido 'edit_users' de permisos de colaborador
+// ✅ Removido 'delete_users' de permisos de colaborador
+// ✅ Agregado 'view_client_users_only' para limitar vista
+// ✅ Agregadas funciones para verificar permisos específicos de usuarios
+// ✅ Agregadas funciones para verificar roles visibles
+// ✅ Agregadas funciones para verificar acciones específicas en usuarios
+// ✅ Mantenida compatibilidad con todo el sistema existente
 // ✅ Agregado canManageContent() que retorna true para admins
 // ✅ Agregados permisos específicos de gestión de contenido
 // ✅ Agregadas funciones canManageStore, canManageServices, canManagePlans

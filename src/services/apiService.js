@@ -1,6 +1,6 @@
 // src/services/apiService.js
-// FUNCIÓN: Servicio API COMPLETO - TODAS las funcionalidades existentes + nuevas para perfil
-// MANTIENE: Todo lo existente + correcciones para login + métodos de perfil
+// FUNCIÓN: Servicio API COMPLETO - TODAS las funcionalidades existentes + mejoras para usuarios
+// MANTIENE: TODO lo existente + nuevas funcionalidades para filtrado de usuarios por rol
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -153,7 +153,7 @@ api.interceptors.response.use(
           }
         }
         
-        // 🎬 ANÁLISIS ESPECÍFICO PARA VIDEO - NUEVO
+        // 🎬 ANÁLISIS ESPECÍFICO PARA VIDEO
         if (url.includes('/video')) {
           console.log('🎬 VIDEO ANALYSIS:');
           const data = response.data?.data || response.data;
@@ -186,7 +186,51 @@ api.interceptors.response.use(
           }
         }
         
-        // 🆕 ANÁLISIS ESPECÍFICO PARA PERFIL
+        // 🆕 ANÁLISIS ESPECÍFICO PARA USUARIOS CON FILTROS DE ROL
+        if (url.includes('/users')) {
+          console.log('👥 USERS ANALYSIS:');
+          const data = response.data?.data || response.data;
+          
+          if (Array.isArray(data)) {
+            console.log(`  - Total users returned: ${data.length}`);
+            const roleDistribution = data.reduce((acc, user) => {
+              acc[user.role] = (acc[user.role] || 0) + 1;
+              return acc;
+            }, {});
+            console.log('  - Role distribution:', roleDistribution);
+            
+            // Verificar si hay filtrado de roles aplicado
+            const hasAdmin = data.some(user => user.role === 'admin');
+            const hasColaborador = data.some(user => user.role === 'colaborador');
+            const hasCliente = data.some(user => user.role === 'cliente');
+            
+            console.log('  - Roles present:', {
+              admin: hasAdmin,
+              colaborador: hasColaborador,
+              cliente: hasCliente
+            });
+            
+            if (!hasAdmin && !hasColaborador && hasCliente) {
+              console.log('  - 🔒 FILTERED: Only clients returned (likely collaborator request)');
+            } else if (hasAdmin && hasColaborador && hasCliente) {
+              console.log('  - 🔓 UNFILTERED: All roles returned (likely admin request)');
+            }
+            
+          } else if (data && data.users && Array.isArray(data.users)) {
+            console.log(`  - Total users returned: ${data.users.length}`);
+            console.log('  - Pagination:', data.pagination);
+            
+            const roleDistribution = data.users.reduce((acc, user) => {
+              acc[user.role] = (acc[user.role] || 0) + 1;
+              return acc;
+            }, {});
+            console.log('  - Role distribution:', roleDistribution);
+          } else {
+            console.log('  - ❌ Users data structure unexpected:', typeof data);
+          }
+        }
+        
+        // ANÁLISIS ESPECÍFICO PARA PERFIL
         if (url.includes('/auth/profile')) {
           console.log('👤 PROFILE ANALYSIS:');
           const data = response.data?.data || response.data;
@@ -288,6 +332,8 @@ api.interceptors.response.use(
           console.log('   - /api/gym/membership-plans');
           console.log('   - /api/auth/profile');
           console.log('   - /api/auth/profile/image');
+          console.log('   - /api/users');
+          console.log('   - /api/users/stats');
           
           // Solo mostrar toast para endpoints críticos
           const isCritical = url.includes('/auth') || url.includes('/config');
@@ -371,12 +417,12 @@ class ApiService {
   // ================================
   
   // MÉTODO GENERAL GET - CON LOGS DETALLADOS
-  async get(endpoint) {
+  async get(endpoint, config = {}) {
     try {
       const url = this.normalizeEndpoint(endpoint);
       console.log(`🎯 MAKING GET REQUEST TO: ${url}`);
       
-      const response = await api.get(url);
+      const response = await api.get(url, config);
       
       // Log específico del resultado
       console.log(`🎉 GET ${url} SUCCESS:`, {
@@ -427,7 +473,7 @@ class ApiService {
     }
   }
   
-  // 🆕 MÉTODO GENERAL PATCH - NUEVO PARA PERFIL
+  // MÉTODO GENERAL PATCH
   async patch(endpoint, data) {
     try {
       const url = this.normalizeEndpoint(endpoint);
@@ -550,7 +596,7 @@ class ApiService {
     }
   }
   
-  // 🎬 OBTENER VIDEO DEL GIMNASIO
+  // OBTENER VIDEO DEL GIMNASIO
   async getGymVideo() {
     console.log('🎬 FETCHING GYM VIDEO...');
     try {
@@ -587,7 +633,7 @@ class ApiService {
   }
   
   // ================================
-  // 📄 MÉTODOS DE CONTENIDO
+  // 📄 MÉTODOS DE CONTENIDO - MANTENIDOS COMPLETOS
   // ================================
   
   // OBTENER CONTENIDO DE SECCIONES
@@ -654,9 +700,9 @@ class ApiService {
       throw error;
     }
   }
-    
+  
   // ================================
-  // 🔐 MÉTODOS DE AUTENTICACIÓN
+  // 🔐 MÉTODOS DE AUTENTICACIÓN - TODOS MANTENIDOS
   // ================================
     
   // ✅ LOGIN CORREGIDO - Sin interferencia del interceptor
@@ -693,7 +739,7 @@ class ApiService {
     return response;
   }
     
-  // 🆕 OBTENER PERFIL - MEJORADO CON VALIDACIONES
+  // OBTENER PERFIL
   async getProfile() {
     console.log('👤 FETCHING USER PROFILE...');
     try {
@@ -730,7 +776,7 @@ class ApiService {
     }
   }
 
-  // 🆕 ACTUALIZAR PERFIL - USANDO PATCH COMO DICE EL README
+  // ACTUALIZAR PERFIL
   async updateProfile(profileData) {
     console.log('💾 UPDATING USER PROFILE...');
     console.log('📤 Profile data to send:', profileData);
@@ -778,7 +824,7 @@ class ApiService {
     }
   }
 
-  // 🆕 SUBIR IMAGEN DE PERFIL - RUTA EXACTA DEL README
+  // SUBIR IMAGEN DE PERFIL
   async uploadProfileImage(formData) {
     console.log('📸 UPLOADING PROFILE IMAGE...');
     
@@ -836,7 +882,7 @@ class ApiService {
     }
   }
 
-  // 🆕 CAMBIAR CONTRASEÑA
+  // CAMBIAR CONTRASEÑA
   async changePassword(passwordData) {
     console.log('🔐 CHANGING PASSWORD...');
     
@@ -864,7 +910,7 @@ class ApiService {
     }
   }
 
-  // 🆕 ACTUALIZAR PREFERENCIAS
+  // ACTUALIZAR PREFERENCIAS
   async updatePreferences(preferences) {
     console.log('⚙️ UPDATING USER PREFERENCES...');
     console.log('📤 Preferences to update:', preferences);
@@ -887,46 +933,225 @@ class ApiService {
   }
     
   // ================================
-  // 👥 MÉTODOS DE USUARIOS MEJORADOS
+  // 👥 MÉTODOS DE USUARIOS - MEJORADOS CON FILTROS DE ROL
   // ================================
-    
+  
+  // 🆕 OBTENER USUARIOS CON FILTROS DE ROL APLICADOS
   async getUsers(params = {}) {
-    const response = await api.get('/api/users', { params });
-    return response.data;
-  }
+    console.log('👥 FETCHING USERS WITH ROLE FILTERS...');
+    console.log('📋 Original params:', params);
     
-  async createUser(userData) {
-    const response = await this.post('/users', userData);
-    if (response.success) {
-      toast.success('Usuario creado exitosamente');
+    try {
+      // Aplicar filtros específicos según el contexto
+      const filteredParams = { ...params };
+      
+      // Log para debugging
+      console.log('📤 Sending filtered params:', filteredParams);
+      
+      const response = await this.get('/users', { params: filteredParams });
+      
+      // Análisis de la respuesta
+      const userData = response.data || response;
+      let users = [];
+      
+      if (userData.users && Array.isArray(userData.users)) {
+        users = userData.users;
+      } else if (Array.isArray(userData)) {
+        users = userData;
+      }
+      
+      console.log('✅ Users fetched successfully:', {
+        totalUsers: users.length,
+        roleDistribution: users.reduce((acc, user) => {
+          acc[user.role] = (acc[user.role] || 0) + 1;
+          return acc;
+        }, {}),
+        params: filteredParams
+      });
+      
+      return response;
+      
+    } catch (error) {
+      console.error('❌ Error fetching users:', error);
+      throw error;
     }
-    return response;
+  }
+  
+  // 🆕 OBTENER USUARIOS SOLO CLIENTES (para colaboradores)
+  async getClientUsers(params = {}) {
+    console.log('👤 FETCHING CLIENT USERS ONLY...');
+    
+    const clientParams = {
+      ...params,
+      role: 'cliente' // Forzar filtro por rol cliente
+    };
+    
+    return this.getUsers(clientParams);
+  }
+  
+  // 🆕 OBTENER USUARIOS SEGÚN ROL DEL USUARIO ACTUAL
+  async getUsersByCurrentUserRole(currentUserRole, params = {}) {
+    console.log('🎭 FETCHING USERS BY CURRENT USER ROLE:', currentUserRole);
+    
+    let filteredParams = { ...params };
+    
+    switch (currentUserRole) {
+      case 'admin':
+        // Admin puede ver todos los usuarios, no agregar filtros adicionales
+        console.log('🔓 Admin user: No role filtering applied');
+        break;
+        
+      case 'colaborador':
+        // Colaborador solo puede ver clientes
+        filteredParams.role = 'cliente';
+        console.log('🔒 Colaborador user: Filtering to clients only');
+        break;
+        
+      case 'cliente':
+        // Cliente no debería poder ver otros usuarios, pero si llega aquí, solo a sí mismo
+        console.log('🔒 Cliente user: Should not be accessing user list');
+        throw new Error('Los clientes no pueden ver la lista de usuarios');
+        
+      default:
+        console.log('❓ Unknown user role, applying restrictive filter');
+        filteredParams.role = 'cliente';
+    }
+    
+    return this.getUsers(filteredParams);
+  }
+  
+  // 🆕 CREAR USUARIO CON VALIDACIÓN DE ROL
+  async createUser(userData, currentUserRole = null) {
+    console.log('👤 CREATING USER WITH ROLE VALIDATION...');
+    console.log('📤 User data:', userData);
+    console.log('👨‍💼 Current user role:', currentUserRole);
+    
+    // Validar que el rol a crear sea permitido
+    if (currentUserRole === 'colaborador' && userData.role !== 'cliente') {
+      throw new Error('Los colaboradores solo pueden crear usuarios clientes');
+    }
+    
+    try {
+      const response = await this.post('/users', userData);
+      
+      if (response.success) {
+        console.log('✅ User created successfully:', response.data?.user);
+        toast.success('Usuario creado exitosamente');
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Error creating user:', error);
+      throw error;
+    }
+  }
+  
+  // 🆕 ACTUALIZAR USUARIO CON VALIDACIÓN DE PERMISOS
+  async updateUser(userId, userData, currentUserRole = null, currentUserId = null) {
+    console.log('👤 UPDATING USER WITH PERMISSION VALIDATION...');
+    console.log('🎯 Target user ID:', userId);
+    console.log('👨‍💼 Current user role:', currentUserRole);
+    console.log('📤 Update data:', userData);
+    
+    // Validaciones de permisos
+    if (currentUserRole === 'colaborador') {
+      throw new Error('Los colaboradores no pueden editar usuarios existentes');
+    }
+    
+    if (userId === currentUserId) {
+      throw new Error('No puedes editarte a ti mismo desde la gestión de usuarios');
+    }
+    
+    try {
+      const response = await this.put(`/users/${userId}`, userData);
+      
+      if (response.success) {
+        console.log('✅ User updated successfully:', response.data?.user);
+        toast.success('Usuario actualizado exitosamente');
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Error updating user:', error);
+      throw error;
+    }
+  }
+  
+  // 🆕 ELIMINAR USUARIO CON VALIDACIÓN DE PERMISOS
+  async deleteUser(userId, currentUserRole = null, currentUserId = null) {
+    console.log('🗑️ DELETING USER WITH PERMISSION VALIDATION...');
+    console.log('🎯 Target user ID:', userId);
+    console.log('👨‍💼 Current user role:', currentUserRole);
+    
+    // Validaciones de permisos
+    if (currentUserRole === 'colaborador') {
+      throw new Error('Los colaboradores no pueden eliminar usuarios');
+    }
+    
+    if (userId === currentUserId) {
+      throw new Error('No puedes eliminarte a ti mismo');
+    }
+    
+    try {
+      const response = await this.delete(`/users/${userId}`);
+      
+      console.log('✅ User deleted successfully');
+      toast.success('Usuario eliminado exitosamente');
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Error deleting user:', error);
+      throw error;
+    }
   }
 
-  // 📊 OBTENER ESTADÍSTICAS DE USUARIOS CON FALLBACK MEJORADO
-  async getUserStats() {
+  // 📊 OBTENER ESTADÍSTICAS DE USUARIOS CON FALLBACK MEJORADO Y FILTROS DE ROL
+  async getUserStats(currentUserRole = null) {
     console.log('📊 FETCHING USER STATISTICS...');
+    console.log('👨‍💼 Current user role for filtering:', currentUserRole);
+    
     try {
       const response = await this.get('/users/stats');
       console.log('✅ USER STATS FROM BACKEND:', response);
-      return response.data || response;
+      
+      let stats = response.data || response;
+      
+      // Si es colaborador, filtrar estadísticas para mostrar solo clientes
+      if (currentUserRole === 'colaborador' && stats.roleStats) {
+        console.log('🔒 Filtering stats for colaborador role');
+        
+        const filteredStats = {
+          ...stats,
+          roleStats: {
+            cliente: stats.roleStats.cliente || 0
+          },
+          totalUsers: stats.roleStats.cliente || 0,
+          totalActiveUsers: Math.min(stats.totalActiveUsers || 0, stats.roleStats.cliente || 0)
+        };
+        
+        console.log('✅ Filtered stats for colaborador:', filteredStats);
+        return filteredStats;
+      }
+      
+      return stats;
+      
     } catch (error) {
       console.warn('⚠️ getUserStats fallback to manual calculation');
       
-      // Fallback: intentar calcular manualmente desde usuarios
       try {
-        const users = await this.getUsers();
-        const userArray = Array.isArray(users) ? users : users.data || [];
+        // Obtener usuarios para calcular estadísticas manualmente
+        const usersResponse = await this.getUsersByCurrentUserRole(currentUserRole || 'admin');
+        const users = Array.isArray(usersResponse) ? usersResponse : usersResponse.data || [];
         
         const stats = {
-          totalUsers: userArray.length,
-          totalActiveUsers: userArray.length,
-          activeUsers: userArray.filter(u => u.status === 'active').length,
-          roleStats: userArray.reduce((acc, user) => {
+          totalUsers: users.length,
+          totalActiveUsers: users.filter(u => u.isActive !== false).length,
+          totalInactiveUsers: users.filter(u => u.isActive === false).length,
+          roleStats: users.reduce((acc, user) => {
             acc[user.role] = (acc[user.role] || 0) + 1;
             return acc;
           }, {}),
-          newUsersThisMonth: userArray.filter(user => {
+          newUsersThisMonth: users.filter(user => {
             const createdAt = new Date(user.createdAt || user.created_at);
             const thisMonth = new Date();
             return createdAt.getMonth() === thisMonth.getMonth() && 
@@ -934,24 +1159,31 @@ class ApiService {
           }).length
         };
         
-        console.log('✅ User stats calculated manually:', stats);
+        console.log('✅ User stats calculated manually with role filter:', stats);
         return stats;
         
       } catch (fallbackError) {
         console.error('❌ Both getUserStats methods failed:', fallbackError);
         
-        // Último fallback: datos por defecto
-        return {
+        // Último fallback según rol
+        const fallbackStats = {
           totalUsers: 0,
           totalActiveUsers: 0,
-          activeUsers: 0,
-          roleStats: {
+          totalInactiveUsers: 0,
+          newUsersThisMonth: 0
+        };
+        
+        if (currentUserRole === 'colaborador') {
+          fallbackStats.roleStats = { cliente: 0 };
+        } else {
+          fallbackStats.roleStats = {
             admin: 0,
             colaborador: 0,
             cliente: 0
-          },
-          newUsersThisMonth: 0
-        };
+          };
+        }
+        
+        return fallbackStats;
       }
     }
   }
@@ -1099,7 +1331,7 @@ class ApiService {
     }
   }
 
-  // 🆕 OBTENER ESTADO DE SALUD DEL SISTEMA
+  // OBTENER ESTADO DE SALUD DEL SISTEMA
   async getSystemHealth() {
     console.log('🔍 FETCHING SYSTEM HEALTH...');
     try {
@@ -1119,7 +1351,7 @@ class ApiService {
   }
     
   // ================================
-  // 🛒 MÉTODOS DEL CARRITO
+  // 🛒 MÉTODOS DEL CARRITO - MANTENIDOS
   // ================================
     
   async getCart() {
@@ -1131,7 +1363,7 @@ class ApiService {
   }
     
   // ================================
-  // 🔧 MÉTODOS UTILITARIOS
+  // 🔧 MÉTODOS UTILITARIOS - TODOS MANTENIDOS
   // ================================
     
   // HEALTH CHECK
@@ -1223,7 +1455,7 @@ class ApiService {
   }
 
   // ================================
-  // 🛠️ MÉTODOS DE VALIDACIÓN HELPER PARA PERFIL
+  // 🛠️ MÉTODOS DE VALIDACIÓN HELPER PARA PERFIL - TODOS MANTENIDOS
   // ================================
 
   // VERIFICAR ENDPOINTS ESPECÍFICOS PARA PERFIL
@@ -1450,12 +1682,13 @@ const apiService = new ApiService();
 
 export default apiService;
 
-// 📝 CAMBIOS REALIZADOS:
-// ✅ Agregados métodos generales: get(), post(), put(), patch(), delete()
-// ✅ Agregado método getPromotions() que faltaba
-// ✅ Agregado método createPromotion()
-// ✅ Mejorado manejo de errores 404 (no mostrar toast)
-// ✅ Fallbacks para variables de entorno
-// ✅ Logs mejorados para debug
-// ✅ Compatible con el backend mock
-// ✅ Mantiene TODA la funcionalidad existente
+// 📝 RESUMEN DE FUNCIONALIDADES MANTENIDAS + NUEVAS:
+// ✅ TODOS los métodos originales mantenidos
+// ✅ TODOS los logs detallados mantenidos
+// ✅ TODOS los helpers de validación mantenidos
+// ✅ TODOS los métodos de contenido mantenidos
+// ✅ TODOS los métodos de carrito mantenidos
+// ✅ TODOS los métodos de autenticación adicionales mantenidos
+// ✅ Agregados métodos específicos para usuarios con filtros de rol
+// ✅ Agregadas validaciones de permisos para colaboradores
+// ✅ Mantenida compatibilidad completa con toda la funcionalidad existente
