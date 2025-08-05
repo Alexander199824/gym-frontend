@@ -1,10 +1,9 @@
 // src/pages/dashboard/StaffDashboard.js
-// UBICACIÓN: /gym-frontend/src/pages/dashboard/StaffDashboard.js
-// FUNCIÓN: Dashboard para personal/colaboradores con funciones operativas
-// CONECTA CON: Endpoints específicos para tareas diarias del staff
+// FUNCIÓN: Dashboard para personal/colaboradores CORREGIDO
+// CAMBIOS: Tamaños uniformes, redirecciones correctas, ingresos filtrados por colaborador
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Users, 
@@ -16,22 +15,20 @@ import {
   AlertCircle,
   CheckCircle,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  Eye
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
 // 📊 Componentes
-import DashboardCard from '../../components/common/DashboardCard';
-import QuickActionCard from '../../components/common/QuickActionCard';
-import TodaySchedule from '../../components/dashboard/TodaySchedule';
-import RecentPayments from '../../components/dashboard/RecentPayments';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const StaffDashboard = () => {
   const { user } = useAuth();
   const { formatCurrency, formatDate, showError } = useApp();
+  const navigate = useNavigate();
   
   // 📅 Fecha actual
   const today = new Date().toISOString().split('T')[0];
@@ -54,35 +51,55 @@ const StaffDashboard = () => {
     onError: (error) => showError('Error al cargar membresías próximas a vencer')
   });
   
-  // Pagos del día
+  // 💰 PAGOS DEL DÍA FILTRADOS POR COLABORADOR ACTUAL
   const { data: todayPayments, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['todayPayments'],
+    queryKey: ['todayPayments', user?.id],
     queryFn: () => apiService.getPayments({ 
       startDate: today,
-      endDate: today 
+      endDate: today,
+      createdBy: user?.id // 🆕 Filtrar por colaborador actual
     }),
     staleTime: 1 * 60 * 1000, // 1 minuto
     onError: (error) => showError('Error al cargar pagos del día')
   });
   
-  // Usuarios recientes
+  // Usuarios recientes - solo clientes
   const { data: recentUsers, isLoading: usersLoading } = useQuery({
     queryKey: ['recentUsers'],
     queryFn: () => apiService.getUsers({ 
       limit: 10,
-      page: 1 
+      page: 1,
+      role: 'cliente' // Solo clientes para colaboradores
     }),
     staleTime: 5 * 60 * 1000,
     onError: (error) => showError('Error al cargar usuarios recientes')
   });
   
-  // 📊 Calcular métricas del día
+  // 📊 Calcular métricas del día - SOLO DEL COLABORADOR ACTUAL
   const todayMetrics = {
     expiredCount: expiredMemberships?.data?.total || 0,
     expiringSoonCount: expiringSoon?.data?.total || 0,
     todayPaymentsCount: todayPayments?.data?.payments?.length || 0,
+    // 🔒 IMPORTANTE: Solo ingresos registrados por este colaborador
     todayRevenue: todayPayments?.data?.payments?.reduce((sum, payment) => 
       sum + parseFloat(payment.amount), 0) || 0
+  };
+
+  // 🔗 FUNCIONES DE NAVEGACIÓN CORREGIDAS
+  const handleCreateUser = () => {
+    navigate('/dashboard/users?action=create');
+  };
+
+  const handleCreateMembership = () => {
+    navigate('/dashboard/memberships?action=create');
+  };
+
+  const handleCreatePayment = () => {
+    navigate('/dashboard/payments?action=create');
+  };
+
+  const handleViewUsers = () => {
+    navigate('/dashboard/users');
   };
 
   return (
@@ -106,7 +123,7 @@ const StaffDashboard = () => {
         </div>
       </div>
       
-      {/* 📊 MÉTRICAS DIARIAS */}
+      {/* 📊 MÉTRICAS DIARIAS - TAMAÑOS UNIFORMES */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* ⚠️ Membresías vencidas */}
@@ -116,7 +133,7 @@ const StaffDashboard = () => {
           icon={AlertCircle}
           color="red"
           isLoading={expiredLoading}
-          link="/dashboard/memberships/expired"
+          onClick={() => navigate('/dashboard/memberships?filter=expired')}
           alert={todayMetrics.expiredCount > 0}
         />
         
@@ -127,34 +144,34 @@ const StaffDashboard = () => {
           icon={Clock}
           color="yellow"
           isLoading={expiringSoonLoading}
-          link="/dashboard/memberships/expiring-soon"
+          onClick={() => navigate('/dashboard/memberships?filter=expiring')}
           alert={todayMetrics.expiringSoonCount > 0}
         />
         
-        {/* 💰 Pagos del día */}
+        {/* 💰 Pagos del día - SOLO LOS REGISTRADOS POR EL COLABORADOR */}
         <DashboardCard
-          title="Pagos Hoy"
+          title="Mis Pagos Hoy"
           value={todayMetrics.todayPaymentsCount}
           icon={DollarSign}
           color="green"
           isLoading={paymentsLoading}
-          link="/dashboard/payments"
-          subtitle={`${formatCurrency(todayMetrics.todayRevenue)}`}
+          onClick={() => navigate('/dashboard/payments?filter=today&createdBy=me')}
+          subtitle={`${formatCurrency(todayMetrics.todayRevenue)} registrados por ti`}
         />
         
-        {/* 👥 Usuarios registrados */}
+        {/* 👥 Usuarios (Clientes) */}
         <DashboardCard
-          title="Usuarios"
+          title="Clientes"
           value={recentUsers?.data?.pagination?.total || 0}
           icon={Users}
           color="blue"
           isLoading={usersLoading}
-          link="/dashboard/users"
+          onClick={handleViewUsers}
         />
         
       </div>
       
-      {/* 🎯 ACCIONES RÁPIDAS */}
+      {/* 🎯 ACCIONES RÁPIDAS - TAMAÑOS UNIFORMES Y REDIRECCIONES CORREGIDAS */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Acciones Rápidas
@@ -166,7 +183,7 @@ const StaffDashboard = () => {
             description="Registrar nuevo usuario"
             icon={UserPlus}
             color="blue"
-            link="/dashboard/users/create"
+            onClick={handleCreateUser}
           />
           
           <QuickActionCard
@@ -174,7 +191,7 @@ const StaffDashboard = () => {
             description="Crear membresía"
             icon={CreditCard}
             color="green"
-            link="/dashboard/memberships/create"
+            onClick={handleCreateMembership}
           />
           
           <QuickActionCard
@@ -182,15 +199,15 @@ const StaffDashboard = () => {
             description="Pago en efectivo"
             icon={DollarSign}
             color="yellow"
-            link="/dashboard/payments/create"
+            onClick={handleCreatePayment}
           />
           
           <QuickActionCard
-            title="Buscar Usuario"
+            title="Buscar Cliente"
             description="Encontrar cliente"
             icon={Users}
             color="purple"
-            link="/dashboard/users"
+            onClick={handleViewUsers}
           />
         </div>
       </div>
@@ -204,12 +221,12 @@ const StaffDashboard = () => {
             <h3 className="text-lg font-medium text-gray-900">
               Membresías Vencidas
             </h3>
-            <Link 
-              to="/dashboard/memberships/expired"
+            <button
+              onClick={() => navigate('/dashboard/memberships?filter=expired')}
               className="text-primary-600 hover:text-primary-500 text-sm font-medium"
             >
               Ver todas
-            </Link>
+            </button>
           </div>
           
           {expiredLoading ? (
@@ -217,22 +234,24 @@ const StaffDashboard = () => {
           ) : (
             <ExpiredMembershipsList 
               memberships={expiredMemberships?.data?.memberships?.slice(0, 5) || []} 
+              onRenew={(id) => navigate(`/dashboard/memberships?action=renew&id=${id}`)}
+              onView={(id) => navigate(`/dashboard/memberships?view=${id}`)}
             />
           )}
         </div>
         
-        {/* 💰 PAGOS RECIENTES */}
+        {/* 💰 MIS PAGOS RECIENTES */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
-              Pagos de Hoy
+              Mis Pagos de Hoy
             </h3>
-            <Link 
-              to="/dashboard/payments"
+            <button
+              onClick={() => navigate('/dashboard/payments?filter=today&createdBy=me')}
               className="text-primary-600 hover:text-primary-500 text-sm font-medium"
             >
               Ver todos
-            </Link>
+            </button>
           </div>
           
           {paymentsLoading ? (
@@ -261,15 +280,17 @@ const StaffDashboard = () => {
           <LoadingSpinner />
         ) : (
           <ExpiringSoonList 
-            memberships={expiringSoon?.data?.memberships || []} 
+            memberships={expiringSoon?.data?.memberships || []}
+            onRenew={(id) => navigate(`/dashboard/memberships?action=renew&id=${id}`)}
+            onView={(id) => navigate(`/dashboard/memberships?view=${id}`)}
           />
         )}
       </div>
       
-      {/* 📈 RESUMEN SEMANAL */}
+      {/* 📈 RESUMEN PERSONAL DEL COLABORADOR */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Resumen de la Semana
+          Mi Resumen del Día
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -277,21 +298,21 @@ const StaffDashboard = () => {
             <div className="text-2xl font-bold text-green-600">
               {formatCurrency(todayMetrics.todayRevenue)}
             </div>
-            <div className="text-sm text-gray-600">Ingresos hoy</div>
+            <div className="text-sm text-gray-600">Ingresos registrados por ti hoy</div>
           </div>
           
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-600">
               {todayMetrics.todayPaymentsCount}
             </div>
-            <div className="text-sm text-gray-600">Pagos procesados</div>
+            <div className="text-sm text-gray-600">Pagos que has procesado</div>
           </div>
           
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-600">
               {todayMetrics.expiredCount + todayMetrics.expiringSoonCount}
             </div>
-            <div className="text-sm text-gray-600">Requieren atención</div>
+            <div className="text-sm text-gray-600">Membresías que requieren tu atención</div>
           </div>
         </div>
       </div>
@@ -300,8 +321,98 @@ const StaffDashboard = () => {
   );
 };
 
-// 📋 COMPONENTE: Lista de membresías vencidas
-const ExpiredMembershipsList = ({ memberships }) => {
+// 📊 COMPONENTE: Dashboard Card UNIFORME
+const DashboardCard = ({ title, value, icon: Icon, color, isLoading, onClick, alert, subtitle }) => {
+  const colors = {
+    red: 'bg-red-50 border-red-200 text-red-800',
+    yellow: 'bg-yellow-50 border-yellow-200 text-yellow-800',
+    green: 'bg-green-50 border-green-200 text-green-800',
+    blue: 'bg-blue-50 border-blue-200 text-blue-800',
+    purple: 'bg-purple-50 border-purple-200 text-purple-800'
+  };
+
+  const iconColors = {
+    red: 'text-red-600',
+    yellow: 'text-yellow-600',
+    green: 'text-green-600',
+    blue: 'text-blue-600',
+    purple: 'text-purple-600'
+  };
+
+  return (
+    <div 
+      className={`
+        ${colors[color] || colors.blue} 
+        border rounded-lg p-4 cursor-pointer hover:shadow-md transition-all duration-200
+        ${alert ? 'ring-2 ring-red-400 animate-pulse' : ''}
+        min-h-[120px] flex flex-col justify-center
+      `}
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <div className="text-sm font-medium opacity-80 mb-1">
+            {title}
+          </div>
+          {isLoading ? (
+            <div className="w-8 h-8 bg-current opacity-20 rounded animate-pulse"></div>
+          ) : (
+            <div className="text-2xl font-bold">
+              {value}
+            </div>
+          )}
+          {subtitle && (
+            <div className="text-xs opacity-70 mt-1">
+              {subtitle}
+            </div>
+          )}
+        </div>
+        <Icon className={`w-8 h-8 ${iconColors[color] || iconColors.blue} opacity-80`} />
+      </div>
+    </div>
+  );
+};
+
+// 🎯 COMPONENTE: Quick Action Card UNIFORME
+const QuickActionCard = ({ title, description, icon: Icon, color, onClick }) => {
+  const colors = {
+    blue: 'bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-800',
+    green: 'bg-green-50 border-green-200 hover:bg-green-100 text-green-800',
+    yellow: 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100 text-yellow-800',
+    purple: 'bg-purple-50 border-purple-200 hover:bg-purple-100 text-purple-800'
+  };
+
+  const iconColors = {
+    blue: 'text-blue-600',
+    green: 'text-green-600',
+    yellow: 'text-yellow-600',
+    purple: 'text-purple-600'
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        ${colors[color] || colors.blue}
+        border rounded-lg p-4 text-left transition-all duration-200 hover:shadow-md
+        min-h-[100px] flex flex-col justify-center w-full
+      `}
+    >
+      <div className="flex items-center mb-2">
+        <Icon className={`w-6 h-6 ${iconColors[color] || iconColors.blue} mr-3`} />
+        <div className="text-sm font-medium">
+          {title}
+        </div>
+      </div>
+      <div className="text-xs opacity-70">
+        {description}
+      </div>
+    </button>
+  );
+};
+
+// 📋 COMPONENTE: Lista de membresías vencidas MEJORADA
+const ExpiredMembershipsList = ({ memberships, onRenew, onView }) => {
   if (memberships.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -325,18 +436,19 @@ const ExpiredMembershipsList = ({ memberships }) => {
             </p>
           </div>
           <div className="flex space-x-2">
-            <Link
-              to={`/dashboard/memberships/${membership.id}`}
-              className="text-xs bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
+            <button
+              onClick={() => onView(membership.id)}
+              className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 flex items-center"
             >
+              <Eye className="w-3 h-3 mr-1" />
               Ver
-            </Link>
-            <Link
-              to={`/dashboard/memberships/${membership.id}/renew`}
+            </button>
+            <button
+              onClick={() => onRenew(membership.id)}
               className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
             >
               Renovar
-            </Link>
+            </button>
           </div>
         </div>
       ))}
@@ -344,13 +456,13 @@ const ExpiredMembershipsList = ({ memberships }) => {
   );
 };
 
-// 💰 COMPONENTE: Lista de pagos recientes
+// 💰 COMPONENTE: Lista de pagos recientes MEJORADA
 const RecentPaymentsList = ({ payments }) => {
   if (payments.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
         <DollarSign className="w-8 h-8 mx-auto mb-2" />
-        <p>No hay pagos registrados hoy.</p>
+        <p>No has registrado pagos hoy.</p>
       </div>
     );
   }
@@ -361,7 +473,8 @@ const RecentPaymentsList = ({ payments }) => {
         <div key={payment.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
           <div>
             <p className="text-sm font-medium text-gray-900">
-              {payment.user?.firstName} {payment.user?.lastName}
+              {payment.user?.firstName} {payment.user?.lastName || 
+               payment.anonymousClientInfo?.name || 'Cliente Anónimo'}
             </p>
             <p className="text-xs text-gray-600">
               {payment.paymentType === 'membership' ? 'Membresía' : 'Pago diario'} - 
@@ -383,8 +496,8 @@ const RecentPaymentsList = ({ payments }) => {
   );
 };
 
-// ⏰ COMPONENTE: Lista de próximas a vencer
-const ExpiringSoonList = ({ memberships }) => {
+// ⏰ COMPONENTE: Lista de próximas a vencer MEJORADA
+const ExpiringSoonList = ({ memberships, onRenew, onView }) => {
   if (memberships.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
@@ -448,18 +561,18 @@ const ExpiringSoonList = ({ memberships }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <Link
-                    to={`/dashboard/memberships/${membership.id}`}
-                    className="text-primary-600 hover:text-primary-900 mr-2"
+                  <button
+                    onClick={() => onView(membership.id)}
+                    className="text-blue-600 hover:text-blue-900 mr-2"
                   >
                     Ver
-                  </Link>
-                  <Link
-                    to={`/dashboard/memberships/${membership.id}/renew`}
+                  </button>
+                  <button
+                    onClick={() => onRenew(membership.id)}
                     className="text-green-600 hover:text-green-900"
                   >
                     Renovar
-                  </Link>
+                  </button>
                 </td>
               </tr>
             );
