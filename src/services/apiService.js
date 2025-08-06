@@ -1335,7 +1335,7 @@ class ApiService {
   async getSystemHealth() {
     console.log('🔍 FETCHING SYSTEM HEALTH...');
     try {
-      const response = await this.get('/system/health');
+      const response = await this.get('/health');
       console.log('✅ SYSTEM HEALTH FROM BACKEND:', response);
       return response.data || response;
     } catch (error) {
