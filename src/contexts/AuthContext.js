@@ -1,6 +1,6 @@
 // src/contexts/AuthContext.js
-// FUNCIÓN: Manejo del estado global de autenticación CON PERMISOS CORREGIDOS
-// CAMBIOS: Colaborador puede ver toda la info de clientes sin errores
+// FUNCIÓN: AuthContext MEJORADO con refreshUserData para OAuth
+// CAMBIOS: ✅ Agregada función refreshUserData para compatibilidad con OAuth
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import apiService from '../services/apiService';
@@ -267,27 +267,82 @@ export function AuthProvider({ children }) {
   // Verificar estado de autenticación
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY);
+      console.log('🔍 Verificando estado de autenticación...');
+      const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
       
       if (!token) {
+        console.log('❌ No hay token, marcando como no autenticado');
         dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
         return;
       }
+      
+      console.log('🔍 Token encontrado, verificando con el servidor...');
       
       // Verificar token con el servidor
       const response = await apiService.getProfile();
       
       if (response.success && response.data.user) {
+        console.log('✅ Usuario autenticado correctamente:', {
+          userId: response.data.user.id,
+          role: response.data.user.role,
+          name: `${response.data.user.firstName} ${response.data.user.lastName}`
+        });
+        
         dispatch({ 
           type: ACTION_TYPES.AUTH_SUCCESS, 
           payload: response.data 
         });
       } else {
+        console.log('❌ Token inválido o usuario no encontrado');
         dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
       }
     } catch (error) {
-      console.error('Error al verificar autenticación:', error);
+      console.error('❌ Error al verificar autenticación:', error);
       dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
+    }
+  };
+  
+  // ✅ NUEVA FUNCIÓN: Refrescar datos del usuario (para OAuth)
+  const refreshUserData = async () => {
+    try {
+      console.log('🔄 Refrescando datos del usuario...');
+      
+      const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+      
+      if (!token) {
+        console.log('❌ No hay token para refrescar');
+        dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
+        return false;
+      }
+      
+      // Obtener datos frescos del usuario
+      const response = await apiService.getProfile();
+      
+      if (response.success && response.data.user) {
+        console.log('✅ Datos del usuario refrescados exitosamente:', {
+          userId: response.data.user.id,
+          role: response.data.user.role,
+          name: `${response.data.user.firstName} ${response.data.user.lastName}`
+        });
+        
+        dispatch({ 
+          type: ACTION_TYPES.AUTH_SUCCESS, 
+          payload: response.data 
+        });
+        
+        return true;
+      } else {
+        console.log('❌ Error al obtener datos frescos del usuario');
+        dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error al refrescar datos del usuario:', error);
+      // No marcar como fallo si ya estaba autenticado
+      if (!state.isAuthenticated) {
+        dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
+      }
+      return false;
     }
   };
   
@@ -376,7 +431,10 @@ export function AuthProvider({ children }) {
   
   // Cerrar sesión
   const logout = () => {
-    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY);
+    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+    localStorage.removeItem('elite_fitness_refresh_token');
+    localStorage.removeItem('elite_fitness_user_role');
+    localStorage.removeItem('elite_fitness_user_id');
     dispatch({ type: ACTION_TYPES.LOGOUT });
     toast.success('Sesión cerrada exitosamente');
     
@@ -581,7 +639,7 @@ export function AuthProvider({ children }) {
     return diffHours <= 24;
   };
   
-  // ✅ NUEVA FUNCIÓN: Obtener ruta de dashboard para rol específico
+  // ✅ FUNCIÓN: Obtener ruta de dashboard para rol específico
   const getDashboardPathForRole = (role) => {
     return getDashboardPath(role);
   };
@@ -598,6 +656,7 @@ export function AuthProvider({ children }) {
     updateProfile,
     updateActivity,
     checkAuthStatus,
+    refreshUserData,              // ✅ NUEVA FUNCIÓN PARA OAUTH
     
     // Funciones de utilidad básicas
     hasPermission,
@@ -679,7 +738,27 @@ export function withAuth(Component, requiredPermissions = []) {
     return <Component {...props} />;
   };
 }
-// 📝 CAMBIOS REALIZADOS PARA COLABORADOR:
+
+// 📝 CAMBIOS REALIZADOS EN ESTA VERSIÓN:
+// 
+// ✅ NUEVA FUNCIÓN REFRESHUSERDATA:
+// - Agregada función refreshUserData() para compatibilidad con OAuth
+// - Logs detallados para debug
+// - Manejo robusto de errores
+// - Retorna true/false para indicar éxito
+// 
+// ✅ MEJORAS EN CHECKAUTH:
+// - Mejor logging para debug
+// - Más detalles en los logs de verificación
+// 
+// ✅ LOGOUT MEJORADO:
+// - Limpia todos los tokens relacionados con OAuth
+// - Incluye refresh token y datos de usuario
+// 
+// ✅ COMPATIBILIDAD COMPLETA:
+// - Mantiene toda la funcionalidad existente
+// - No rompe ninguna funcionalidad anterior
+// - Agregada funcionalidad OAuth sin afectar login tradicional
 // ✅ Removido 'edit_users' de permisos de colaborador
 // ✅ Removido 'delete_users' de permisos de colaborador
 // ✅ Agregado 'view_client_users_only' para limitar vista
