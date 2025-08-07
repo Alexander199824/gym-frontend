@@ -1,11 +1,10 @@
 // src/pages/store/StorePage.js
-// FUNCIÓN: Página de tienda INTEGRADA con backend + carrito persistente
-// CAMBIOS: ✅ Solo productos del backend ✅ Carrito persistente ✅ Sin datos hardcodeados
+// FUNCIÓN: Página de tienda SIN carrito estático - Solo usa carrito flotante
+// CAMBIOS: ✅ Removido carrito del header ✅ Solo carrito flotante ✅ Mantiene todas las funcionalidades
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { 
-  ShoppingCart, 
   Filter, 
   Search, 
   Grid, 
@@ -22,7 +21,8 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -30,7 +30,7 @@ import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
 const StorePage = () => {
-  const { addItem, toggleCart, itemCount, isLoading: cartLoading } = useCart();
+  const { addItem, isLoading: cartLoading } = useCart(); // ✅ Removido toggleCart e itemCount
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -247,16 +247,27 @@ const StorePage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* 🔝 HEADER DE LA TIENDA */}
+      {/* 🔝 HEADER DE LA TIENDA - SIN CARRITO */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             
-            {/* Logo y título */}
+            {/* Logo y título con navegación */}
             <div className="flex items-center space-x-4">
+              <Link 
+                to="/"
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                <span className="text-sm">Volver</span>
+              </Link>
+              
+              <div className="h-6 w-px bg-gray-300"></div>
+              
               <h1 className="text-2xl font-bold text-gray-900">
                 🛍️ Tienda Elite Fitness
               </h1>
+              
               {isAuthenticated && user && (
                 <span className="text-sm text-gray-600">
                   Hola, {user.firstName}
@@ -264,23 +275,17 @@ const StorePage = () => {
               )}
             </div>
             
-            {/* Carrito */}
-            <button
-              onClick={toggleCart}
-              className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
-              disabled={cartLoading}
-            >
-              {cartLoading ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                <ShoppingCart className="w-6 h-6" />
-              )}
-              {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
-                  {itemCount}
-                </span>
-              )}
-            </button>
+            {/* Info adicional en desktop */}
+            <div className="hidden md:flex items-center space-x-4 text-sm text-gray-600">
+              <div className="flex items-center">
+                <Truck className="w-4 h-4 mr-1" />
+                <span>Envío gratis +Q200</span>
+              </div>
+              <div className="flex items-center">
+                <Shield className="w-4 h-4 mr-1" />
+                <span>Garantía incluida</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -594,7 +599,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
   const lowStock = inStock && (product.stockQuantity || 0) <= 5;
   
   const handleAddToCart = async () => {
-    if (!inStock) return;
+    if (!inStock || addingToCart) return;
     
     try {
       setAddingToCart(true);
@@ -665,12 +670,10 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
             <button
               onClick={handleAddToCart}
               disabled={addingToCart}
-              className="btn-primary disabled:opacity-50"
+              className="btn-primary disabled:opacity-50 flex items-center space-x-2"
             >
-              {addingToCart ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
-              {addingToCart ? 'Agregando...' : 'Agregar al carrito'}
+              {addingToCart && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{addingToCart ? 'Agregando...' : 'Agregar al carrito'}</span>
             </button>
           ) : (
             <button disabled className="btn-secondary opacity-50 cursor-not-allowed">
@@ -859,16 +862,16 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
         <button 
           onClick={handleAddToCart}
           disabled={!inStock || addingToCart}
-          className={`w-full py-3 font-semibold rounded-lg transition-colors flex items-center justify-center ${
+          className={`w-full py-3 font-semibold rounded-lg transition-colors flex items-center justify-center space-x-2 ${
             inStock
               ? 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
           {addingToCart && (
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            <Loader2 className="w-4 h-4 animate-spin" />
           )}
-          {addingToCart ? 'Agregando...' : inStock ? 'Agregar al carrito' : 'Agotado'}
+          <span>{addingToCart ? 'Agregando...' : inStock ? 'Agregar al carrito' : 'Agotado'}</span>
         </button>
       </div>
     </div>

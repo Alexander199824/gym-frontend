@@ -1,6 +1,6 @@
 // src/components/cart/CartSidebar.js
-// FUNCIÓN: Sidebar del carrito CORREGIDO - Layout fijo que siempre se ve completo
-// ARREGLO: ✅ Footer siempre visible ✅ Altura fija ✅ Sin cortes ✅ Responsive
+// FUNCIÓN: Sidebar del carrito CORREGIDO - Layout fijo que siempre se ve completo + Z-index corregido
+// ARREGLO: ✅ Footer siempre visible ✅ Altura fija ✅ Sin cortes ✅ Responsive ✅ Z-index por encima del navbar
 
 import React, { useState } from 'react';
 import { 
@@ -108,14 +108,14 @@ const CartSidebar = () => {
 
   return (
     <>
-      {/* ✅ Overlay */}
+      {/* ✅ Overlay - Z-INDEX CORREGIDO */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        className="fixed inset-0 bg-black bg-opacity-50 z-[60]"
         onClick={closeCart}
       />
       
-      {/* ✅ Sidebar - ESTRUCTURA FIJA CORREGIDA */}
-      <div className={`fixed top-0 right-0 h-full z-50 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
+      {/* ✅ Sidebar - ESTRUCTURA FIJA CORREGIDA CON Z-INDEX MAYOR */}
+      <div className={`fixed top-0 right-0 h-full z-[70] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
         isMobile ? 'w-full' : 'w-96'
       }`}>
         
@@ -340,29 +340,37 @@ const CartSidebar = () => {
 const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   
-  // ✅ FUNCIÓN: Manejar cambio de cantidad con validaciones
+  // ✅ FUNCIÓN: Manejar cambio de cantidad con validaciones - CORREGIDA
   const handleQuantityChange = async (newQuantity) => {
     const safeQty = safeInteger(newQuantity, 0);
     
     if (safeQty < 0) return;
+    if (isUpdating) return; // Prevenir múltiples operaciones
     
     setIsUpdating(true);
     try {
+      console.log(`🔢 Updating quantity for ${item.name}: ${item.quantity} → ${safeQty}`);
       await onUpdateQuantity(item.cartId || item.id, safeQty);
+      console.log('✅ Quantity updated successfully');
     } catch (error) {
-      console.error('Error updating quantity:', error);
+      console.error('❌ Error updating quantity:', error);
     } finally {
       setIsUpdating(false);
     }
   };
   
-  // ✅ FUNCIÓN: Manejar eliminación
+  // ✅ FUNCIÓN: Manejar eliminación - CORREGIDA PARA SINCRONIZACIÓN
   const handleRemove = async () => {
+    if (isUpdating) return; // Prevenir múltiples clics
+    
     setIsUpdating(true);
     try {
+      console.log('🗑️ Removing item from cart:', item.name);
       await onRemove(item.cartId || item.id);
+      console.log('✅ Item removed successfully');
     } catch (error) {
-      console.error('Error removing item:', error);
+      console.error('❌ Error removing item:', error);
+      // Mostrar error al usuario si es necesario
     } finally {
       setIsUpdating(false);
     }
@@ -458,7 +466,12 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
 
 export default CartSidebar;
 
-// 📝 ESTRUCTURA FIJA CORREGIDA:
+// 📝 ESTRUCTURA FIJA CORREGIDA CON Z-INDEX:
+// 
+// ✅ JERARQUÍA DE Z-INDEX CORREGIDA:
+// 1. Navbar: z-50
+// 2. Overlay del carrito: z-[60] - Por encima del navbar
+// 3. Sidebar del carrito: z-[70] - Por encima de todo
 // 
 // ✅ LAYOUT GARANTIZADO:
 // 1. Header fijo (60px) - flex-shrink-0
@@ -472,7 +485,8 @@ export default CartSidebar;
 // - Altura calculada correctamente para todos los tamaños de pantalla
 // - Scroll solo en la lista de items, no en todo el sidebar
 // - Botones y resumen SIEMPRE accesibles
-// - Z-index correcto sin interferir con otros elementos
+// - Z-index correcto SIN interferir con navbar u otros elementos
+// - Carrito aparece correctamente por encima del navbar
 // 
 // ✅ RESPONSIVE MEJORADO:
 // - Ancho completo en móvil sin cortes

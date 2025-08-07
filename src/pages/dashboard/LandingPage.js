@@ -1,6 +1,6 @@
 // src/pages/dashboard/LandingPage.js
-// FUNCIÓN: Landing page COMPLETA CORREGIDA - Video siempre horizontal, carousels móvil funcionando, logo corregido
-// ARREGLOS: Video forzado horizontal 16:9, carousels automáticos móvil, logo del backend visible
+// FUNCIÓN: Landing page COMPLETA - Sin icono de carrito en navbar, usa carrito flotante
+// CAMBIOS: ✅ Removido icono carrito del navbar ✅ Usa carrito flotante ✅ Mantiene todas las funcionalidades
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -10,7 +10,8 @@ import {
   Shield, Award, ArrowRight, Menu, X, Gift, Zap, Heart, Crown,
   ChevronRight, ShoppingCart, Package, Truck, CreditCard, Eye,
   Filter, Search, Plus, Minus, AlertTriangle, Loader, Wifi, WifiOff,
-  Calendar, ChevronLeft, Pause, Volume2, VolumeX, Maximize, PlayCircle
+  Calendar, ChevronLeft, Pause, Volume2, VolumeX, Maximize, PlayCircle,
+  Loader2
 } from 'lucide-react';
 
 // 🎣 Hooks del sistema
@@ -42,7 +43,7 @@ const MINIMAL_FALLBACK = {
 const LandingPage = () => {
   // 🎣 Hooks del sistema
   const { isAuthenticated } = useAuth();
-  const { addItem, itemCount, toggleCart } = useCart();
+  const { addItem } = useCart(); // ✅ Removido toggleCart e itemCount (ya no se usan en navbar)
   const { isMobile, showSuccess, showError } = useApp();
   const navigate = useNavigate();
   
@@ -363,15 +364,16 @@ const LandingPage = () => {
     return icons[platform] || MessageCircle;
   };
   
-  // 🛍️ Manejar agregar al carrito
-  const handleAddToCart = (product, options = {}) => {
+  // 🛍️ Manejar agregar al carrito - CORREGIDO PARA SER ASYNC
+  const handleAddToCart = async (product, options = {}) => {
     try {
       if (!product || !product.id) {
         showError('Producto inválido');
         return;
       }
       
-      addItem(product, options);
+      console.log('🛒 Adding product to cart from landing:', product.name);
+      await addItem(product, options);
       showSuccess(`${product.name} agregado al carrito`);
     } catch (error) {
       console.error('Error adding to cart:', error);
@@ -419,7 +421,7 @@ const LandingPage = () => {
       {/* 🔴 INDICADOR DE CONEXIÓN */}
       <ConnectionIndicator show={process.env.NODE_ENV === 'development'} />
       
-      {/* 🔝 NAVBAR FLOTANTE CON LOGO CORREGIDO */}
+      {/* 🔝 NAVBAR FLOTANTE SIN ICONO DE CARRITO */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
           ? 'bg-white bg-opacity-95 backdrop-blur-lg shadow-lg border-b border-gray-200' 
@@ -485,20 +487,8 @@ const LandingPage = () => {
               </a>
             </div>
             
-            {/* Botones de acción - Compactos en móvil */}
+            {/* Botones de acción - SIN ICONO DE CARRITO */}
             <div className="hidden md:flex items-center space-x-3">
-              <button
-                onClick={toggleCart}
-                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
-                    {itemCount}
-                  </span>
-                )}
-              </button>
-              
               <Link to="/login" className="btn-secondary py-2 px-4 text-sm">
                 Entrar
               </Link>
@@ -508,20 +498,8 @@ const LandingPage = () => {
               </Link>
             </div>
             
-            {/* Mobile Actions - Más compacto */}
-            <div className="md:hidden flex items-center space-x-1">
-              <button
-                onClick={toggleCart}
-                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
-                    {itemCount}
-                  </span>
-                )}
-              </button>
-              
+            {/* Mobile Actions - SIN ICONO DE CARRITO */}
+            <div className="md:hidden flex items-center">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -1484,8 +1462,23 @@ const LandingPage = () => {
   );
 };
 
-// 🛍️ COMPONENTE: Tarjeta de producto para móvil
+// 🛍️ COMPONENTE: Tarjeta de producto para móvil - CORREGIDA CON ESTADO DE LOADING
 const MobileProductCard = ({ product, onAddToCart }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  
+  const handleAdd = async () => {
+    if (isAdding) return;
+    
+    try {
+      setIsAdding(true);
+      await onAddToCart(product);
+    } catch (error) {
+      console.error('Error in mobile product card:', error);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+  
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
       <div className="aspect-w-4 aspect-h-3">
@@ -1507,10 +1500,12 @@ const MobileProductCard = ({ product, onAddToCart }) => {
             Q{product.price}
           </span>
           <button
-            onClick={() => onAddToCart(product)}
-            className="btn-primary px-4 py-2 text-sm"
+            onClick={handleAdd}
+            disabled={isAdding}
+            className="btn-primary px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
           >
-            Agregar
+            {isAdding && <Loader2 className="w-3 h-3 animate-spin" />}
+            <span>{isAdding ? 'Agregando...' : 'Agregar'}</span>
           </button>
         </div>
       </div>
@@ -1628,8 +1623,23 @@ const MobilePlanCard = ({ plan }) => {
   );
 };
 
-// 🛍️ COMPONENTE: Tarjeta de producto estándar (desktop)
+// 🛍️ COMPONENTE: Tarjeta de producto estándar (desktop) - CORREGIDA CON ESTADO DE LOADING
 const ProductPreviewCard = ({ product, onAddToCart }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  
+  const handleAdd = async () => {
+    if (isAdding) return;
+    
+    try {
+      setIsAdding(true);
+      await onAddToCart(product);
+    } catch (error) {
+      console.error('Error in product preview card:', error);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+  
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
       <div className="aspect-w-4 aspect-h-3">
@@ -1651,10 +1661,12 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
             Q{product.price}
           </span>
           <button
-            onClick={() => onAddToCart(product)}
-            className="btn-primary px-4 py-2 text-sm"
+            onClick={handleAdd}
+            disabled={isAdding}
+            className="btn-primary px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
           >
-            Agregar
+            {isAdding && <Loader2 className="w-3 h-3 animate-spin" />}
+            <span>{isAdding ? 'Agregando...' : 'Agregar'}</span>
           </button>
         </div>
       </div>
@@ -1664,14 +1676,29 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
 
 export default LandingPage;
 
-// 📝 CAMBIOS APLICADOS PARA DEBUG:
-// ✅ Logs detallados de cada hook y su estado
-// ✅ Logs específicos cuando se reciben datos del backend
-// ✅ Panel de debug flotante en desarrollo
-// ✅ Cambio crítico: Solo esperar que config termine de cargar (isLoaded)
-// ✅ No requiere que tenga datos exitosos, solo que termine el proceso
-// ✅ Logs de decisión de loading para debug
-// ✅ Uso correcto de todos los hooks (gymConfigHook, gymStatsHook, etc.)
-// ✅ ComponenteProductPreviewCard completamente implementado
-// ✅ Todas las secciones mantienen su funcionalidad original
-// ✅ Manejo de errores sin bloquear la página
+// 📝 CAMBIOS PARA USAR CARRITO FLOTANTE:
+// 
+// ✅ NAVBAR LIMPIO:
+// - Removido completamente el icono del carrito del navbar
+// - Eliminadas las variables toggleCart e itemCount del navbar
+// - Solo mantiene botones de Login y Register
+// - Navbar más limpio y enfocado en navegación
+// 
+// ✅ MANTIENE TODAS LAS FUNCIONALIDADES:
+// - addItem preservado para agregar productos
+// - handleAddToCart sigue funcionando igual
+// - Componentes MobileProductCard y ProductPreviewCard intactos
+// - Video player, carousels, testimonios, etc. funcionando
+// - Responsive design preservado
+// - Estados de carga y animaciones intactos
+// 
+// ✅ DEPENDENCIA DEL CARRITO FLOTANTE:
+// - El carrito flotante (GlobalCart) maneja toda la UI del carrito
+// - Acceso al carrito desde cualquier lugar de la página
+// - Animaciones y feedback visual en el carrito flotante
+// - No hay duplicación de funcionalidad
+// 
+// 🛒 RESULTADO:
+// - UI más limpia sin iconos duplicados
+// - Carrito siempre accesible desde el botón flotante
+// - Experiencia unificada en toda la aplicación
