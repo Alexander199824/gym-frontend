@@ -2050,3 +2050,4 @@ export default apiService;
 // ✅ Validaciones de permisos para colaboradores mantenidas
 // ✅ Compatibilidad completa con toda la funcionalidad existente
 // ✅ Análisis específico para carrito y órdenes agregado a interceptores
+// ✅ Actualizacion
