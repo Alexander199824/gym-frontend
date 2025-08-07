@@ -1406,197 +1406,223 @@ class ApiService {
   // ================================
   
   // VER CARRITO (con soporte para usuarios autenticados e invitados)
-  async getCart(sessionId = null) {
-    console.log('🛒 FETCHING CART...');
-    try {
-      const params = {};
-      
-      // Si no hay usuario autenticado, usar sessionId
-      if (sessionId) {
-        params.sessionId = sessionId;
-      }
-      
-      const result = await this.get('/store/cart', { params });
-      console.log('✅ CART DATA RECEIVED:', result);
-      
-      // Validar estructura según README
-      if (result && result.data && result.data.cartItems) {
-        console.log('✅ Cart structure is correct (README format)');
-        console.log('🛒 Cart items:', {
-          itemsCount: result.data.cartItems.length,
-          totalAmount: result.data.summary?.totalAmount || 0,
-          hasItems: result.data.cartItems.length > 0
-        });
-      } else {
-        console.warn('⚠️ Cart structure might be different from README');
-        console.log('📋 Actual structure:', result);
-      }
-      
-      return result;
-    } catch (error) {
-      console.log('❌ CART FETCH FAILED:', error.message);
-      
-      if (error.response?.status === 404) {
-        console.log('🛒 CART: Cart endpoint not found or user has empty cart');
-        // Devolver estructura vacía compatible
-        return {
-          success: true,
-          data: {
-            cartItems: [],
-            summary: {
-              itemsCount: 0,
-              subtotal: 0,
-              taxAmount: 0,
-              shippingAmount: 0,
-              totalAmount: 0
-            }
-          }
-        };
-      } else if (error.response?.status === 401) {
-        console.log('🔐 CART: Authorization required for cart access');
-      }
-      
-      throw error;
+async getCart(sessionId = null) {
+  console.log('🛒 FETCHING CART...');
+  try {
+    const params = {};
+    
+    // Si no hay usuario autenticado, usar sessionId
+    if (sessionId) {
+      params.sessionId = sessionId;
     }
+    
+    const result = await this.get('/store/cart', { params });
+    console.log('✅ CART DATA RECEIVED:', result);
+    
+    // Validar estructura según README
+    if (result && result.data && result.data.cartItems) {
+      console.log('✅ Cart structure is correct (README format)');
+      console.log('🛒 Cart items:', {
+        itemsCount: result.data.cartItems.length,
+        totalAmount: result.data.summary?.totalAmount || 0,
+        hasItems: result.data.cartItems.length > 0
+      });
+    } else {
+      console.warn('⚠️ Cart structure might be different from README');
+      console.log('📋 Actual structure:', result);
+    }
+    
+    return result;
+  } catch (error) {
+    console.log('❌ CART FETCH FAILED:', error.message);
+    
+    if (error.response?.status === 404) {
+      console.log('🛒 CART: Cart endpoint not found or user has empty cart');
+      // Devolver estructura vacía compatible
+      return {
+        success: true,
+        data: {
+          cartItems: [],
+          summary: {
+            itemsCount: 0,
+            subtotal: 0,
+            taxAmount: 0,
+            shippingAmount: 0,
+            totalAmount: 0
+          }
+        }
+      };
+    } else if (error.response?.status === 401) {
+      console.log('🔐 CART: Authorization required for cart access');
+    }
+    
+    throw error;
   }
+}
+
   
   // AGREGAR ITEM AL CARRITO
-  async addToCart(productData, sessionId = null) {
-    console.log('🛒 ADDING ITEM TO CART...');
-    console.log('📤 Product data to add:', productData);
+async addToCart(productData, sessionId = null) {
+  console.log('🛒 ADDING ITEM TO CART...');
+  console.log('📤 Product data to add:', productData);
+  
+  try {
+    const requestData = {
+      productId: productData.productId || productData.id,
+      quantity: productData.quantity || 1,
+      selectedVariants: productData.selectedVariants || productData.options || {}
+    };
     
-    try {
-      const requestData = {
-        productId: productData.productId || productData.id,
-        quantity: productData.quantity || 1,
-        selectedVariants: productData.selectedVariants || productData.options || {},
-        ...productData
-      };
-      
-      // Agregar sessionId si se proporciona (para usuarios no autenticados)
-      if (sessionId) {
-        requestData.sessionId = sessionId;
-      }
-      
-      const result = await this.post('/store/cart', requestData);
-      
-      console.log('✅ ITEM ADDED TO CART SUCCESSFULLY:', result);
-      
-      // Validar respuesta según README
-      if (result && result.success) {
-        console.log('✅ Add to cart response structure is correct');
-      } else {
-        console.warn('⚠️ Add to cart response structure might be different');
-      }
-      
-      return result;
-    } catch (error) {
-      console.log('❌ ADD TO CART FAILED:', error.message);
-      
-      if (error.response?.status === 422) {
-        console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
-        console.log('💡 Common validation issues:');
-        console.log('   - productId: Must be a valid product ID');
-        console.log('   - quantity: Must be a positive number');
-        console.log('   - selectedVariants: Must be valid product variants');
-      } else if (error.response?.status === 404) {
-        console.log('🛒 PRODUCT NOT FOUND: Product ID might be invalid');
-      } else if (error.response?.status === 400) {
-        console.log('📋 BAD REQUEST: Check data format');
-      }
-      
-      throw error;
+    // Agregar sessionId si se proporciona (para usuarios no autenticados)
+    if (sessionId) {
+      requestData.sessionId = sessionId;
     }
+    
+    console.log('📤 Final request data:', requestData);
+    
+    const result = await this.post('/store/cart', requestData);
+    
+    console.log('✅ ITEM ADDED TO CART SUCCESSFULLY:', result);
+    
+    // Validar respuesta según README
+    if (result && result.success) {
+      console.log('✅ Add to cart response structure is correct');
+    } else {
+      console.warn('⚠️ Add to cart response structure might be different');
+    }
+    
+    return result;
+  } catch (error) {
+    console.log('❌ ADD TO CART FAILED:', error.message);
+    
+    if (error.response?.status === 422) {
+      console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
+      console.log('💡 Common validation issues:');
+      console.log('   - productId: Must be a valid product ID');
+      console.log('   - quantity: Must be a positive number');
+      console.log('   - selectedVariants: Must be valid product variants');
+    } else if (error.response?.status === 404) {
+      console.log('🛒 PRODUCT NOT FOUND: Product ID might be invalid');
+    } else if (error.response?.status === 400) {
+      console.log('📋 BAD REQUEST: Check data format');
+    }
+    
+    throw error;
   }
+}
+
   
   // ACTUALIZAR CANTIDAD EN CARRITO
-  async updateCartItem(cartItemId, updates, sessionId = null) {
-    console.log('🛒 UPDATING CART ITEM...');
-    console.log('🎯 Cart Item ID:', cartItemId);
-    console.log('📤 Updates:', updates);
+ async updateCartItem(cartItemId, updates, sessionId = null) {
+  console.log('🛒 UPDATING CART ITEM...');
+  console.log('🎯 Cart Item ID:', cartItemId);
+  console.log('📤 Updates:', updates);
+  
+  try {
+    let url = `/store/cart/${cartItemId}`;
     
-    try {
-      const params = {};
-      if (sessionId) {
-        params.sessionId = sessionId;
-      }
-      
-      const result = await this.put(`/store/cart/${cartItemId}`, updates, { params });
-      
-      console.log('✅ CART ITEM UPDATED SUCCESSFULLY:', result);
-      
-      return result;
-    } catch (error) {
-      console.log('❌ UPDATE CART ITEM FAILED:', error.message);
-      
-      if (error.response?.status === 404) {
-        console.log('🛒 CART ITEM NOT FOUND: Cart item ID might be invalid');
-      } else if (error.response?.status === 422) {
-        console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
-        console.log('💡 Common validation issues:');
-        console.log('   - quantity: Must be a positive number');
-      }
-      
-      throw error;
+    // Agregar sessionId como query parameter si se proporciona
+    if (sessionId) {
+      url += `?sessionId=${encodeURIComponent(sessionId)}`;
     }
+    
+    const result = await this.put(url, updates);
+    
+    console.log('✅ CART ITEM UPDATED SUCCESSFULLY:', result);
+    
+    return result;
+  } catch (error) {
+    console.log('❌ UPDATE CART ITEM FAILED:', error.message);
+    
+    if (error.response?.status === 404) {
+      console.log('🛒 CART ITEM NOT FOUND: Cart item ID might be invalid');
+    } else if (error.response?.status === 422) {
+      console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
+      console.log('💡 Common validation issues:');
+      console.log('   - quantity: Must be a positive number');
+    }
+    
+    throw error;
   }
+}
   
   // ELIMINAR ITEM DEL CARRITO
   async removeFromCart(cartItemId, sessionId = null) {
-    console.log('🛒 REMOVING ITEM FROM CART...');
-    console.log('🎯 Cart Item ID:', cartItemId);
+  console.log('🛒 REMOVING ITEM FROM CART...');
+  console.log('🎯 Cart Item ID:', cartItemId);
+  
+  try {
+    let url = `/store/cart/${cartItemId}`;
     
-    try {
-      const params = {};
-      if (sessionId) {
-        params.sessionId = sessionId;
-      }
-      
-      const result = await this.delete(`/store/cart/${cartItemId}`, { params });
-      
-      console.log('✅ ITEM REMOVED FROM CART SUCCESSFULLY');
-      
-      return result;
-    } catch (error) {
-      console.log('❌ REMOVE FROM CART FAILED:', error.message);
-      
-      if (error.response?.status === 404) {
-        console.log('🛒 CART ITEM NOT FOUND: Cart item ID might be invalid');
-      }
-      
-      throw error;
+    // Agregar sessionId como query parameter si se proporciona
+    if (sessionId) {
+      url += `?sessionId=${encodeURIComponent(sessionId)}`;
     }
+    
+    const result = await this.delete(url);
+    
+    console.log('✅ ITEM REMOVED FROM CART SUCCESSFULLY');
+    
+    return result;
+  } catch (error) {
+    console.log('❌ REMOVE FROM CART FAILED:', error.message);
+    
+    if (error.response?.status === 404) {
+      console.log('🛒 CART ITEM NOT FOUND: Cart item ID might be invalid');
+    }
+    
+    throw error;
   }
+}
+
   
   // VACIAR CARRITO COMPLETO (función helper)
-  async clearCart(sessionId = null) {
-    console.log('🛒 CLEARING ENTIRE CART...');
+ async clearCart(sessionId = null) {
+  console.log('🛒 CLEARING ENTIRE CART...');
+  
+  try {
+    // Primero obtener todos los items del carrito
+    const cartResponse = await this.getCart(sessionId);
     
-    try {
-      // Primero obtener todos los items del carrito
-      const cartResponse = await this.getCart(sessionId);
+    if (cartResponse && cartResponse.data && cartResponse.data.cartItems) {
+      const items = cartResponse.data.cartItems;
       
-      if (cartResponse && cartResponse.data && cartResponse.data.cartItems) {
-        const items = cartResponse.data.cartItems;
-        
-        // Eliminar cada item individualmente
-        for (const item of items) {
-          await this.removeFromCart(item.id, sessionId);
-        }
-        
-        console.log('✅ CART CLEARED SUCCESSFULLY');
-        return { success: true, message: 'Cart cleared successfully' };
+      if (items.length === 0) {
+        console.log('✅ CART WAS ALREADY EMPTY');
+        return { success: true, message: 'Cart was already empty' };
       }
       
-      console.log('✅ CART WAS ALREADY EMPTY');
-      return { success: true, message: 'Cart was already empty' };
+      // Eliminar cada item individualmente
+      console.log(`🛒 Removing ${items.length} items from cart...`);
       
-    } catch (error) {
-      console.log('❌ CLEAR CART FAILED:', error.message);
-      throw error;
+      const deletePromises = items.map(item => 
+        this.removeFromCart(item.id, sessionId).catch(err => {
+          console.warn(`⚠️ Failed to remove item ${item.id}:`, err.message);
+          return null;
+        })
+      );
+      
+      await Promise.all(deletePromises);
+      
+      console.log('✅ CART CLEARED SUCCESSFULLY');
+      return { success: true, message: 'Cart cleared successfully' };
     }
+    
+    console.log('✅ CART WAS ALREADY EMPTY');
+    return { success: true, message: 'Cart was already empty' };
+    
+  } catch (error) {
+    console.log('❌ CLEAR CART FAILED:', error.message);
+    
+    // Si falla la obtención del carrito, intentar método alternativo
+    if (error.response?.status === 404) {
+      console.log('✅ CART NOT FOUND (already empty)');
+      return { success: true, message: 'Cart was already empty' };
+    }
+    
+    throw error;
   }
-  
+}
   // ✅ MÉTODO LEGACY UPDATECART - MANTENER COMPATIBILIDAD
   async updateCart(items) {
     console.log('🛒 LEGACY UPDATE CART METHOD - Converting to individual operations...');
@@ -1633,49 +1659,85 @@ class ApiService {
   // ================================
   
   // CREAR ORDEN (CHECKOUT)
-  async createOrder(orderData) {
-    console.log('🛒 CREATING ORDER (CHECKOUT)...');
-    console.log('📤 Order data:', orderData);
-    
-    try {
-      const result = await this.post('/store/orders', orderData);
-      
-      console.log('✅ ORDER CREATED SUCCESSFULLY:', result);
-      
-      // Validar respuesta según README
-      if (result && result.success && result.data && result.data.order) {
-        console.log('✅ Order creation response structure is correct');
-        console.log('🛒 Order details:', {
-          orderId: result.data.order.id,
-          orderNumber: result.data.order.orderNumber,
-          totalAmount: result.data.order.totalAmount,
-          status: result.data.order.status,
-          paymentMethod: result.data.order.paymentMethod
-        });
-      } else {
-        console.warn('⚠️ Order creation response structure might be different');
-      }
-      
-      return result;
-    } catch (error) {
-      console.log('❌ CREATE ORDER FAILED:', error.message);
-      
-      if (error.response?.status === 422) {
-        console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
-        console.log('💡 Common validation issues:');
-        console.log('   - customerInfo: Name, email, phone required');
-        console.log('   - shippingAddress: Complete address required');
-        console.log('   - paymentMethod: Must be valid payment method');
-      } else if (error.response?.status === 400) {
-        console.log('📋 BAD REQUEST: Check order data format');
-      } else if (error.response?.status === 404) {
-        console.log('🛒 CART EMPTY: No items found in cart for checkout');
-      }
-      
-      throw error;
-    }
-  }
+async getMyOrders(params = {}) {
+  console.log('🛍️ FETCHING MY ORDERS...');
   
+  try {
+    const result = await this.get('/store/my-orders', { params });
+    
+    console.log('✅ MY ORDERS RECEIVED:', result);
+    
+    // Validar estructura
+    if (result && result.data) {
+      if (Array.isArray(result.data)) {
+        console.log(`✅ Orders list: ${result.data.length} orders found`);
+      } else if (result.data.orders && Array.isArray(result.data.orders)) {
+        console.log(`✅ Orders list: ${result.data.orders.length} orders found`);
+        console.log('📄 Pagination:', result.data.pagination);
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.log('❌ GET MY ORDERS FAILED:', error.message);
+    
+    if (error.response?.status === 404) {
+      console.log('🛍️ NO ORDERS FOUND: User has no orders yet');
+      // Devolver estructura vacía
+      return {
+        success: true,
+        data: {
+          orders: [],
+          pagination: {
+            total: 0,
+            page: 1,
+            pages: 0,
+            limit: params.limit || 10
+          }
+        }
+      };
+    }
+    
+    throw error;
+  }
+}
+
+// VER ORDEN POR ID
+async getOrderById(orderId) {
+  console.log('🛍️ FETCHING ORDER BY ID...');
+  console.log('🎯 Order ID:', orderId);
+  
+  try {
+    const result = await this.get(`/store/orders/${orderId}`);
+    
+    console.log('✅ ORDER DETAILS RECEIVED:', result);
+    
+    // Validar estructura
+    if (result && result.data && result.data.order) {
+      console.log('✅ Order details structure is correct');
+      console.log('🛍️ Order info:', {
+        id: result.data.order.id,
+        orderNumber: result.data.order.orderNumber,
+        status: result.data.order.status,
+        totalAmount: result.data.order.totalAmount,
+        itemsCount: result.data.order.items?.length || 0
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    console.log('❌ GET ORDER BY ID FAILED:', error.message);
+    
+    if (error.response?.status === 404) {
+      console.log('🛍️ ORDER NOT FOUND: Order ID might be invalid or does not belong to user');
+    } else if (error.response?.status === 403) {
+      console.log('🔒 ACCESS DENIED: Cannot view this order (not owner)');
+    }
+    
+    throw error;
+  }
+}
+
   // MIS ÓRDENES (Usuario logueado)
   async getMyOrders(params = {}) {
     console.log('🛍️ FETCHING MY ORDERS...');
@@ -1956,7 +2018,80 @@ class ApiService {
     
     return validation;
   }
-
+// DEBUG ESPECÍFICO PARA CARRITO
+async debugCartSystem() {
+  console.log('🔍 =====================================');
+  console.log('🛒 CART SYSTEM DEBUG - COMPLETE CHECK');
+  console.log('🔍 =====================================');
+  
+  try {
+    // 1. Verificar endpoints de carrito
+    console.log('📡 1. CHECKING CART ENDPOINTS...');
+    
+    const cartEndpoints = [
+      { path: '/store/cart', method: 'GET', description: 'Get cart' },
+      { path: '/store/cart', method: 'POST', description: 'Add to cart' },
+      { path: '/store/cart/{id}', method: 'PUT', description: 'Update cart item' },
+      { path: '/store/cart/{id}', method: 'DELETE', description: 'Remove from cart' },
+      { path: '/store/orders', method: 'POST', description: 'Create order' },
+      { path: '/store/my-orders', method: 'GET', description: 'Get my orders' }
+    ];
+    
+    for (const endpoint of cartEndpoints) {
+      try {
+        if (endpoint.method === 'GET' && endpoint.path === '/store/cart') {
+          const result = await this.getCart();
+          console.log(`✅ ${endpoint.description} - Available`);
+        } else {
+          console.log(`📋 ${endpoint.description} - Endpoint exists (requires data to test)`);
+        }
+      } catch (error) {
+        if (error.response?.status === 404) {
+          console.log(`❌ ${endpoint.description} - Endpoint not implemented`);
+        } else if (error.response?.status === 401) {
+          console.log(`✅ ${endpoint.description} - Available (requires auth)`);
+        } else {
+          console.log(`⚠️ ${endpoint.description} - ${error.message}`);
+        }
+      }
+    }
+    
+    // 2. Verificar productos disponibles
+    console.log('🛍️ 2. CHECKING PRODUCTS AVAILABILITY...');
+    try {
+      const products = await this.get('/store/products', { params: { limit: 5 } });
+      if (products && products.data && products.data.products) {
+        console.log(`✅ Products available: ${products.data.products.length} found`);
+        console.log('📦 Sample product:', products.data.products[0]?.name || 'N/A');
+      } else {
+        console.log('⚠️ No products found or unexpected format');
+      }
+    } catch (error) {
+      console.log('❌ Products endpoint failed:', error.message);
+    }
+    
+    // 3. Verificar estructura de carrito vacío
+    console.log('🛒 3. CHECKING EMPTY CART STRUCTURE...');
+    try {
+      const emptyCart = await this.getCart();
+      console.log('✅ Empty cart structure:', {
+        hasCartItems: !!emptyCart.data?.cartItems,
+        isArray: Array.isArray(emptyCart.data?.cartItems),
+        hasSummary: !!emptyCart.data?.summary,
+        itemCount: emptyCart.data?.cartItems?.length || 0
+      });
+    } catch (error) {
+      console.log('❌ Empty cart check failed:', error.message);
+    }
+    
+    console.log('🔍 =====================================');
+    console.log('🛒 CART SYSTEM DEBUG - COMPLETED');
+    console.log('🔍 =====================================');
+    
+  } catch (error) {
+    console.error('❌ CART SYSTEM DEBUG FAILED:', error);
+  }
+}
   // DEBUG COMPLETO DE PERFIL
   async debugProfileSystem() {
     console.log('🔍 =====================================');

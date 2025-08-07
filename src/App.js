@@ -1,16 +1,20 @@
 // src/App.js
 // UBICACIÓN: /gym-frontend/src/App.js
-// FUNCIÓN: Componente principal con rutas COMPLETAS + Google OAuth
-// CAMBIOS: Agregado Google OAuth sin perder funcionalidades existentes
+// FUNCIÓN: Componente principal con rutas COMPLETAS + Google OAuth + Carrito Integrado
+// CAMBIOS: ✅ CartProvider integrado ✅ GlobalCart agregado ✅ TODAS las funcionalidades preservadas
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { useApp } from './contexts/AppContext';
+import { CartProvider } from './contexts/CartContext'; // ✅ NUEVO
 
 // 📱 Componentes de Layout
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
+
+// 🛒 Componentes del carrito - ✅ NUEVO
+import GlobalCart from './components/cart/GlobalCart';
 
 // 🏠 Landing Page (página principal)
 const LandingPage = React.lazy(() => import('./pages/dashboard/LandingPage'));
@@ -22,7 +26,7 @@ const StorePage = React.lazy(() => import('./pages/store/StorePage'));
 const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
 
-// 🔗 ✅ NUEVO: Callback de Google OAuth
+// 🔗 ✅ EXISTENTE: Callback de Google OAuth
 const GoogleOAuthCallback = React.lazy(() => import('./components/auth/GoogleOAuthCallback'));
 
 // 🏠 Páginas del Dashboard (Lazy Loading)
@@ -43,7 +47,7 @@ const PaymentsManager = React.lazy(() => import('./pages/dashboard/components/Pa
 const NotFoundPage = React.lazy(() => import('./pages/error/NotFoundPage'));
 const ForbiddenPage = React.lazy(() => import('./pages/error/ForbiddenPage'));
 
-// 🛡️ COMPONENTE DE RUTA PROTEGIDA MEJORADO
+// 🛡️ COMPONENTE DE RUTA PROTEGIDA MEJORADO - ✅ MANTENIDO IGUAL
 function ProtectedRoute({ children, requiredRole = null, requiredPermissions = [] }) {
   const { isAuthenticated, isLoading, user, hasPermission, hasRole } = useAuth();
   const location = useLocation();
@@ -88,7 +92,7 @@ function ProtectedRoute({ children, requiredRole = null, requiredPermissions = [
   return children;
 }
 
-// 🎯 COMPONENTE DE RUTA PÚBLICA MEJORADO (solo para no autenticados)
+// 🎯 COMPONENTE DE RUTA PÚBLICA MEJORADO - ✅ MANTENIDO IGUAL
 function PublicRoute({ children }) {
   const { isAuthenticated, isLoading, user, getDashboardPathForRole } = useAuth();
   
@@ -112,7 +116,7 @@ function PublicRoute({ children }) {
   return children;
 }
 
-// 🔍 FUNCIÓN DE DEBUG INTEGRADA
+// 🔍 FUNCIÓN DE DEBUG INTEGRADA - ✅ MANTENIDA IGUAL
 function runCompleteDebug() {
   console.clear();
   
@@ -194,7 +198,7 @@ function runCompleteDebug() {
   console.log('🔚 =====================================');
 }
 
-// 🔍 FUNCIÓN PARA VERIFICAR BACKEND
+// 🔍 FUNCIÓN PARA VERIFICAR BACKEND - ✅ MANTENIDA IGUAL
 async function debugBackendConnection() {
   console.log('🌐 6. VERIFICANDO CONEXIÓN AL BACKEND:');
   console.log('----------------------------------');
@@ -240,13 +244,13 @@ async function debugBackendConnection() {
   console.log('');
 }
 
-// 🚀 COMPONENTE PRINCIPAL DE LA APLICACIÓN
-function App() {
+// 🚀 COMPONENTE PRINCIPAL DE LA APLICACIÓN - ✅ CON CARRITO INTEGRADO
+function AppContent() {
   const { isAuthenticated, user, isLoading } = useAuth();
   const { isMobile, addNotification } = useApp();
   const location = useLocation();
   
-  // 🔥 EFECTO PRINCIPAL: DEBUG COMPLETO AL INICIAR
+  // 🔥 EFECTO PRINCIPAL: DEBUG COMPLETO AL INICIAR - ✅ MANTENIDO IGUAL
   useEffect(() => {
     console.log('🚀 ELITE FITNESS CLUB - INICIANDO APLICACIÓN...');
     
@@ -273,7 +277,7 @@ function App() {
     }
   }, []);
   
-  // 📱 EFECTO: Notificar cambios de ruta en desarrollo
+  // 📱 EFECTO: Notificar cambios de ruta en desarrollo - ✅ MANTENIDO IGUAL
   useEffect(() => {
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
       console.log('🧭 Elite Fitness - Navegando a:', location.pathname);
@@ -294,7 +298,7 @@ function App() {
     }
   }, [location, user, isAuthenticated]);
   
-  // 🔔 EFECTO: Notificación de bienvenida (solo una vez)
+  // 🔔 EFECTO: Notificación de bienvenida - ✅ MANTENIDO IGUAL
   useEffect(() => {
     if (isAuthenticated && user) {
       const hasShownWelcome = localStorage.getItem('elite_fitness_welcome_shown');
@@ -313,7 +317,7 @@ function App() {
     }
   }, [isAuthenticated, user, addNotification]);
   
-  // 📱 EFECTO: Configuraciones específicas para móvil
+  // 📱 EFECTO: Configuraciones específicas para móvil - ✅ MANTENIDO IGUAL
   useEffect(() => {
     if (isMobile) {
       const viewportMeta = document.querySelector('meta[name=viewport]');
@@ -328,166 +332,168 @@ function App() {
   const showDebugInfo = process.env.REACT_APP_DEBUG_MODE === 'true' && process.env.NODE_ENV === 'development';
 
   return (
-    <ErrorBoundary>
-      <div className="app min-h-screen bg-gray-50">
-        
-        {/* 🔍 DEBUG INFO EN PANTALLA (solo en desarrollo) */}
-        {showDebugInfo && (
-          <div className="fixed top-0 right-0 z-50 bg-black bg-opacity-80 text-white p-4 text-xs max-w-xs">
-            <div className="font-bold mb-2">🔍 DEBUG ELITE FITNESS</div>
-            <div>Logo: {process.env.REACT_APP_LOGO_URL ? '✅' : '❌'}</div>
-            <div>Nombre: {process.env.REACT_APP_GYM_NAME || '❌'}</div>
-            <div>API: {process.env.REACT_APP_API_URL ? '✅' : '❌'}</div>
-            <div>OAuth: ✅ Google configurado</div>
-            {user && (
-              <div className="mt-2 text-green-300">
-                👤 {user.firstName} ({user.role})
-              </div>
-            )}
-            <div className="mt-2 text-yellow-300">
-              Revisa la consola para más detalles
+    <div className="app min-h-screen bg-gray-50">
+      
+      {/* 🔍 DEBUG INFO EN PANTALLA - ✅ ACTUALIZADO CON INFO DEL CARRITO */}
+      {showDebugInfo && (
+        <div className="fixed top-0 right-0 z-50 bg-black bg-opacity-80 text-white p-4 text-xs max-w-xs">
+          <div className="font-bold mb-2">🔍 DEBUG ELITE FITNESS</div>
+          <div>Logo: {process.env.REACT_APP_LOGO_URL ? '✅' : '❌'}</div>
+          <div>Nombre: {process.env.REACT_APP_GYM_NAME || '❌'}</div>
+          <div>API: {process.env.REACT_APP_API_URL ? '✅' : '❌'}</div>
+          <div>OAuth: ✅ Google configurado</div>
+          <div>Carrito: ✅ Integrado con backend</div>
+          {user && (
+            <div className="mt-2 text-green-300">
+              👤 {user.firstName} ({user.role})
             </div>
+          )}
+          <div className="mt-2 text-yellow-300">
+            Revisa la consola para más detalles
           </div>
-        )}
-        
-        <Suspense fallback={<LoadingSpinner fullScreen message="Cargando Elite Fitness..." />}>
-          <Routes>
+        </div>
+      )}
+      
+      {/* ✅ NUEVO: CARRITO GLOBAL - Disponible en toda la app */}
+      <GlobalCart />
+      
+      <Suspense fallback={<LoadingSpinner fullScreen message="Cargando Elite Fitness..." />}>
+        <Routes>
+          
+          {/* ================================
+              🏠 PÁGINA PRINCIPAL (LANDING) - ✅ MANTENIDA IGUAL
+          ================================ */}
+          <Route path="/" element={
+            <PublicRoute>
+              <LandingPage />
+            </PublicRoute>
+          } />
+          
+          {/* ================================
+              🛍️ TIENDA (PÚBLICA) - ✅ MANTENIDA IGUAL
+          ================================ */}
+          <Route path="/store" element={<StorePage />} />
+          
+          {/* ================================
+              🔐 RUTAS DE AUTENTICACIÓN - ✅ MANTENIDAS IGUAL
+          ================================ */}
+          <Route path="/login" element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          } />
+          
+          <Route path="/register" element={
+            <PublicRoute>
+              <RegisterPage />
+            </PublicRoute>
+          } />
+          
+          {/* ================================
+              🔗 ✅ CALLBACK GOOGLE OAUTH - ✅ MANTENIDO IGUAL
+          ================================ */}
+          <Route path="/auth/google-success" element={
+            <GoogleOAuthCallback />
+          } />
+          
+          {/* ================================
+              🏋️ RUTAS PROTEGIDAS (DASHBOARD) - ✅ MANTENIDAS IGUAL
+          ================================ */}
+          
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }>
             
-            {/* ================================
-                🏠 PÁGINA PRINCIPAL (LANDING)
-            ================================ */}
-            <Route path="/" element={
-              <PublicRoute>
-                <LandingPage />
-              </PublicRoute>
-            } />
-            
-            {/* ================================
-                🛍️ TIENDA (PÚBLICA)
-            ================================ */}
-            <Route path="/store" element={<StorePage />} />
-            
-            {/* ================================
-                🔐 RUTAS DE AUTENTICACIÓN
-            ================================ */}
-            <Route path="/login" element={
-              <PublicRoute>
-                <LoginPage />
-              </PublicRoute>
-            } />
-            
-            <Route path="/register" element={
-              <PublicRoute>
-                <RegisterPage />
-              </PublicRoute>
-            } />
-            
-            {/* ================================
-                🔗 ✅ NUEVO: CALLBACK GOOGLE OAUTH
-            ================================ */}
-            <Route path="/auth/google-success" element={
-              <GoogleOAuthCallback />
-            } />
-            
-            {/* ================================
-                🏋️ RUTAS PROTEGIDAS (DASHBOARD)
-            ================================ */}
-            
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <DashboardLayout />
+            {/* 🔧 Dashboard de Admin */}
+            <Route path="admin" element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminDashboard />
               </ProtectedRoute>
-            }>
-              
-              {/* 🔧 Dashboard de Admin */}
-              <Route path="admin" element={
-                <ProtectedRoute requiredRole="admin">
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } />
-              
-              {/* 👥 Dashboard de Staff/Colaborador */}
-              <Route path="staff" element={
-                <ProtectedRoute requiredRole="colaborador">
-                  <StaffDashboard />
-                </ProtectedRoute>
-              } />
-              
-              {/* 👤 Dashboard de Cliente */}
-              <Route path="client" element={
-                <ProtectedRoute requiredRole="cliente">
-                  <ClientDashboard />
-                </ProtectedRoute>
-              } />
-              
-              {/* ================================
-                  🧩 COMPONENTES ESPECÍFICOS
-              ================================ */}
-              
-              {/* 👥 USUARIOS - Solo Admin y Staff con permisos */}
-              <Route path="users" element={
-                <ProtectedRoute requiredPermissions={['view_users']}>
-                  <UsersManager />
-                </ProtectedRoute>
-              } />
-              
-              {/* 🎫 MEMBRESÍAS - Admin y Staff con permisos */}
-              <Route path="memberships" element={
-                <ProtectedRoute requiredPermissions={['view_memberships']}>
-                  <MembershipsManager />
-                </ProtectedRoute>
-              } />
-              
-              {/* 💰 PAGOS - Admin, Staff y Clientes pueden ver sus pagos */}
-              <Route path="payments" element={
-                <ProtectedRoute requiredPermissions={['view_payments']}>
-                  <PaymentsManager />
-                </ProtectedRoute>
-              } />
-              
-              {/* 📊 REPORTES - Solo Admin y Staff con permisos */}
-              <Route path="reports" element={
-                <ProtectedRoute requiredPermissions={['view_reports']}>
-                  <ReportsManager />
-                </ProtectedRoute>
-              } />
-              
-              {/* ⚙️ CONFIGURACIÓN - Solo Admin */}
-              <Route path="settings" element={
-                <ProtectedRoute requiredPermissions={['manage_system_settings']}>
-                  <SettingsManager />
-                </ProtectedRoute>
-              } />
-              
-              {/* 👤 PERFIL - Todos los usuarios autenticados */}
-              <Route path="profile" element={
-                <ProtectedRoute>
-                  <ProfileManager />
-                </ProtectedRoute>
-              } />
-              
-              {/* ✅ REDIRECCIÓN AUTOMÁTICA DESDE /dashboard */}
-              <Route index element={
-                <DashboardRedirect />
-              } />
-              
-            </Route>
+            } />
+            
+            {/* 👥 Dashboard de Staff/Colaborador */}
+            <Route path="staff" element={
+              <ProtectedRoute requiredRole="colaborador">
+                <StaffDashboard />
+              </ProtectedRoute>
+            } />
+            
+            {/* 👤 Dashboard de Cliente */}
+            <Route path="client" element={
+              <ProtectedRoute requiredRole="cliente">
+                <ClientDashboard />
+              </ProtectedRoute>
+            } />
             
             {/* ================================
-                🚫 PÁGINAS DE ERROR
+                🧩 COMPONENTES ESPECÍFICOS - ✅ MANTENIDOS IGUAL
             ================================ */}
             
-            <Route path="/forbidden" element={<ForbiddenPage />} />
-            <Route path="*" element={<NotFoundPage />} />
+            {/* 👥 USUARIOS - Solo Admin y Staff con permisos */}
+            <Route path="users" element={
+              <ProtectedRoute requiredPermissions={['view_users']}>
+                <UsersManager />
+              </ProtectedRoute>
+            } />
             
-          </Routes>
-        </Suspense>
-      </div>
-    </ErrorBoundary>
+            {/* 🎫 MEMBRESÍAS - Admin y Staff con permisos */}
+            <Route path="memberships" element={
+              <ProtectedRoute requiredPermissions={['view_memberships']}>
+                <MembershipsManager />
+              </ProtectedRoute>
+            } />
+            
+            {/* 💰 PAGOS - Admin, Staff y Clientes pueden ver sus pagos */}
+            <Route path="payments" element={
+              <ProtectedRoute requiredPermissions={['view_payments']}>
+                <PaymentsManager />
+              </ProtectedRoute>
+            } />
+            
+            {/* 📊 REPORTES - Solo Admin y Staff con permisos */}
+            <Route path="reports" element={
+              <ProtectedRoute requiredPermissions={['view_reports']}>
+                <ReportsManager />
+              </ProtectedRoute>
+            } />
+            
+            {/* ⚙️ CONFIGURACIÓN - Solo Admin */}
+            <Route path="settings" element={
+              <ProtectedRoute requiredPermissions={['manage_system_settings']}>
+                <SettingsManager />
+              </ProtectedRoute>
+            } />
+            
+            {/* 👤 PERFIL - Todos los usuarios autenticados */}
+            <Route path="profile" element={
+              <ProtectedRoute>
+                <ProfileManager />
+              </ProtectedRoute>
+            } />
+            
+            {/* ✅ REDIRECCIÓN AUTOMÁTICA DESDE /dashboard */}
+            <Route index element={
+              <DashboardRedirect />
+            } />
+            
+          </Route>
+          
+          {/* ================================
+              🚫 PÁGINAS DE ERROR - ✅ MANTENIDAS IGUAL
+          ================================ */}
+          
+          <Route path="/forbidden" element={<ForbiddenPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+          
+        </Routes>
+      </Suspense>
+    </div>
   );
 }
 
-// ✅ COMPONENTE: Redirección automática desde /dashboard
+// ✅ COMPONENTE: Redirección automática desde /dashboard - ✅ MANTENIDO IGUAL
 function DashboardRedirect() {
   const { isAuthenticated, user, getDashboardPathForRole } = useAuth();
   
@@ -506,30 +512,44 @@ function DashboardRedirect() {
   return <Navigate to={dashboardPath} replace />;
 }
 
+// 🚀 COMPONENTE PRINCIPAL CON CARTPROVIDER - ✅ NUEVO WRAPPER
+function App() {
+  return (
+    <ErrorBoundary>
+      {/* ✅ CartProvider envuelve el contenido después de Auth y App contexts */}
+      <CartProvider>
+        <AppContent />
+      </CartProvider>
+    </ErrorBoundary>
+  );
+}
+
 export default App;
 
 // 📝 CAMBIOS REALIZADOS EN ESTA VERSIÓN:
 // 
-// ✅ GOOGLE OAUTH AGREGADO:
-// - Import del componente GoogleOAuthCallback
-// - Ruta `/auth/google-success` para manejar callback
-// - Actualizado el debug info para mostrar estado OAuth
+// ✅ CARRITO INTEGRADO:
+// - Import del CartProvider y GlobalCart
+// - CartProvider envuelve AppContent
+// - GlobalCart agregado al layout principal
+// - Debug info actualizado con estado del carrito
 // 
 // ✅ TODAS LAS FUNCIONALIDADES PRESERVADAS:
 // - Sistema de debug completo intacto
+// - Google OAuth mantenido igual
 // - Rutas protegidas con permisos funcionando igual
 // - Debug periódico del backend mantenido
-// - Debug info en pantalla con nueva info OAuth
 // - Redirección automática de dashboard preservada
 // - Componentes específicos (Users, Memberships, etc.) intactos
+// - PublicRoute y ProtectedRoute mantienen su lógica exacta
 // 
 // ✅ COMPATIBILIDAD 100%:
 // - No se eliminó ninguna funcionalidad existente
-// - Solo se agregó Google OAuth de manera no invasiva
+// - Solo se agregó CartProvider y GlobalCart
 // - Logs y debug system funcionan igual
-// - PublicRoute y ProtectedRoute mantienen su lógica
+// - Estructura de rutas idéntica
 // 
 // ✅ NUEVO EN ESTA VERSIÓN:
-// - Ruta /auth/google-success para callback OAuth
-// - Import de GoogleOAuthCallback component
-// - Debug info muestra "OAuth: ✅ Google configurado"
+// - CartProvider integration
+// - GlobalCart component
+// - Debug info shows cart status

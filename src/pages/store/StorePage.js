@@ -1,4 +1,7 @@
 // src/pages/store/StorePage.js
+// FUNCIÓN: Página de tienda INTEGRADA con backend + carrito persistente
+// CAMBIOS: ✅ Solo productos del backend ✅ Carrito persistente ✅ Sin datos hardcodeados
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
@@ -15,291 +18,231 @@ import {
   Package,
   Truck,
   Shield,
-  Award
+  Award,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  X
 } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
-
-// 🛍️ PRODUCTOS EXTENSOS (datos de ejemplo)
-const STORE_PRODUCTS = [
-  // ROPA DEPORTIVA
-  {
-    id: 1,
-    name: "Camiseta Elite Fitness Pro",
-    description: "Camiseta deportiva de alta tecnología con tejido que absorbe la humedad",
-    price: 149,
-    originalPrice: 199,
-    image: "/api/placeholder/400/400",
-    category: "ropa",
-    subcategory: "camisetas",
-    brand: "Elite Sports",
-    colors: ["Negro", "Blanco", "Azul", "Gris"],
-    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
-    rating: 4.8,
-    reviews: 156,
-    features: ["Absorbe humedad", "Antibacterial", "Secado rápido"],
-    inStock: true,
-    stock: 45
-  },
-  {
-    id: 2,
-    name: "Shorts Elite Performance",
-    description: "Shorts de entrenamiento con compresión y bolsillos laterales",
-    price: 99,
-    originalPrice: 129,
-    image: "/api/placeholder/400/400",
-    category: "ropa",
-    subcategory: "shorts",
-    brand: "Elite Sports",
-    colors: ["Negro", "Gris", "Azul marino", "Verde militar"],
-    sizes: ["S", "M", "L", "XL"],
-    rating: 4.6,
-    reviews: 89,
-    features: ["Compresión", "Bolsillos", "Elasticidad"],
-    inStock: true,
-    stock: 32
-  },
-  {
-    id: 3,
-    name: "Sudadera Elite Hoodie",
-    description: "Sudadera con capucha premium, perfecta para entrenar o uso casual",
-    price: 249,
-    originalPrice: 299,
-    image: "/api/placeholder/400/400",
-    category: "ropa",
-    subcategory: "sudaderas",
-    brand: "Elite Sports",
-    colors: ["Negro", "Gris", "Azul", "Burdeos"],
-    sizes: ["S", "M", "L", "XL", "XXL"],
-    rating: 4.9,
-    reviews: 203,
-    features: ["Algodón premium", "Capucha ajustable", "Bolsillo canguro"],
-    inStock: true,
-    stock: 28
-  },
-  
-  // SUPLEMENTOS
-  {
-    id: 4,
-    name: "Proteína Whey Elite Gold",
-    description: "Proteína de suero aislada de la más alta calidad - 2.5kg",
-    price: 399,
-    originalPrice: 459,
-    image: "/api/placeholder/400/400",
-    category: "suplementos",
-    subcategory: "proteinas",
-    brand: "Elite Nutrition",
-    flavors: ["Vainilla", "Chocolate", "Fresa", "Cookies & Cream", "Banana"],
-    rating: 4.9,
-    reviews: 342,
-    features: ["25g proteína por servida", "Bajo en carbohidratos", "Fácil digestión"],
-    inStock: true,
-    stock: 67
-  },
-  {
-    id: 5,
-    name: "Creatina Monohidratada Elite",
-    description: "Creatina pura para máximo rendimiento y fuerza - 500g",
-    price: 159,
-    originalPrice: 189,
-    image: "/api/placeholder/400/400",
-    category: "suplementos",
-    subcategory: "creatina",
-    brand: "Elite Nutrition",
-    rating: 4.7,
-    reviews: 178,
-    features: ["100% pura", "Sin sabor", "Micronizada"],
-    inStock: true,
-    stock: 89
-  },
-  {
-    id: 6,
-    name: "BCAA Elite Recovery",
-    description: "Aminoácidos de cadena ramificada para recuperación muscular",
-    price: 199,
-    originalPrice: 239,
-    image: "/api/placeholder/400/400",
-    category: "suplementos",
-    subcategory: "bcaa",
-    brand: "Elite Nutrition",
-    flavors: ["Limón", "Sandía", "Uva", "Mango"],
-    rating: 4.6,
-    reviews: 134,
-    features: ["Ratio 2:1:1", "Electrolitos", "Sin azúcar"],
-    inStock: true,
-    stock: 54
-  },
-  
-  // ACCESORIOS
-  {
-    id: 7,
-    name: "Shaker Elite Pro 750ml",
-    description: "Shaker oficial con compartimentos y batidor de acero",
-    price: 69,
-    originalPrice: 89,
-    image: "/api/placeholder/400/400",
-    category: "accesorios",
-    subcategory: "shakers",
-    brand: "Elite Gear",
-    colors: ["Negro", "Transparente", "Azul", "Rosa"],
-    rating: 4.5,
-    reviews: 267,
-    features: ["750ml capacidad", "Compartimento pastillas", "Libre de BPA"],
-    inStock: true,
-    stock: 145
-  },
-  {
-    id: 8,
-    name: "Guantes Elite Grip",
-    description: "Guantes de entrenamiento con agarre superior y ventilación",
-    price: 89,
-    originalPrice: 119,
-    image: "/api/placeholder/400/400",
-    category: "accesorios",
-    subcategory: "guantes",
-    brand: "Elite Gear",
-    sizes: ["S", "M", "L", "XL"],
-    rating: 4.4,
-    reviews: 98,
-    features: ["Agarre superior", "Ventilación", "Muñequera"],
-    inStock: true,
-    stock: 78
-  },
-  {
-    id: 9,
-    name: "Toalla Microfibra Elite",
-    description: "Toalla de microfibra ultra absorbente para entrenamientos",
-    price: 45,
-    originalPrice: 59,
-    image: "/api/placeholder/400/400",
-    category: "accesorios",
-    subcategory: "toallas",
-    brand: "Elite Gear",
-    colors: ["Negro", "Gris", "Azul", "Verde"],
-    rating: 4.3,
-    reviews: 156,
-    features: ["Ultra absorbente", "Secado rápido", "Compacta"],
-    inStock: true,
-    stock: 234
-  },
-  
-  // EQUIPAMIENTO
-  {
-    id: 10,
-    name: "Mancuernas Ajustables Elite",
-    description: "Set de mancuernas ajustables de 5 a 25kg cada una",
-    price: 899,
-    originalPrice: 1199,
-    image: "/api/placeholder/400/400",
-    category: "equipamiento",
-    subcategory: "mancuernas",
-    brand: "Elite Equipment",
-    rating: 4.8,
-    reviews: 89,
-    features: ["Ajuste rápido", "5-25kg", "Base incluida"],
-    inStock: true,
-    stock: 12
-  },
-  {
-    id: 11,
-    name: "Banda Elástica Set Elite",
-    description: "Set completo de bandas elásticas con diferentes resistencias",
-    price: 129,
-    originalPrice: 159,
-    image: "/api/placeholder/400/400",
-    category: "equipamiento",
-    subcategory: "bandas",
-    brand: "Elite Equipment",
-    rating: 4.6,
-    reviews: 134,
-    features: ["5 resistencias", "Manijas ergonómicas", "Anclaje de puerta"],
-    inStock: true,
-    stock: 67
-  },
-  {
-    id: 12,
-    name: "Yoga Mat Elite Premium",
-    description: "Esterilla de yoga premium antideslizante con correa",
-    price: 159,
-    originalPrice: 199,
-    image: "/api/placeholder/400/400",
-    category: "equipamiento",
-    subcategory: "mats",
-    brand: "Elite Equipment",
-    colors: ["Negro", "Morado", "Verde", "Azul"],
-    rating: 4.7,
-    reviews: 178,
-    features: ["Antideslizante", "6mm grosor", "Correa incluida"],
-    inStock: true,
-    stock: 45
-  }
-];
-
-// 📋 CATEGORÍAS
-const CATEGORIES = [
-  { id: 'all', name: 'Todos los productos', icon: Package },
-  { id: 'ropa', name: 'Ropa deportiva', icon: Package },
-  { id: 'suplementos', name: 'Suplementos', icon: Package },
-  { id: 'accesorios', name: 'Accesorios', icon: Package },
-  { id: 'equipamiento', name: 'Equipamiento', icon: Package }
-];
+import { useApp } from '../../contexts/AppContext';
+import apiService from '../../services/apiService';
 
 const StorePage = () => {
-  const { addItem, toggleCart, itemCount } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { addItem, toggleCart, itemCount, isLoading: cartLoading } = useCart();
+  const { isAuthenticated, user } = useAuth();
+  const { showSuccess, showError, showInfo } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // 📱 Estados
-  const [products, setProducts] = useState(STORE_PRODUCTS);
-  const [filteredProducts, setFilteredProducts] = useState(STORE_PRODUCTS);
+  // 📱 Estados para datos del backend
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState(null);
+  
+  // 📱 Estados para filtros y UI
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedBrand, setSelectedBrand] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [sortBy, setSortBy] = useState('name');
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [sortOrder, setSortOrder] = useState('ASC');
+  const [priceRange, setPriceRange] = useState([0, 2000]);
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit] = useState(20);
   
-  // 🔍 EFECTOS DE FILTRADO
+  // 🔍 EFECTO: Cargar datos iniciales
   useEffect(() => {
-    let filtered = [...products];
-    
-    // Filtrar por categoría
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(product => product.category === selectedCategory);
-    }
-    
-    // Filtrar por búsqueda
-    if (searchQuery) {
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.brand.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    // Filtrar por precio
-    filtered = filtered.filter(product => 
-      product.price >= priceRange[0] && product.price <= priceRange[1]
-    );
-    
-    // Ordenar
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'price-low':
-          return a.price - b.price;
-        case 'price-high':
-          return b.price - a.price;
-        case 'rating':
-          return b.rating - a.rating;
-        case 'reviews':
-          return b.reviews - a.reviews;
-        default:
-          return a.name.localeCompare(b.name);
+    loadInitialData();
+  }, []);
+  
+  // 🔍 EFECTO: Recargar productos cuando cambien los filtros
+  useEffect(() => {
+    loadProducts();
+  }, [selectedCategory, selectedBrand, searchQuery, sortBy, sortOrder, priceRange, currentPage]);
+  
+  // 📥 FUNCIÓN: Cargar datos iniciales (categorías, marcas)
+  const loadInitialData = async () => {
+    try {
+      console.log('🛍️ Loading initial store data...');
+      
+      // Cargar categorías y marcas en paralelo
+      const [categoriesResult, brandsResult] = await Promise.all([
+        apiService.get('/store/categories').catch(err => {
+          console.warn('⚠️ Categories endpoint not available:', err.message);
+          return { data: { categories: [] } };
+        }),
+        apiService.get('/store/brands').catch(err => {
+          console.warn('⚠️ Brands endpoint not available:', err.message);
+          return { data: { brands: [] } };
+        })
+      ]);
+      
+      // Procesar categorías
+      if (categoriesResult?.data?.categories) {
+        const categoriesWithAll = [
+          { id: 'all', name: 'Todos los productos', productsCount: 0 },
+          ...categoriesResult.data.categories
+        ];
+        setCategories(categoriesWithAll);
+        console.log('✅ Categories loaded:', categoriesWithAll.length);
+      } else {
+        setCategories([{ id: 'all', name: 'Todos los productos' }]);
+        console.log('📋 No categories available from backend');
       }
-    });
-    
-    setFilteredProducts(filtered);
-  }, [products, selectedCategory, searchQuery, priceRange, sortBy]);
+      
+      // Procesar marcas
+      if (brandsResult?.data?.brands) {
+        const brandsWithAll = [
+          { id: 'all', name: 'Todas las marcas' },
+          ...brandsResult.data.brands
+        ];
+        setBrands(brandsWithAll);
+        console.log('✅ Brands loaded:', brandsWithAll.length);
+      } else {
+        setBrands([{ id: 'all', name: 'Todas las marcas' }]);
+        console.log('📋 No brands available from backend');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error loading initial data:', error);
+      showError('Error al cargar datos de la tienda');
+    }
+  };
+  
+  // 📦 FUNCIÓN: Cargar productos del backend
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🛍️ Loading products from backend...');
+      
+      // Construir parámetros de la petición según README
+      const params = {
+        page: currentPage,
+        limit: limit,
+        sortBy: sortBy === 'name' ? 'name' : sortBy === 'price-low' ? 'price' : sortBy === 'price-high' ? 'price' : 'name',
+        sortOrder: sortBy === 'price-high' ? 'DESC' : sortOrder
+      };
+      
+      // Agregar filtros solo si no son "all"
+      if (selectedCategory && selectedCategory !== 'all') {
+        params.category = selectedCategory;
+      }
+      
+      if (selectedBrand && selectedBrand !== 'all') {
+        params.brand = selectedBrand;
+      }
+      
+      if (searchQuery && searchQuery.trim()) {
+        params.search = searchQuery.trim();
+      }
+      
+      if (priceRange[0] > 0) {
+        params.minPrice = priceRange[0];
+      }
+      
+      if (priceRange[1] < 2000) {
+        params.maxPrice = priceRange[1];
+      }
+      
+      // Solo productos activos y en stock
+      params.featured = false; // Queremos todos los productos, no solo destacados
+      
+      console.log('📤 Request params:', params);
+      
+      // Llamar al backend usando la ruta del README
+      const response = await apiService.get('/store/products', { params });
+      
+      console.log('📦 Products response:', response);
+      
+      // Procesar respuesta según estructura del README
+      if (response?.data?.products) {
+        setProducts(response.data.products);
+        setPagination(response.data.pagination);
+        console.log('✅ Products loaded successfully:', {
+          count: response.data.products.length,
+          total: response.data.pagination?.total || 'unknown',
+          page: response.data.pagination?.page || currentPage
+        });
+      } else if (response?.data && Array.isArray(response.data)) {
+        // Fallback si la respuesta es directamente un array
+        setProducts(response.data);
+        setPagination(null);
+        console.log('✅ Products loaded (array format):', response.data.length);
+      } else {
+        console.warn('⚠️ No products found or unexpected format');
+        setProducts([]);
+        setPagination(null);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error loading products:', error);
+      setError('Error al cargar productos. Verifica que el backend esté funcionando.');
+      setProducts([]);
+      setPagination(null);
+      
+      if (error.response?.status === 404) {
+        showError('Los productos no están disponibles. Contacta al administrador.');
+      } else if (error.code === 'ERR_NETWORK') {
+        showError('No se puede conectar al servidor. Verifica tu conexión.');
+      } else {
+        showError('Error al cargar productos de la tienda');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // 🔄 FUNCIÓN: Recargar productos
+  const reloadProducts = () => {
+    setCurrentPage(1);
+    loadProducts();
+  };
+  
+  // 🛒 FUNCIÓN: Agregar producto al carrito
+  const handleAddToCart = async (product, selectedOptions = {}) => {
+    try {
+      console.log('🛒 Adding product to cart:', { product: product.name, options: selectedOptions });
+      
+      // Preparar datos del producto para el carrito
+      const productData = {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.images?.[0]?.imageUrl || '/api/placeholder/400/400',
+        options: selectedOptions,
+        quantity: selectedOptions.quantity || 1
+      };
+      
+      await addItem(productData);
+      showSuccess(`${product.name} agregado al carrito`);
+      
+    } catch (error) {
+      console.error('❌ Error adding to cart:', error);
+      showError('Error al agregar producto al carrito');
+    }
+  };
+  
+  // 🎯 FUNCIÓN: Cambiar página
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  // 🧹 FUNCIÓN: Limpiar filtros
+  const clearFilters = () => {
+    setSelectedCategory('all');
+    setSelectedBrand('all');
+    setSearchQuery('');
+    setPriceRange([0, 2000]);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -314,14 +257,24 @@ const StorePage = () => {
               <h1 className="text-2xl font-bold text-gray-900">
                 🛍️ Tienda Elite Fitness
               </h1>
+              {isAuthenticated && user && (
+                <span className="text-sm text-gray-600">
+                  Hola, {user.firstName}
+                </span>
+              )}
             </div>
             
             {/* Carrito */}
             <button
               onClick={toggleCart}
               className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              disabled={cartLoading}
             >
-              <ShoppingCart className="w-6 h-6" />
+              {cartLoading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <ShoppingCart className="w-6 h-6" />
+              )}
               {itemCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 text-white text-xs rounded-full flex items-center justify-center">
                   {itemCount}
@@ -373,38 +326,89 @@ const StorePage = () => {
               >
                 {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid className="w-5 h-5" />}
               </button>
+              
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="lg:hidden p-3 border border-gray-300 rounded-lg hover:bg-gray-100"
+              >
+                <Filter className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>
         
         <div className="flex gap-8">
           
-          {/* 📋 SIDEBAR DE CATEGORÍAS */}
-          <div className="hidden lg:block w-64 flex-shrink-0">
+          {/* 📋 SIDEBAR DE FILTROS */}
+          <div className={`w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Categorías
-              </h3>
               
-              <div className="space-y-2">
-                {CATEGORIES.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
-                    className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
-                      selectedCategory === category.id
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <category.icon className="w-4 h-4 mr-3" />
-                    {category.name}
-                  </button>
-                ))}
+              {/* Limpiar filtros */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Filtros
+                </h3>
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-primary-600 hover:text-primary-700"
+                >
+                  Limpiar
+                </button>
               </div>
               
+              {/* Categorías */}
+              <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-900 mb-3">
+                  Categorías
+                </h4>
+                <div className="space-y-2">
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category.id)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
+                        selectedCategory === category.id
+                          ? 'bg-primary-100 text-primary-700'
+                          : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <span>{category.name}</span>
+                      {category.productsCount > 0 && (
+                        <span className="text-xs text-gray-500">
+                          {category.productsCount}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Marcas */}
+              {brands.length > 1 && (
+                <div className="mb-6">
+                  <h4 className="text-md font-medium text-gray-900 mb-3">
+                    Marcas
+                  </h4>
+                  <div className="space-y-2">
+                    {brands.map((brand) => (
+                      <button
+                        key={brand.id}
+                        onClick={() => setSelectedBrand(brand.id)}
+                        className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
+                          selectedBrand === brand.id
+                            ? 'bg-primary-100 text-primary-700'
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        {brand.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               {/* Filtro de precio */}
-              <div className="mt-8">
+              <div>
                 <h4 className="text-md font-medium text-gray-900 mb-4">
                   Rango de precio
                 </h4>
@@ -414,56 +418,152 @@ const StorePage = () => {
                       type="number"
                       value={priceRange[0]}
                       onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                      className="w-20 px-2 py-1 border border-gray-300 rounded"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                       placeholder="Min"
+                      min="0"
                     />
-                    <span>-</span>
+                    <span className="text-gray-500">-</span>
                     <input
                       type="number"
                       value={priceRange[1]}
                       onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                      className="w-20 px-2 py-1 border border-gray-300 rounded"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                       placeholder="Max"
+                      min="0"
                     />
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Q{priceRange[0]} - Q{priceRange[1]}
                   </div>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* 📦 GRID DE PRODUCTOS */}
+          {/* 📦 CONTENIDO PRINCIPAL */}
           <div className="flex-1">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-gray-600">
-                {filteredProducts.length} productos encontrados
-              </p>
-            </div>
             
-            <div className={
-              viewMode === 'grid' 
-                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-                : 'space-y-4'
-            }>
-              {filteredProducts.map((product) => (
-                <ProductCard 
-                  key={product.id} 
-                  product={product} 
-                  viewMode={viewMode}
-                  onAddToCart={addItem}
-                />
-              ))}
-            </div>
-            
-            {filteredProducts.length === 0 && (
-              <div className="text-center py-12">
-                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No se encontraron productos
-                </h3>
-                <p className="text-gray-600">
-                  Intenta cambiar los filtros o la búsqueda
-                </p>
+            {/* Estado de carga */}
+            {loading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+                  <p className="text-gray-600">Cargando productos...</p>
+                </div>
               </div>
+            )}
+            
+            {/* Estado de error */}
+            {error && !loading && (
+              <div className="text-center py-12">
+                <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Error al cargar productos
+                </h3>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <button
+                  onClick={reloadProducts}
+                  className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Intentar de nuevo
+                </button>
+              </div>
+            )}
+            
+            {/* Lista de productos */}
+            {!loading && !error && (
+              <>
+                {/* Header de resultados */}
+                <div className="mb-4 flex items-center justify-between">
+                  <p className="text-gray-600">
+                    {pagination?.total || products.length} productos encontrados
+                    {searchQuery && (
+                      <span className="ml-2">
+                        para "<strong>{searchQuery}</strong>"
+                      </span>
+                    )}
+                  </p>
+                </div>
+                
+                {/* Grid/Lista de productos */}
+                {products.length > 0 ? (
+                  <div className={
+                    viewMode === 'grid' 
+                      ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                      : 'space-y-4'
+                  }>
+                    {products.map((product) => (
+                      <ProductCard 
+                        key={product.id} 
+                        product={product} 
+                        viewMode={viewMode}
+                        onAddToCart={handleAddToCart}
+                        isAuthenticated={isAuthenticated}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No se encontraron productos
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      {searchQuery || selectedCategory !== 'all' || selectedBrand !== 'all' ? 
+                        'Intenta cambiar los filtros o la búsqueda' : 
+                        'No hay productos disponibles en este momento'
+                      }
+                    </p>
+                    {(searchQuery || selectedCategory !== 'all' || selectedBrand !== 'all') && (
+                      <button
+                        onClick={clearFilters}
+                        className="text-primary-600 hover:text-primary-700"
+                      >
+                        Limpiar filtros
+                      </button>
+                    )}
+                  </div>
+                )}
+                
+                {/* Paginación */}
+                {pagination && pagination.pages > 1 && (
+                  <div className="mt-8 flex items-center justify-center space-x-2">
+                    <button
+                      onClick={() => handlePageChange(pagination.page - 1)}
+                      disabled={pagination.page <= 1}
+                      className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                      Anterior
+                    </button>
+                    
+                    {[...Array(Math.min(5, pagination.pages))].map((_, i) => {
+                      const page = i + 1;
+                      return (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`px-3 py-2 border rounded-lg ${
+                            pagination.page === page
+                              ? 'bg-primary-600 text-white border-primary-600'
+                              : 'border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
+                    
+                    <button
+                      onClick={() => handlePageChange(pagination.page + 1)}
+                      disabled={pagination.page >= pagination.pages}
+                      className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -473,25 +573,56 @@ const StorePage = () => {
 };
 
 // 🛍️ COMPONENTE: Tarjeta de producto
-const ProductCard = ({ product, viewMode, onAddToCart }) => {
+const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
   
-  const handleAddToCart = () => {
-    onAddToCart(product, { ...selectedOptions, quantity });
-    setSelectedOptions({});
-    setQuantity(1);
+  // Obtener imagen principal
+  const primaryImage = product.images?.find(img => img.isPrimary) || product.images?.[0];
+  const imageUrl = primaryImage?.imageUrl || '/api/placeholder/400/400';
+  const imageAlt = primaryImage?.altText || product.name;
+  
+  // Calcular descuento
+  const discount = product.originalPrice && product.originalPrice > product.price 
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : 0;
+  
+  // Verificar stock
+  const inStock = product.inStock !== false && (product.stockQuantity || 0) > 0;
+  const lowStock = inStock && (product.stockQuantity || 0) <= 5;
+  
+  const handleAddToCart = async () => {
+    if (!inStock) return;
+    
+    try {
+      setAddingToCart(true);
+      
+      const optionsWithQuantity = {
+        ...selectedOptions,
+        quantity
+      };
+      
+      await onAddToCart(product, optionsWithQuantity);
+      
+      // Reset form
+      setSelectedOptions({});
+      setQuantity(1);
+      
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    } finally {
+      setAddingToCart(false);
+    }
   };
-  
-  const discount = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
   
   if (viewMode === 'list') {
     return (
       <div className="bg-white rounded-lg shadow-sm p-6 flex items-center space-x-6">
         <img 
-          src={product.image}
-          alt={product.name}
+          src={imageUrl}
+          alt={imageAlt}
           className="w-24 h-24 object-cover rounded-lg"
         />
         
@@ -503,15 +634,19 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
             {product.description}
           </p>
           <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="ml-1 text-sm text-gray-600">
-                {product.rating} ({product.reviews})
+            {product.rating && (
+              <div className="flex items-center">
+                <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                <span className="ml-1 text-sm text-gray-600">
+                  {product.rating} ({product.reviews || 0})
+                </span>
+              </div>
+            )}
+            {product.brand && (
+              <span className="text-sm text-gray-500">
+                {product.brand.name || product.brand}
               </span>
-            </div>
-            <span className="text-sm text-gray-500">
-              {product.brand}
-            </span>
+            )}
           </div>
         </div>
         
@@ -520,18 +655,28 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
             <span className="text-2xl font-bold text-gray-900">
               Q{product.price}
             </span>
-            {product.originalPrice > product.price && (
+            {product.originalPrice && product.originalPrice > product.price && (
               <span className="text-sm text-gray-500 line-through ml-2">
                 Q{product.originalPrice}
               </span>
             )}
           </div>
-          <button
-            onClick={handleAddToCart}
-            className="btn-primary"
-          >
-            Agregar al carrito
-          </button>
+          {inStock ? (
+            <button
+              onClick={handleAddToCart}
+              disabled={addingToCart}
+              className="btn-primary disabled:opacity-50"
+            >
+              {addingToCart ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              {addingToCart ? 'Agregando...' : 'Agregar al carrito'}
+            </button>
+          ) : (
+            <button disabled className="btn-secondary opacity-50 cursor-not-allowed">
+              Agotado
+            </button>
+          )}
         </div>
       </div>
     );
@@ -543,8 +688,8 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
       {/* Imagen del producto */}
       <div className="relative overflow-hidden">
         <img 
-          src={product.image}
-          alt={product.name}
+          src={imageUrl}
+          alt={imageAlt}
           className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
         />
         
@@ -555,9 +700,19 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
               -{discount}%
             </span>
           )}
-          {!product.inStock && (
+          {!inStock && (
             <span className="bg-gray-500 text-white px-2 py-1 rounded-full text-sm">
               Agotado
+            </span>
+          )}
+          {lowStock && inStock && (
+            <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-sm">
+              ¡Últimos!
+            </span>
+          )}
+          {product.isFeatured && (
+            <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-sm">
+              Destacado
             </span>
           )}
         </div>
@@ -583,13 +738,19 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
         
         {/* Marca y rating */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-500">{product.brand}</span>
-          <div className="flex items-center">
-            <Star className="w-4 h-4 text-yellow-400 fill-current" />
-            <span className="ml-1 text-sm text-gray-600">
-              {product.rating} ({product.reviews})
+          {product.brand && (
+            <span className="text-sm text-gray-500">
+              {product.brand.name || product.brand}
             </span>
-          </div>
+          )}
+          {product.rating && (
+            <div className="flex items-center">
+              <Star className="w-4 h-4 text-yellow-400 fill-current" />
+              <span className="ml-1 text-sm text-gray-600">
+                {product.rating} ({product.reviews || 0})
+              </span>
+            </div>
+          )}
         </div>
         
         {/* Nombre y descripción */}
@@ -600,21 +761,8 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
           {product.description}
         </p>
         
-        {/* Características */}
-        {product.features && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-1">
-              {product.features.slice(0, 2).map((feature, index) => (
-                <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                  {feature}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* Opciones */}
-        {product.colors && (
+        {/* Variantes - Solo mostrar si hay opciones */}
+        {product.variants?.colors && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Color:
@@ -622,16 +770,17 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
             <select 
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               onChange={(e) => setSelectedOptions(prev => ({ ...prev, color: e.target.value }))}
+              value={selectedOptions.color || ''}
             >
               <option value="">Seleccionar color</option>
-              {product.colors.map(color => (
+              {product.variants.colors.map(color => (
                 <option key={color} value={color}>{color}</option>
               ))}
             </select>
           </div>
         )}
         
-        {product.sizes && (
+        {product.variants?.sizes && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Talla:
@@ -639,16 +788,17 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
             <select 
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               onChange={(e) => setSelectedOptions(prev => ({ ...prev, size: e.target.value }))}
+              value={selectedOptions.size || ''}
             >
               <option value="">Seleccionar talla</option>
-              {product.sizes.map(size => (
+              {product.variants.sizes.map(size => (
                 <option key={size} value={size}>{size}</option>
               ))}
             </select>
           </div>
         )}
         
-        {product.flavors && (
+        {product.variants?.flavors && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Sabor:
@@ -656,9 +806,10 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
             <select 
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
               onChange={(e) => setSelectedOptions(prev => ({ ...prev, flavor: e.target.value }))}
+              value={selectedOptions.flavor || ''}
             >
               <option value="">Seleccionar sabor</option>
-              {product.flavors.map(flavor => (
+              {product.variants.flavors.map(flavor => (
                 <option key={flavor} value={flavor}>{flavor}</option>
               ))}
             </select>
@@ -669,7 +820,7 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
         <div className="flex items-center justify-between mb-4">
           <div>
             <span className="text-2xl font-bold text-gray-900">Q{product.price}</span>
-            {product.originalPrice > product.price && (
+            {product.originalPrice && product.originalPrice > product.price && (
               <span className="text-gray-500 text-sm line-through ml-2">
                 Q{product.originalPrice}
               </span>
@@ -680,14 +831,16 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 disabled:opacity-50"
+              disabled={!inStock}
             >
               <Minus className="w-4 h-4" />
             </button>
             <span className="w-8 text-center text-sm font-medium">{quantity}</span>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 disabled:opacity-50"
+              disabled={!inStock}
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -695,23 +848,27 @@ const ProductCard = ({ product, viewMode, onAddToCart }) => {
         </div>
         
         {/* Stock */}
-        {product.inStock && (
+        {inStock && product.stockQuantity && (
           <p className="text-xs text-gray-500 mb-4">
-            {product.stock} disponibles
+            {product.stockQuantity} disponibles
+            {lowStock && <span className="text-orange-600 font-medium"> - ¡Pocos disponibles!</span>}
           </p>
         )}
         
         {/* Botón de agregar al carrito */}
         <button 
           onClick={handleAddToCart}
-          disabled={!product.inStock}
-          className={`w-full py-3 font-semibold rounded-lg transition-colors ${
-            product.inStock
-              ? 'bg-primary-600 text-white hover:bg-primary-700'
+          disabled={!inStock || addingToCart}
+          className={`w-full py-3 font-semibold rounded-lg transition-colors flex items-center justify-center ${
+            inStock
+              ? 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
-          {product.inStock ? 'Agregar al carrito' : 'Agotado'}
+          {addingToCart && (
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+          )}
+          {addingToCart ? 'Agregando...' : inStock ? 'Agregar al carrito' : 'Agotado'}
         </button>
       </div>
     </div>
