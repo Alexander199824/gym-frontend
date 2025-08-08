@@ -1,8 +1,9 @@
 // src/pages/checkout/CheckoutPage.js
 // FUNCIÓN: Página de checkout ACTUALIZADA - Rutas correctas del README + Email automático
 // CAMBIOS: ✅ Rutas según README ✅ Flujo de pagos correcto ✅ Email automático ✅ Registro de pagos
+// FIX: ✅ Peticiones múltiples a Stripe resueltas
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, 
@@ -117,6 +118,10 @@ const CheckoutPage = () => {
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo, isMobile } = useApp();
 
+  // ✅ FIX: Ref para prevenir múltiples inicializaciones de Stripe
+  const stripeInitialized = useRef(false);
+  const stripeInitializing = useRef(false);
+
   // Estados principales
   const [step, setStep] = useState(1); // 1: Info, 2: Payment, 3: Confirmation
   const [isProcessing, setIsProcessing] = useState(false);
@@ -152,11 +157,18 @@ const CheckoutPage = () => {
   // Estados: Para datos de Guatemala (simplificados)
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
 
-  // 🚀 EFECTO: Inicializar Stripe
+  // ✅ FIX: EFECTO Stripe con protección contra múltiples ejecuciones
   useEffect(() => {
     const initializeStripe = async () => {
+      // ✅ Prevenir múltiples inicializaciones
+      if (stripeInitialized.current || stripeInitializing.current) {
+        return;
+      }
+
       try {
+        stripeInitializing.current = true;
         console.log('💳 Initializing Stripe configuration...');
+        
         const stripeConfig = await apiService.getStripeConfig();
         
         if (stripeConfig?.data?.stripe?.enabled) {
@@ -167,19 +179,26 @@ const CheckoutPage = () => {
           setStripePromise(Promise.resolve(stripe));
           console.log('✅ Stripe loaded successfully');
           
-          showInfo('💳 Pagos con tarjeta disponibles');
+          // ✅ Usar funciones directamente sin dependencias del useEffect
+          if (showInfo) showInfo('💳 Pagos con tarjeta disponibles');
         } else {
           console.warn('⚠️ Stripe not enabled on backend');
-          showInfo('💰 Solo pagos en efectivo disponibles');
+          if (showInfo) showInfo('💰 Solo pagos en efectivo disponibles');
         }
+        
+        // ✅ Marcar como inicializado exitosamente
+        stripeInitialized.current = true;
+        
       } catch (error) {
         console.error('❌ Error loading Stripe:', error);
-        showError('Error cargando sistema de pagos con tarjeta');
+        if (showError) showError('Error cargando sistema de pagos con tarjeta');
+      } finally {
+        stripeInitializing.current = false;
       }
     };
 
     initializeStripe();
-  }, [showInfo, showError]);
+  }, []); // ✅ FIX: Array de dependencias vacío - solo se ejecuta una vez
 
   // 🔄 EFECTO: Verificar carrito vacío
   useEffect(() => {
