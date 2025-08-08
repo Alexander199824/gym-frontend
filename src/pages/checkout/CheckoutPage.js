@@ -1,6 +1,6 @@
 // src/pages/checkout/CheckoutPage.js
-// FUNCIÓN: Página de checkout CORREGIDA - Validaciones flexibles + Municipios de Guatemala + Sin horarios
-// MEJORAS: ✅ Validaciones menos estrictas ✅ Municipios completos ✅ Sin horarios ✅ No se pierden datos
+// FUNCIÓN: Página de checkout ACTUALIZADA - Usando datos completos de departamentos y municipios
+// MEJORAS: ✅ Datos completos de Guatemala ✅ Validaciones mejoradas ✅ Códigos postales automáticos
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,6 +30,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
+// ✅ NUEVO: Importar datos completos de Guatemala
+import { 
+  GUATEMALA_LOCATIONS,
+  DEPARTMENTS,
+  getMunicipalitiesByDepartment,
+  getPostalCode,
+  isValidMunicipality,
+  getFastShippingDepartments,
+  getMetropolitanDepartments
+} from '../../data/guatemalaLocations';
+
 // Importar Stripe
 import { loadStripe } from '@stripe/stripe-js';
 import { 
@@ -58,81 +69,6 @@ const ERROR_MESSAGES = {
   phoneLength: 'El teléfono debe tener entre 7 y 15 dígitos'
 };
 
-// ✅ MUNICIPIOS COMPLETOS DE GUATEMALA
-const GUATEMALA_LOCATIONS = {
-  Guatemala: [
-    'Guatemala',
-    'Mixco', 
-    'Villa Nueva',
-    'Petapa',
-    'San José Pinula',
-    'San José del Golfo',
-    'Palencia',
-    'Chinautla',
-    'San Pedro Ayampuc',
-    'San Pedro Sacatepéquez',
-    'San Juan Sacatepéquez',
-    'San Raymundo',
-    'Chuarrancho',
-    'Fraijanes',
-    'Amatitlán',
-    'Villa Canales',
-    'Santa Catarina Pinula'
-  ],
-  Sacatepéquez: [
-    'Antigua Guatemala',
-    'Jocotenango',
-    'Pastores',
-    'Sumpango',
-    'Santo Domingo Xenacoj',
-    'Santiago Sacatepéquez',
-    'San Bartolomé Milpas Altas',
-    'San Lucas Sacatepéquez',
-    'Santa Lucía Milpas Altas',
-    'Magdalena Milpas Altas',
-    'Santa María de Jesús',
-    'Ciudad Vieja',
-    'San Miguel Dueñas',
-    'Alotenango',
-    'San Antonio Aguas Calientes',
-    'Santa Catarina Barahona'
-  ],
-  Escuintla: [
-    'Escuintla',
-    'Santa Lucía Cotzumalguapa',
-    'La Democracia',
-    'Siquinalá',
-    'Masagua',
-    'Tiquisate',
-    'La Gomera',
-    'Guanagazapa',
-    'San José',
-    'Iztapa',
-    'Palín',
-    'San Vicente Pacaya',
-    'Nueva Concepción',
-    'Pueblo Nuevo Tiquisate'
-  ],
-  Chimaltenango: [
-    'Chimaltenango',
-    'San José Poaquil',
-    'San Martín Jilotepeque',
-    'San Juan Comalapa',
-    'Santa Apolonia',
-    'Tecpán',
-    'Patzún',
-    'Pochuta',
-    'Patzicía',
-    'Santa Cruz Balanyá',
-    'Acatenango',
-    'Yepocapa',
-    'San Andrés Itzapa',
-    'Parramos',
-    'Zaragoza',
-    'El Tejar'
-  ]
-};
-
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { 
@@ -159,12 +95,13 @@ const CheckoutPage = () => {
     phone: user?.phone || ''
   });
 
+  // ✅ ACTUALIZADO: Usar datos completos de Guatemala
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
-    city: 'Guatemala', // Por defecto Guatemala
-    state: 'Guatemala', // Por defecto Guatemala
-    municipality: '', // ✅ NUEVO: Campo de municipio
-    zipCode: '01001',
+    city: 'Guatemala', // Ciudad se llenará automáticamente según municipio
+    state: 'Guatemala', // Por defecto Guatemala (departamento más común)
+    municipality: '', // ✅ Campo de municipio
+    zipCode: '01001', // Se actualizará automáticamente según departamento
     reference: ''
   });
 
@@ -174,6 +111,11 @@ const CheckoutPage = () => {
   // ✅ ESTADOS DE VALIDACIÓN
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  
+  // ✅ NUEVOS ESTADOS: Para datos de Guatemala
+  const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
+  const [isMetropolitanArea, setIsMetropolitanArea] = useState(false);
+  const [hasFastShipping, setHasFastShipping] = useState(false);
 
   // 🚀 EFECTO: Inicializar Stripe
   useEffect(() => {
@@ -206,6 +148,43 @@ const CheckoutPage = () => {
       navigate('/store');
     }
   }, [isEmpty, navigate, showInfo]);
+
+  // ✅ NUEVO EFECTO: Actualizar municipios cuando cambie el departamento
+  useEffect(() => {
+    const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
+    setAvailableMunicipalities(municipalities);
+    
+    // ✅ Auto-reset municipality cuando cambie departamento
+    if (shippingAddress.municipality && !municipalities.includes(shippingAddress.municipality)) {
+      setShippingAddress(prev => ({
+        ...prev,
+        municipality: '',
+        zipCode: getPostalCode(prev.state)
+      }));
+    }
+    
+    // ✅ Actualizar código postal automáticamente
+    setShippingAddress(prev => ({
+      ...prev,
+      zipCode: getPostalCode(prev.state)
+    }));
+    
+    // ✅ Verificar características del departamento
+    const metropolitanDepts = getMetropolitanDepartments();
+    const fastShippingDepts = getFastShippingDepartments();
+    
+    setIsMetropolitanArea(metropolitanDepts.includes(shippingAddress.state));
+    setHasFastShipping(fastShippingDepts.includes(shippingAddress.state));
+    
+    console.log('📍 Department changed:', {
+      department: shippingAddress.state,
+      municipalitiesCount: municipalities.length,
+      isMetropolitan: metropolitanDepts.includes(shippingAddress.state),
+      hasFastShipping: fastShippingDepts.includes(shippingAddress.state),
+      postalCode: getPostalCode(shippingAddress.state)
+    });
+    
+  }, [shippingAddress.state]);
 
   // ✅ FUNCIÓN MEJORADA: Validar un campo específico - MÁS FLEXIBLE
   const validateField = (name, value) => {
@@ -250,12 +229,21 @@ const CheckoutPage = () => {
         } else if (value.trim().length < 5) {
           fieldErrors[name] = ERROR_MESSAGES.minLength.replace('{min}', '5');
         }
-        // ✅ REMOVIDO: Validación estricta de patrones para direcciones
         break;
 
       case 'municipality':
         if (!value.trim()) {
           fieldErrors[name] = 'Selecciona un municipio';
+        } else if (!isValidMunicipality(value, shippingAddress.state)) {
+          fieldErrors[name] = 'Municipio no válido para este departamento';
+        }
+        break;
+
+      case 'state':
+        if (!value.trim()) {
+          fieldErrors[name] = 'Selecciona un departamento';
+        } else if (!DEPARTMENTS.includes(value)) {
+          fieldErrors[name] = 'Departamento no válido';
         }
         break;
 
@@ -275,9 +263,22 @@ const CheckoutPage = () => {
       setShippingAddress(prev => {
         const newAddress = { ...prev, [field]: value };
         
-        // ✅ NUEVO: Si cambia el departamento, resetear municipio
+        // ✅ MEJORADO: Si cambia el departamento, resetear municipio y actualizar código postal
         if (field === 'state') {
           newAddress.municipality = '';
+          newAddress.zipCode = getPostalCode(value);
+          
+          // ✅ NUEVO: Actualizar city basado en el municipio principal del departamento
+          const municipalities = getMunicipalitiesByDepartment(value);
+          if (municipalities.length > 0) {
+            // Usar el primer municipio (generalmente la cabecera departamental) como city
+            newAddress.city = municipalities[0];
+          }
+        }
+        
+        // ✅ NUEVO: Si cambia el municipio, actualizar city
+        if (field === 'municipality' && value) {
+          newAddress.city = value;
         }
         
         return newAddress;
@@ -337,6 +338,7 @@ const CheckoutPage = () => {
 
     // Validar dirección de envío
     Object.assign(newErrors, validateField('street', shippingAddress.street));
+    Object.assign(newErrors, validateField('state', shippingAddress.state));
     Object.assign(newErrors, validateField('municipality', shippingAddress.municipality));
 
     setErrors(newErrors);
@@ -347,6 +349,7 @@ const CheckoutPage = () => {
       email: true,
       phone: true,
       street: true,
+      state: true,
       municipality: true
     });
 
@@ -369,7 +372,9 @@ const CheckoutPage = () => {
         customerInfo,
         shippingAddress: {
           ...shippingAddress,
-          fullLocation: `${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+          fullLocation: `${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`,
+          isMetropolitan: isMetropolitanArea,
+          hasFastShipping: hasFastShipping
         }
       });
     } else {
@@ -495,6 +500,9 @@ const CheckoutPage = () => {
                 user={user}
                 onInputChange={handleInputChange}
                 onKeyPress={handleKeyPress}
+                availableMunicipalities={availableMunicipalities}
+                isMetropolitanArea={isMetropolitanArea}
+                hasFastShipping={hasFastShipping}
               />
             )}
 
@@ -543,6 +551,9 @@ const CheckoutPage = () => {
               canContinue={step === 1}
               isProcessing={isProcessing}
               errors={errors}
+              shippingAddress={shippingAddress}
+              isMetropolitanArea={isMetropolitanArea}
+              hasFastShipping={hasFastShipping}
             />
           </div>
         </div>
@@ -551,7 +562,7 @@ const CheckoutPage = () => {
   );
 };
 
-// ✅ COMPONENTE MEJORADO: Paso 1 - Información del cliente CON MUNICIPIOS
+// ✅ COMPONENTE MEJORADO: Paso 1 - Información del cliente CON DATOS COMPLETOS DE GUATEMALA
 const CustomerInfoStep = ({ 
   customerInfo, 
   shippingAddress, 
@@ -562,11 +573,11 @@ const CustomerInfoStep = ({
   isAuthenticated,
   user,
   onInputChange,
-  onKeyPress
+  onKeyPress,
+  availableMunicipalities,
+  isMetropolitanArea,
+  hasFastShipping
 }) => {
-  
-  // ✅ Obtener municipios disponibles según el departamento seleccionado
-  const availableMunicipalities = GUATEMALA_LOCATIONS[shippingAddress.state] || [];
   
   return (
     <div className="space-y-8">
@@ -665,7 +676,7 @@ const CustomerInfoStep = ({
         </div>
       </div>
 
-      {/* ✅ DIRECCIÓN DE ENVÍO MEJORADA CON MUNICIPIOS */}
+      {/* ✅ DIRECCIÓN DE ENVÍO MEJORADA CON DATOS COMPLETOS DE GUATEMALA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <MapPin className="w-5 h-5 text-primary-600 mr-2" />
@@ -700,7 +711,7 @@ const CustomerInfoStep = ({
             </p>
           </div>
 
-          {/* ✅ NUEVA ESTRUCTURA: País, Departamento, Municipio */}
+          {/* ✅ ACTUALIZADO: País, Departamento, Municipio con datos completos */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* País (fijo) */}
             <div>
@@ -710,22 +721,32 @@ const CustomerInfoStep = ({
               </div>
             </div>
 
-            {/* Departamento */}
+            {/* ✅ ACTUALIZADO: Departamento - Todos los departamentos disponibles */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Departamento *</label>
               <select
                 value={shippingAddress.state}
                 onChange={(e) => onInputChange('shippingAddress', 'state', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                  errors.state && touched.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                }`}
               >
-                <option value="Guatemala">Guatemala</option>
-                <option value="Sacatepéquez">Sacatepéquez</option>
-                <option value="Escuintla">Escuintla</option>
-                <option value="Chimaltenango">Chimaltenango</option>
+                <option value="">Seleccionar departamento</option>
+                {DEPARTMENTS.map(department => (
+                  <option key={department} value={department}>
+                    {department}
+                  </option>
+                ))}
               </select>
+              {errors.state && touched.state && (
+                <div className="flex items-center mt-1 text-red-600 text-sm">
+                  <X className="w-4 h-4 mr-1" />
+                  {errors.state}
+                </div>
+              )}
             </div>
 
-            {/* ✅ NUEVO: Municipio */}
+            {/* ✅ ACTUALIZADO: Municipio - Dinámico según departamento seleccionado */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Municipio *</label>
               <select
@@ -734,8 +755,11 @@ const CustomerInfoStep = ({
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                   errors.municipality && touched.municipality ? 'border-red-500 bg-red-50' : 'border-gray-300'
                 }`}
+                disabled={!shippingAddress.state}
               >
-                <option value="">Seleccionar municipio</option>
+                <option value="">
+                  {shippingAddress.state ? 'Seleccionar municipio' : 'Primero selecciona departamento'}
+                </option>
                 {availableMunicipalities.map(municipality => (
                   <option key={municipality} value={municipality}>
                     {municipality}
@@ -748,20 +772,33 @@ const CustomerInfoStep = ({
                   {errors.municipality}
                 </div>
               )}
+              {shippingAddress.state && availableMunicipalities.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {availableMunicipalities.length} municipios disponibles en {shippingAddress.state}
+                </p>
+              )}
             </div>
           </div>
 
           {/* Código postal y referencias */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* ✅ ACTUALIZADO: Código postal automático */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Código postal</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Código postal
+                <span className="text-gray-500 text-xs ml-1">(automático)</span>
+              </label>
               <input
                 type="text"
                 value={shippingAddress.zipCode}
                 onChange={(e) => onInputChange('shippingAddress', 'zipCode', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="01001"
+                className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                placeholder="Se llena automáticamente"
+                readOnly
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Basado en el departamento seleccionado
+              </p>
             </div>
 
             <div>
@@ -778,19 +815,56 @@ const CustomerInfoStep = ({
             </div>
           </div>
 
-          {/* ✅ Info adicional */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start">
-              <Info className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
-              <div className="text-sm">
-                <p className="text-blue-800 font-medium mb-1">Entregas disponibles</p>
-                <p className="text-blue-700">
-                  Realizamos entregas en toda Guatemala. El tiempo estimado es de 2-3 días hábiles.
-                  Para entregas fuera del área metropolitana puede tomar hasta 5 días.
-                </p>
+          {/* ✅ NUEVO: Info específica del área seleccionada */}
+          {shippingAddress.state && (
+            <div className={`border rounded-lg p-4 ${
+              isMetropolitanArea ? 'bg-green-50 border-green-200' : 
+              hasFastShipping ? 'bg-blue-50 border-blue-200' : 
+              'bg-yellow-50 border-yellow-200'
+            }`}>
+              <div className="flex items-start">
+                <Info className={`w-5 h-5 mr-2 mt-0.5 ${
+                  isMetropolitanArea ? 'text-green-500' : 
+                  hasFastShipping ? 'text-blue-500' : 
+                  'text-yellow-500'
+                }`} />
+                <div className="text-sm">
+                  <p className={`font-medium mb-1 ${
+                    isMetropolitanArea ? 'text-green-800' : 
+                    hasFastShipping ? 'text-blue-800' : 
+                    'text-yellow-800'
+                  }`}>
+                    {isMetropolitanArea ? '🚀 Área Metropolitana' : 
+                     hasFastShipping ? '📦 Entrega Rápida Disponible' : 
+                     '📍 Entrega Nacional'}
+                  </p>
+                  <p className={
+                    isMetropolitanArea ? 'text-green-700' : 
+                    hasFastShipping ? 'text-blue-700' : 
+                    'text-yellow-700'
+                  }>
+                    {isMetropolitanArea ? 
+                      'Entrega en 1-2 días hábiles. Disponible entrega el mismo día para pedidos antes de las 12:00 PM.' :
+                     hasFastShipping ? 
+                      'Entrega en 2-3 días hábiles. Cobertura prioritaria en este departamento.' :
+                      'Entrega en 3-5 días hábiles. Enviamos a todo el territorio nacional.'
+                    }
+                  </p>
+                  
+                  {/* ✅ NUEVO: Costo de envío específico por área */}
+                  <div className="mt-2 text-xs">
+                    <span className="font-medium">Costo de envío: </span>
+                    {isMetropolitanArea ? 
+                      'Q25 (Gratis en compras +Q200)' :
+                     hasFastShipping ? 
+                      'Q35 (Gratis en compras +Q250)' :
+                      'Q45 (Gratis en compras +Q300)'
+                    }
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -818,7 +892,10 @@ const CustomerInfoStep = ({
   );
 };
 
-// 💳 COMPONENTE: Paso 2 - Método de pago (mantenido igual pero sin horarios)
+// Los demás componentes (PaymentStep, ConfirmationStep, OrderSummary) mantienen la misma estructura 
+// pero se pueden actualizar para mostrar información específica según el área de entrega
+
+// 💳 COMPONENTE: Paso 2 - Método de pago (mantenido igual pero actualizado)
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
@@ -858,8 +935,11 @@ const PaymentStep = ({
         customerInfo,
         shippingAddress: {
           ...shippingAddress,
-          // ✅ Incluir municipio en la dirección
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+          // ✅ ACTUALIZADO: Incluir información completa de ubicación
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`,
+          departmentCode: shippingAddress.zipCode?.substring(0, 2) || '01',
+          isMetropolitan: getMetropolitanDepartments().includes(shippingAddress.state),
+          hasFastShipping: getFastShippingDepartments().includes(shippingAddress.state)
         },
         paymentMethod: 'card',
         notes,
@@ -951,8 +1031,11 @@ const PaymentStep = ({
         customerInfo,
         shippingAddress: {
           ...shippingAddress,
-          // ✅ Incluir municipio en la dirección
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+          // ✅ ACTUALIZADO: Incluir información completa de ubicación
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`,
+          departmentCode: shippingAddress.zipCode?.substring(0, 2) || '01',
+          isMetropolitan: getMetropolitanDepartments().includes(shippingAddress.state),
+          hasFastShipping: getFastShippingDepartments().includes(shippingAddress.state)
         },
         paymentMethod: 'cash_on_delivery',
         notes,
@@ -1106,7 +1189,7 @@ const PaymentStep = ({
                   <li>• Pagas el monto exacto al repartidor</li>
                   <li>• Aceptamos efectivo y tarjetas</li>
                   <li>• No hay costos adicionales</li>
-                  <li>• Entrega estimada: 2-3 días hábiles</li>
+                  <li>• Entrega estimada según tu ubicación</li>
                 </ul>
               </div>
             </div>
@@ -1195,7 +1278,7 @@ const ConfirmationStep = ({ order, customerInfo }) => {
               
               <div className="flex justify-between">
                 <span className="text-gray-600">Entrega estimada:</span>
-                <span className="font-medium">2-3 días hábiles</span>
+                <span className="font-medium">Según tu ubicación</span>
               </div>
             </div>
           </div>
@@ -1230,7 +1313,7 @@ const ConfirmationStep = ({ order, customerInfo }) => {
   );
 };
 
-// 📋 COMPONENTE: Resumen del pedido CON INDICADOR DE ERRORES MEJORADO
+// ✅ COMPONENTE ACTUALIZADO: Resumen del pedido con información de entrega específica
 const OrderSummary = ({ 
   items, 
   summary, 
@@ -1239,10 +1322,28 @@ const OrderSummary = ({
   onContinue, 
   canContinue,
   isProcessing,
-  errors 
+  errors,
+  shippingAddress,
+  isMetropolitanArea,
+  hasFastShipping 
 }) => {
   const hasErrors = Object.keys(errors).filter(key => errors[key]).length > 0;
   const errorCount = Object.keys(errors).filter(key => errors[key]).length;
+
+  // ✅ NUEVO: Calcular costo de envío específico por área
+  const getShippingCost = () => {
+    if (!shippingAddress.state) return 25; // Default
+    
+    if (isMetropolitanArea) {
+      return summary?.totalAmount >= 200 ? 0 : 25;
+    } else if (hasFastShipping) {
+      return summary?.totalAmount >= 250 ? 0 : 35;
+    } else {
+      return summary?.totalAmount >= 300 ? 0 : 45;
+    }
+  };
+
+  const shippingCost = getShippingCost();
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
@@ -1287,14 +1388,25 @@ const OrderSummary = ({
         )}
         
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Envío:</span>
-          <span>{summary?.shippingAmount > 0 ? formatCurrency(summary.shippingAmount) : 'Gratis'}</span>
+          <span className="text-gray-600">
+            Envío:
+            {shippingAddress.state && (
+              <span className="text-xs block text-gray-500">
+                {isMetropolitanArea ? 'Área Metropolitana' : 
+                 hasFastShipping ? 'Entrega Rápida' : 
+                 'Entrega Nacional'}
+              </span>
+            )}
+          </span>
+          <span>
+            {shippingCost === 0 ? 'Gratis' : formatCurrency(shippingCost)}
+          </span>
         </div>
         
         <div className="flex justify-between font-bold text-lg pt-2 border-t">
           <span>Total:</span>
           <span className="text-primary-600">
-            {formatCurrency(summary?.totalAmount || 0)}
+            {formatCurrency((summary?.subtotal || 0) + shippingCost)}
           </span>
         </div>
       </div>
@@ -1336,12 +1448,27 @@ const OrderSummary = ({
         </div>
         <div className="flex items-center">
           <Truck className="w-4 h-4 mr-2 text-blue-500" />
-          <span>Envío gratis en compras +Q200</span>
+          <span>
+            {isMetropolitanArea ? 'Envío gratis en compras +Q200' :
+             hasFastShipping ? 'Envío gratis en compras +Q250' :
+             'Envío gratis en compras +Q300'}
+          </span>
         </div>
         <div className="flex items-center">
           <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
           <span>Garantía de satisfacción</span>
         </div>
+        
+        {shippingAddress.state && (
+          <div className="text-xs text-gray-500 border-t pt-2 mt-2">
+            <div>📍 {shippingAddress.municipality}, {shippingAddress.state}</div>
+            <div>📦 Entrega: {
+              isMetropolitanArea ? '1-2 días hábiles' :
+              hasFastShipping ? '2-3 días hábiles' :
+              '3-5 días hábiles'
+            }</div>
+          </div>
+        )}
       </div>
     </div>
   );
