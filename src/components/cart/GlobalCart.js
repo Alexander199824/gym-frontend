@@ -1,15 +1,18 @@
 // src/components/cart/GlobalCart.js
-// FUNCIÓN: Wrapper global MEJORADO - Con carrito flotante persistente + mejor feedback visual
-// MEJORAS: ✅ Mejor feedback para invitados ✅ Indicador de persistencia ✅ Debug visual ✅ Animaciones suaves
+// FUNCIÓN: Wrapper global CORREGIDO - Oculta carrito en checkout + sin mensaje guardado
+// ARREGLOS: ✅ No aparece en /checkout ✅ Sin mensaje persistencia ✅ Mantiene funcionalidad
 
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Zap, Wifi, WifiOff, Eye, Bug } from 'lucide-react';
+import { useLocation } from 'react-router-dom'; // ✅ NUEVO: Para detectar ruta
+import { ShoppingCart, Plus, Zap, Eye, Bug } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import CartSidebar from './CartSidebar';
 
 const GlobalCart = () => {
+  const location = useLocation(); // ✅ NUEVO: Hook para detectar ruta actual
+  
   const { 
     toggleCart, 
     itemCount, 
@@ -17,7 +20,7 @@ const GlobalCart = () => {
     total, 
     isEmpty, 
     sessionInfo,
-    debugGuestCart // ✅ Nueva función de debug
+    debugGuestCart
   } = useCart();
   
   const { isAuthenticated } = useAuth();
@@ -29,6 +32,9 @@ const GlobalCart = () => {
   const [feedbackText, setFeedbackText] = useState('');
   const [previousItemCount, setPreviousItemCount] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
+
+  // ✅ NUEVO: Detectar si estamos en página de checkout
+  const isCheckoutPage = location.pathname === '/checkout';
 
   // 🎬 EFECTO: Detectar cuando se agrega un item y animar
   useEffect(() => {
@@ -52,13 +58,13 @@ const GlobalCart = () => {
       }
       
       setShowFeedback(true);
-      setTimeout(() => setShowFeedback(false), 3000); // ✅ Más tiempo visible
+      setTimeout(() => setShowFeedback(false), 3000);
     }
     
     setPreviousItemCount(itemCount);
   }, [itemCount, previousItemCount, isAuthenticated, showSuccess]);
 
-  // ✅ NUEVO: Efecto para mostrar info de persistencia en desarrollo
+  // ✅ NUEVO: Efecto para debug en desarrollo
   useEffect(() => {
     if (process.env.NODE_ENV === 'development' && !isAuthenticated && itemCount > 0) {
       const interval = setInterval(() => {
@@ -66,22 +72,22 @@ const GlobalCart = () => {
           itemsInState: itemCount,
           sessionId: sessionInfo?.sessionId,
           hasLocalStorage: !!localStorage.getItem('elite_fitness_cart'),
-          hasSeparateSessionId: !!localStorage.getItem('elite_fitness_session_id')
+          isCheckoutPage: isCheckoutPage
         });
       }, 30000); // Cada 30 segundos
 
       return () => clearInterval(interval);
     }
-  }, [itemCount, isAuthenticated, sessionInfo]);
+  }, [itemCount, isAuthenticated, sessionInfo, isCheckoutPage]);
 
-  // ✅ NO RENDERIZAR NADA SI EL CARRITO ESTÁ VACÍO
+  // ✅ CRÍTICO: NO RENDERIZAR CARRITO FLOTANTE EN CHECKOUT
   if (isEmpty || itemCount === 0) {
     return (
       <>
         <CartSidebar />
         
-        {/* ✅ NUEVO: Debug button para desarrollo */}
-        {process.env.NODE_ENV === 'development' && (
+        {/* ✅ Debug button para desarrollo - Solo si NO estamos en checkout */}
+        {process.env.NODE_ENV === 'development' && !isCheckoutPage && (
           <div className="fixed bottom-4 left-4 z-50">
             <button
               onClick={() => setShowDebug(!showDebug)}
@@ -97,6 +103,7 @@ const GlobalCart = () => {
                 <div>Items: {itemCount}</div>
                 <div>Is Authenticated: {isAuthenticated ? 'Yes' : 'No'}</div>
                 <div>Session ID: {sessionInfo?.sessionId || 'None'}</div>
+                <div>Is Checkout Page: {isCheckoutPage ? 'Yes' : 'No'}</div>
                 <div>Local Storage: {localStorage.getItem('elite_fitness_cart') ? 'Has data' : 'Empty'}</div>
                 <button
                   onClick={debugGuestCart}
@@ -112,12 +119,18 @@ const GlobalCart = () => {
     );
   }
 
+  // ✅ CRÍTICO: NO MOSTRAR CARRITO FLOTANTE EN CHECKOUT
+  if (isCheckoutPage) {
+    console.log('🛒 Hiding cart on checkout page (data preserved)');
+    return <CartSidebar />; // Solo sidebar disponible, no carrito flotante
+  }
+
   return (
     <>
       {/* ✅ CartSidebar - Mantiene toda la funcionalidad */}
       <CartSidebar />
       
-      {/* 🛒 CARRITO FLOTANTE - Siempre visible CON MEJORAS */}
+      {/* 🛒 CARRITO FLOTANTE - Solo visible FUERA de checkout */}
       <div className={`fixed z-50 transition-all duration-300 ${
         isMobile 
           ? 'bottom-4 right-4' 
@@ -138,28 +151,9 @@ const GlobalCart = () => {
           </div>
         )}
         
-        {/* ✅ NUEVO: Indicador de persistencia para invitados */}
-        {!isAuthenticated && !isEmpty && (
-          <div className={`absolute transition-all duration-300 ${
-            isMobile ? 'bottom-16 left-0' : 'bottom-20 left-0'
-          }`}>
-            <div className="bg-white border border-gray-200 text-gray-700 px-2 py-1 rounded-lg shadow-lg text-xs flex items-center space-x-1">
-              {sessionInfo?.sessionId ? (
-                <>
-                  <Wifi className="w-3 h-3 text-green-500" />
-                  <span>Guardado</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-3 h-3 text-orange-500" />
-                  <span>Local</span>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+        {/* ❌ REMOVIDO: Indicador de persistencia - Ya no se muestra */}
         
-        {/* 🎯 BOTÓN PRINCIPAL DEL CARRITO - MEJORADO PARA INVITADOS */}
+        {/* 🎯 BOTÓN PRINCIPAL DEL CARRITO */}
         <button
           onClick={toggleCart}
           className={`
@@ -186,7 +180,7 @@ const GlobalCart = () => {
             ${isAnimating ? 'animate-pulse' : ''}
           `} />
           
-          {/* 🔢 CONTADOR DE ITEMS - MEJORADO PARA INVITADOS */}
+          {/* 🔢 CONTADOR DE ITEMS */}
           {itemCount > 0 && (
             <div className={`
               absolute text-white rounded-full font-bold
@@ -207,7 +201,7 @@ const GlobalCart = () => {
             }`}></div>
           )}
           
-          {/* 🌟 RING DE HOVER - Color específico para invitados */}
+          {/* 🌟 RING DE HOVER */}
           <div className={`absolute inset-0 rounded-full border-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse ${
             !isAuthenticated ? 'border-blue-300' : 'border-primary-300'
           }`}></div>
@@ -229,7 +223,7 @@ const GlobalCart = () => {
                 </span>
               </div>
               
-              {/* ✅ NUEVO: Indicador específico para invitados */}
+              {/* ✅ Indicador específico para invitados */}
               {!isAuthenticated && (
                 <div className="text-xs text-blue-600 flex items-center">
                   <Eye className="w-3 h-3 mr-1" />
@@ -275,7 +269,7 @@ const GlobalCart = () => {
         </div>
       )}
       
-      {/* ✅ NUEVO: Debug panel para desarrollo */}
+      {/* ✅ Debug panel para desarrollo - Solo si NO estamos en checkout */}
       {process.env.NODE_ENV === 'development' && (
         <div className="fixed bottom-4 left-4 z-50">
           <button
@@ -294,14 +288,11 @@ const GlobalCart = () => {
                 <div>📊 Items: {itemCount}</div>
                 <div>👤 Authenticated: {isAuthenticated ? 'Yes' : 'No'}</div>
                 <div>🆔 Session ID: {sessionInfo?.sessionId || 'None'}</div>
+                <div>📍 Current Page: {location.pathname}</div>
+                <div>🛒 Is Checkout: {isCheckoutPage ? 'Yes (Cart Hidden)' : 'No'}</div>
                 <div>💾 LocalStorage Cart: {
                   localStorage.getItem('elite_fitness_cart') ? 'Has data' : 'Empty'
                 }</div>
-                <div>🔑 LocalStorage SessionId: {
-                  localStorage.getItem('elite_fitness_session_id') || 'None'
-                }</div>
-                <div>🔄 Last Sync: {sessionInfo?.lastSync || 'Never'}</div>
-                <div>❌ Sync Error: {sessionInfo?.syncError || 'None'}</div>
                 <div>💰 Total: {formatCurrency(total)}</div>
               </div>
               
@@ -319,7 +310,9 @@ const GlobalCart = () => {
                     const sessionId = localStorage.getItem('elite_fitness_session_id');
                     console.log('📋 Raw LocalStorage Data:', {
                       cartData: cartData ? JSON.parse(cartData) : null,
-                      sessionId: sessionId
+                      sessionId: sessionId,
+                      currentRoute: location.pathname,
+                      isCheckoutPage: isCheckoutPage
                     });
                   }}
                   className="w-full bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition-colors"
@@ -348,32 +341,27 @@ const GlobalCart = () => {
 
 export default GlobalCart;
 
-// 📝 FUNCIONALIDADES DEL CARRITO FLOTANTE:
+// 📝 CAMBIOS REALIZADOS EN ESTA VERSIÓN:
 // 
-// ✅ CARRITO FLOTANTE SIEMPRE VISIBLE:
-// - Posición fija en bottom-right
-// - Responsive para móvil y desktop
-// - Z-index alto para estar siempre encima
+// ✅ OCULTAR CARRITO EN CHECKOUT:
+// - Detecta si estamos en /checkout usando useLocation
+// - Si está en checkout, solo renderiza CartSidebar (sin carrito flotante)
+// - Los datos del carrito se mantienen intactos
+// - Debug info muestra estado de checkout
 // 
-// ✅ ANIMACIONES DE FEEDBACK:
-// - Bounce y scale cuando se agrega un producto
-// - Ping en el contador de items
-// - Feedback text temporal con "¡Agregado!"
-// - Partículas de celebración ocasionales
+// ✅ MENSAJE DE PERSISTENCIA ELIMINADO:
+// - Removido completamente el indicador de "Guardado/Local"
+// - Ya no aparece el mensaje arriba del carrito
+// - Simplificado el UI del carrito flotante
 // 
-// ✅ ESTADOS VISUALES:
-// - Hover effects con ring y escala
-// - Opacity reducida cuando está vacío
-// - Preview del total en desktop
-// - Contador con soporte para 99+ items
+// ✅ FUNCIONALIDAD PRESERVADA:
+// - CartSidebar sigue disponible en todas las páginas
+// - Debug tools solo aparecen fuera de checkout
+// - Animaciones y feedback funcionan igual
+// - Datos del carrito persisten correctamente
 // 
-// ✅ UX OPTIMIZADA:
-// - Tooltip con información del carrito
-// - Feedback inmediato al agregar productos
-// - Animaciones que no interfieren con usabilidad
-// - Accesible desde cualquier parte de la app
-// 
-// ✅ RESPONSIVE DESIGN:
-// - Tamaños optimizados para móvil y desktop
-// - Posicionamiento adaptativo
-// - Feedback text que no interfiere en mobile
+// ✅ COMPATIBILIDAD TOTAL:
+// - No rompe ninguna funcionalidad existente
+// - El carrito sigue funcionando en todas las demás páginas
+// - Los datos no se pierden al ir a checkout
+// - Se puede volver del checkout con los datos intactos

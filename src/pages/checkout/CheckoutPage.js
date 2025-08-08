@@ -1,6 +1,6 @@
 // src/pages/checkout/CheckoutPage.js
-// FUNCIÓN: Página de checkout ACTUALIZADA - Usando datos completos de departamentos y municipios
-// MEJORAS: ✅ Datos completos de Guatemala ✅ Validaciones mejoradas ✅ Códigos postales automáticos
+// FUNCIÓN: Página de checkout CORREGIDA - Sin mensaje metropolitana + nuevas opciones envío
+// ARREGLOS: ✅ Opciones recoger/envío ✅ Sin mensaje metropolitana ✅ Rutas API correctas
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -19,8 +19,8 @@ import {
   Home,
   Shield,
   Truck,
-  Calendar,
-  DollarSign,
+  Store,
+  Map,
   X,
   Info
 } from 'lucide-react';
@@ -30,7 +30,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// ✅ NUEVO: Importar datos completos de Guatemala
+// ✅ ACTUALIZADO: Importar datos completos de Guatemala
 import { 
   GUATEMALA_LOCATIONS,
   DEPARTMENTS,
@@ -52,10 +52,10 @@ import {
 
 // ✅ REGEX MEJORADOS - MÁS FLEXIBLES
 const VALIDATION_PATTERNS = {
-  name: /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'\.]+$/, // ✅ Agregado punto para abreviaciones
-  phone: /^[\d\s\-\(\)\+]+$/, // Mantenido igual
-  email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, // Mantenido igual
-  address: /^[A-Za-zÀ-ÿ\u00f1\u00d1\d\s\-.,#°\/]+$/ // ✅ Agregado slash para direcciones
+  name: /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'\.]+$/, 
+  phone: /^[\d\s\-\(\)\+]+$/, 
+  email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 
+  address: /^[A-Za-zÀ-ÿ\u00f1\u00d1\d\s\-.,#°\/]+$/ 
 };
 
 // ✅ MENSAJES DE ERROR MEJORADOS
@@ -67,6 +67,41 @@ const ERROR_MESSAGES = {
   required: 'Este campo es requerido',
   minLength: 'Debe tener al menos {min} caracteres',
   phoneLength: 'El teléfono debe tener entre 7 y 15 dígitos'
+};
+
+// ✅ NUEVO: Opciones de entrega mejoradas
+const DELIVERY_OPTIONS = {
+  pickup_store: {
+    id: 'pickup_store',
+    name: 'Recoger en tienda',
+    description: 'Retira tu pedido en nuestras instalaciones',
+    icon: Store,
+    cost: 0,
+    timeframe: 'Listo en 2-4 horas',
+    address: '5ta Avenida 12-34, Zona 10, Guatemala',
+    hours: 'Lun-Vie 6:00-20:00, Sáb 6:00-18:00',
+    color: 'green'
+  },
+  local_delivery: {
+    id: 'local_delivery',
+    name: 'Envío local',
+    description: 'Entrega en Guatemala y municipios cercanos',
+    icon: Truck,
+    cost: 25,
+    timeframe: '1-2 días hábiles',
+    coverage: 'Ciudad de Guatemala y alrededores',
+    color: 'blue'
+  },
+  national_delivery: {
+    id: 'national_delivery',
+    name: 'Envío departamental',
+    description: 'Entrega a todo el territorio nacional',
+    icon: Map,
+    cost: 45,
+    timeframe: '3-5 días hábiles',
+    coverage: 'Todos los departamentos de Guatemala',
+    color: 'purple'
+  }
 };
 
 const CheckoutPage = () => {
@@ -98,13 +133,15 @@ const CheckoutPage = () => {
   // ✅ ACTUALIZADO: Usar datos completos de Guatemala
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
-    city: 'Guatemala', // Ciudad se llenará automáticamente según municipio
-    state: 'Guatemala', // Por defecto Guatemala (departamento más común)
-    municipality: '', // ✅ Campo de municipio
-    zipCode: '01001', // Se actualizará automáticamente según departamento
+    city: 'Guatemala', 
+    state: 'Guatemala', 
+    municipality: '', 
+    zipCode: '01001', 
     reference: ''
   });
 
+  // ✅ NUEVO: Estado para método de entrega
+  const [deliveryMethod, setDeliveryMethod] = useState('pickup_store');
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [notes, setNotes] = useState('');
   
@@ -112,10 +149,8 @@ const CheckoutPage = () => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   
-  // ✅ NUEVOS ESTADOS: Para datos de Guatemala
+  // ✅ NUEVOS ESTADOS: Para datos de Guatemala (simplificados)
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
-  const [isMetropolitanArea, setIsMetropolitanArea] = useState(false);
-  const [hasFastShipping, setHasFastShipping] = useState(false);
 
   // 🚀 EFECTO: Inicializar Stripe
   useEffect(() => {
@@ -149,12 +184,12 @@ const CheckoutPage = () => {
     }
   }, [isEmpty, navigate, showInfo]);
 
-  // ✅ NUEVO EFECTO: Actualizar municipios cuando cambie el departamento
+  // ✅ EFECTO: Actualizar municipios cuando cambie el departamento
   useEffect(() => {
     const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
     setAvailableMunicipalities(municipalities);
     
-    // ✅ Auto-reset municipality cuando cambie departamento
+    // Auto-reset municipality cuando cambie departamento
     if (shippingAddress.municipality && !municipalities.includes(shippingAddress.municipality)) {
       setShippingAddress(prev => ({
         ...prev,
@@ -163,30 +198,15 @@ const CheckoutPage = () => {
       }));
     }
     
-    // ✅ Actualizar código postal automáticamente
+    // Actualizar código postal automáticamente
     setShippingAddress(prev => ({
       ...prev,
       zipCode: getPostalCode(prev.state)
     }));
     
-    // ✅ Verificar características del departamento
-    const metropolitanDepts = getMetropolitanDepartments();
-    const fastShippingDepts = getFastShippingDepartments();
-    
-    setIsMetropolitanArea(metropolitanDepts.includes(shippingAddress.state));
-    setHasFastShipping(fastShippingDepts.includes(shippingAddress.state));
-    
-    console.log('📍 Department changed:', {
-      department: shippingAddress.state,
-      municipalitiesCount: municipalities.length,
-      isMetropolitan: metropolitanDepts.includes(shippingAddress.state),
-      hasFastShipping: fastShippingDepts.includes(shippingAddress.state),
-      postalCode: getPostalCode(shippingAddress.state)
-    });
-    
   }, [shippingAddress.state]);
 
-  // ✅ FUNCIÓN MEJORADA: Validar un campo específico - MÁS FLEXIBLE
+  // ✅ FUNCIÓN MEJORADA: Validar un campo específico
   const validateField = (name, value) => {
     const fieldErrors = {};
 
@@ -210,11 +230,10 @@ const CheckoutPage = () => {
         break;
 
       case 'phone':
-        // ✅ MEJORADO: Solo validar que no esté vacío y tenga formato básico
         if (!value.trim()) {
           fieldErrors[name] = ERROR_MESSAGES.required;
         } else {
-          const cleanPhone = value.replace(/[\s\-\(\)\+]/g, ''); // Limpiar caracteres
+          const cleanPhone = value.replace(/[\s\-\(\)\+]/g, '');
           if (cleanPhone.length < 7 || cleanPhone.length > 15) {
             fieldErrors[name] = ERROR_MESSAGES.phoneLength;
           } else if (!VALIDATION_PATTERNS.phone.test(value)) {
@@ -224,26 +243,35 @@ const CheckoutPage = () => {
         break;
 
       case 'street':
-        if (!value.trim()) {
-          fieldErrors[name] = ERROR_MESSAGES.required;
-        } else if (value.trim().length < 5) {
-          fieldErrors[name] = ERROR_MESSAGES.minLength.replace('{min}', '5');
+        // ✅ Solo validar si el método de entrega requiere dirección
+        if (deliveryMethod !== 'pickup_store') {
+          if (!value.trim()) {
+            fieldErrors[name] = ERROR_MESSAGES.required;
+          } else if (value.trim().length < 5) {
+            fieldErrors[name] = ERROR_MESSAGES.minLength.replace('{min}', '5');
+          }
         }
         break;
 
       case 'municipality':
-        if (!value.trim()) {
-          fieldErrors[name] = 'Selecciona un municipio';
-        } else if (!isValidMunicipality(value, shippingAddress.state)) {
-          fieldErrors[name] = 'Municipio no válido para este departamento';
+        // ✅ Solo validar si el método de entrega requiere dirección
+        if (deliveryMethod !== 'pickup_store') {
+          if (!value.trim()) {
+            fieldErrors[name] = 'Selecciona un municipio';
+          } else if (!isValidMunicipality(value, shippingAddress.state)) {
+            fieldErrors[name] = 'Municipio no válido para este departamento';
+          }
         }
         break;
 
       case 'state':
-        if (!value.trim()) {
-          fieldErrors[name] = 'Selecciona un departamento';
-        } else if (!DEPARTMENTS.includes(value)) {
-          fieldErrors[name] = 'Departamento no válido';
+        // ✅ Solo validar si el método de entrega requiere dirección
+        if (deliveryMethod !== 'pickup_store') {
+          if (!value.trim()) {
+            fieldErrors[name] = 'Selecciona un departamento';
+          } else if (!DEPARTMENTS.includes(value)) {
+            fieldErrors[name] = 'Departamento no válido';
+          }
         }
         break;
 
@@ -254,7 +282,7 @@ const CheckoutPage = () => {
     return fieldErrors;
   };
 
-  // ✅ FUNCIÓN MEJORADA: Manejar cambio de input - MÁS FLEXIBLE
+  // ✅ FUNCIÓN MEJORADA: Manejar cambio de input
   const handleInputChange = (section, field, value) => {
     // Actualizar valor
     if (section === 'customerInfo') {
@@ -263,20 +291,16 @@ const CheckoutPage = () => {
       setShippingAddress(prev => {
         const newAddress = { ...prev, [field]: value };
         
-        // ✅ MEJORADO: Si cambia el departamento, resetear municipio y actualizar código postal
         if (field === 'state') {
           newAddress.municipality = '';
           newAddress.zipCode = getPostalCode(value);
           
-          // ✅ NUEVO: Actualizar city basado en el municipio principal del departamento
           const municipalities = getMunicipalitiesByDepartment(value);
           if (municipalities.length > 0) {
-            // Usar el primer municipio (generalmente la cabecera departamental) como city
             newAddress.city = municipalities[0];
           }
         }
         
-        // ✅ NUEVO: Si cambia el municipio, actualizar city
         if (field === 'municipality' && value) {
           newAddress.city = value;
         }
@@ -293,30 +317,26 @@ const CheckoutPage = () => {
     setErrors(prev => ({
       ...prev,
       ...fieldErrors,
-      // Limpiar error si el campo es válido
       ...(Object.keys(fieldErrors).length === 0 && { [field]: undefined })
     }));
   };
 
-  // ✅ FUNCIÓN MEJORADA: Filtrar caracteres - MÁS PERMISIVA
+  // ✅ FUNCIÓN MEJORADA: Filtrar caracteres
   const handleKeyPress = (e, type) => {
     const char = e.key;
     
-    // ✅ Permitir teclas de control
     if (['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(char)) {
       return;
     }
     
     switch (type) {
       case 'name':
-        // ✅ MEJORADO: Más permisivo para nombres
         if (!/[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'\.]/i.test(char)) {
           e.preventDefault();
         }
         break;
         
       case 'phone':
-        // Solo números, espacios, guiones, paréntesis, +
         if (!/[\d\s\-\(\)\+]/.test(char)) {
           e.preventDefault();
         }
@@ -327,31 +347,31 @@ const CheckoutPage = () => {
     }
   };
 
-  // ✅ FUNCIÓN MEJORADA: Validar todo el formulario - MÁS ESPECÍFICA
+  // ✅ FUNCIÓN MEJORADA: Validar todo el formulario
   const validateForm = () => {
     const newErrors = {};
 
-    // Validar información del cliente
+    // Validar información del cliente (siempre requerida)
     Object.assign(newErrors, validateField('name', customerInfo.name));
     Object.assign(newErrors, validateField('email', customerInfo.email));
     Object.assign(newErrors, validateField('phone', customerInfo.phone));
 
-    // Validar dirección de envío
-    Object.assign(newErrors, validateField('street', shippingAddress.street));
-    Object.assign(newErrors, validateField('state', shippingAddress.state));
-    Object.assign(newErrors, validateField('municipality', shippingAddress.municipality));
+    // ✅ Validar dirección solo si NO es recoger en tienda
+    if (deliveryMethod !== 'pickup_store') {
+      Object.assign(newErrors, validateField('street', shippingAddress.street));
+      Object.assign(newErrors, validateField('state', shippingAddress.state));
+      Object.assign(newErrors, validateField('municipality', shippingAddress.municipality));
+    }
 
     setErrors(newErrors);
     
-    // Marcar todos los campos como tocados
-    setTouched({
-      name: true,
-      email: true,
-      phone: true,
-      street: true,
-      state: true,
-      municipality: true
-    });
+    // Marcar campos relevantes como tocados
+    const fieldsToTouch = ['name', 'email', 'phone'];
+    if (deliveryMethod !== 'pickup_store') {
+      fieldsToTouch.push('street', 'state', 'municipality');
+    }
+    
+    setTouched(fieldsToTouch.reduce((acc, field) => ({ ...acc, [field]: true }), {}));
 
     const isValid = Object.keys(newErrors).length === 0;
     
@@ -364,23 +384,39 @@ const CheckoutPage = () => {
     return isValid;
   };
 
+  // ✅ FUNCIÓN: Calcular costo de envío según método
+  const calculateShippingCost = () => {
+    const selectedOption = DELIVERY_OPTIONS[deliveryMethod];
+    if (!selectedOption) return 0;
+    
+    // Aplicar descuento por compra mínima
+    const minForFreeShipping = deliveryMethod === 'local_delivery' ? 200 : 
+                              deliveryMethod === 'national_delivery' ? 300 : 0;
+    
+    const subtotal = summary?.subtotal || 0;
+    
+    if (selectedOption.cost > 0 && subtotal >= minForFreeShipping) {
+      return 0; // Envío gratis
+    }
+    
+    return selectedOption.cost;
+  };
+
   // ➡️ FUNCIÓN: Continuar al siguiente paso
   const handleContinue = () => {
     if (validateForm()) {
       setStep(2);
       console.log('✅ Moving to payment step with data:', {
         customerInfo,
-        shippingAddress: {
+        deliveryMethod,
+        shippingAddress: deliveryMethod !== 'pickup_store' ? {
           ...shippingAddress,
-          fullLocation: `${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`,
-          isMetropolitan: isMetropolitanArea,
-          hasFastShipping: hasFastShipping
-        }
+          fullLocation: `${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+        } : null
       });
     } else {
       showError('Por favor corrige los errores en el formulario');
       
-      // ✅ NUEVO: Mostrar errores específicos
       const errorList = Object.values(errors).filter(Boolean);
       if (errorList.length > 0) {
         console.log('📝 Specific errors:', errorList);
@@ -492,6 +528,8 @@ const CheckoutPage = () => {
                 setCustomerInfo={setCustomerInfo}
                 shippingAddress={shippingAddress}
                 setShippingAddress={setShippingAddress}
+                deliveryMethod={deliveryMethod}
+                setDeliveryMethod={setDeliveryMethod}
                 notes={notes}
                 setNotes={setNotes}
                 errors={errors}
@@ -501,8 +539,7 @@ const CheckoutPage = () => {
                 onInputChange={handleInputChange}
                 onKeyPress={handleKeyPress}
                 availableMunicipalities={availableMunicipalities}
-                isMetropolitanArea={isMetropolitanArea}
-                hasFastShipping={hasFastShipping}
+                calculateShippingCost={calculateShippingCost}
               />
             )}
 
@@ -513,6 +550,7 @@ const CheckoutPage = () => {
                   setPaymentMethod={setPaymentMethod}
                   customerInfo={customerInfo}
                   shippingAddress={shippingAddress}
+                  deliveryMethod={deliveryMethod}
                   notes={notes}
                   items={items}
                   summary={summary}
@@ -528,6 +566,7 @@ const CheckoutPage = () => {
                   }}
                   isProcessing={isProcessing}
                   setIsProcessing={setIsProcessing}
+                  shippingCost={calculateShippingCost()}
                 />
               </Elements>
             )}
@@ -551,9 +590,8 @@ const CheckoutPage = () => {
               canContinue={step === 1}
               isProcessing={isProcessing}
               errors={errors}
-              shippingAddress={shippingAddress}
-              isMetropolitanArea={isMetropolitanArea}
-              hasFastShipping={hasFastShipping}
+              deliveryMethod={deliveryMethod}
+              shippingCost={calculateShippingCost()}
             />
           </div>
         </div>
@@ -562,10 +600,12 @@ const CheckoutPage = () => {
   );
 };
 
-// ✅ COMPONENTE MEJORADO: Paso 1 - Información del cliente CON DATOS COMPLETOS DE GUATEMALA
+// ✅ COMPONENTE MEJORADO: Paso 1 - Información del cliente CON NUEVAS OPCIONES DE ENTREGA
 const CustomerInfoStep = ({ 
   customerInfo, 
   shippingAddress, 
+  deliveryMethod,
+  setDeliveryMethod,
   notes,
   setNotes,
   errors,
@@ -575,8 +615,7 @@ const CustomerInfoStep = ({
   onInputChange,
   onKeyPress,
   availableMunicipalities,
-  isMetropolitanArea,
-  hasFastShipping
+  calculateShippingCost
 }) => {
   
   return (
@@ -676,197 +715,262 @@ const CustomerInfoStep = ({
         </div>
       </div>
 
-      {/* ✅ DIRECCIÓN DE ENVÍO MEJORADA CON DATOS COMPLETOS DE GUATEMALA */}
+      {/* ✅ NUEVO: OPCIONES DE ENTREGA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
-          <MapPin className="w-5 h-5 text-primary-600 mr-2" />
+          <Truck className="w-5 h-5 text-primary-600 mr-2" />
           <h2 className="text-lg font-semibold text-gray-900">
-            Dirección de envío
+            Método de entrega
           </h2>
         </div>
 
-        <div className="space-y-4">
-          {/* Dirección */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dirección completa *
-            </label>
-            <input
-              type="text"
-              value={shippingAddress.street}
-              onChange={(e) => onInputChange('shippingAddress', 'street', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                errors.street && touched.street ? 'border-red-500 bg-red-50' : 'border-gray-300'
-              }`}
-              placeholder="5ta Avenida 12-34, Zona 10, Colonia Roosevelt"
-            />
-            {errors.street && touched.street && (
-              <div className="flex items-center mt-1 text-red-600 text-sm">
-                <X className="w-4 h-4 mr-1" />
-                {errors.street}
-              </div>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              Incluye zona, colonia, barrio o cualquier referencia importante
-            </p>
-          </div>
-
-          {/* ✅ ACTUALIZADO: País, Departamento, Municipio con datos completos */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* País (fijo) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
-              <div className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-gray-600">
-                🇬🇹 Guatemala
-              </div>
-            </div>
-
-            {/* ✅ ACTUALIZADO: Departamento - Todos los departamentos disponibles */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Departamento *</label>
-              <select
-                value={shippingAddress.state}
-                onChange={(e) => onInputChange('shippingAddress', 'state', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                  errors.state && touched.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
+        <div className="space-y-3">
+          {Object.values(DELIVERY_OPTIONS).map((option) => {
+            const Icon = option.icon;
+            const isSelected = deliveryMethod === option.id;
+            const cost = option.id === deliveryMethod ? calculateShippingCost() : option.cost;
+            
+            return (
+              <button
+                key={option.id}
+                onClick={() => setDeliveryMethod(option.id)}
+                className={`w-full p-4 border rounded-lg text-left transition-colors ${
+                  isSelected
+                    ? 'border-primary-500 bg-primary-50'
+                    : 'border-gray-300 hover:border-gray-400'
                 }`}
               >
-                <option value="">Seleccionar departamento</option>
-                {DEPARTMENTS.map(department => (
-                  <option key={department} value={department}>
-                    {department}
-                  </option>
-                ))}
-              </select>
-              {errors.state && touched.state && (
-                <div className="flex items-center mt-1 text-red-600 text-sm">
-                  <X className="w-4 h-4 mr-1" />
-                  {errors.state}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start">
+                    <Icon className={`w-5 h-5 mr-3 mt-0.5 ${
+                      option.color === 'green' ? 'text-green-600' :
+                      option.color === 'blue' ? 'text-blue-600' :
+                      'text-purple-600'
+                    }`} />
+                    <div>
+                      <div className="font-medium text-gray-900">{option.name}</div>
+                      <div className="text-sm text-gray-600 mb-2">{option.description}</div>
+                      
+                      <div className="text-sm space-y-1">
+                        <div className="flex items-center text-gray-700">
+                          <span className="font-medium">⏱️ {option.timeframe}</span>
+                        </div>
+                        
+                        {option.address && (
+                          <div className="text-gray-600">
+                            📍 {option.address}
+                          </div>
+                        )}
+                        
+                        {option.hours && (
+                          <div className="text-gray-600">
+                            🕒 {option.hours}
+                          </div>
+                        )}
+                        
+                        {option.coverage && (
+                          <div className="text-gray-600">
+                            📦 {option.coverage}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className="font-bold text-lg">
+                      {cost === 0 ? 'Gratis' : `Q${cost.toFixed(2)}`}
+                    </div>
+                    {option.cost > 0 && cost === 0 && (
+                      <div className="text-xs text-green-600 font-medium">
+                        ¡Envío gratis!
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              </button>
+            );
+          })}
+        </div>
 
-            {/* ✅ ACTUALIZADO: Municipio - Dinámico según departamento seleccionado */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Municipio *</label>
-              <select
-                value={shippingAddress.municipality}
-                onChange={(e) => onInputChange('shippingAddress', 'municipality', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                  errors.municipality && touched.municipality ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                }`}
-                disabled={!shippingAddress.state}
-              >
-                <option value="">
-                  {shippingAddress.state ? 'Seleccionar municipio' : 'Primero selecciona departamento'}
-                </option>
-                {availableMunicipalities.map(municipality => (
-                  <option key={municipality} value={municipality}>
-                    {municipality}
-                  </option>
-                ))}
-              </select>
-              {errors.municipality && touched.municipality && (
-                <div className="flex items-center mt-1 text-red-600 text-sm">
-                  <X className="w-4 h-4 mr-1" />
-                  {errors.municipality}
-                </div>
+        {/* ✅ Info adicional según método seleccionado */}
+        {deliveryMethod && (
+          <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="text-sm text-gray-700">
+              {deliveryMethod === 'pickup_store' && (
+                <>
+                  <p className="font-medium mb-1">📋 Instrucciones de recogida:</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• Recibirás un SMS cuando tu pedido esté listo</li>
+                    <li>• Presenta tu número de pedido o documento de identidad</li>
+                    <li>• Horario de recogida: Lun-Vie 6:00-20:00, Sáb 6:00-18:00</li>
+                    <li>• Ubicación: 5ta Avenida 12-34, Zona 10, Guatemala</li>
+                  </ul>
+                </>
               )}
-              {shippingAddress.state && availableMunicipalities.length > 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {availableMunicipalities.length} municipios disponibles en {shippingAddress.state}
-                </p>
+              
+              {deliveryMethod === 'local_delivery' && (
+                <>
+                  <p className="font-medium mb-1">📦 Entrega local:</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• Cobertura en Ciudad de Guatemala y municipios cercanos</li>
+                    <li>• Entrega en 1-2 días hábiles</li>
+                    <li>• Envío gratis en compras superiores a Q200</li>
+                    <li>• Te contactaremos para coordinar la entrega</li>
+                  </ul>
+                </>
+              )}
+              
+              {deliveryMethod === 'national_delivery' && (
+                <>
+                  <p className="font-medium mb-1">🚚 Entrega nacional:</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• Entrega a todos los departamentos de Guatemala</li>
+                    <li>• Tiempo de entrega: 3-5 días hábiles</li>
+                    <li>• Envío gratis en compras superiores a Q300</li>
+                    <li>• Seguimiento por WhatsApp disponible</li>
+                  </ul>
+                </>
               )}
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Código postal y referencias */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* ✅ ACTUALIZADO: Código postal automático */}
+      {/* ✅ DIRECCIÓN DE ENVÍO - Solo si NO es recoger en tienda */}
+      {deliveryMethod !== 'pickup_store' && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center mb-4">
+            <MapPin className="w-5 h-5 text-primary-600 mr-2" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Dirección de entrega
+            </h2>
+          </div>
+
+          <div className="space-y-4">
+            {/* Dirección */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Código postal
-                <span className="text-gray-500 text-xs ml-1">(automático)</span>
+                Dirección completa *
               </label>
               <input
                 type="text"
-                value={shippingAddress.zipCode}
-                onChange={(e) => onInputChange('shippingAddress', 'zipCode', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Se llena automáticamente"
-                readOnly
+                value={shippingAddress.street}
+                onChange={(e) => onInputChange('shippingAddress', 'street', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                  errors.street && touched.street ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                }`}
+                placeholder="5ta Avenida 12-34, Zona 10, Colonia Roosevelt"
               />
+              {errors.street && touched.street && (
+                <div className="flex items-center mt-1 text-red-600 text-sm">
+                  <X className="w-4 h-4 mr-1" />
+                  {errors.street}
+                </div>
+              )}
               <p className="text-xs text-gray-500 mt-1">
-                Basado en el departamento seleccionado
+                Incluye zona, colonia, barrio o cualquier referencia importante
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Referencias (opcional)
-              </label>
-              <input
-                type="text"
-                value={shippingAddress.reference}
-                onChange={(e) => onInputChange('shippingAddress', 'reference', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Casa blanca con portón negro, edificio 3er nivel"
-              />
-            </div>
-          </div>
-
-          {/* ✅ NUEVO: Info específica del área seleccionada */}
-          {shippingAddress.state && (
-            <div className={`border rounded-lg p-4 ${
-              isMetropolitanArea ? 'bg-green-50 border-green-200' : 
-              hasFastShipping ? 'bg-blue-50 border-blue-200' : 
-              'bg-yellow-50 border-yellow-200'
-            }`}>
-              <div className="flex items-start">
-                <Info className={`w-5 h-5 mr-2 mt-0.5 ${
-                  isMetropolitanArea ? 'text-green-500' : 
-                  hasFastShipping ? 'text-blue-500' : 
-                  'text-yellow-500'
-                }`} />
-                <div className="text-sm">
-                  <p className={`font-medium mb-1 ${
-                    isMetropolitanArea ? 'text-green-800' : 
-                    hasFastShipping ? 'text-blue-800' : 
-                    'text-yellow-800'
-                  }`}>
-                    {isMetropolitanArea ? '🚀 Área Metropolitana' : 
-                     hasFastShipping ? '📦 Entrega Rápida Disponible' : 
-                     '📍 Entrega Nacional'}
-                  </p>
-                  <p className={
-                    isMetropolitanArea ? 'text-green-700' : 
-                    hasFastShipping ? 'text-blue-700' : 
-                    'text-yellow-700'
-                  }>
-                    {isMetropolitanArea ? 
-                      'Entrega en 1-2 días hábiles. Disponible entrega el mismo día para pedidos antes de las 12:00 PM.' :
-                     hasFastShipping ? 
-                      'Entrega en 2-3 días hábiles. Cobertura prioritaria en este departamento.' :
-                      'Entrega en 3-5 días hábiles. Enviamos a todo el territorio nacional.'
-                    }
-                  </p>
-                  
-                  {/* ✅ NUEVO: Costo de envío específico por área */}
-                  <div className="mt-2 text-xs">
-                    <span className="font-medium">Costo de envío: </span>
-                    {isMetropolitanArea ? 
-                      'Q25 (Gratis en compras +Q200)' :
-                     hasFastShipping ? 
-                      'Q35 (Gratis en compras +Q250)' :
-                      'Q45 (Gratis en compras +Q300)'
-                    }
-                  </div>
+            {/* País, Departamento, Municipio */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* País (fijo) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
+                <div className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-gray-600">
+                  🇬🇹 Guatemala
                 </div>
               </div>
+
+              {/* Departamento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Departamento *</label>
+                <select
+                  value={shippingAddress.state}
+                  onChange={(e) => onInputChange('shippingAddress', 'state', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                    errors.state && touched.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Seleccionar departamento</option>
+                  {DEPARTMENTS.map(department => (
+                    <option key={department} value={department}>
+                      {department}
+                    </option>
+                  ))}
+                </select>
+                {errors.state && touched.state && (
+                  <div className="flex items-center mt-1 text-red-600 text-sm">
+                    <X className="w-4 h-4 mr-1" />
+                    {errors.state}
+                  </div>
+                )}
+              </div>
+
+              {/* Municipio */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Municipio *</label>
+                <select
+                  value={shippingAddress.municipality}
+                  onChange={(e) => onInputChange('shippingAddress', 'municipality', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                    errors.municipality && touched.municipality ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
+                  disabled={!shippingAddress.state}
+                >
+                  <option value="">
+                    {shippingAddress.state ? 'Seleccionar municipio' : 'Primero selecciona departamento'}
+                  </option>
+                  {availableMunicipalities.map(municipality => (
+                    <option key={municipality} value={municipality}>
+                      {municipality}
+                    </option>
+                  ))}
+                </select>
+                {errors.municipality && touched.municipality && (
+                  <div className="flex items-center mt-1 text-red-600 text-sm">
+                    <X className="w-4 h-4 mr-1" />
+                    {errors.municipality}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+
+            {/* Código postal y referencias */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Código postal automático */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Código postal
+                  <span className="text-gray-500 text-xs ml-1">(automático)</span>
+                </label>
+                <input
+                  type="text"
+                  value={shippingAddress.zipCode}
+                  onChange={(e) => onInputChange('shippingAddress', 'zipCode', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Se llena automáticamente"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Referencias (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={shippingAddress.reference}
+                  onChange={(e) => onInputChange('shippingAddress', 'reference', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Casa blanca con portón negro, edificio 3er nivel"
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 📝 NOTAS ADICIONALES */}
       <div className="bg-white rounded-lg shadow-sm p-6">
@@ -882,25 +986,30 @@ const CustomerInfoStep = ({
           onChange={(e) => setNotes(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           rows="3"
-          placeholder="Instrucciones especiales para la entrega, horario preferido, etc..."
+          placeholder={
+            deliveryMethod === 'pickup_store' 
+              ? "Instrucciones especiales para la preparación de tu pedido..."
+              : "Instrucciones especiales para la entrega, horario preferido, etc..."
+          }
         />
         <p className="text-xs text-gray-500 mt-1">
-          Incluye cualquier información que ayude al repartidor a encontrar tu dirección
+          {deliveryMethod === 'pickup_store' 
+            ? "Incluye cualquier información especial sobre tu pedido"
+            : "Incluye cualquier información que ayude al repartidor a encontrar tu dirección"
+          }
         </p>
       </div>
     </div>
   );
 };
 
-// Los demás componentes (PaymentStep, ConfirmationStep, OrderSummary) mantienen la misma estructura 
-// pero se pueden actualizar para mostrar información específica según el área de entrega
-
-// 💳 COMPONENTE: Paso 2 - Método de pago (mantenido igual pero actualizado)
+// 💳 COMPONENTE: Paso 2 - Método de pago (actualizado con rutas correctas)
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
   customerInfo,
   shippingAddress,
+  deliveryMethod,
   notes,
   items,
   summary,
@@ -909,7 +1018,8 @@ const PaymentStep = ({
   onSuccess,
   onError,
   isProcessing,
-  setIsProcessing
+  setIsProcessing,
+  shippingCost
 }) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -925,6 +1035,7 @@ const PaymentStep = ({
       setIsProcessing(true);
       setCardError('');
 
+      // ✅ DATOS DE ORDEN SEGÚN README - Ruta correcta
       const orderData = {
         items: items.map(item => ({
           productId: item.id,
@@ -933,25 +1044,29 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
-        shippingAddress: {
-          ...shippingAddress,
-          // ✅ ACTUALIZADO: Incluir información completa de ubicación
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`,
-          departmentCode: shippingAddress.zipCode?.substring(0, 2) || '01',
-          isMetropolitan: getMetropolitanDepartments().includes(shippingAddress.state),
-          hasFastShipping: getFastShippingDepartments().includes(shippingAddress.state)
-        },
         paymentMethod: 'card',
         notes,
+        deliveryMethod,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
+      // Solo agregar shippingAddress si NO es pickup_store
+      if (deliveryMethod !== 'pickup_store') {
+        orderData.shippingAddress = {
+          ...shippingAddress,
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+        };
+      }
+
+      // ✅ RUTA CORRECTA SEGÚN README: /api/store/orders
       const orderResponse = await apiService.post('/store/orders', orderData);
       if (!orderResponse.success) {
         throw new Error(orderResponse.message || 'Error al crear la orden');
       }
 
       const order = orderResponse.data.order;
+
+      // ✅ RUTA CORRECTA SEGÚN README: /api/stripe/create-store-intent
       const paymentIntentResponse = await apiService.post('/stripe/create-store-intent', {
         orderId: order.id
       });
@@ -970,13 +1085,13 @@ const PaymentStep = ({
             name: customerInfo.name,
             email: customerInfo.email,
             phone: customerInfo.phone,
-            address: {
+            address: deliveryMethod !== 'pickup_store' ? {
               line1: shippingAddress.street,
               city: shippingAddress.municipality,
               state: shippingAddress.state,
               postal_code: shippingAddress.zipCode,
               country: 'GT'
-            }
+            } : undefined
           }
         }
       });
@@ -987,6 +1102,7 @@ const PaymentStep = ({
       }
 
       if (paymentIntent.status === 'succeeded') {
+        // ✅ RUTA CORRECTA SEGÚN README: /api/stripe/confirm-payment
         const confirmResponse = await apiService.post('/stripe/confirm-payment', {
           paymentIntentId: paymentIntent.id
         });
@@ -1021,6 +1137,7 @@ const PaymentStep = ({
     try {
       setIsProcessing(true);
 
+      // ✅ DATOS DE ORDEN SEGÚN README
       const orderData = {
         items: items.map(item => ({
           productId: item.id,
@@ -1029,19 +1146,21 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
-        shippingAddress: {
-          ...shippingAddress,
-          // ✅ ACTUALIZADO: Incluir información completa de ubicación
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`,
-          departmentCode: shippingAddress.zipCode?.substring(0, 2) || '01',
-          isMetropolitan: getMetropolitanDepartments().includes(shippingAddress.state),
-          hasFastShipping: getFastShippingDepartments().includes(shippingAddress.state)
-        },
         paymentMethod: 'cash_on_delivery',
         notes,
+        deliveryMethod,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
+      // Solo agregar shippingAddress si NO es pickup_store
+      if (deliveryMethod !== 'pickup_store') {
+        orderData.shippingAddress = {
+          ...shippingAddress,
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+        };
+      }
+
+      // ✅ RUTA CORRECTA SEGÚN README: /api/store/orders
       const response = await apiService.post('/store/orders', orderData);
 
       if (response.success) {
@@ -1109,14 +1228,25 @@ const PaymentStep = ({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <DollarSign className="w-5 h-5 text-gray-600 mr-3" />
+                <Home className="w-5 h-5 text-gray-600 mr-3" />
                 <div>
-                  <div className="font-medium">Pago contra entrega</div>
-                  <div className="text-sm text-gray-600">Paga cuando recibas tu pedido</div>
+                  <div className="font-medium">
+                    {deliveryMethod === 'pickup_store' ? 'Pago al recoger' : 'Pago contra entrega'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {deliveryMethod === 'pickup_store' 
+                      ? 'Paga cuando recojas tu pedido'
+                      : 'Paga cuando recibas tu pedido'
+                    }
+                  </div>
                 </div>
               </div>
               <div className="flex items-center space-x-1">
-                <Truck className="w-4 h-4 text-blue-500" />
+                {deliveryMethod === 'pickup_store' ? (
+                  <Store className="w-4 h-4 text-blue-500" />
+                ) : (
+                  <Truck className="w-4 h-4 text-blue-500" />
+                )}
                 <span className="text-xs text-blue-600">Popular</span>
               </div>
             </div>
@@ -1176,20 +1306,36 @@ const PaymentStep = ({
       {paymentMethod === 'cash_on_delivery' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4">
-            Pago contra entrega
+            {deliveryMethod === 'pickup_store' ? 'Pago al recoger' : 'Pago contra entrega'}
           </h3>
 
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <div className="flex items-start">
-              <Truck className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
+              {deliveryMethod === 'pickup_store' ? (
+                <Store className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
+              ) : (
+                <Truck className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
+              )}
               <div className="text-sm text-gray-700">
                 <p className="font-medium mb-1">¿Cómo funciona?</p>
                 <ul className="space-y-1">
-                  <li>• Recibirás tu pedido en la dirección indicada</li>
-                  <li>• Pagas el monto exacto al repartidor</li>
-                  <li>• Aceptamos efectivo y tarjetas</li>
-                  <li>• No hay costos adicionales</li>
-                  <li>• Entrega estimada según tu ubicación</li>
+                  {deliveryMethod === 'pickup_store' ? (
+                    <>
+                      <li>• Prepararemos tu pedido en 2-4 horas</li>
+                      <li>• Te notificaremos cuando esté listo</li>
+                      <li>• Vienes a recoger y pagas en ese momento</li>
+                      <li>• Aceptamos efectivo y tarjetas</li>
+                      <li>• Sin costos adicionales de envío</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>• Recibirás tu pedido en la dirección indicada</li>
+                      <li>• Pagas el monto exacto al repartidor</li>
+                      <li>• Aceptamos efectivo y tarjetas</li>
+                      <li>• Sin costos adicionales</li>
+                      <li>• Entrega según el método seleccionado</li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
@@ -1213,7 +1359,7 @@ const PaymentStep = ({
               <Lock className="w-5 h-5" />
               <span>
                 {paymentMethod === 'card' 
-                  ? `Pagar ${summary ? summary.totalAmount?.toFixed(2) : '0.00'} GTQ`
+                  ? `Pagar ${((summary?.subtotal || 0) + shippingCost)?.toFixed(2)} GTQ`
                   : 'Confirmar pedido'
                 }
               </span>
@@ -1275,11 +1421,6 @@ const ConfirmationStep = ({ order, customerInfo }) => {
                   {order?.paymentMethod === 'card' ? 'Tarjeta de crédito' : 'Pago contra entrega'}
                 </span>
               </div>
-              
-              <div className="flex justify-between">
-                <span className="text-gray-600">Entrega estimada:</span>
-                <span className="font-medium">Según tu ubicación</span>
-              </div>
             </div>
           </div>
         </div>
@@ -1313,7 +1454,7 @@ const ConfirmationStep = ({ order, customerInfo }) => {
   );
 };
 
-// ✅ COMPONENTE ACTUALIZADO: Resumen del pedido con información de entrega específica
+// ✅ COMPONENTE ACTUALIZADO: Resumen del pedido con nuevas opciones
 const OrderSummary = ({ 
   items, 
   summary, 
@@ -1323,27 +1464,11 @@ const OrderSummary = ({
   canContinue,
   isProcessing,
   errors,
-  shippingAddress,
-  isMetropolitanArea,
-  hasFastShipping 
+  deliveryMethod,
+  shippingCost
 }) => {
   const hasErrors = Object.keys(errors).filter(key => errors[key]).length > 0;
   const errorCount = Object.keys(errors).filter(key => errors[key]).length;
-
-  // ✅ NUEVO: Calcular costo de envío específico por área
-  const getShippingCost = () => {
-    if (!shippingAddress.state) return 25; // Default
-    
-    if (isMetropolitanArea) {
-      return summary?.totalAmount >= 200 ? 0 : 25;
-    } else if (hasFastShipping) {
-      return summary?.totalAmount >= 250 ? 0 : 35;
-    } else {
-      return summary?.totalAmount >= 300 ? 0 : 45;
-    }
-  };
-
-  const shippingCost = getShippingCost();
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
@@ -1389,13 +1514,15 @@ const OrderSummary = ({
         
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">
-            Envío:
-            {shippingAddress.state && (
-              <span className="text-xs block text-gray-500">
-                {isMetropolitanArea ? 'Área Metropolitana' : 
-                 hasFastShipping ? 'Entrega Rápida' : 
-                 'Entrega Nacional'}
-              </span>
+            {deliveryMethod && DELIVERY_OPTIONS[deliveryMethod] ? (
+              <>
+                {DELIVERY_OPTIONS[deliveryMethod].name}:
+                <span className="text-xs block text-gray-500">
+                  {DELIVERY_OPTIONS[deliveryMethod].timeframe}
+                </span>
+              </>
+            ) : (
+              'Entrega:'
             )}
           </span>
           <span>
@@ -1446,29 +1573,35 @@ const OrderSummary = ({
           <Shield className="w-4 h-4 mr-2 text-green-500" />
           <span>Compra 100% segura</span>
         </div>
-        <div className="flex items-center">
-          <Truck className="w-4 h-4 mr-2 text-blue-500" />
-          <span>
-            {isMetropolitanArea ? 'Envío gratis en compras +Q200' :
-             hasFastShipping ? 'Envío gratis en compras +Q250' :
-             'Envío gratis en compras +Q300'}
-          </span>
-        </div>
+        
+        {deliveryMethod && (
+          <>
+            <div className="flex items-center">
+              {deliveryMethod === 'pickup_store' ? (
+                <Store className="w-4 h-4 mr-2 text-green-500" />
+              ) : deliveryMethod === 'local_delivery' ? (
+                <Truck className="w-4 h-4 mr-2 text-blue-500" />
+              ) : (
+                <Map className="w-4 h-4 mr-2 text-purple-500" />
+              )}
+              <span>
+                {DELIVERY_OPTIONS[deliveryMethod]?.description || 'Método seleccionado'}
+              </span>
+            </div>
+            
+            {DELIVERY_OPTIONS[deliveryMethod]?.cost > 0 && shippingCost === 0 && (
+              <div className="flex items-center">
+                <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                <span>¡Envío gratis aplicado!</span>
+              </div>
+            )}
+          </>
+        )}
+        
         <div className="flex items-center">
           <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
           <span>Garantía de satisfacción</span>
         </div>
-        
-        {shippingAddress.state && (
-          <div className="text-xs text-gray-500 border-t pt-2 mt-2">
-            <div>📍 {shippingAddress.municipality}, {shippingAddress.state}</div>
-            <div>📦 Entrega: {
-              isMetropolitanArea ? '1-2 días hábiles' :
-              hasFastShipping ? '2-3 días hábiles' :
-              '3-5 días hábiles'
-            }</div>
-          </div>
-        )}
       </div>
     </div>
   );
