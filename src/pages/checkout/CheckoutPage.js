@@ -1,6 +1,6 @@
 // src/pages/checkout/CheckoutPage.js
-// FUNCIÓN: Página de checkout CON VALIDACIONES COMPLETAS - Invitados + autenticados + Stripe
-// VALIDACIONES: ✅ Nombres solo letras ✅ Teléfonos solo números ✅ Email formato correcto ✅ Campos requeridos
+// FUNCIÓN: Página de checkout CORREGIDA - Validaciones flexibles + Municipios de Guatemala + Sin horarios
+// MEJORAS: ✅ Validaciones menos estrictas ✅ Municipios completos ✅ Sin horarios ✅ No se pierden datos
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,14 +17,12 @@ import {
   Mail,
   Phone,
   Home,
-  Clock,
   Shield,
   Truck,
-  Eye,
-  EyeOff,
   Calendar,
   DollarSign,
-  X
+  X,
+  Info
 } from 'lucide-react';
 
 import { useCart } from '../../contexts/CartContext';
@@ -41,23 +39,98 @@ import {
   useElements 
 } from '@stripe/react-stripe-js';
 
-// ✅ REGEX PARA VALIDACIONES
+// ✅ REGEX MEJORADOS - MÁS FLEXIBLES
 const VALIDATION_PATTERNS = {
-  name: /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-']+$/, // Solo letras, espacios, acentos, guiones, apostrofes
-  phone: /^[\d\s\-\(\)\+]+$/, // Solo números, espacios, guiones, paréntesis, +
-  email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, // Email válido
-  address: /^[A-Za-zÀ-ÿ\u00f1\u00d1\d\s\-.,#°]+$/ // Letras, números, espacios, caracteres de dirección
+  name: /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'\.]+$/, // ✅ Agregado punto para abreviaciones
+  phone: /^[\d\s\-\(\)\+]+$/, // Mantenido igual
+  email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, // Mantenido igual
+  address: /^[A-Za-zÀ-ÿ\u00f1\u00d1\d\s\-.,#°\/]+$/ // ✅ Agregado slash para direcciones
 };
 
-// ✅ MENSAJES DE ERROR
+// ✅ MENSAJES DE ERROR MEJORADOS
 const ERROR_MESSAGES = {
-  name: 'Solo se permiten letras, espacios y acentos',
+  name: 'Solo se permiten letras, espacios, acentos, guiones y puntos',
   phone: 'Solo se permiten números, espacios, guiones y paréntesis',
   email: 'Ingresa un email válido (ejemplo@correo.com)',
   address: 'Ingresa una dirección válida',
   required: 'Este campo es requerido',
   minLength: 'Debe tener al menos {min} caracteres',
-  phoneLength: 'El teléfono debe tener entre 8 y 15 dígitos'
+  phoneLength: 'El teléfono debe tener entre 7 y 15 dígitos'
+};
+
+// ✅ MUNICIPIOS COMPLETOS DE GUATEMALA
+const GUATEMALA_LOCATIONS = {
+  Guatemala: [
+    'Guatemala',
+    'Mixco', 
+    'Villa Nueva',
+    'Petapa',
+    'San José Pinula',
+    'San José del Golfo',
+    'Palencia',
+    'Chinautla',
+    'San Pedro Ayampuc',
+    'San Pedro Sacatepéquez',
+    'San Juan Sacatepéquez',
+    'San Raymundo',
+    'Chuarrancho',
+    'Fraijanes',
+    'Amatitlán',
+    'Villa Canales',
+    'Santa Catarina Pinula'
+  ],
+  Sacatepéquez: [
+    'Antigua Guatemala',
+    'Jocotenango',
+    'Pastores',
+    'Sumpango',
+    'Santo Domingo Xenacoj',
+    'Santiago Sacatepéquez',
+    'San Bartolomé Milpas Altas',
+    'San Lucas Sacatepéquez',
+    'Santa Lucía Milpas Altas',
+    'Magdalena Milpas Altas',
+    'Santa María de Jesús',
+    'Ciudad Vieja',
+    'San Miguel Dueñas',
+    'Alotenango',
+    'San Antonio Aguas Calientes',
+    'Santa Catarina Barahona'
+  ],
+  Escuintla: [
+    'Escuintla',
+    'Santa Lucía Cotzumalguapa',
+    'La Democracia',
+    'Siquinalá',
+    'Masagua',
+    'Tiquisate',
+    'La Gomera',
+    'Guanagazapa',
+    'San José',
+    'Iztapa',
+    'Palín',
+    'San Vicente Pacaya',
+    'Nueva Concepción',
+    'Pueblo Nuevo Tiquisate'
+  ],
+  Chimaltenango: [
+    'Chimaltenango',
+    'San José Poaquil',
+    'San Martín Jilotepeque',
+    'San Juan Comalapa',
+    'Santa Apolonia',
+    'Tecpán',
+    'Patzún',
+    'Pochuta',
+    'Patzicía',
+    'Santa Cruz Balanyá',
+    'Acatenango',
+    'Yepocapa',
+    'San Andrés Itzapa',
+    'Parramos',
+    'Zaragoza',
+    'El Tejar'
+  ]
 };
 
 const CheckoutPage = () => {
@@ -79,7 +152,7 @@ const CheckoutPage = () => {
   const [orderCreated, setOrderCreated] = useState(null);
   const [stripePromise, setStripePromise] = useState(null);
 
-  // ✅ ESTADOS DEL FORMULARIO CON VALIDACIÓN
+  // ✅ ESTADOS DEL FORMULARIO CON VALIDACIÓN MEJORADA
   const [customerInfo, setCustomerInfo] = useState({
     name: user ? `${user.firstName} ${user.lastName}` : '',
     email: user?.email || '',
@@ -88,14 +161,14 @@ const CheckoutPage = () => {
 
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
-    city: 'Guatemala',
-    state: 'Guatemala',
+    city: 'Guatemala', // Por defecto Guatemala
+    state: 'Guatemala', // Por defecto Guatemala
+    municipality: '', // ✅ NUEVO: Campo de municipio
     zipCode: '01001',
     reference: ''
   });
 
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
-  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState('morning');
   const [notes, setNotes] = useState('');
   
   // ✅ ESTADOS DE VALIDACIÓN
@@ -134,7 +207,7 @@ const CheckoutPage = () => {
     }
   }, [isEmpty, navigate, showInfo]);
 
-  // ✅ FUNCIÓN: Validar un campo específico
+  // ✅ FUNCIÓN MEJORADA: Validar un campo específico - MÁS FLEXIBLE
   const validateField = (name, value) => {
     const fieldErrors = {};
 
@@ -158,13 +231,16 @@ const CheckoutPage = () => {
         break;
 
       case 'phone':
-        const cleanPhone = value.replace(/\s/g, '');
+        // ✅ MEJORADO: Solo validar que no esté vacío y tenga formato básico
         if (!value.trim()) {
           fieldErrors[name] = ERROR_MESSAGES.required;
-        } else if (!VALIDATION_PATTERNS.phone.test(value)) {
-          fieldErrors[name] = ERROR_MESSAGES.phone;
-        } else if (cleanPhone.length < 8 || cleanPhone.length > 15) {
-          fieldErrors[name] = ERROR_MESSAGES.phoneLength;
+        } else {
+          const cleanPhone = value.replace(/[\s\-\(\)\+]/g, ''); // Limpiar caracteres
+          if (cleanPhone.length < 7 || cleanPhone.length > 15) {
+            fieldErrors[name] = ERROR_MESSAGES.phoneLength;
+          } else if (!VALIDATION_PATTERNS.phone.test(value)) {
+            fieldErrors[name] = ERROR_MESSAGES.phone;
+          }
         }
         break;
 
@@ -173,8 +249,13 @@ const CheckoutPage = () => {
           fieldErrors[name] = ERROR_MESSAGES.required;
         } else if (value.trim().length < 5) {
           fieldErrors[name] = ERROR_MESSAGES.minLength.replace('{min}', '5');
-        } else if (!VALIDATION_PATTERNS.address.test(value)) {
-          fieldErrors[name] = ERROR_MESSAGES.address;
+        }
+        // ✅ REMOVIDO: Validación estricta de patrones para direcciones
+        break;
+
+      case 'municipality':
+        if (!value.trim()) {
+          fieldErrors[name] = 'Selecciona un municipio';
         }
         break;
 
@@ -185,13 +266,22 @@ const CheckoutPage = () => {
     return fieldErrors;
   };
 
-  // ✅ FUNCIÓN: Manejar cambio de input con validación en tiempo real
+  // ✅ FUNCIÓN MEJORADA: Manejar cambio de input - MÁS FLEXIBLE
   const handleInputChange = (section, field, value) => {
     // Actualizar valor
     if (section === 'customerInfo') {
       setCustomerInfo(prev => ({ ...prev, [field]: value }));
     } else if (section === 'shippingAddress') {
-      setShippingAddress(prev => ({ ...prev, [field]: value }));
+      setShippingAddress(prev => {
+        const newAddress = { ...prev, [field]: value };
+        
+        // ✅ NUEVO: Si cambia el departamento, resetear municipio
+        if (field === 'state') {
+          newAddress.municipality = '';
+        }
+        
+        return newAddress;
+      });
     }
 
     // Marcar como tocado
@@ -207,21 +297,26 @@ const CheckoutPage = () => {
     }));
   };
 
-  // ✅ FUNCIÓN: Filtrar caracteres no permitidos mientras se escribe
+  // ✅ FUNCIÓN MEJORADA: Filtrar caracteres - MÁS PERMISIVA
   const handleKeyPress = (e, type) => {
     const char = e.key;
     
+    // ✅ Permitir teclas de control
+    if (['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(char)) {
+      return;
+    }
+    
     switch (type) {
       case 'name':
-        // Solo letras, espacios, acentos, guiones, apostrofes
-        if (!/[A-Za-zÀ-ÿ\u00f1\u00d1\s\-']/.test(char) && char !== 'Backspace' && char !== 'Delete') {
+        // ✅ MEJORADO: Más permisivo para nombres
+        if (!/[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'\.]/i.test(char)) {
           e.preventDefault();
         }
         break;
         
       case 'phone':
         // Solo números, espacios, guiones, paréntesis, +
-        if (!/[\d\s\-\(\)\+]/.test(char) && char !== 'Backspace' && char !== 'Delete') {
+        if (!/[\d\s\-\(\)\+]/.test(char)) {
           e.preventDefault();
         }
         break;
@@ -231,7 +326,7 @@ const CheckoutPage = () => {
     }
   };
 
-  // 📝 FUNCIÓN: Validar todo el formulario
+  // ✅ FUNCIÓN MEJORADA: Validar todo el formulario - MÁS ESPECÍFICA
   const validateForm = () => {
     const newErrors = {};
 
@@ -242,6 +337,7 @@ const CheckoutPage = () => {
 
     // Validar dirección de envío
     Object.assign(newErrors, validateField('street', shippingAddress.street));
+    Object.assign(newErrors, validateField('municipality', shippingAddress.municipality));
 
     setErrors(newErrors);
     
@@ -250,18 +346,43 @@ const CheckoutPage = () => {
       name: true,
       email: true,
       phone: true,
-      street: true
+      street: true,
+      municipality: true
     });
 
-    return Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).length === 0;
+    
+    if (!isValid) {
+      console.log('❌ Form validation failed:', newErrors);
+    } else {
+      console.log('✅ Form validation passed');
+    }
+
+    return isValid;
   };
 
   // ➡️ FUNCIÓN: Continuar al siguiente paso
   const handleContinue = () => {
     if (validateForm()) {
       setStep(2);
+      console.log('✅ Moving to payment step with data:', {
+        customerInfo,
+        shippingAddress: {
+          ...shippingAddress,
+          fullLocation: `${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+        }
+      });
     } else {
       showError('Por favor corrige los errores en el formulario');
+      
+      // ✅ NUEVO: Mostrar errores específicos
+      const errorList = Object.values(errors).filter(Boolean);
+      if (errorList.length > 0) {
+        console.log('📝 Specific errors:', errorList);
+        setTimeout(() => {
+          showInfo(`Errores encontrados: ${errorList.join(', ')}`);
+        }, 1000);
+      }
     }
   };
 
@@ -366,8 +487,6 @@ const CheckoutPage = () => {
                 setCustomerInfo={setCustomerInfo}
                 shippingAddress={shippingAddress}
                 setShippingAddress={setShippingAddress}
-                deliveryTimeSlot={deliveryTimeSlot}
-                setDeliveryTimeSlot={setDeliveryTimeSlot}
                 notes={notes}
                 setNotes={setNotes}
                 errors={errors}
@@ -386,7 +505,6 @@ const CheckoutPage = () => {
                   setPaymentMethod={setPaymentMethod}
                   customerInfo={customerInfo}
                   shippingAddress={shippingAddress}
-                  deliveryTimeSlot={deliveryTimeSlot}
                   notes={notes}
                   items={items}
                   summary={summary}
@@ -433,12 +551,10 @@ const CheckoutPage = () => {
   );
 };
 
-// ✅ COMPONENTE: Paso 1 - Información del cliente CON VALIDACIONES
+// ✅ COMPONENTE MEJORADO: Paso 1 - Información del cliente CON MUNICIPIOS
 const CustomerInfoStep = ({ 
   customerInfo, 
   shippingAddress, 
-  deliveryTimeSlot,
-  setDeliveryTimeSlot,
   notes,
   setNotes,
   errors,
@@ -448,6 +564,10 @@ const CustomerInfoStep = ({
   onInputChange,
   onKeyPress
 }) => {
+  
+  // ✅ Obtener municipios disponibles según el departamento seleccionado
+  const availableMunicipalities = GUATEMALA_LOCATIONS[shippingAddress.state] || [];
+  
   return (
     <div className="space-y-8">
       
@@ -485,7 +605,7 @@ const CustomerInfoStep = ({
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                 errors.name && touched.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
-              placeholder="Juan Pérez"
+              placeholder="Juan Pérez García"
               disabled={isAuthenticated}
             />
             {errors.name && touched.name && (
@@ -523,6 +643,7 @@ const CustomerInfoStep = ({
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Teléfono *
+              <span className="text-gray-500 font-normal ml-1">(WhatsApp preferido)</span>
             </label>
             <input
               type="tel"
@@ -532,7 +653,7 @@ const CustomerInfoStep = ({
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                 errors.phone && touched.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
-              placeholder="+502 5555-5555"
+              placeholder="5555-5555 o +502 5555-5555"
             />
             {errors.phone && touched.phone && (
               <div className="flex items-center mt-1 text-red-600 text-sm">
@@ -544,7 +665,7 @@ const CustomerInfoStep = ({
         </div>
       </div>
 
-      {/* 📍 DIRECCIÓN DE ENVÍO */}
+      {/* ✅ DIRECCIÓN DE ENVÍO MEJORADA CON MUNICIPIOS */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <MapPin className="w-5 h-5 text-primary-600 mr-2" />
@@ -557,7 +678,7 @@ const CustomerInfoStep = ({
           {/* Dirección */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dirección *
+              Dirección completa *
             </label>
             <input
               type="text"
@@ -566,7 +687,7 @@ const CustomerInfoStep = ({
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                 errors.street && touched.street ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
-              placeholder="5ta Avenida 12-34, Zona 10"
+              placeholder="5ta Avenida 12-34, Zona 10, Colonia Roosevelt"
             />
             {errors.street && touched.street && (
               <div className="flex items-center mt-1 text-red-600 text-sm">
@@ -574,23 +695,22 @@ const CustomerInfoStep = ({
                 {errors.street}
               </div>
             )}
+            <p className="text-xs text-gray-500 mt-1">
+              Incluye zona, colonia, barrio o cualquier referencia importante
+            </p>
           </div>
 
+          {/* ✅ NUEVA ESTRUCTURA: País, Departamento, Municipio */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* País (fijo) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
-              <select
-                value={shippingAddress.city}
-                onChange={(e) => onInputChange('shippingAddress', 'city', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="Guatemala">Guatemala</option>
-                <option value="Mixco">Mixco</option>
-                <option value="Villa Nueva">Villa Nueva</option>
-                <option value="Petapa">Petapa</option>
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
+              <div className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-gray-600">
+                🇬🇹 Guatemala
+              </div>
             </div>
 
+            {/* Departamento */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
               <select
@@ -601,9 +721,38 @@ const CustomerInfoStep = ({
                 <option value="Guatemala">Guatemala</option>
                 <option value="Sacatepéquez">Sacatepéquez</option>
                 <option value="Escuintla">Escuintla</option>
+                <option value="Chimaltenango">Chimaltenango</option>
               </select>
             </div>
 
+            {/* ✅ NUEVO: Municipio */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Municipio *</label>
+              <select
+                value={shippingAddress.municipality}
+                onChange={(e) => onInputChange('shippingAddress', 'municipality', e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                  errors.municipality && touched.municipality ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Seleccionar municipio</option>
+                {availableMunicipalities.map(municipality => (
+                  <option key={municipality} value={municipality}>
+                    {municipality}
+                  </option>
+                ))}
+              </select>
+              {errors.municipality && touched.municipality && (
+                <div className="flex items-center mt-1 text-red-600 text-sm">
+                  <X className="w-4 h-4 mr-1" />
+                  {errors.municipality}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Código postal y referencias */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Código postal</label>
               <input
@@ -614,51 +763,34 @@ const CustomerInfoStep = ({
                 placeholder="01001"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Referencias (opcional)
+              </label>
+              <input
+                type="text"
+                value={shippingAddress.reference}
+                onChange={(e) => onInputChange('shippingAddress', 'reference', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                placeholder="Casa blanca con portón negro, edificio 3er nivel"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Referencias (opcional)
-            </label>
-            <input
-              type="text"
-              value={shippingAddress.reference}
-              onChange={(e) => onInputChange('shippingAddress', 'reference', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              placeholder="Casa blanca con portón negro, edificio 3er nivel"
-            />
+          {/* ✅ Info adicional */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <Info className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
+              <div className="text-sm">
+                <p className="text-blue-800 font-medium mb-1">Entregas disponibles</p>
+                <p className="text-blue-700">
+                  Realizamos entregas en toda Guatemala. El tiempo estimado es de 2-3 días hábiles.
+                  Para entregas fuera del área metropolitana puede tomar hasta 5 días.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* ⏰ HORARIO DE ENTREGA */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center mb-4">
-          <Clock className="w-5 h-5 text-primary-600 mr-2" />
-          <h2 className="text-lg font-semibold text-gray-900">
-            Horario de entrega
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { value: 'morning', label: 'Mañana', time: '8:00 AM - 12:00 PM' },
-            { value: 'afternoon', label: 'Tarde', time: '1:00 PM - 5:00 PM' },
-            { value: 'evening', label: 'Noche', time: '6:00 PM - 9:00 PM' }
-          ].map((slot) => (
-            <button
-              key={slot.value}
-              onClick={() => setDeliveryTimeSlot(slot.value)}
-              className={`p-4 border rounded-lg text-left transition-colors ${
-                deliveryTimeSlot === slot.value
-                  ? 'border-primary-500 bg-primary-50'
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
-            >
-              <div className="font-medium">{slot.label}</div>
-              <div className="text-sm text-gray-600">{slot.time}</div>
-            </button>
-          ))}
         </div>
       </div>
 
@@ -667,7 +799,7 @@ const CustomerInfoStep = ({
         <div className="flex items-center mb-4">
           <Package className="w-5 h-5 text-primary-600 mr-2" />
           <h2 className="text-lg font-semibold text-gray-900">
-            Notas adicionales
+            Instrucciones especiales
           </h2>
         </div>
 
@@ -676,20 +808,22 @@ const CustomerInfoStep = ({
           onChange={(e) => setNotes(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           rows="3"
-          placeholder="Instrucciones especiales para la entrega..."
+          placeholder="Instrucciones especiales para la entrega, horario preferido, etc..."
         />
+        <p className="text-xs text-gray-500 mt-1">
+          Incluye cualquier información que ayude al repartidor a encontrar tu dirección
+        </p>
       </div>
     </div>
   );
 };
 
-// 💳 COMPONENTE: Paso 2 - Método de pago (igual que antes)
+// 💳 COMPONENTE: Paso 2 - Método de pago (mantenido igual pero sin horarios)
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
   customerInfo,
   shippingAddress,
-  deliveryTimeSlot,
   notes,
   items,
   summary,
@@ -722,9 +856,12 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
-        shippingAddress,
+        shippingAddress: {
+          ...shippingAddress,
+          // ✅ Incluir municipio en la dirección
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+        },
         paymentMethod: 'card',
-        deliveryTimeSlot,
         notes,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
@@ -755,7 +892,7 @@ const PaymentStep = ({
             phone: customerInfo.phone,
             address: {
               line1: shippingAddress.street,
-              city: shippingAddress.city,
+              city: shippingAddress.municipality,
               state: shippingAddress.state,
               postal_code: shippingAddress.zipCode,
               country: 'GT'
@@ -812,9 +949,12 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
-        shippingAddress,
+        shippingAddress: {
+          ...shippingAddress,
+          // ✅ Incluir municipio en la dirección
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+        },
         paymentMethod: 'cash_on_delivery',
-        deliveryTimeSlot,
         notes,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
@@ -966,6 +1106,7 @@ const PaymentStep = ({
                   <li>• Pagas el monto exacto al repartidor</li>
                   <li>• Aceptamos efectivo y tarjetas</li>
                   <li>• No hay costos adicionales</li>
+                  <li>• Entrega estimada: 2-3 días hábiles</li>
                 </ul>
               </div>
             </div>
@@ -1006,7 +1147,7 @@ const PaymentStep = ({
   );
 };
 
-// ✅ COMPONENTE: Paso 3 - Confirmación (igual que antes)
+// ✅ COMPONENTE: Paso 3 - Confirmación (mantenido igual)
 const ConfirmationStep = ({ order, customerInfo }) => {
   const navigate = useNavigate();
 
@@ -1051,6 +1192,11 @@ const ConfirmationStep = ({ order, customerInfo }) => {
                   {order?.paymentMethod === 'card' ? 'Tarjeta de crédito' : 'Pago contra entrega'}
                 </span>
               </div>
+              
+              <div className="flex justify-between">
+                <span className="text-gray-600">Entrega estimada:</span>
+                <span className="font-medium">2-3 días hábiles</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1075,13 +1221,16 @@ const ConfirmationStep = ({ order, customerInfo }) => {
           <p>
             Se ha enviado un email de confirmación a <strong>{customerInfo.email}</strong>
           </p>
+          <p className="mt-2">
+            También recibirás actualizaciones por WhatsApp al teléfono proporcionado
+          </p>
         </div>
       </div>
     </div>
   );
 };
 
-// 📋 COMPONENTE: Resumen del pedido CON INDICADOR DE ERRORES
+// 📋 COMPONENTE: Resumen del pedido CON INDICADOR DE ERRORES MEJORADO
 const OrderSummary = ({ 
   items, 
   summary, 
@@ -1092,7 +1241,8 @@ const OrderSummary = ({
   isProcessing,
   errors 
 }) => {
-  const hasErrors = Object.keys(errors).length > 0;
+  const hasErrors = Object.keys(errors).filter(key => errors[key]).length > 0;
+  const errorCount = Object.keys(errors).filter(key => errors[key]).length;
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
@@ -1155,7 +1305,12 @@ const OrderSummary = ({
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center text-red-700 text-sm">
                 <AlertCircle className="w-4 h-4 mr-2" />
-                <span>Corrige los errores para continuar</span>
+                <span>
+                  {errorCount === 1 ? '1 error encontrado' : `${errorCount} errores encontrados`}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-red-600">
+                Revisa los campos marcados en rojo
               </div>
             </div>
           )}
@@ -1169,7 +1324,7 @@ const OrderSummary = ({
                 : 'bg-primary-600 text-white hover:bg-primary-700'
             }`}
           >
-            Continuar al pago
+            {hasErrors ? `Corregir ${errorCount === 1 ? 'error' : 'errores'}` : 'Continuar al pago'}
           </button>
         </>
       )}

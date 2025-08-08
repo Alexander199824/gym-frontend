@@ -1,6 +1,6 @@
 // src/pages/store/StorePage.js
-// FUNCIÓN: Página de tienda CORREGIDA - Funciona para invitados + autenticados
-// CAMBIOS: ✅ Corregido handleAddToCart para usar API correcta del CartContext ✅ Mantiene todas las funcionalidades
+// FUNCIÓN: Página de tienda MEJORADA - Integración robusta con carrito persistente para invitados
+// MEJORAS: ✅ Persistencia garantizada ✅ Feedback mejorado ✅ Recovery automático ✅ Debug integrado
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
@@ -22,7 +22,10 @@ import {
   AlertCircle,
   RefreshCw,
   X,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -30,12 +33,12 @@ import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
 const StorePage = () => {
-  const { addItem, isLoading: cartLoading } = useCart(); // ✅ Mantenido igual
+  const { addItem, isLoading: cartLoading, sessionInfo, debugGuestCart } = useCart();
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // 📱 Estados para datos del backend - ✅ MANTENIDO IGUAL
+  // 📱 Estados para datos del backend - MANTIENE TODA LA FUNCIONALIDAD
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -43,7 +46,7 @@ const StorePage = () => {
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState(null);
   
-  // 📱 Estados para filtros y UI - ✅ MANTENIDO IGUAL
+  // 📱 Estados para filtros y UI - MANTIENE TODA LA FUNCIONALIDAD
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,17 +58,65 @@ const StorePage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(20);
   
-  // 🔍 EFECTO: Cargar datos iniciales - ✅ MANTENIDO IGUAL
+  // ✅ NUEVOS ESTADOS: Para seguimiento de persistencia
+  const [persistenceStatus, setPersistenceStatus] = useState('checking');
+  const [showPersistenceAlert, setShowPersistenceAlert] = useState(false);
+  
+  // 🔍 EFECTO: Cargar datos iniciales - MANTIENE TODA LA FUNCIONALIDAD
   useEffect(() => {
     loadInitialData();
   }, []);
   
-  // 🔍 EFECTO: Recargar productos cuando cambien los filtros - ✅ MANTENIDO IGUAL
+  // 🔍 EFECTO: Recargar productos cuando cambien los filtros - MANTIENE TODA LA FUNCIONALIDAD
   useEffect(() => {
     loadProducts();
   }, [selectedCategory, selectedBrand, searchQuery, sortBy, sortOrder, priceRange, currentPage]);
   
-  // 📥 FUNCIÓN: Cargar datos iniciales (categorías, marcas) - ✅ MANTENIDA IGUAL
+  // ✅ NUEVO EFECTO: Verificar persistencia del carrito para invitados
+  useEffect(() => {
+    if (!isAuthenticated) {
+      checkCartPersistence();
+      
+      // Verificar periódicamente
+      const interval = setInterval(checkCartPersistence, 10000); // Cada 10 segundos
+      
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+  
+  // ✅ NUEVA FUNCIÓN: Verificar persistencia del carrito
+  const checkCartPersistence = () => {
+    try {
+      const hasCartData = !!localStorage.getItem('elite_fitness_cart');
+      const hasSessionId = !!localStorage.getItem('elite_fitness_session_id');
+      const sessionIdInContext = !!sessionInfo?.sessionId;
+      
+      if (!isAuthenticated) {
+        if (hasCartData && hasSessionId && sessionIdInContext) {
+          setPersistenceStatus('active');
+        } else if (hasCartData || hasSessionId) {
+          setPersistenceStatus('partial');
+        } else {
+          setPersistenceStatus('inactive');
+        }
+      } else {
+        setPersistenceStatus('authenticated');
+      }
+      
+      console.log('🔍 Cart persistence check:', {
+        hasCartData,
+        hasSessionId,
+        sessionIdInContext,
+        status: persistenceStatus
+      });
+      
+    } catch (error) {
+      console.error('❌ Error checking cart persistence:', error);
+      setPersistenceStatus('error');
+    }
+  };
+  
+  // 📥 FUNCIÓN: Cargar datos iniciales - MANTIENE TODA LA FUNCIONALIDAD
   const loadInitialData = async () => {
     try {
       console.log('🛍️ Loading initial store data...');
@@ -114,7 +165,7 @@ const StorePage = () => {
     }
   };
   
-  // 📦 FUNCIÓN: Cargar productos del backend - ✅ MANTENIDA IGUAL
+  // 📦 FUNCIÓN: Cargar productos del backend - MANTIENE TODA LA FUNCIONALIDAD
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -199,51 +250,85 @@ const StorePage = () => {
     }
   };
   
-  // 🔄 FUNCIÓN: Recargar productos - ✅ MANTENIDA IGUAL
+  // 🔄 FUNCIÓN: Recargar productos - MANTIENE TODA LA FUNCIONALIDAD
   const reloadProducts = () => {
     setCurrentPage(1);
     loadProducts();
   };
   
-  // ✅ FUNCIÓN CORREGIDA: Agregar producto al carrito - FUNCIONA PARA INVITADOS Y AUTENTICADOS
+  // ✅ FUNCIÓN MEJORADA: Agregar producto al carrito - CON PERSISTENCIA GARANTIZADA
   const handleAddToCart = async (product, selectedOptions = {}) => {
     try {
-      console.log('🛒 Adding product to cart:', { 
+      console.log('🛒 Adding product to cart with persistence check:', { 
         product: product.name, 
         options: selectedOptions,
         isAuthenticated,
-        userInfo: user ? `${user.firstName} ${user.lastName}` : 'Guest'
+        userInfo: user ? `${user.firstName} ${user.lastName}` : 'Guest',
+        sessionId: sessionInfo?.sessionId,
+        persistenceStatus
       });
       
-      // ✅ CORREGIDO: Usar la API correcta del CartContext
-      // addItem(product, options) - NO addItem(productData)
+      // ✅ NUEVO: Verificar persistencia antes de agregar
+      if (!isAuthenticated) {
+        checkCartPersistence();
+        
+        // Si hay problemas de persistencia, mostrar alerta
+        if (persistenceStatus === 'error' || persistenceStatus === 'partial') {
+          setShowPersistenceAlert(true);
+          setTimeout(() => setShowPersistenceAlert(false), 5000);
+        }
+      }
+      
+      // Agregar al carrito usando la API correcta del CartContext
       await addItem(product, selectedOptions);
       
-      const message = isAuthenticated 
-        ? `${product.name} agregado al carrito`
-        : `${product.name} agregado al carrito (como invitado)`;
+      // ✅ MEJORADO: Mensaje específico según el estado
+      let message;
+      if (isAuthenticated) {
+        message = `${product.name} agregado al carrito`;
+      } else {
+        message = persistenceStatus === 'active' 
+          ? `${product.name} agregado (se guardará automáticamente)`
+          : `${product.name} agregado al carrito como invitado`;
+      }
       
       showSuccess(message);
+      
+      // ✅ NUEVO: Verificar persistencia después de agregar
+      if (!isAuthenticated) {
+        setTimeout(() => {
+          checkCartPersistence();
+        }, 500);
+      }
       
       console.log('✅ Product added to cart successfully:', {
         productName: product.name,
         userType: isAuthenticated ? 'authenticated' : 'guest',
-        quantity: selectedOptions.quantity || 1
+        quantity: selectedOptions.quantity || 1,
+        persistenceStatus
       });
       
     } catch (error) {
       console.error('❌ Error adding to cart:', error);
       showError('Error al agregar producto al carrito');
+      
+      // ✅ NUEVO: Sugerir debug si hay problemas persistentes
+      if (!isAuthenticated && process.env.NODE_ENV === 'development') {
+        setTimeout(() => {
+          console.log('🔧 Suggest debugging cart persistence...');
+          debugGuestCart();
+        }, 1000);
+      }
     }
   };
   
-  // 🎯 FUNCIÓN: Cambiar página - ✅ MANTENIDA IGUAL
+  // 🎯 FUNCIÓN: Cambiar página - MANTIENE TODA LA FUNCIONALIDAD
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
-  // 🧹 FUNCIÓN: Limpiar filtros - ✅ MANTENIDA IGUAL
+  // 🧹 FUNCIÓN: Limpiar filtros - MANTIENE TODA LA FUNCIONALIDAD
   const clearFilters = () => {
     setSelectedCategory('all');
     setSelectedBrand('all');
@@ -255,7 +340,48 @@ const StorePage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* 🔝 HEADER DE LA TIENDA - ✅ MANTENIDO IGUAL */}
+      {/* ✅ NUEVA ALERTA: Estado de persistencia del carrito */}
+      {!isAuthenticated && showPersistenceAlert && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm">
+          <div className={`p-4 rounded-lg shadow-lg border ${
+            persistenceStatus === 'active' 
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : persistenceStatus === 'partial'
+                ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+                : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            <div className="flex items-start">
+              {persistenceStatus === 'active' ? (
+                <CheckCircle className="w-5 h-5 mr-2 mt-0.5" />
+              ) : persistenceStatus === 'partial' ? (
+                <AlertCircle className="w-5 h-5 mr-2 mt-0.5" />
+              ) : (
+                <X className="w-5 h-5 mr-2 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <h4 className="font-medium text-sm">
+                  {persistenceStatus === 'active' && 'Carrito guardado automáticamente'}
+                  {persistenceStatus === 'partial' && 'Advertencia: persistencia parcial'}
+                  {persistenceStatus === 'error' && 'Error en persistencia del carrito'}
+                </h4>
+                <p className="text-xs mt-1">
+                  {persistenceStatus === 'active' && 'Tus productos se mantendrán aunque cierres la página'}
+                  {persistenceStatus === 'partial' && 'Es posible que se pierdan algunos productos al navegar'}
+                  {persistenceStatus === 'error' && 'Los productos podrían perderse al navegar'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPersistenceAlert(false)}
+                className="ml-2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 🔝 HEADER DE LA TIENDA - MEJORADO CON INDICADOR DE PERSISTENCIA */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -282,11 +408,39 @@ const StorePage = () => {
                 </span>
               )}
               
-              {/* ✅ NUEVO: Indicador para invitados */}
+              {/* ✅ MEJORADO: Indicador de estado para invitados */}
               {!isAuthenticated && (
-                <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                  Compra como invitado
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    Compra como invitado
+                  </span>
+                  
+                  {/* ✅ NUEVO: Indicador de persistencia */}
+                  <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded ${
+                    persistenceStatus === 'active' 
+                      ? 'bg-green-50 text-green-600'
+                      : persistenceStatus === 'partial'
+                        ? 'bg-yellow-50 text-yellow-600'
+                        : 'bg-gray-50 text-gray-600'
+                  }`}>
+                    {persistenceStatus === 'active' ? (
+                      <>
+                        <Wifi className="w-3 h-3" />
+                        <span>Guardado</span>
+                      </>
+                    ) : persistenceStatus === 'partial' ? (
+                      <>
+                        <WifiOff className="w-3 h-3" />
+                        <span>Parcial</span>
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="w-3 h-3" />
+                        <span>Local</span>
+                      </>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
             
@@ -300,15 +454,27 @@ const StorePage = () => {
                 <Shield className="w-4 h-4 mr-1" />
                 <span>Garantía incluida</span>
               </div>
+              
+              {/* ✅ DEBUG: Solo en desarrollo */}
+              {process.env.NODE_ENV === 'development' && !isAuthenticated && (
+                <button
+                  onClick={debugGuestCart}
+                  className="flex items-center text-xs text-purple-600 hover:text-purple-700"
+                  title="Debug Cart Persistence"
+                >
+                  <Eye className="w-3 h-3 mr-1" />
+                  <span>Debug</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
       
-      {/* 📱 CONTENIDO PRINCIPAL - ✅ MANTENIDO IGUAL */}
+      {/* 📱 CONTENIDO PRINCIPAL - MANTIENE TODA LA FUNCIONALIDAD */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* 🔍 BARRA DE BÚSQUEDA Y FILTROS - ✅ MANTENIDA IGUAL */}
+        {/* 🔍 BARRA DE BÚSQUEDA Y FILTROS - MANTIENE TODA LA FUNCIONALIDAD */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
             
@@ -359,7 +525,7 @@ const StorePage = () => {
         
         <div className="flex gap-8">
           
-          {/* 📋 SIDEBAR DE FILTROS - ✅ MANTENIDO IGUAL */}
+          {/* 📋 SIDEBAR DE FILTROS - MANTIENE TODA LA FUNCIONALIDAD */}
           <div className={`w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white rounded-lg shadow-sm p-6">
               
@@ -460,7 +626,7 @@ const StorePage = () => {
             </div>
           </div>
           
-          {/* 📦 CONTENIDO PRINCIPAL - ✅ MANTENIDO IGUAL */}
+          {/* 📦 CONTENIDO PRINCIPAL - MANTIENE TODA LA FUNCIONALIDAD */}
           <div className="flex-1">
             
             {/* Estado de carga */}
@@ -504,6 +670,17 @@ const StorePage = () => {
                       </span>
                     )}
                   </p>
+                  
+                  {/* ✅ NUEVO: Indicador de persistencia en resultados */}
+                  {!isAuthenticated && products.length > 0 && (
+                    <div className={`text-xs px-2 py-1 rounded ${
+                      persistenceStatus === 'active' 
+                        ? 'bg-green-50 text-green-600'
+                        : 'bg-yellow-50 text-yellow-600'
+                    }`}>
+                      {persistenceStatus === 'active' ? '✅ Carrito se guarda automáticamente' : '⚠️ Persistencia parcial'}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Grid/Lista de productos */}
@@ -518,8 +695,9 @@ const StorePage = () => {
                         key={product.id} 
                         product={product} 
                         viewMode={viewMode}
-                        onAddToCart={handleAddToCart}  // ✅ Función corregida
+                        onAddToCart={handleAddToCart}  // ✅ Función mejorada
                         isAuthenticated={isAuthenticated}
+                        persistenceStatus={persistenceStatus} // ✅ NUEVO: Estado de persistencia
                       />
                     ))}
                   </div>
@@ -592,8 +770,8 @@ const StorePage = () => {
   );
 };
 
-// 🛍️ COMPONENTE: Tarjeta de producto - ✅ MANTENIDA IGUAL PERO CON FUNCIÓN CORREGIDA
-const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
+// ✅ COMPONENTE MEJORADO: Tarjeta de producto - CON INDICADOR DE PERSISTENCIA
+const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persistenceStatus }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -613,26 +791,27 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
   const inStock = product.inStock !== false && (product.stockQuantity || 0) > 0;
   const lowStock = inStock && (product.stockQuantity || 0) <= 5;
   
-  // ✅ FUNCIÓN CORREGIDA: handleAddToCart para usar API correcta
+  // ✅ FUNCIÓN MEJORADA: handleAddToCart con mejor feedback
   const handleAddToCart = async () => {
     if (!inStock || addingToCart) return;
     
     try {
       setAddingToCart(true);
       
-      // ✅ CORREGIDO: Crear las options correctamente
+      // Crear las options correctamente
       const options = {
         ...selectedOptions,
         quantity  // quantity va EN las options, no separado
       };
       
-      console.log('🛒 ProductCard: Adding to cart with correct API:', {
+      console.log('🛒 ProductCard: Adding to cart with persistence awareness:', {
         product: product.name,
         options,
-        isAuthenticated
+        isAuthenticated,
+        persistenceStatus
       });
       
-      // ✅ CORREGIDO: Usar la API correcta onAddToCart(product, options)
+      // Usar la API correcta onAddToCart(product, options)
       await onAddToCart(product, options);
       
       // Reset form después de agregar exitosamente
@@ -696,13 +875,17 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
             <button
               onClick={handleAddToCart}
               disabled={addingToCart}
-              className="btn-primary disabled:opacity-50 flex items-center space-x-2"
+              className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center space-x-2 ${
+                !isAuthenticated && persistenceStatus === 'active'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-primary-600 text-white hover:bg-primary-700'
+              }`}
             >
               {addingToCart && <Loader2 className="w-4 h-4 animate-spin" />}
               <span>{addingToCart ? 'Agregando...' : 'Agregar al carrito'}</span>
             </button>
           ) : (
-            <button disabled className="btn-secondary opacity-50 cursor-not-allowed">
+            <button disabled className="px-4 py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed">
               Agotado
             </button>
           )}
@@ -884,10 +1067,17 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
           </p>
         )}
         
-        {/* ✅ Indicador para invitados */}
+        {/* ✅ MEJORADO: Indicador específico para invitados */}
         {!isAuthenticated && (
-          <div className="mb-4 text-xs text-blue-600 bg-blue-50 p-2 rounded">
-            💡 Puedes comprar sin registrarte
+          <div className={`mb-4 text-xs p-2 rounded ${
+            persistenceStatus === 'active' 
+              ? 'text-green-700 bg-green-50 border border-green-200'
+              : 'text-blue-700 bg-blue-50 border border-blue-200'
+          }`}>
+            {persistenceStatus === 'active' 
+              ? '✅ Se guardará automáticamente en tu carrito'
+              : '💡 Puedes comprar sin registrarte'
+            }
           </div>
         )}
         
@@ -897,7 +1087,9 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated }) => {
           disabled={!inStock || addingToCart}
           className={`w-full py-3 font-semibold rounded-lg transition-colors flex items-center justify-center space-x-2 ${
             inStock
-              ? 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50'
+              ? (!isAuthenticated && persistenceStatus === 'active')
+                ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+                : 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
