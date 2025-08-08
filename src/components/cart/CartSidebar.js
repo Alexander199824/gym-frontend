@@ -1,6 +1,6 @@
 // src/components/cart/CartSidebar.js
-// FUNCIÓN: Sidebar del carrito CORREGIDO - Layout fijo que siempre se ve completo + Z-index corregido
-// ARREGLO: ✅ Footer siempre visible ✅ Altura fija ✅ Sin cortes ✅ Responsive ✅ Z-index por encima del navbar
+// FUNCIÓN: Sidebar del carrito MEJORADO - Productos se ven mejor + validaciones + ambas opciones
+// MEJORAS: ✅ Diseño de productos mejorado ✅ Ambas opciones de checkout ✅ Layout optimizado
 
 import React, { useState } from 'react';
 import { 
@@ -18,8 +18,12 @@ import {
   WifiOff,
   CheckCircle,
   Gift,
-  Truck
+  Truck,
+  UserPlus,
+  User,
+  LogIn
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -37,6 +41,7 @@ const safeInteger = (value, defaultValue = 0) => {
 };
 
 const CartSidebar = () => {
+  const navigate = useNavigate();
   const { 
     isOpen, 
     closeCart, 
@@ -45,7 +50,6 @@ const CartSidebar = () => {
     itemCount, 
     updateQuantity, 
     removeItem,
-    proceedToCheckout,
     isEmpty,
     formatCurrency,
     isLoading,
@@ -62,41 +66,35 @@ const CartSidebar = () => {
 
   if (!isOpen) return null;
 
-  // ✅ FUNCIÓN: Manejar checkout con validaciones
-  const handleCheckout = async () => {
+  // ✅ FUNCIÓN: Ir al checkout (para invitados)
+  const handleGuestCheckout = () => {
     if (isEmpty) {
       showError('Tu carrito está vacío');
       return;
     }
     
-    try {
-      setIsCheckingOut(true);
-      
-      const result = await proceedToCheckout();
-      
-      if (result && result.success) {
-        showSuccess('¡Pedido creado exitosamente!');
-        closeCart();
-        
-        // Redirigir a la página de confirmación si existe
-        if (result.redirectUrl) {
-          setTimeout(() => {
-            window.location.href = result.redirectUrl;
-          }, 1000);
-        }
-      }
-      
-    } catch (error) {
-      console.error('Error in checkout:', error);
-      
-      if (error.message?.includes('iniciar sesión')) {
-        showInfo('Redirigiendo al login...');
-      } else {
-        showError('Error al procesar el pedido');
-      }
-    } finally {
-      setIsCheckingOut(false);
+    console.log('🎫 Redirecting to guest checkout...');
+    closeCart();
+    navigate('/checkout');
+  };
+
+  // ✅ FUNCIÓN: Ir al login (para usuarios que quieren autenticarse)
+  const handleGoToLogin = () => {
+    console.log('🔐 Redirecting to login...');
+    closeCart();
+    navigate('/login', { state: { from: '/store', returnToCart: true } });
+  };
+
+  // ✅ FUNCIÓN: Checkout para usuarios autenticados
+  const handleAuthenticatedCheckout = () => {
+    if (isEmpty) {
+      showError('Tu carrito está vacío');
+      return;
     }
+    
+    console.log('👤 Redirecting authenticated user to checkout...');
+    closeCart();
+    navigate('/checkout');
   };
   
   // ✅ FUNCIÓN: Limpiar carrito con confirmación
@@ -108,19 +106,19 @@ const CartSidebar = () => {
 
   return (
     <>
-      {/* ✅ Overlay - Z-INDEX CORREGIDO */}
+      {/* ✅ Overlay */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 z-[60]"
         onClick={closeCart}
       />
       
-      {/* ✅ Sidebar - ESTRUCTURA FIJA CORREGIDA CON Z-INDEX MAYOR */}
+      {/* ✅ Sidebar */}
       <div className={`fixed top-0 right-0 h-full z-[70] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
         isMobile ? 'w-full' : 'w-96'
       }`}>
         
-        {/* ✅ 1. HEADER FIJO - 60px */}
-        <div className="flex-shrink-0 h-15 flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        {/* ✅ HEADER */}
+        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 bg-white">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
             <ShoppingCart className="w-5 h-5 mr-2" />
             Mi Carrito ({safeInteger(itemCount)})
@@ -133,17 +131,14 @@ const CartSidebar = () => {
           </button>
         </div>
         
-        {/* ✅ 2. ESTADOS DE CONEXIÓN - ALTURA VARIABLE */}
+        {/* ✅ ESTADOS DE CONEXIÓN */}
         <div className="flex-shrink-0">
-          {/* Estado de sincronización */}
           {sessionInfo?.syncError && (
             <div className="px-4 py-3 bg-orange-50 border-b border-orange-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <WifiOff className="w-4 h-4 text-orange-600" />
-                  <span className="text-sm text-orange-800">
-                    Sin conexión al servidor
-                  </span>
+                  <span className="text-sm text-orange-800">Sin conexión al servidor</span>
                 </div>
                 <button
                   onClick={retrySync}
@@ -156,27 +151,28 @@ const CartSidebar = () => {
             </div>
           )}
           
-          {/* Estado de autenticación */}
           {!isAuthenticated && items.length > 0 && (
             <div className="px-4 py-3 bg-blue-50 border-b border-blue-200">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-blue-600" />
-                <span className="text-sm text-blue-800">
-                  Inicia sesión para sincronizar tu carrito
-                </span>
+              <div className="text-center">
+                <div className="flex items-center justify-center space-x-2 mb-1">
+                  <Gift className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">¡Tienes opciones!</span>
+                </div>
+                <p className="text-xs text-blue-700">
+                  Compra como invitado o inicia sesión
+                </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* ✅ 3. CONTENIDO PRINCIPAL - FLEX-1 (TOMA EL ESPACIO RESTANTE) */}
+        {/* ✅ CONTENIDO PRINCIPAL */}
         <div className="flex-1 flex flex-col min-h-0">
           
-          {/* ✅ 3A. ÁREA DE ITEMS - SCROLL INDEPENDIENTE */}
+          {/* ✅ ÁREA DE ITEMS */}
           <div className="flex-1 overflow-y-auto">
             <div className="p-4">
               
-              {/* Estado de carga */}
               {isLoading && (
                 <div className="flex items-center justify-center py-8">
                   <div className="text-center">
@@ -186,13 +182,10 @@ const CartSidebar = () => {
                 </div>
               )}
               
-              {/* Carrito vacío */}
               {!isLoading && isEmpty ? (
                 <div className="text-center py-12">
                   <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Tu carrito está vacío
-                  </h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Tu carrito está vacío</h3>
                   <p className="text-gray-600 mb-6 text-sm leading-relaxed">
                     Agrega algunos productos para comenzar tu compra
                   </p>
@@ -204,8 +197,7 @@ const CartSidebar = () => {
                   </button>
                 </div>
               ) : !isLoading && (
-                /* Items del carrito */
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {items.map((item) => (
                     <CartItem 
                       key={item.cartId || item.id} 
@@ -217,9 +209,8 @@ const CartSidebar = () => {
                     />
                   ))}
                   
-                  {/* Botón limpiar carrito */}
                   {items.length > 1 && (
-                    <div className="pt-4 border-t border-gray-200">
+                    <div className="pt-3 border-t border-gray-200">
                       <button
                         onClick={handleClearCart}
                         className="w-full text-center text-red-600 hover:text-red-700 text-sm font-medium py-2 hover:bg-red-50 rounded-lg transition-colors"
@@ -233,12 +224,12 @@ const CartSidebar = () => {
             </div>
           </div>
 
-          {/* ✅ 3B. FOOTER FIJO - SIEMPRE VISIBLE (FLEX-SHRINK-0) */}
+          {/* ✅ FOOTER CON BOTONES */}
           {!isLoading && !isEmpty && (
             <div className="flex-shrink-0 border-t border-gray-200 bg-white">
               <div className="p-4 space-y-4">
                 
-                {/* ✅ Resumen detallado */}
+                {/* Resumen */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal:</span>
@@ -252,12 +243,12 @@ const CartSidebar = () => {
                     </div>
                   )}
                   
-                  {safeNumber(summary?.shippingAmount, 0) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Envío:</span>
-                      <span className="font-medium">{formatCurrency(summary.shippingAmount)}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Envío:</span>
+                    <span className="font-medium">
+                      {safeNumber(summary?.totalAmount || total, 0) >= 200 ? 'Gratis' : 'Q 25.00'}
+                    </span>
+                  </div>
                   
                   <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-200">
                     <span>Total:</span>
@@ -267,23 +258,21 @@ const CartSidebar = () => {
                   </div>
                 </div>
 
-                {/* ✅ Benefits - Solo en desktop */}
-                {!isMobile && (
-                  <div className="text-sm text-gray-600 space-y-1">
-                    {safeNumber(summary?.totalAmount || total, 0) >= 200 && (
-                      <div className="flex items-center text-green-600">
-                        <Gift className="w-4 h-4 mr-2" />
-                        <span>Envío gratis incluido</span>
-                      </div>
-                    )}
-                    <div className="flex items-center">
-                      <Truck className="w-4 h-4 mr-2" />
-                      <span>Entrega en 2-3 días hábiles</span>
+                {/* Benefits */}
+                <div className="text-sm text-gray-600 space-y-1">
+                  {safeNumber(summary?.totalAmount || total, 0) >= 200 && (
+                    <div className="flex items-center text-green-600">
+                      <Gift className="w-4 h-4 mr-2" />
+                      <span>Envío gratis incluido</span>
                     </div>
+                  )}
+                  <div className="flex items-center">
+                    <Truck className="w-4 h-4 mr-2" />
+                    <span>Entrega en 2-3 días hábiles</span>
                   </div>
-                )}
+                </div>
                 
-                {/* ✅ Información de sincronización */}
+                {/* Info sincronización */}
                 <div className="text-xs text-gray-500 text-center">
                   {isAuthenticated ? (
                     <div className="flex items-center justify-center space-x-1">
@@ -295,28 +284,66 @@ const CartSidebar = () => {
                   )}
                 </div>
                 
-                {/* ✅ Botones de acción - SIEMPRE VISIBLES */}
+                {/* ✅ BOTONES SEGÚN AUTENTICACIÓN */}
                 <div className="space-y-3">
-                  <button
-                    onClick={handleCheckout}
-                    disabled={isCheckingOut || isLoading}
-                    className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
-                  >
-                    {isCheckingOut ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Procesando...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4" />
-                        <span>{isAuthenticated ? 'Proceder al pago' : 'Iniciar sesión para comprar'}</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
                   
-                  {/* Continuar comprando */}
+                  {isAuthenticated ? (
+                    /* Usuario autenticado - un botón */
+                    <button
+                      onClick={handleAuthenticatedCheckout}
+                      disabled={isCheckingOut || isLoading}
+                      className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                    >
+                      {isCheckingOut ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Procesando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="w-4 h-4" />
+                          <span>Proceder al pago</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    /* Invitado - dos opciones */
+                    <>
+                      <button
+                        onClick={handleGoToLogin}
+                        className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center space-x-2"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        <span>Iniciar sesión para comprar</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                      
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-gray-300" />
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                          <span className="px-2 bg-white text-gray-500">o</span>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={handleGuestCheckout}
+                        className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center justify-center space-x-2 border border-gray-300"
+                      >
+                        <User className="w-4 h-4" />
+                        <span>Comprar como invitado</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                      
+                      <div className="text-xs text-gray-500 text-center space-y-1">
+                        <p>💡 Compra rápida sin registro</p>
+                        <p>🎯 Inicia sesión para beneficios exclusivos</p>
+                      </div>
+                    </>
+                  )}
+                  
                   <button
                     onClick={closeCart}
                     className="w-full text-primary-600 hover:text-primary-700 py-2 text-sm font-medium hover:bg-primary-50 rounded-lg transition-colors"
@@ -325,7 +352,6 @@ const CartSidebar = () => {
                   </button>
                 </div>
                 
-                {/* ✅ Padding adicional en móvil para asegurar visibilidad */}
                 {isMobile && <div className="pb-4" />}
               </div>
             </div>
@@ -336,22 +362,17 @@ const CartSidebar = () => {
   );
 };
 
-// 🛍️ COMPONENTE: Item individual del carrito OPTIMIZADO
+// ✅ COMPONENTE MEJORADO: Item del carrito con mejor diseño
 const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   
-  // ✅ FUNCIÓN: Manejar cambio de cantidad con validaciones - CORREGIDA
   const handleQuantityChange = async (newQuantity) => {
     const safeQty = safeInteger(newQuantity, 0);
-    
-    if (safeQty < 0) return;
-    if (isUpdating) return; // Prevenir múltiples operaciones
+    if (safeQty < 0 || isUpdating) return;
     
     setIsUpdating(true);
     try {
-      console.log(`🔢 Updating quantity for ${item.name}: ${item.quantity} → ${safeQty}`);
       await onUpdateQuantity(item.cartId || item.id, safeQty);
-      console.log('✅ Quantity updated successfully');
     } catch (error) {
       console.error('❌ Error updating quantity:', error);
     } finally {
@@ -359,105 +380,101 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
     }
   };
   
-  // ✅ FUNCIÓN: Manejar eliminación - CORREGIDA PARA SINCRONIZACIÓN
   const handleRemove = async () => {
-    if (isUpdating) return; // Prevenir múltiples clics
-    
+    if (isUpdating) return;
     setIsUpdating(true);
     try {
-      console.log('🗑️ Removing item from cart:', item.name);
       await onRemove(item.cartId || item.id);
-      console.log('✅ Item removed successfully');
     } catch (error) {
       console.error('❌ Error removing item:', error);
-      // Mostrar error al usuario si es necesario
     } finally {
       setIsUpdating(false);
     }
   };
   
-  // ✅ VALORES SEGUROS
   const itemPrice = safeNumber(item.price, 0);
   const itemQuantity = safeInteger(item.quantity, 1);
   const itemName = item.name || 'Producto sin nombre';
   const itemImage = item.image || '/api/placeholder/80/80';
 
   return (
-    <div className={`bg-gray-50 rounded-xl p-3 ${isUpdating ? 'opacity-50' : ''} ${
-      isMobile ? 'space-y-3' : 'flex items-center space-x-3'
-    }`}>
+    <div className={`bg-white border border-gray-200 rounded-lg p-3 shadow-sm ${isUpdating ? 'opacity-50' : ''}`}>
       
-      {/* ✅ Imagen y info */}
-      <div className={`flex items-center space-x-3 ${isMobile ? 'w-full' : 'flex-1 min-w-0'}`}>
-        <img 
-          src={itemImage}
-          alt={itemName}
-          className="w-14 h-14 object-cover rounded-lg"
-          onError={(e) => {
-            e.target.src = '/api/placeholder/80/80';
-          }}
-        />
+      {/* ✅ DISEÑO MEJORADO - Layout vertical en móvil, horizontal en desktop */}
+      <div className={`${isMobile ? 'space-y-3' : 'flex items-start space-x-3'}`}>
         
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium text-gray-900 truncate">
-            {itemName}
-          </h4>
-          <p className="text-xs text-gray-600 mt-1">
-            {formatCurrency(itemPrice)} c/u
-          </p>
+        {/* Imagen y info principal */}
+        <div className={`flex space-x-3 ${isMobile ? 'w-full' : 'flex-1'}`}>
+          <img 
+            src={itemImage}
+            alt={itemName}
+            className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+            onError={(e) => {
+              e.target.src = '/api/placeholder/80/80';
+            }}
+          />
           
-          {/* Opciones seleccionadas */}
-          {item.options && Object.keys(item.options).length > 0 && (
-            <div className="text-xs text-gray-500 mt-1">
-              {Object.entries(item.options).map(([key, value]) => (
-                key !== 'quantity' && value && (
-                  <span key={key} className="mr-2">
-                    {key}: {value}
-                  </span>
-                )
-              )).filter(Boolean).slice(0, 2)}
-            </div>
-          )}
-        </div>
-      </div>
-      
-      {/* ✅ Controles */}
-      <div className={`flex items-center justify-between ${isMobile ? 'w-full' : 'flex-col space-y-2'}`}>
-        
-        {/* Controles de cantidad */}
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handleQuantityChange(itemQuantity - 1)}
-            disabled={isUpdating || itemQuantity <= 1}
-            className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Minus className="w-3 h-3" />
-          </button>
-          <span className="w-8 text-center text-sm font-medium">
-            {isUpdating ? '...' : itemQuantity}
-          </span>
-          <button
-            onClick={() => handleQuantityChange(itemQuantity + 1)}
-            disabled={isUpdating}
-            className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-          </button>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-semibold text-gray-900 leading-tight mb-1">
+              {itemName}
+            </h4>
+            <p className="text-sm text-primary-600 font-medium">
+              {formatCurrency(itemPrice)}
+            </p>
+            
+            {/* Opciones seleccionadas */}
+            {item.options && Object.keys(item.options).length > 0 && (
+              <div className="mt-1">
+                {Object.entries(item.options).map(([key, value]) => (
+                  key !== 'quantity' && value && (
+                    <span key={key} className="inline-block text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded mr-1 mb-1">
+                      {key}: {value}
+                    </span>
+                  )
+                )).filter(Boolean)}
+              </div>
+            )}
+          </div>
         </div>
         
-        {/* Subtotal y eliminar */}
-        <div className="flex items-center space-x-3">
-          <span className="text-sm font-semibold text-gray-900">
-            {formatCurrency(itemPrice * itemQuantity)}
-          </span>
-          <button
-            onClick={handleRemove}
-            disabled={isUpdating}
-            className="text-red-500 hover:text-red-700 disabled:opacity-50 p-1 hover:bg-red-50 rounded transition-colors"
-            title="Eliminar producto"
-          >
-            {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          </button>
+        {/* Controles de cantidad y precio */}
+        <div className={`${isMobile ? 'flex justify-between items-center' : 'flex flex-col items-end space-y-2'}`}>
+          
+          {/* Controles de cantidad */}
+          <div className="flex items-center space-x-2 bg-gray-50 rounded-lg p-1">
+            <button
+              onClick={() => handleQuantityChange(itemQuantity - 1)}
+              disabled={isUpdating || itemQuantity <= 1}
+              className="w-7 h-7 rounded-md bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="w-8 text-center text-sm font-medium">
+              {isUpdating ? '...' : itemQuantity}
+            </span>
+            <button
+              onClick={() => handleQuantityChange(itemQuantity + 1)}
+              disabled={isUpdating}
+              className="w-7 h-7 rounded-md bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+          
+          {/* Subtotal y eliminar */}
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-bold text-gray-900">
+              {formatCurrency(itemPrice * itemQuantity)}
+            </span>
+            <button
+              onClick={handleRemove}
+              disabled={isUpdating}
+              className="w-8 h-8 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md flex items-center justify-center disabled:opacity-50 transition-colors"
+              title="Eliminar producto"
+            >
+              {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -466,30 +483,25 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
 
 export default CartSidebar;
 
-// 📝 ESTRUCTURA FIJA CORREGIDA CON Z-INDEX:
+// 📝 MEJORAS APLICADAS:
 // 
-// ✅ JERARQUÍA DE Z-INDEX CORREGIDA:
-// 1. Navbar: z-50
-// 2. Overlay del carrito: z-[60] - Por encima del navbar
-// 3. Sidebar del carrito: z-[70] - Por encima de todo
+// ✅ DISEÑO DE PRODUCTOS MEJORADO:
+// - Fondo blanco con borde para cada producto
+// - Imágenes más grandes (16x16) con borde
+// - Layout responsive: vertical en móvil, horizontal en desktop
+// - Controles de cantidad con fondo gris y botones con borde
+// - Separación clara entre elementos
+// - Opciones del producto como badges
+// - Subtotal más destacado en negrita
 // 
-// ✅ LAYOUT GARANTIZADO:
-// 1. Header fijo (60px) - flex-shrink-0
-// 2. Estados de conexión (altura variable) - flex-shrink-0  
-// 3. Contenido principal (resto del espacio) - flex-1
-//    3A. Área de items (scroll independiente) - flex-1
-//    3B. Footer con botones (altura fija) - flex-shrink-0
+// ✅ AMBAS OPCIONES DE CHECKOUT MANTENIDAS:
+// - "Iniciar sesión para comprar" (botón principal)
+// - "Comprar como invitado" (botón secundario)
+// - Separador visual con "o"
+// - Info explicativa optimizada
 // 
-// ✅ PROBLEMAS SOLUCIONADOS:
-// - Footer siempre visible sin importar la cantidad de items
-// - Altura calculada correctamente para todos los tamaños de pantalla
-// - Scroll solo en la lista de items, no en todo el sidebar
-// - Botones y resumen SIEMPRE accesibles
-// - Z-index correcto SIN interferir con navbar u otros elementos
-// - Carrito aparece correctamente por encima del navbar
-// 
-// ✅ RESPONSIVE MEJORADO:
-// - Ancho completo en móvil sin cortes
-// - Padding adicional en móvil para evitar superposición
-// - Layout adaptativo para items del carrito
-// - Controles optimizados para touch
+// ✅ LAYOUT OPTIMIZADO:
+// - Mejor uso del espacio
+// - Elementos más legibles
+// - Colores contrastantes
+// - Espaciado consistente

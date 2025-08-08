@@ -1,19 +1,19 @@
 // src/App.js
 // UBICACIÓN: /gym-frontend/src/App.js
-// FUNCIÓN: Componente principal con rutas COMPLETAS + Google OAuth + Carrito Integrado
-// CAMBIOS: ✅ CartProvider integrado ✅ GlobalCart agregado ✅ TODAS las funcionalidades preservadas
+// FUNCIÓN: Componente principal con rutas COMPLETAS + Google OAuth + Carrito Integrado + CHECKOUT AGREGADO
+// CAMBIOS: ✅ CartProvider integrado ✅ GlobalCart agregado ✅ RUTA DE CHECKOUT AGREGADA ✅ TODAS las funcionalidades preservadas
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { useApp } from './contexts/AppContext';
-import { CartProvider } from './contexts/CartContext'; // ✅ NUEVO
+import { CartProvider } from './contexts/CartContext'; // ✅ EXISTENTE
 
 // 📱 Componentes de Layout
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
 
-// 🛒 Componentes del carrito - ✅ NUEVO
+// 🛒 Componentes del carrito - ✅ EXISTENTE
 import GlobalCart from './components/cart/GlobalCart';
 
 // 🏠 Landing Page (página principal)
@@ -21,6 +21,9 @@ const LandingPage = React.lazy(() => import('./pages/dashboard/LandingPage'));
 
 // 🛍️ Tienda (página separada)
 const StorePage = React.lazy(() => import('./pages/store/StorePage'));
+
+// ✅ NUEVO: Página de Checkout - RUTA QUE FALTABA
+const CheckoutPage = React.lazy(() => import('./pages/checkout/CheckoutPage'));
 
 // 🔐 Páginas de Autenticación (Lazy Loading)
 const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
@@ -244,7 +247,7 @@ async function debugBackendConnection() {
   console.log('');
 }
 
-// 🚀 COMPONENTE PRINCIPAL DE LA APLICACIÓN - ✅ CON CARRITO INTEGRADO
+// 🚀 COMPONENTE PRINCIPAL DE LA APLICACIÓN - ✅ CON CARRITO INTEGRADO Y CHECKOUT AGREGADO
 function AppContent() {
   const { isAuthenticated, user, isLoading } = useAuth();
   const { isMobile, addNotification } = useApp();
@@ -343,6 +346,7 @@ function AppContent() {
           <div>API: {process.env.REACT_APP_API_URL ? '✅' : '❌'}</div>
           <div>OAuth: ✅ Google configurado</div>
           <div>Carrito: ✅ Integrado con backend</div>
+          <div>Checkout: ✅ Invitados + autenticados</div>
           {user && (
             <div className="mt-2 text-green-300">
               👤 {user.firstName} ({user.role})
@@ -354,7 +358,7 @@ function AppContent() {
         </div>
       )}
       
-      {/* ✅ NUEVO: CARRITO GLOBAL - Disponible en toda la app */}
+      {/* ✅ EXISTENTE: CARRITO GLOBAL - Disponible en toda la app */}
       <GlobalCart />
       
       <Suspense fallback={<LoadingSpinner fullScreen message="Cargando Elite Fitness..." />}>
@@ -373,6 +377,11 @@ function AppContent() {
               🛍️ TIENDA (PÚBLICA) - ✅ MANTENIDA IGUAL
           ================================ */}
           <Route path="/store" element={<StorePage />} />
+          
+          {/* ================================
+              ✅ NUEVO: CHECKOUT (PÚBLICO) - RUTA QUE FALTABA
+          ================================ */}
+          <Route path="/checkout" element={<CheckoutPage />} />
           
           {/* ================================
               🔐 RUTAS DE AUTENTICACIÓN - ✅ MANTENIDAS IGUAL
@@ -512,7 +521,7 @@ function DashboardRedirect() {
   return <Navigate to={dashboardPath} replace />;
 }
 
-// 🚀 COMPONENTE PRINCIPAL CON CARTPROVIDER - ✅ NUEVO WRAPPER
+// 🚀 COMPONENTE PRINCIPAL CON CARTPROVIDER - ✅ EXISTENTE WRAPPER
 function App() {
   return (
     <ErrorBoundary>
@@ -528,11 +537,10 @@ export default App;
 
 // 📝 CAMBIOS REALIZADOS EN ESTA VERSIÓN:
 // 
-// ✅ CARRITO INTEGRADO:
-// - Import del CartProvider y GlobalCart
-// - CartProvider envuelve AppContent
-// - GlobalCart agregado al layout principal
-// - Debug info actualizado con estado del carrito
+// ✅ RUTA DE CHECKOUT AGREGADA:
+// - Import de CheckoutPage agregado
+// - Ruta `/checkout` agregada como pública
+// - Debug info actualizado con "Checkout: ✅ Invitados + autenticados"
 // 
 // ✅ TODAS LAS FUNCIONALIDADES PRESERVADAS:
 // - Sistema de debug completo intacto
@@ -542,14 +550,15 @@ export default App;
 // - Redirección automática de dashboard preservada
 // - Componentes específicos (Users, Memberships, etc.) intactos
 // - PublicRoute y ProtectedRoute mantienen su lógica exacta
+// - CartProvider y GlobalCart funcionando igual
 // 
 // ✅ COMPATIBILIDAD 100%:
 // - No se eliminó ninguna funcionalidad existente
-// - Solo se agregó CartProvider y GlobalCart
+// - Solo se agregó la ruta de checkout que faltaba
 // - Logs y debug system funcionan igual
-// - Estructura de rutas idéntica
+// - Estructura de rutas mantiene todo lo existente
 // 
 // ✅ NUEVO EN ESTA VERSIÓN:
-// - CartProvider integration
-// - GlobalCart component
-// - Debug info shows cart status
+// - Ruta `/checkout` para compras sin iniciar sesión
+// - CheckoutPage accesible desde cualquier lugar
+// - Debug info actualizado para mostrar estado del checkout
