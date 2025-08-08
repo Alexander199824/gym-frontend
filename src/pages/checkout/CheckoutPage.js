@@ -1,6 +1,6 @@
 // src/pages/checkout/CheckoutPage.js
-// FUNCIÓN: Página de checkout CORREGIDA - Sin mensaje metropolitana + nuevas opciones envío
-// ARREGLOS: ✅ Opciones recoger/envío ✅ Sin mensaje metropolitana ✅ Rutas API correctas
+// FUNCIÓN: Página de checkout ACTUALIZADA - Rutas correctas del README + Email automático
+// CAMBIOS: ✅ Rutas según README ✅ Flujo de pagos correcto ✅ Email automático ✅ Registro de pagos
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +30,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// ✅ ACTUALIZADO: Importar datos completos de Guatemala
+// Importar datos completos de Guatemala
 import { 
   GUATEMALA_LOCATIONS,
   DEPARTMENTS,
@@ -50,7 +50,7 @@ import {
   useElements 
 } from '@stripe/react-stripe-js';
 
-// ✅ REGEX MEJORADOS - MÁS FLEXIBLES
+// REGEX MEJORADOS - MÁS FLEXIBLES
 const VALIDATION_PATTERNS = {
   name: /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'\.]+$/, 
   phone: /^[\d\s\-\(\)\+]+$/, 
@@ -58,7 +58,7 @@ const VALIDATION_PATTERNS = {
   address: /^[A-Za-zÀ-ÿ\u00f1\u00d1\d\s\-.,#°\/]+$/ 
 };
 
-// ✅ MENSAJES DE ERROR MEJORADOS
+// MENSAJES DE ERROR MEJORADOS
 const ERROR_MESSAGES = {
   name: 'Solo se permiten letras, espacios, acentos, guiones y puntos',
   phone: 'Solo se permiten números, espacios, guiones y paréntesis',
@@ -69,7 +69,7 @@ const ERROR_MESSAGES = {
   phoneLength: 'El teléfono debe tener entre 7 y 15 dígitos'
 };
 
-// ✅ NUEVO: Opciones de entrega mejoradas
+// Opciones de entrega mejoradas
 const DELIVERY_OPTIONS = {
   pickup_store: {
     id: 'pickup_store',
@@ -123,14 +123,14 @@ const CheckoutPage = () => {
   const [orderCreated, setOrderCreated] = useState(null);
   const [stripePromise, setStripePromise] = useState(null);
 
-  // ✅ ESTADOS DEL FORMULARIO CON VALIDACIÓN MEJORADA
+  // Estados del formulario con validación mejorada
   const [customerInfo, setCustomerInfo] = useState({
     name: user ? `${user.firstName} ${user.lastName}` : '',
     email: user?.email || '',
     phone: user?.phone || ''
   });
 
-  // ✅ ACTUALIZADO: Usar datos completos de Guatemala
+  // Usar datos completos de Guatemala
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
     city: 'Guatemala', 
@@ -140,41 +140,46 @@ const CheckoutPage = () => {
     reference: ''
   });
 
-  // ✅ NUEVO: Estado para método de entrega
+  // Estado para método de entrega
   const [deliveryMethod, setDeliveryMethod] = useState('pickup_store');
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [notes, setNotes] = useState('');
   
-  // ✅ ESTADOS DE VALIDACIÓN
+  // Estados de validación
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   
-  // ✅ NUEVOS ESTADOS: Para datos de Guatemala (simplificados)
+  // Estados: Para datos de Guatemala (simplificados)
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
 
   // 🚀 EFECTO: Inicializar Stripe
   useEffect(() => {
     const initializeStripe = async () => {
       try {
-        const stripeConfig = await apiService.get('/stripe/config');
+        console.log('💳 Initializing Stripe configuration...');
+        const stripeConfig = await apiService.getStripeConfig();
         
         if (stripeConfig?.data?.stripe?.enabled) {
           const publishableKey = stripeConfig.data.stripe.publishableKey;
-          console.log('🔑 Loading Stripe...');
+          console.log('🔑 Loading Stripe with publishable key...');
           
           const stripe = await loadStripe(publishableKey);
           setStripePromise(Promise.resolve(stripe));
           console.log('✅ Stripe loaded successfully');
+          
+          showInfo('💳 Pagos con tarjeta disponibles');
         } else {
-          console.warn('⚠️ Stripe not enabled');
+          console.warn('⚠️ Stripe not enabled on backend');
+          showInfo('💰 Solo pagos en efectivo disponibles');
         }
       } catch (error) {
         console.error('❌ Error loading Stripe:', error);
+        showError('Error cargando sistema de pagos con tarjeta');
       }
     };
 
     initializeStripe();
-  }, []);
+  }, [showInfo, showError]);
 
   // 🔄 EFECTO: Verificar carrito vacío
   useEffect(() => {
@@ -184,7 +189,7 @@ const CheckoutPage = () => {
     }
   }, [isEmpty, navigate, showInfo]);
 
-  // ✅ EFECTO: Actualizar municipios cuando cambie el departamento
+  // EFECTO: Actualizar municipios cuando cambie el departamento
   useEffect(() => {
     const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
     setAvailableMunicipalities(municipalities);
@@ -206,7 +211,7 @@ const CheckoutPage = () => {
     
   }, [shippingAddress.state]);
 
-  // ✅ FUNCIÓN MEJORADA: Validar un campo específico
+  // FUNCIÓN MEJORADA: Validar un campo específico
   const validateField = (name, value) => {
     const fieldErrors = {};
 
@@ -243,7 +248,7 @@ const CheckoutPage = () => {
         break;
 
       case 'street':
-        // ✅ Solo validar si el método de entrega requiere dirección
+        // Solo validar si el método de entrega requiere dirección
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = ERROR_MESSAGES.required;
@@ -254,7 +259,7 @@ const CheckoutPage = () => {
         break;
 
       case 'municipality':
-        // ✅ Solo validar si el método de entrega requiere dirección
+        // Solo validar si el método de entrega requiere dirección
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un municipio';
@@ -265,7 +270,7 @@ const CheckoutPage = () => {
         break;
 
       case 'state':
-        // ✅ Solo validar si el método de entrega requiere dirección
+        // Solo validar si el método de entrega requiere dirección
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un departamento';
@@ -282,7 +287,7 @@ const CheckoutPage = () => {
     return fieldErrors;
   };
 
-  // ✅ FUNCIÓN MEJORADA: Manejar cambio de input
+  // FUNCIÓN MEJORADA: Manejar cambio de input
   const handleInputChange = (section, field, value) => {
     // Actualizar valor
     if (section === 'customerInfo') {
@@ -321,7 +326,7 @@ const CheckoutPage = () => {
     }));
   };
 
-  // ✅ FUNCIÓN MEJORADA: Filtrar caracteres
+  // FUNCIÓN MEJORADA: Filtrar caracteres
   const handleKeyPress = (e, type) => {
     const char = e.key;
     
@@ -347,7 +352,7 @@ const CheckoutPage = () => {
     }
   };
 
-  // ✅ FUNCIÓN MEJORADA: Validar todo el formulario
+  // FUNCIÓN MEJORADA: Validar todo el formulario
   const validateForm = () => {
     const newErrors = {};
 
@@ -356,7 +361,7 @@ const CheckoutPage = () => {
     Object.assign(newErrors, validateField('email', customerInfo.email));
     Object.assign(newErrors, validateField('phone', customerInfo.phone));
 
-    // ✅ Validar dirección solo si NO es recoger en tienda
+    // Validar dirección solo si NO es recoger en tienda
     if (deliveryMethod !== 'pickup_store') {
       Object.assign(newErrors, validateField('street', shippingAddress.street));
       Object.assign(newErrors, validateField('state', shippingAddress.state));
@@ -384,7 +389,7 @@ const CheckoutPage = () => {
     return isValid;
   };
 
-  // ✅ FUNCIÓN: Calcular costo de envío según método
+  // FUNCIÓN: Calcular costo de envío según método
   const calculateShippingCost = () => {
     const selectedOption = DELIVERY_OPTIONS[deliveryMethod];
     if (!selectedOption) return 0;
@@ -600,7 +605,7 @@ const CheckoutPage = () => {
   );
 };
 
-// ✅ COMPONENTE MEJORADO: Paso 1 - Información del cliente CON NUEVAS OPCIONES DE ENTREGA
+// COMPONENTE MEJORADO: Paso 1 - Información del cliente CON NUEVAS OPCIONES DE ENTREGA
 const CustomerInfoStep = ({ 
   customerInfo, 
   shippingAddress, 
@@ -715,7 +720,7 @@ const CustomerInfoStep = ({
         </div>
       </div>
 
-      {/* ✅ NUEVO: OPCIONES DE ENTREGA */}
+      {/* OPCIONES DE ENTREGA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Truck className="w-5 h-5 text-primary-600 mr-2" />
@@ -793,7 +798,7 @@ const CustomerInfoStep = ({
           })}
         </div>
 
-        {/* ✅ Info adicional según método seleccionado */}
+        {/* Info adicional según método seleccionado */}
         {deliveryMethod && (
           <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <div className="text-sm text-gray-700">
@@ -837,7 +842,7 @@ const CustomerInfoStep = ({
         )}
       </div>
 
-      {/* ✅ DIRECCIÓN DE ENVÍO - Solo si NO es recoger en tienda */}
+      {/* DIRECCIÓN DE ENVÍO - Solo si NO es recoger en tienda */}
       {deliveryMethod !== 'pickup_store' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex items-center mb-4">
@@ -1003,7 +1008,7 @@ const CustomerInfoStep = ({
   );
 };
 
-// 💳 COMPONENTE: Paso 2 - Método de pago (actualizado con rutas correctas)
+// ✅ ACTUALIZADO: Paso 2 - Método de pago con FLUJO CORREGIDO según README
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
@@ -1024,7 +1029,9 @@ const PaymentStep = ({
   const stripe = useStripe();
   const elements = useElements();
   const [cardError, setCardError] = useState('');
+  const { showSuccess, showInfo } = useApp();
 
+  // ✅ FLUJO CORREGIDO: Pago con tarjeta usando rutas del README
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -1035,7 +1042,10 @@ const PaymentStep = ({
       setIsProcessing(true);
       setCardError('');
 
-      // ✅ DATOS DE ORDEN SEGÚN README - Ruta correcta
+      console.log('💳 Iniciando flujo de pago con tarjeta...');
+      showInfo('Procesando pago con tarjeta...');
+
+      // 1. ✅ PASO 1: Crear orden según README - Ruta: POST /api/store/orders
       const orderData = {
         items: items.map(item => ({
           productId: item.id,
@@ -1044,7 +1054,7 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
-        paymentMethod: 'card',
+        paymentMethod: 'card', // Importante: especificar que es pago con tarjeta
         notes,
         deliveryMethod,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
@@ -1058,16 +1068,21 @@ const PaymentStep = ({
         };
       }
 
-      // ✅ RUTA CORRECTA SEGÚN README: /api/store/orders
-      const orderResponse = await apiService.post('/store/orders', orderData);
+      console.log('📦 Creando orden...', orderData);
+      const orderResponse = await apiService.createOrder(orderData);
+      
       if (!orderResponse.success) {
         throw new Error(orderResponse.message || 'Error al crear la orden');
       }
 
       const order = orderResponse.data.order;
+      console.log('✅ Orden creada:', order);
 
-      // ✅ RUTA CORRECTA SEGÚN README: /api/stripe/create-store-intent
-      const paymentIntentResponse = await apiService.post('/stripe/create-store-intent', {
+      // 2. ✅ PASO 2: Crear Payment Intent según README - Ruta: POST /api/stripe/create-store-intent
+      console.log('💳 Creando payment intent...');
+      showInfo('Configurando pago seguro...');
+      
+      const paymentIntentResponse = await apiService.createStorePaymentIntent({
         orderId: order.id
       });
 
@@ -1076,6 +1091,12 @@ const PaymentStep = ({
       }
 
       const { clientSecret } = paymentIntentResponse.data;
+      console.log('✅ Payment intent creado');
+
+      // 3. ✅ PASO 3: Confirmar con Stripe (usando SDK)
+      console.log('💳 Confirmando pago con Stripe...');
+      showInfo('Confirmando pago...');
+      
       const cardElement = elements.getElement(CardElement);
 
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
@@ -1098,29 +1119,63 @@ const PaymentStep = ({
 
       if (error) {
         setCardError(error.message || 'Error al procesar el pago');
+        onError('Error en el pago: ' + error.message);
         return;
       }
 
       if (paymentIntent.status === 'succeeded') {
-        // ✅ RUTA CORRECTA SEGÚN README: /api/stripe/confirm-payment
-        const confirmResponse = await apiService.post('/stripe/confirm-payment', {
-          paymentIntentId: paymentIntent.id
+        console.log('✅ Pago confirmado con Stripe');
+        
+        // 4. ✅ PASO 4: Confirmar pago en backend según README - Ruta: POST /api/stripe/confirm-payment
+        console.log('📝 Confirmando pago en backend...');
+        showInfo('Registrando pago...');
+        
+        try {
+          const confirmResponse = await apiService.confirmStripePayment({
+            paymentIntentId: paymentIntent.id
+          });
+
+          if (confirmResponse.success) {
+            console.log('✅ Pago confirmado en backend');
+          } else {
+            console.warn('⚠️ Problema confirmando en backend, pero pago exitoso');
+          }
+        } catch (confirmError) {
+          console.warn('⚠️ Error confirmando en backend:', confirmError.message);
+          // No lanzar error aquí porque el pago ya se procesó en Stripe
+        }
+
+        // 5. ✅ PASO 5: Crear registro de pago según README - Ruta: POST /api/payments/from-order
+        console.log('💰 Creando registro de pago...');
+        showInfo('Finalizando proceso...');
+        
+        try {
+          const paymentRecordResponse = await apiService.createPaymentFromOrder({
+            orderId: order.id
+          });
+
+          if (paymentRecordResponse.success) {
+            console.log('✅ Registro de pago creado');
+          } else {
+            console.warn('⚠️ Problema creando registro de pago');
+          }
+        } catch (paymentRecordError) {
+          console.warn('⚠️ Error creando registro de pago:', paymentRecordError.message);
+          // No lanzar error aquí porque el pago principal ya se procesó
+        }
+
+        // 6. ✅ ÉXITO: Notificar éxito (el email se envía automáticamente desde el backend)
+        console.log('🎉 Proceso de pago completado exitosamente');
+        showSuccess('¡Pago procesado exitosamente! Recibirás un email de confirmación.');
+        
+        onSuccess({
+          ...order,
+          paymentIntent: paymentIntent.id,
+          paid: true,
+          paymentMethod: 'card',
+          cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4 || '****'
         });
 
-        if (confirmResponse.success) {
-          onSuccess({
-            ...order,
-            paymentIntent: paymentIntent.id,
-            paid: true
-          });
-        } else {
-          onSuccess({
-            ...order,
-            paymentIntent: paymentIntent.id,
-            paid: true,
-            note: 'Pago exitoso, confirmación pendiente'
-          });
-        }
       } else {
         throw new Error('El pago no se completó correctamente');
       }
@@ -1133,11 +1188,15 @@ const PaymentStep = ({
     }
   };
 
+  // ✅ FLUJO CORREGIDO: Pago contra entrega usando rutas del README
   const handleCashOnDelivery = async () => {
     try {
       setIsProcessing(true);
 
-      // ✅ DATOS DE ORDEN SEGÚN README
+      console.log('💰 Iniciando flujo de pago contra entrega...');
+      showInfo('Procesando orden...');
+
+      // 1. ✅ PASO 1: Crear orden según README - Ruta: POST /api/store/orders
       const orderData = {
         items: items.map(item => ({
           productId: item.id,
@@ -1160,16 +1219,47 @@ const PaymentStep = ({
         };
       }
 
-      // ✅ RUTA CORRECTA SEGÚN README: /api/store/orders
-      const response = await apiService.post('/store/orders', orderData);
+      console.log('📦 Creando orden...', orderData);
+      const orderResponse = await apiService.createOrder(orderData);
 
-      if (response.success) {
-        onSuccess(response.data.order);
-      } else {
-        throw new Error(response.message || 'Error al crear la orden');
+      if (!orderResponse.success) {
+        throw new Error(orderResponse.message || 'Error al crear la orden');
       }
 
+      const order = orderResponse.data.order;
+      console.log('✅ Orden creada:', order);
+
+      // 2. ✅ PASO 2: Crear registro de pago según README - Ruta: POST /api/payments/from-order
+      console.log('💰 Creando registro de pago...');
+      showInfo('Registrando pago pendiente...');
+      
+      try {
+        const paymentRecordResponse = await apiService.createPaymentFromOrder({
+          orderId: order.id
+        });
+
+        if (paymentRecordResponse.success) {
+          console.log('✅ Registro de pago creado');
+        } else {
+          console.warn('⚠️ Problema creando registro de pago');
+        }
+      } catch (paymentRecordError) {
+        console.warn('⚠️ Error creando registro de pago:', paymentRecordError.message);
+        // No lanzar error aquí porque la orden principal ya se creó
+      }
+
+      // 3. ✅ ÉXITO: Notificar éxito (el email se envía automáticamente desde el backend)
+      console.log('🎉 Proceso de orden completado exitosamente');
+      showSuccess('¡Orden creada exitosamente! Recibirás un email de confirmación.');
+
+      onSuccess({
+        ...order,
+        paid: false,
+        paymentMethod: 'cash_on_delivery'
+      });
+
     } catch (error) {
+      console.error('❌ Cash on delivery process failed:', error);
       onError(error.message || 'Error al crear la orden');
     } finally {
       setIsProcessing(false);
@@ -1343,6 +1433,20 @@ const PaymentStep = ({
         </div>
       )}
 
+      {/* ✅ INFORMACIÓN ADICIONAL: Email automático */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <Mail className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
+          <div className="text-sm">
+            <p className="text-green-800 font-medium mb-1">📧 Confirmación automática</p>
+            <p className="text-green-700">
+              Recibirás un email con los detalles de tu pedido a <strong>{customerInfo.email}</strong> 
+              inmediatamente después de completar la compra.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg shadow-sm p-6">
         <button
           onClick={handlePayment}
@@ -1376,7 +1480,7 @@ const PaymentStep = ({
   );
 };
 
-// ✅ COMPONENTE: Paso 3 - Confirmación (mantenido igual)
+// COMPONENTE: Paso 3 - Confirmación (mantenido igual)
 const ConfirmationStep = ({ order, customerInfo }) => {
   const navigate = useNavigate();
 
@@ -1441,9 +1545,14 @@ const ConfirmationStep = ({ order, customerInfo }) => {
           </button>
         </div>
 
+        {/* ✅ INFORMACIÓN MEJORADA: Email confirmación */}
         <div className="mt-6 text-sm text-gray-500">
+          <div className="flex items-center justify-center mb-2">
+            <Mail className="w-4 h-4 mr-1 text-green-500" />
+            <span className="font-medium text-green-600">Email de confirmación enviado</span>
+          </div>
           <p>
-            Se ha enviado un email de confirmación a <strong>{customerInfo.email}</strong>
+            Se ha enviado un email con todos los detalles a <strong>{customerInfo.email}</strong>
           </p>
           <p className="mt-2">
             También recibirás actualizaciones por WhatsApp al teléfono proporcionado
@@ -1454,7 +1563,7 @@ const ConfirmationStep = ({ order, customerInfo }) => {
   );
 };
 
-// ✅ COMPONENTE ACTUALIZADO: Resumen del pedido con nuevas opciones
+// COMPONENTE ACTUALIZADO: Resumen del pedido con nuevas opciones
 const OrderSummary = ({ 
   items, 
   summary, 
@@ -1601,6 +1710,12 @@ const OrderSummary = ({
         <div className="flex items-center">
           <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
           <span>Garantía de satisfacción</span>
+        </div>
+        
+        {/* ✅ NUEVO: Indicador de email automático */}
+        <div className="flex items-center">
+          <Mail className="w-4 h-4 mr-2 text-blue-500" />
+          <span>Email de confirmación automático</span>
         </div>
       </div>
     </div>
