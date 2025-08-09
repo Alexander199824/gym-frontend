@@ -1,7 +1,6 @@
 // src/pages/checkout/CheckoutPage.js
-// FUNCIÓN: Página de checkout ACTUALIZADA - Rutas correctas del README + Email automático
-// CAMBIOS: ✅ Rutas según README ✅ Flujo de pagos correcto ✅ Email automático ✅ Registro de pagos
-// FIX: ✅ Peticiones múltiples a Stripe resueltas
+// FUNCIÓN: Página de checkout CORREGIDA - Payment methods según enum de DB
+// FIX: ✅ 'card' cambiado por 'online_card' según enum PostgreSQL
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -138,15 +137,16 @@ const CheckoutPage = () => {
   // Usar datos completos de Guatemala
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
-    city: 'Guatemala', 
-    state: 'Guatemala', 
+    city: '', 
+    state: '', 
     municipality: '', 
-    zipCode: '01001', 
+    zipCode: '', 
     reference: ''
   });
 
   // Estado para método de entrega
   const [deliveryMethod, setDeliveryMethod] = useState('pickup_store');
+  // ✅ FIX: Cambiar valor inicial de 'card' a 'cash_on_delivery'
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [notes, setNotes] = useState('');
   
@@ -321,7 +321,8 @@ const CheckoutPage = () => {
           
           const municipalities = getMunicipalitiesByDepartment(value);
           if (municipalities.length > 0) {
-            newAddress.city = municipalities[0];
+            // ✅ NO forzar el primer municipio, dejar que el usuario seleccione
+            newAddress.city = value; // Usar el departamento como ciudad temporal
           }
         }
         
@@ -1027,7 +1028,7 @@ const CustomerInfoStep = ({
   );
 };
 
-// ✅ ACTUALIZADO: Paso 2 - Método de pago con FLUJO CORREGIDO según README
+// ✅ ACTUALIZADO: Paso 2 - Método de pago con valores CORREGIDOS del enum
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
@@ -1073,17 +1074,30 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
-        paymentMethod: 'card', // Importante: especificar que es pago con tarjeta
+        // ✅ FIX: Cambiar 'card' por 'online_card' según enum de DB
+        paymentMethod: 'online_card', // ✅ VALOR CORRECTO DEL ENUM
         notes,
         deliveryMethod,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // Solo agregar shippingAddress si NO es pickup_store
+      // ✅ FIX: SIEMPRE enviar shippingAddress (requerido por el modelo)
       if (deliveryMethod !== 'pickup_store') {
+        // Para entregas normales, usar la dirección del usuario
         orderData.shippingAddress = {
           ...shippingAddress,
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+        };
+      } else {
+        // ✅ Para pickup_store, usar dirección de la tienda (requerido por DB)
+        orderData.shippingAddress = {
+          street: '5ta Avenida 12-34, Zona 10',
+          city: 'Guatemala',
+          state: 'Guatemala',
+          municipality: 'Guatemala',
+          zipCode: '01001',
+          reference: 'Elite Fitness Club - Recoger en tienda',
+          fullAddress: '5ta Avenida 12-34, Zona 10, Guatemala, Guatemala'
         };
       }
 
@@ -1191,7 +1205,7 @@ const PaymentStep = ({
           ...order,
           paymentIntent: paymentIntent.id,
           paid: true,
-          paymentMethod: 'card',
+          paymentMethod: 'online_card', // ✅ VALOR CORRECTO
           cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4 || '****'
         });
 
@@ -1224,17 +1238,30 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
+        // ✅ MANTENER: 'cash_on_delivery' es correcto según enum
         paymentMethod: 'cash_on_delivery',
         notes,
         deliveryMethod,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // Solo agregar shippingAddress si NO es pickup_store
+      // ✅ FIX: SIEMPRE enviar shippingAddress (requerido por el modelo)
       if (deliveryMethod !== 'pickup_store') {
+        // Para entregas normales, usar la dirección del usuario
         orderData.shippingAddress = {
           ...shippingAddress,
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+        };
+      } else {
+        // ✅ Para pickup_store, usar dirección de la tienda (requerido por DB)
+        orderData.shippingAddress = {
+          street: '5ta Avenida 12-34, Zona 10',
+          city: 'Guatemala',
+          state: 'Guatemala',
+          municipality: 'Guatemala',
+          zipCode: '01001',
+          reference: 'Elite Fitness Club - Recoger en tienda',
+          fullAddress: '5ta Avenida 12-34, Zona 10, Guatemala, Guatemala'
         };
       }
 
@@ -1286,7 +1313,8 @@ const PaymentStep = ({
   };
 
   const handlePayment = () => {
-    if (paymentMethod === 'card') {
+    // ✅ FIX: Cambiar 'card' por 'online_card'
+    if (paymentMethod === 'online_card') {
       handleStripePayment();
     } else {
       handleCashOnDelivery();
@@ -1305,9 +1333,10 @@ const PaymentStep = ({
         <div className="space-y-4">
           
           <button
-            onClick={() => setPaymentMethod('card')}
+            // ✅ FIX: Cambiar 'card' por 'online_card'
+            onClick={() => setPaymentMethod('online_card')}
             className={`w-full p-4 border rounded-lg text-left transition-colors ${
-              paymentMethod === 'card'
+              paymentMethod === 'online_card' // ✅ FIX: Cambiar comparación
                 ? 'border-primary-500 bg-primary-50'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
@@ -1363,7 +1392,8 @@ const PaymentStep = ({
         </div>
       </div>
 
-      {paymentMethod === 'card' && (
+      {/* ✅ FIX: Cambiar 'card' por 'online_card' en la condición */}
+      {paymentMethod === 'online_card' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4">
             Información de la tarjeta
@@ -1469,7 +1499,8 @@ const PaymentStep = ({
       <div className="bg-white rounded-lg shadow-sm p-6">
         <button
           onClick={handlePayment}
-          disabled={isProcessing || (paymentMethod === 'card' && (!stripe || !elements))}
+          // ✅ FIX: Cambiar 'card' por 'online_card' en la condición
+          disabled={isProcessing || (paymentMethod === 'online_card' && (!stripe || !elements))}
           className="w-full bg-primary-600 text-white py-4 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
         >
           {isProcessing ? (
@@ -1481,7 +1512,8 @@ const PaymentStep = ({
             <>
               <Lock className="w-5 h-5" />
               <span>
-                {paymentMethod === 'card' 
+                {/* ✅ FIX: Cambiar 'card' por 'online_card' en la condición */}
+                {paymentMethod === 'online_card' 
                   ? `Pagar ${((summary?.subtotal || 0) + shippingCost)?.toFixed(2)} GTQ`
                   : 'Confirmar pedido'
                 }
@@ -1541,7 +1573,8 @@ const ConfirmationStep = ({ order, customerInfo }) => {
               <div className="flex justify-between">
                 <span className="text-gray-600">Método de pago:</span>
                 <span className="font-medium">
-                  {order?.paymentMethod === 'card' ? 'Tarjeta de crédito' : 'Pago contra entrega'}
+                  {/* ✅ FIX: Mostrar texto correcto según el método */}
+                  {order?.paymentMethod === 'online_card' ? 'Tarjeta de crédito' : 'Pago contra entrega'}
                 </span>
               </div>
             </div>
