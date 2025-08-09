@@ -1,6 +1,7 @@
 // src/pages/checkout/CheckoutPage.js
-// FUNCIÓN: Página de checkout CORREGIDA - Payment methods según enum de DB
+// FUNCIÓN: Página de checkout COMPLETA - Payment methods según enum de DB
 // FIX: ✅ 'card' cambiado por 'online_card' según enum PostgreSQL
+// GUATEMALA: ✅ Implementación completa de departamentos y municipios
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +31,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// Importar datos completos de Guatemala
+// ✅ IMPORTAR DATOS COMPLETOS DE GUATEMALA
 import { 
   GUATEMALA_LOCATIONS,
   DEPARTMENTS,
@@ -134,12 +135,12 @@ const CheckoutPage = () => {
     phone: user?.phone || ''
   });
 
-  // Usar datos completos de Guatemala
+  // ✅ GUATEMALA: Usar datos completos de Guatemala
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
     city: '', 
-    state: '', 
-    municipality: '', 
+    state: '', // Departamento
+    municipality: '', // Municipio
     zipCode: '', 
     reference: ''
   });
@@ -154,8 +155,22 @@ const CheckoutPage = () => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   
-  // Estados: Para datos de Guatemala (simplificados)
+  // ✅ GUATEMALA: Estados para datos de Guatemala
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
+
+  // ✅ DEBUG: Verificar que los datos de Guatemala se carguen correctamente
+  useEffect(() => {
+    console.log('🇬🇹 Verificando datos de Guatemala...');
+    console.log('Departamentos disponibles:', DEPARTMENTS?.length || 0);
+    console.log('Primer departamento:', DEPARTMENTS?.[0]);
+    console.log('Datos completos cargados:', Object.keys(GUATEMALA_LOCATIONS || {}).length);
+    
+    if (DEPARTMENTS && DEPARTMENTS.length > 0) {
+      console.log('✅ Datos de Guatemala cargados correctamente');
+    } else {
+      console.error('❌ Error: No se cargaron los datos de Guatemala');
+    }
+  }, []);
 
   // ✅ FIX: EFECTO Stripe con protección contra múltiples ejecuciones
   useEffect(() => {
@@ -208,25 +223,44 @@ const CheckoutPage = () => {
     }
   }, [isEmpty, navigate, showInfo]);
 
-  // EFECTO: Actualizar municipios cuando cambie el departamento
+  // ✅ GUATEMALA: EFECTO para actualizar municipios cuando cambie el departamento
   useEffect(() => {
-    const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
-    setAvailableMunicipalities(municipalities);
+    console.log('🏛️ Departamento seleccionado:', shippingAddress.state);
     
-    // Auto-reset municipality cuando cambie departamento
-    if (shippingAddress.municipality && !municipalities.includes(shippingAddress.municipality)) {
+    if (shippingAddress.state) {
+      const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
+      console.log('🏘️ Municipios encontrados:', municipalities.length);
+      console.log('Lista de municipios:', municipalities);
+      setAvailableMunicipalities(municipalities);
+      
+      // Auto-reset municipality cuando cambie departamento
+      if (shippingAddress.municipality && !municipalities.includes(shippingAddress.municipality)) {
+        console.log('🔄 Reseteando municipio porque no pertenece al nuevo departamento');
+        setShippingAddress(prev => ({
+          ...prev,
+          municipality: '',
+          city: '',
+          zipCode: getPostalCode(prev.state)
+        }));
+      }
+      
+      // Actualizar código postal automáticamente
+      const postalCode = getPostalCode(shippingAddress.state);
+      console.log('📮 Código postal asignado:', postalCode);
+      setShippingAddress(prev => ({
+        ...prev,
+        zipCode: postalCode
+      }));
+    } else {
+      // Si no hay departamento seleccionado, limpiar municipios
+      setAvailableMunicipalities([]);
       setShippingAddress(prev => ({
         ...prev,
         municipality: '',
-        zipCode: getPostalCode(prev.state)
+        city: '',
+        zipCode: ''
       }));
     }
-    
-    // Actualizar código postal automáticamente
-    setShippingAddress(prev => ({
-      ...prev,
-      zipCode: getPostalCode(prev.state)
-    }));
     
   }, [shippingAddress.state]);
 
@@ -306,8 +340,10 @@ const CheckoutPage = () => {
     return fieldErrors;
   };
 
-  // FUNCIÓN MEJORADA: Manejar cambio de input
+  // ✅ GUATEMALA: Función mejorada para manejar cambio de input
   const handleInputChange = (section, field, value) => {
+    console.log(`📝 Cambiando ${section}.${field} a:`, value);
+    
     // Actualizar valor
     if (section === 'customerInfo') {
       setCustomerInfo(prev => ({ ...prev, [field]: value }));
@@ -315,19 +351,22 @@ const CheckoutPage = () => {
       setShippingAddress(prev => {
         const newAddress = { ...prev, [field]: value };
         
+        // ✅ GUATEMALA: Lógica especial para departamento
         if (field === 'state') {
+          console.log('🏛️ Cambiando departamento a:', value);
           newAddress.municipality = '';
+          newAddress.city = '';
           newAddress.zipCode = getPostalCode(value);
           
+          // Verificar municipios disponibles
           const municipalities = getMunicipalitiesByDepartment(value);
-          if (municipalities.length > 0) {
-            // ✅ NO forzar el primer municipio, dejar que el usuario seleccione
-            newAddress.city = value; // Usar el departamento como ciudad temporal
-          }
+          console.log('🏘️ Municipios disponibles para', value, ':', municipalities.length);
         }
         
+        // ✅ GUATEMALA: Lógica especial para municipio
         if (field === 'municipality' && value) {
-          newAddress.city = value;
+          console.log('🏘️ Cambiando municipio a:', value);
+          newAddress.city = value; // Usar municipio como ciudad
         }
         
         return newAddress;
@@ -398,7 +437,7 @@ const CheckoutPage = () => {
     
     setTouched(fieldsToTouch.reduce((acc, field) => ({ ...acc, [field]: true }), {}));
 
-    const isValid = Object.keys(newErrors).length === 0;
+    const isValid = Object.keys(newErrors).filter(key => newErrors[key]).length === 0;
     
     if (!isValid) {
       console.log('❌ Form validation failed:', newErrors);
@@ -625,7 +664,7 @@ const CheckoutPage = () => {
   );
 };
 
-// COMPONENTE MEJORADO: Paso 1 - Información del cliente CON NUEVAS OPCIONES DE ENTREGA
+// ✅ GUATEMALA: COMPONENTE MEJORADO - Paso 1 con implementación completa de Guatemala
 const CustomerInfoStep = ({ 
   customerInfo, 
   shippingAddress, 
@@ -642,6 +681,12 @@ const CustomerInfoStep = ({
   availableMunicipalities,
   calculateShippingCost
 }) => {
+  
+  // ✅ DEBUG: Verificar que los datos lleguen al componente
+  useEffect(() => {
+    console.log('🏛️ CustomerInfoStep - Departamentos disponibles:', DEPARTMENTS?.length || 0);
+    console.log('🏘️ CustomerInfoStep - Municipios disponibles:', availableMunicipalities?.length || 0);
+  }, [availableMunicipalities]);
   
   return (
     <div className="space-y-8">
@@ -862,13 +907,13 @@ const CustomerInfoStep = ({
         )}
       </div>
 
-      {/* DIRECCIÓN DE ENVÍO - Solo si NO es recoger en tienda */}
+      {/* ✅ GUATEMALA: DIRECCIÓN DE ENVÍO - Solo si NO es recoger en tienda */}
       {deliveryMethod !== 'pickup_store' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex items-center mb-4">
             <MapPin className="w-5 h-5 text-primary-600 mr-2" />
             <h2 className="text-lg font-semibold text-gray-900">
-              Dirección de entrega
+              Dirección de entrega - Guatemala 🇬🇹
             </h2>
           </div>
 
@@ -898,7 +943,7 @@ const CustomerInfoStep = ({
               </p>
             </div>
 
-            {/* País, Departamento, Municipio */}
+            {/* ✅ GUATEMALA: País, Departamento, Municipio */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* País (fijo) */}
               <div>
@@ -908,18 +953,26 @@ const CustomerInfoStep = ({
                 </div>
               </div>
 
-              {/* Departamento */}
+              {/* ✅ GUATEMALA: Departamento */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Departamento *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Departamento *
+                  <span className="text-xs text-gray-500 ml-1">
+                    ({DEPARTMENTS?.length || 0} disponibles)
+                  </span>
+                </label>
                 <select
                   value={shippingAddress.state}
-                  onChange={(e) => onInputChange('shippingAddress', 'state', e.target.value)}
+                  onChange={(e) => {
+                    console.log('🏛️ Seleccionando departamento:', e.target.value);
+                    onInputChange('shippingAddress', 'state', e.target.value);
+                  }}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                     errors.state && touched.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
                   }`}
                 >
                   <option value="">Seleccionar departamento</option>
-                  {DEPARTMENTS.map(department => (
+                  {DEPARTMENTS && DEPARTMENTS.map(department => (
                     <option key={department} value={department}>
                       {department}
                     </option>
@@ -931,14 +984,28 @@ const CustomerInfoStep = ({
                     {errors.state}
                   </div>
                 )}
+                {/* ✅ DEBUG: Mostrar cantidad de departamentos */}
+                {DEPARTMENTS && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✅ {DEPARTMENTS.length} departamentos cargados correctamente
+                  </p>
+                )}
               </div>
 
-              {/* Municipio */}
+              {/* ✅ GUATEMALA: Municipio */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Municipio *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Municipio *
+                  <span className="text-xs text-gray-500 ml-1">
+                    ({availableMunicipalities?.length || 0} disponibles)
+                  </span>
+                </label>
                 <select
                   value={shippingAddress.municipality}
-                  onChange={(e) => onInputChange('shippingAddress', 'municipality', e.target.value)}
+                  onChange={(e) => {
+                    console.log('🏘️ Seleccionando municipio:', e.target.value);
+                    onInputChange('shippingAddress', 'municipality', e.target.value);
+                  }}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                     errors.municipality && touched.municipality ? 'border-red-500 bg-red-50' : 'border-gray-300'
                   }`}
@@ -947,7 +1014,7 @@ const CustomerInfoStep = ({
                   <option value="">
                     {shippingAddress.state ? 'Seleccionar municipio' : 'Primero selecciona departamento'}
                   </option>
-                  {availableMunicipalities.map(municipality => (
+                  {availableMunicipalities && availableMunicipalities.map(municipality => (
                     <option key={municipality} value={municipality}>
                       {municipality}
                     </option>
@@ -959,12 +1026,18 @@ const CustomerInfoStep = ({
                     {errors.municipality}
                   </div>
                 )}
+                {/* ✅ DEBUG: Mostrar cantidad de municipios */}
+                {shippingAddress.state && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    🏘️ {availableMunicipalities?.length || 0} municipios en {shippingAddress.state}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Código postal y referencias */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Código postal automático */}
+              {/* ✅ GUATEMALA: Código postal automático */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Código postal
@@ -978,6 +1051,11 @@ const CustomerInfoStep = ({
                   placeholder="Se llena automáticamente"
                   readOnly
                 />
+                {shippingAddress.state && shippingAddress.zipCode && (
+                  <p className="text-xs text-green-600 mt-1">
+                    📮 Código asignado para {shippingAddress.state}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -993,6 +1071,19 @@ const CustomerInfoStep = ({
                 />
               </div>
             </div>
+
+            {/* ✅ GUATEMALA: Resumen de dirección seleccionada */}
+            {shippingAddress.state && shippingAddress.municipality && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="text-sm">
+                  <p className="font-medium text-green-800 mb-1">📍 Dirección seleccionada:</p>
+                  <p className="text-green-700">
+                    {shippingAddress.municipality}, {shippingAddress.state}, Guatemala
+                    {shippingAddress.zipCode && ` (${shippingAddress.zipCode})`}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
