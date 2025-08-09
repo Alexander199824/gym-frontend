@@ -2,8 +2,9 @@
 // FUNCIÓN: Página de checkout COMPLETA - Payment methods según enum de DB
 // FIX: ✅ 'card' cambiado por 'online_card' según enum PostgreSQL
 // GUATEMALA: ✅ Implementación completa de departamentos y municipios
+// FIX: ✅ Corregidos bucles infinitos en useEffect
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, 
@@ -121,6 +122,7 @@ const CheckoutPage = () => {
   // ✅ FIX: Ref para prevenir múltiples inicializaciones de Stripe
   const stripeInitialized = useRef(false);
   const stripeInitializing = useRef(false);
+  const isInitialMount = useRef(true);
 
   // Estados principales
   const [step, setStep] = useState(1); // 1: Info, 2: Payment, 3: Confirmation
@@ -158,21 +160,34 @@ const CheckoutPage = () => {
   // ✅ GUATEMALA: Estados para datos de Guatemala
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
 
+  // ✅ FIX: Funciones memoizadas para evitar re-renders
+  const memoizedShowInfo = useCallback((message) => {
+    if (showInfo) showInfo(message);
+  }, [showInfo]);
+
+  const memoizedShowError = useCallback((message) => {
+    if (showError) showError(message);
+  }, [showError]);
+
   // ✅ DEBUG: Verificar que los datos de Guatemala se carguen correctamente
   useEffect(() => {
-    console.log('🇬🇹 Verificando datos de Guatemala...');
-    console.log('Departamentos disponibles:', DEPARTMENTS?.length || 0);
-    console.log('Primer departamento:', DEPARTMENTS?.[0]);
-    console.log('Datos completos cargados:', Object.keys(GUATEMALA_LOCATIONS || {}).length);
-    
-    if (DEPARTMENTS && DEPARTMENTS.length > 0) {
-      console.log('✅ Datos de Guatemala cargados correctamente');
-    } else {
-      console.error('❌ Error: No se cargaron los datos de Guatemala');
+    if (isInitialMount.current) {
+      console.log('🇬🇹 Verificando datos de Guatemala...');
+      console.log('Departamentos disponibles:', DEPARTMENTS?.length || 0);
+      console.log('Primer departamento:', DEPARTMENTS?.[0]);
+      console.log('Datos completos cargados:', Object.keys(GUATEMALA_LOCATIONS || {}).length);
+      
+      if (DEPARTMENTS && DEPARTMENTS.length > 0) {
+        console.log('✅ Datos de Guatemala cargados correctamente');
+      } else {
+        console.error('❌ Error: No se cargaron los datos de Guatemala');
+      }
+      
+      isInitialMount.current = false;
     }
-  }, []);
+  }, []); // Solo en mount inicial
 
-  // ✅ FIX: EFECTO Stripe con protección contra múltiples ejecuciones
+  // ✅ FIX: EFECTO Stripe SIN funciones externas como dependencias
   useEffect(() => {
     const initializeStripe = async () => {
       // ✅ Prevenir múltiples inicializaciones
@@ -194,11 +209,15 @@ const CheckoutPage = () => {
           setStripePromise(Promise.resolve(stripe));
           console.log('✅ Stripe loaded successfully');
           
-          // ✅ Usar funciones directamente sin dependencias del useEffect
-          if (showInfo) showInfo('💳 Pagos con tarjeta disponibles');
+          // ✅ FIX: Llamar funciones SIN usar en dependencias
+          setTimeout(() => {
+            if (showInfo) showInfo('💳 Pagos con tarjeta disponibles');
+          }, 100);
         } else {
           console.warn('⚠️ Stripe not enabled on backend');
-          if (showInfo) showInfo('💰 Solo pagos en efectivo disponibles');
+          setTimeout(() => {
+            if (showInfo) showInfo('💰 Solo pagos en efectivo disponibles');
+          }, 100);
         }
         
         // ✅ Marcar como inicializado exitosamente
@@ -206,63 +225,73 @@ const CheckoutPage = () => {
         
       } catch (error) {
         console.error('❌ Error loading Stripe:', error);
-        if (showError) showError('Error cargando sistema de pagos con tarjeta');
+        setTimeout(() => {
+          if (showError) showError('Error cargando sistema de pagos con tarjeta');
+        }, 100);
       } finally {
         stripeInitializing.current = false;
       }
     };
 
     initializeStripe();
-  }, []); // ✅ FIX: Array de dependencias vacío - solo se ejecuta una vez
+  }, []); // ✅ FIX: Array vacío - no depende de funciones externas
 
-  // 🔄 EFECTO: Verificar carrito vacío
+  // ✅ FIX: EFECTO carrito vacío SIN showInfo como dependencia
   useEffect(() => {
     if (isEmpty) {
-      showInfo('Tu carrito está vacío');
+      console.log('🛒 Carrito está vacío, redirigiendo...');
+      setTimeout(() => {
+        if (showInfo) showInfo('Tu carrito está vacío');
+      }, 100);
       navigate('/store');
     }
-  }, [isEmpty, navigate, showInfo]);
+  }, [isEmpty, navigate]); // ✅ FIX: Removido showInfo de dependencias
 
-  // ✅ GUATEMALA: EFECTO para actualizar municipios cuando cambie el departamento
-  useEffect(() => {
-    console.log('🏛️ Departamento seleccionado:', shippingAddress.state);
+  // ✅ FIX: GUATEMALA - EFECTO para municipios con mejores controles
+  const updateMunicipalities = useCallback((departmentName) => {
+    console.log('🏛️ Actualizando municipios para:', departmentName);
     
-    if (shippingAddress.state) {
-      const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
+    if (departmentName && DEPARTMENTS.includes(departmentName)) {
+      const municipalities = getMunicipalitiesByDepartment(departmentName);
       console.log('🏘️ Municipios encontrados:', municipalities.length);
-      console.log('Lista de municipios:', municipalities);
       setAvailableMunicipalities(municipalities);
       
-      // Auto-reset municipality cuando cambie departamento
-      if (shippingAddress.municipality && !municipalities.includes(shippingAddress.municipality)) {
+      // Auto-update postal code
+      const postalCode = getPostalCode(departmentName);
+      console.log('📮 Código postal asignado:', postalCode);
+      
+      // Update address state ONLY if needed to avoid loops
+      setShippingAddress(prev => {
+        if (prev.zipCode !== postalCode) {
+          return { ...prev, zipCode: postalCode };
+        }
+        return prev;
+      });
+    } else {
+      console.log('🧹 Limpiando municipios - no hay departamento válido');
+      setAvailableMunicipalities([]);
+    }
+  }, []); // No dependencies to avoid loops
+
+  // ✅ FIX: Efecto SEPARADO para cambios de departamento
+  useEffect(() => {
+    updateMunicipalities(shippingAddress.state);
+  }, [shippingAddress.state, updateMunicipalities]);
+
+  // ✅ FIX: Efecto SEPARADO para reset de municipio cuando cambia departamento
+  useEffect(() => {
+    if (shippingAddress.state && shippingAddress.municipality) {
+      const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
+      if (!municipalities.includes(shippingAddress.municipality)) {
         console.log('🔄 Reseteando municipio porque no pertenece al nuevo departamento');
         setShippingAddress(prev => ({
           ...prev,
           municipality: '',
-          city: '',
-          zipCode: getPostalCode(prev.state)
+          city: ''
         }));
       }
-      
-      // Actualizar código postal automáticamente
-      const postalCode = getPostalCode(shippingAddress.state);
-      console.log('📮 Código postal asignado:', postalCode);
-      setShippingAddress(prev => ({
-        ...prev,
-        zipCode: postalCode
-      }));
-    } else {
-      // Si no hay departamento seleccionado, limpiar municipios
-      setAvailableMunicipalities([]);
-      setShippingAddress(prev => ({
-        ...prev,
-        municipality: '',
-        city: '',
-        zipCode: ''
-      }));
     }
-    
-  }, [shippingAddress.state]);
+  }, [shippingAddress.state]); // Solo depende del state, no del municipality
 
   // FUNCIÓN MEJORADA: Validar un campo específico
   const validateField = (name, value) => {
@@ -341,7 +370,7 @@ const CheckoutPage = () => {
   };
 
   // ✅ GUATEMALA: Función mejorada para manejar cambio de input
-  const handleInputChange = (section, field, value) => {
+  const handleInputChange = useCallback((section, field, value) => {
     console.log(`📝 Cambiando ${section}.${field} a:`, value);
     
     // Actualizar valor
@@ -350,18 +379,6 @@ const CheckoutPage = () => {
     } else if (section === 'shippingAddress') {
       setShippingAddress(prev => {
         const newAddress = { ...prev, [field]: value };
-        
-        // ✅ GUATEMALA: Lógica especial para departamento
-        if (field === 'state') {
-          console.log('🏛️ Cambiando departamento a:', value);
-          newAddress.municipality = '';
-          newAddress.city = '';
-          newAddress.zipCode = getPostalCode(value);
-          
-          // Verificar municipios disponibles
-          const municipalities = getMunicipalitiesByDepartment(value);
-          console.log('🏘️ Municipios disponibles para', value, ':', municipalities.length);
-        }
         
         // ✅ GUATEMALA: Lógica especial para municipio
         if (field === 'municipality' && value) {
@@ -383,7 +400,7 @@ const CheckoutPage = () => {
       ...fieldErrors,
       ...(Object.keys(fieldErrors).length === 0 && { [field]: undefined })
     }));
-  };
+  }, [deliveryMethod, shippingAddress.state]); // Incluir dependencias necesarias
 
   // FUNCIÓN MEJORADA: Filtrar caracteres
   const handleKeyPress = (e, type) => {
@@ -479,13 +496,13 @@ const CheckoutPage = () => {
         } : null
       });
     } else {
-      showError('Por favor corrige los errores en el formulario');
+      if (showError) showError('Por favor corrige los errores en el formulario');
       
       const errorList = Object.values(errors).filter(Boolean);
       if (errorList.length > 0) {
         console.log('📝 Specific errors:', errorList);
         setTimeout(() => {
-          showInfo(`Errores encontrados: ${errorList.join(', ')}`);
+          if (showInfo) showInfo(`Errores encontrados: ${errorList.join(', ')}`);
         }, 1000);
       }
     }
@@ -621,12 +638,15 @@ const CheckoutPage = () => {
                   isAuthenticated={isAuthenticated}
                   sessionInfo={sessionInfo}
                   onSuccess={(order) => {
+                    console.log('🎯 onSuccess llamado con orden:', order);
                     setOrderCreated(order);
                     setStep(3);
                     clearCart();
+                    console.log('✅ Estado actualizado - Step:', 3, 'Orden guardada:', order.id);
                   }}
                   onError={(error) => {
-                    showError(error);
+                    console.error('❌ onError llamado:', error);
+                    if (showError) showError(error);
                   }}
                   isProcessing={isProcessing}
                   setIsProcessing={setIsProcessing}
@@ -636,10 +656,13 @@ const CheckoutPage = () => {
             )}
 
             {step === 3 && (
-              <ConfirmationStep
-                order={orderCreated}
-                customerInfo={customerInfo}
-              />
+              <>
+                {console.log('🎊 Renderizando ConfirmationStep con orden:', orderCreated)}
+                <ConfirmationStep
+                  order={orderCreated}
+                  customerInfo={customerInfo}
+                />
+              </>
             )}
           </div>
 
@@ -1154,7 +1177,7 @@ const PaymentStep = ({
       setCardError('');
 
       console.log('💳 Iniciando flujo de pago con tarjeta...');
-      showInfo('Procesando pago con tarjeta...');
+      if (showInfo) showInfo('Procesando pago con tarjeta...');
 
       // 1. ✅ PASO 1: Crear orden según README - Ruta: POST /api/store/orders
       const orderData = {
@@ -1204,7 +1227,7 @@ const PaymentStep = ({
 
       // 2. ✅ PASO 2: Crear Payment Intent según README - Ruta: POST /api/stripe/create-store-intent
       console.log('💳 Creando payment intent...');
-      showInfo('Configurando pago seguro...');
+      if (showInfo) showInfo('Configurando pago seguro...');
       
       const paymentIntentResponse = await apiService.createStorePaymentIntent({
         orderId: order.id
@@ -1219,7 +1242,7 @@ const PaymentStep = ({
 
       // 3. ✅ PASO 3: Confirmar con Stripe (usando SDK)
       console.log('💳 Confirmando pago con Stripe...');
-      showInfo('Confirmando pago...');
+      if (showInfo) showInfo('Confirmando pago...');
       
       const cardElement = elements.getElement(CardElement);
 
@@ -1252,7 +1275,7 @@ const PaymentStep = ({
         
         // 4. ✅ PASO 4: Confirmar pago en backend según README - Ruta: POST /api/stripe/confirm-payment
         console.log('📝 Confirmando pago en backend...');
-        showInfo('Registrando pago...');
+        if (showInfo) showInfo('Registrando pago...');
         
         try {
           const confirmResponse = await apiService.confirmStripePayment({
@@ -1271,7 +1294,7 @@ const PaymentStep = ({
 
         // 5. ✅ PASO 5: Crear registro de pago según README - Ruta: POST /api/payments/from-order
         console.log('💰 Creando registro de pago...');
-        showInfo('Finalizando proceso...');
+        if (showInfo) showInfo('Finalizando proceso...');
         
         try {
           const paymentRecordResponse = await apiService.createPaymentFromOrder({
@@ -1288,17 +1311,28 @@ const PaymentStep = ({
           // No lanzar error aquí porque el pago principal ya se procesó
         }
 
-        // 6. ✅ ÉXITO: Notificar éxito (el email se envía automáticamente desde el backend)
+        // 6. ✅ ÉXITO: Notificar éxito y llamar onSuccess INMEDIATAMENTE
         console.log('🎉 Proceso de pago completado exitosamente');
-        showSuccess('¡Pago procesado exitosamente! Recibirás un email de confirmación.');
         
-        onSuccess({
+        // ✅ FIX: Preparar objeto de orden exitosa
+        const successOrder = {
           ...order,
           paymentIntent: paymentIntent.id,
           paid: true,
           paymentMethod: 'online_card', // ✅ VALOR CORRECTO
           cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4 || '****'
-        });
+        };
+
+        console.log('📋 Llamando onSuccess con orden:', successOrder);
+        onSuccess(successOrder);
+
+        // ✅ FIX: Mostrar mensaje de éxito después de un pequeño delay para asegurar que el estado se actualice
+        setTimeout(() => {
+          console.log('🎉 Mostrando mensaje de éxito para pago con tarjeta...');
+          if (showSuccess) {
+            showSuccess('¡Pago procesado exitosamente! Recibirás un email de confirmación.');
+          }
+        }, 100);
 
       } else {
         throw new Error('El pago no se completó correctamente');
@@ -1318,7 +1352,7 @@ const PaymentStep = ({
       setIsProcessing(true);
 
       console.log('💰 Iniciando flujo de pago contra entrega...');
-      showInfo('Procesando orden...');
+      if (showInfo) showInfo('Procesando orden...');
 
       // 1. ✅ PASO 1: Crear orden según README - Ruta: POST /api/store/orders
       const orderData = {
@@ -1364,11 +1398,11 @@ const PaymentStep = ({
       }
 
       const order = orderResponse.data.order;
-      console.log('✅ Orden creada:', order);
+      console.log('✅ Orden creada exitosamente:', order);
 
       // 2. ✅ PASO 2: Crear registro de pago según README - Ruta: POST /api/payments/from-order
       console.log('💰 Creando registro de pago...');
-      showInfo('Registrando pago pendiente...');
+      if (showInfo) showInfo('Registrando pago pendiente...');
       
       try {
         const paymentRecordResponse = await apiService.createPaymentFromOrder({
@@ -1385,15 +1419,26 @@ const PaymentStep = ({
         // No lanzar error aquí porque la orden principal ya se creó
       }
 
-      // 3. ✅ ÉXITO: Notificar éxito (el email se envía automáticamente desde el backend)
+      // 3. ✅ ÉXITO: Notificar éxito y llamar onSuccess INMEDIATAMENTE
       console.log('🎉 Proceso de orden completado exitosamente');
-      showSuccess('¡Orden creada exitosamente! Recibirás un email de confirmación.');
-
-      onSuccess({
+      
+      // ✅ FIX: Llamar onSuccess ANTES de showSuccess para asegurar que el estado se actualice
+      const successOrder = {
         ...order,
         paid: false,
         paymentMethod: 'cash_on_delivery'
-      });
+      };
+
+      console.log('📋 Llamando onSuccess con orden:', successOrder);
+      onSuccess(successOrder);
+
+      // ✅ FIX: Mostrar mensaje de éxito después de un pequeño delay para asegurar que el estado se actualice
+      setTimeout(() => {
+        console.log('🎉 Mostrando mensaje de éxito...');
+        if (showSuccess) {
+          showSuccess('¡Orden creada exitosamente! Recibirás un email de confirmación.');
+        }
+      }, 100);
 
     } catch (error) {
       console.error('❌ Cash on delivery process failed:', error);
@@ -1622,9 +1667,27 @@ const PaymentStep = ({
   );
 };
 
-// COMPONENTE: Paso 3 - Confirmación (mantenido igual)
+// COMPONENTE: Paso 3 - Confirmación (MEJORADO con mejor feedback)
 const ConfirmationStep = ({ order, customerInfo }) => {
   const navigate = useNavigate();
+
+  // ✅ DEBUG: Verificar que la orden llegue correctamente
+  console.log('🎊 ConfirmationStep renderizado con orden:', order);
+  console.log('📧 Customer info:', customerInfo);
+
+  // ✅ EFECTO: Mostrar mensaje de éxito cuando se monta el componente
+  useEffect(() => {
+    console.log('🎉 ConfirmationStep montado - mostrando mensaje de éxito');
+    // Timeout para asegurar que la página se renderice antes del mensaje
+    setTimeout(() => {
+      console.log('✅ Mostrando alerta de éxito...');
+      alert('🎉 ¡Compra realizada exitosamente!\n\n' + 
+            '✅ Tu pedido ha sido confirmado\n' + 
+            '📧 Recibirás un email de confirmación\n' + 
+            '📱 Te contactaremos por WhatsApp\n\n' + 
+            'Número de pedido: ' + (order?.orderNumber || order?.id || 'N/A'));
+    }, 500);
+  }, [order]);
 
   return (
     <div className="text-center space-y-6">
@@ -1668,6 +1731,21 @@ const ConfirmationStep = ({ order, customerInfo }) => {
                   {order?.paymentMethod === 'online_card' ? 'Tarjeta de crédito' : 'Pago contra entrega'}
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ✅ NUEVO: Banner de éxito más visible */}
+        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-center">
+            <CheckCircle className="w-6 h-6 text-green-500 mr-2" />
+            <div className="text-center">
+              <p className="text-green-800 font-bold text-lg">
+                ¡Compra realizada exitosamente!
+              </p>
+              <p className="text-green-600 text-sm mt-1">
+                Tu pedido está siendo procesado
+              </p>
             </div>
           </div>
         </div>
