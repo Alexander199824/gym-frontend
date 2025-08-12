@@ -225,7 +225,7 @@ const CheckoutPage = () => {
         
       } catch (error) {
         console.error('❌ Error cargando configuración del gym:', error);
-        // ✅ MANTENER ESTADO VACÍO SI NO HAY DATOS
+        // ✅ MANTENER ESTADO VACÍO SI NO HAY DATOS - NO HAY FALLBACKS HARDCODEADOS
       } finally {
         setIsLoadingConfig(false);
       }
@@ -237,12 +237,14 @@ const CheckoutPage = () => {
   // ✅ CORREGIDO: Actualizar opciones de entrega SOLO con datos del backend
   useEffect(() => {
     const updateDeliveryOptions = () => {
-      // ✅ VERIFICAR QUE HAY DATOS DEL BACKEND ANTES DE CREAR OPCIONES
+      // ✅ NO CREAR OPCIONES SIN DATOS DEL BACKEND
       if (!gymConfig.name || !gymConfig.contact.address) {
         console.log('⏳ Esperando datos del backend para configurar opciones de entrega...');
+        setDeliveryOptions({}); // Mantener vacío hasta tener datos reales
         return;
       }
 
+      // ✅ CREAR OPCIONES SOLO CON DATOS REALES DEL BACKEND
       const options = {
         pickup_store: {
           id: 'pickup_store',
@@ -915,7 +917,7 @@ const CustomerInfoStep = ({
         </div>
       </div>
 
-      {/* ✅ CORREGIDO: OPCIONES DE ENTREGA con datos del backend */}
+      {/* ✅ CORREGIDO: OPCIONES DE ENTREGA - Solo si hay datos del backend */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Truck className="w-5 h-5 text-primary-600 mr-2" />
@@ -933,8 +935,16 @@ const CustomerInfoStep = ({
         ) : Object.keys(deliveryOptions).length === 0 ? (
           <div className="text-center py-8">
             <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-            <p className="text-gray-600">No se pudieron cargar las opciones de entrega</p>
-            <p className="text-sm text-gray-500">Verifica la conexión al servidor</p>
+            <p className="text-gray-600 font-medium">Opciones de entrega no disponibles</p>
+            <p className="text-sm text-gray-500 mt-1">
+              No se pudo cargar la configuración desde el servidor
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-3 text-primary-600 hover:text-primary-700 text-sm underline"
+            >
+              Intentar recargar
+            </button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1017,8 +1027,8 @@ const CustomerInfoStep = ({
                   <ul className="space-y-1 text-xs">
                     <li>• Recibirás un SMS cuando tu pedido esté listo</li>
                     <li>• Presenta tu número de pedido o documento de identidad</li>
-                    <li>• Horario: {gymConfig.hours.full || 'Consultar horarios'}</li>
-                    <li>• Ubicación: {gymConfig.contact.address || 'Consultar ubicación'}</li>
+                    {gymConfig.hours.full && <li>• Horario: {gymConfig.hours.full}</li>}
+                    {gymConfig.contact.address && <li>• Ubicación: {gymConfig.contact.address}</li>}
                   </ul>
                 </>
               )}
@@ -1311,14 +1321,18 @@ const PaymentStep = ({
         };
       } else {
         // ✅ Usar datos REALES del backend para pickup_store
+        if (!gymConfig.contact.address) {
+          throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
+        }
+        
         orderData.shippingAddress = {
-          street: gymConfig.contact.address || 'Dirección no configurada',
+          street: gymConfig.contact.address,
           city: 'Guatemala',
           state: 'Guatemala',
           municipality: 'Guatemala',
           zipCode: '01001',
           reference: `${gymConfig.name || 'Tienda'} - Recoger en tienda`,
-          fullAddress: `${gymConfig.contact.address || 'Dirección no configurada'}, Guatemala, Guatemala`
+          fullAddress: `${gymConfig.contact.address}, Guatemala, Guatemala`
         };
       }
 
@@ -1349,6 +1363,20 @@ const PaymentStep = ({
       console.log('💳 Confirmando pago con Stripe...');
       const cardElement = elements.getElement(CardElement);
 
+      const billingAddress = deliveryMethod !== 'pickup_store' ? {
+        line1: shippingAddress.street,
+        city: shippingAddress.municipality,
+        state: shippingAddress.state,
+        postal_code: shippingAddress.zipCode,
+        country: 'GT'
+      } : {
+        line1: gymConfig.contact.address,
+        city: 'Guatemala',
+        state: 'Guatemala',
+        postal_code: '01001',
+        country: 'GT'
+      };
+
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardElement,
@@ -1356,19 +1384,7 @@ const PaymentStep = ({
             name: customerInfo.name,
             email: customerInfo.email,
             phone: customerInfo.phone,
-            address: deliveryMethod !== 'pickup_store' ? {
-              line1: shippingAddress.street,
-              city: shippingAddress.municipality,
-              state: shippingAddress.state,
-              postal_code: shippingAddress.zipCode,
-              country: 'GT'
-            } : {
-              line1: gymConfig.contact.address,
-              city: 'Guatemala',
-              state: 'Guatemala',
-              postal_code: '01001',
-              country: 'GT'
-            }
+            address: billingAddress
           }
         }
       });
@@ -1461,15 +1477,20 @@ const PaymentStep = ({
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
         };
       } else {
+        // ✅ Verificar que hay configuración del backend
+        if (!gymConfig.contact.address) {
+          throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
+        }
+        
         // ✅ Usar datos REALES del backend para pickup_store
         orderData.shippingAddress = {
-          street: gymConfig.contact.address || 'Dirección no configurada',
+          street: gymConfig.contact.address,
           city: 'Guatemala',
           state: 'Guatemala',
           municipality: 'Guatemala',
           zipCode: '01001',
           reference: `${gymConfig.name || 'Tienda'} - Recoger en tienda`,
-          fullAddress: `${gymConfig.contact.address || 'Dirección no configurada'}, Guatemala, Guatemala`
+          fullAddress: `${gymConfig.contact.address}, Guatemala, Guatemala`
         };
       }
 
@@ -1792,7 +1813,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
                 </span>
               </div>
 
-              {/* ✅ MOSTRAR datos del backend si están disponibles */}
+              {/* ✅ MOSTRAR datos del backend solo si están disponibles */}
               {gymConfig.name && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Empresa:</span>
