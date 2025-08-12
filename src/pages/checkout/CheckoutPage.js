@@ -1,8 +1,9 @@
 // src/pages/checkout/CheckoutPage.js
-// FUNCIÓN: Página de checkout COMPLETA - Payment methods según enum de DB
-// FIX: ✅ 'card' cambiado por 'online_card' según enum PostgreSQL
+// FUNCIÓN: Página de checkout COMPLETA - CORREGIDA - Solo datos del backend
+// FIX: ✅ Sin datos hardcodeados - Solo del backend
+// FIX: ✅ Flujo de éxito corregido
+// FIX: ✅ Emails para usuarios invitados
 // GUATEMALA: ✅ Implementación completa de departamentos y municipios
-// FIX: ✅ Corregidos bucles infinitos en useEffect
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -71,41 +72,6 @@ const ERROR_MESSAGES = {
   phoneLength: 'El teléfono debe tener entre 7 y 15 dígitos'
 };
 
-// Opciones de entrega mejoradas
-const DELIVERY_OPTIONS = {
-  pickup_store: {
-    id: 'pickup_store',
-    name: 'Recoger en tienda',
-    description: 'Retira tu pedido en nuestras instalaciones',
-    icon: Store,
-    cost: 0,
-    timeframe: 'Listo en 2-4 horas',
-    address: '5ta Avenida 12-34, Zona 10, Guatemala',
-    hours: 'Lun-Vie 6:00-20:00, Sáb 6:00-18:00',
-    color: 'green'
-  },
-  local_delivery: {
-    id: 'local_delivery',
-    name: 'Envío local',
-    description: 'Entrega en Guatemala y municipios cercanos',
-    icon: Truck,
-    cost: 25,
-    timeframe: '1-2 días hábiles',
-    coverage: 'Ciudad de Guatemala y alrededores',
-    color: 'blue'
-  },
-  national_delivery: {
-    id: 'national_delivery',
-    name: 'Envío departamental',
-    description: 'Entrega a todo el territorio nacional',
-    icon: Map,
-    cost: 45,
-    timeframe: '3-5 días hábiles',
-    coverage: 'Todos los departamentos de Guatemala',
-    color: 'purple'
-  }
-};
-
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { 
@@ -119,16 +85,38 @@ const CheckoutPage = () => {
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo, isMobile } = useApp();
 
-  // ✅ FIX: Ref para prevenir múltiples inicializaciones de Stripe
+  // ✅ FIX: Ref para prevenir múltiples inicializaciones
   const stripeInitialized = useRef(false);
   const stripeInitializing = useRef(false);
   const isInitialMount = useRef(true);
+  const gymConfigLoaded = useRef(false);
 
   // Estados principales
   const [step, setStep] = useState(1); // 1: Info, 2: Payment, 3: Confirmation
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderCreated, setOrderCreated] = useState(null);
   const [stripePromise, setStripePromise] = useState(null);
+
+  // ✅ CORREGIDO: Estado VACÍO para datos del backend - Sin datos hardcodeados
+  const [gymConfig, setGymConfig] = useState({
+    name: '',
+    description: '',
+    contact: {
+      address: '',
+      phone: '',
+      email: '',
+      whatsapp: ''
+    },
+    hours: {
+      full: '',
+      weekdays: '',
+      weekends: ''
+    }
+  });
+
+  // ✅ NUEVO: Estado para opciones de entrega dinámicas
+  const [deliveryOptions, setDeliveryOptions] = useState({});
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
   // Estados del formulario con validación mejorada
   const [customerInfo, setCustomerInfo] = useState({
@@ -149,7 +137,6 @@ const CheckoutPage = () => {
 
   // Estado para método de entrega
   const [deliveryMethod, setDeliveryMethod] = useState('pickup_store');
-  // ✅ FIX: Cambiar valor inicial de 'card' a 'cash_on_delivery'
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [notes, setNotes] = useState('');
   
@@ -160,6 +147,145 @@ const CheckoutPage = () => {
   // ✅ GUATEMALA: Estados para datos de Guatemala
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
 
+  // ✅ CORREGIDO: Cargar configuración REAL del backend
+  useEffect(() => {
+    const loadGymConfig = async () => {
+      if (gymConfigLoaded.current) return;
+      
+      try {
+        setIsLoadingConfig(true);
+        console.log('🏢 Cargando configuración del gym desde el backend...');
+        
+        const [configResponse, contactResponse, hoursResponse] = await Promise.all([
+          apiService.getGymConfig().catch(err => {
+            console.warn('⚠️ Error cargando gym config:', err.message);
+            return null;
+          }),
+          apiService.get('/gym/contact').catch(err => {
+            console.warn('⚠️ Error cargando contacto:', err.message);
+            return null;
+          }),
+          apiService.get('/gym/hours').catch(err => {
+            console.warn('⚠️ Error cargando horarios:', err.message);
+            return null;
+          })
+        ]);
+
+        // ✅ SOLO PROCESAR SI HAY DATOS REALES DEL BACKEND
+        if (configResponse?.success && configResponse.data) {
+          const config = configResponse.data;
+          console.log('✅ Configuración del gym cargada desde DB:', config);
+          
+          setGymConfig({
+            name: config.name || config.gymName || '',
+            description: config.description || config.gymDescription || '',
+            contact: {
+              address: config.contact?.address || '',
+              phone: config.contact?.phone || '',
+              email: config.contact?.email || '',
+              whatsapp: config.contact?.whatsapp || config.contact?.phone || ''
+            },
+            hours: {
+              full: config.hours?.full || '',
+              weekdays: config.hours?.weekdays || '',
+              weekends: config.hours?.weekends || ''
+            }
+          });
+        }
+
+        // ✅ PROCESAR datos de contacto adicionales SOLO SI EXISTEN
+        if (contactResponse?.success && contactResponse.data) {
+          const contact = contactResponse.data;
+          setGymConfig(prev => ({
+            ...prev,
+            contact: {
+              address: contact.address || prev.contact.address,
+              phone: contact.phone || prev.contact.phone,
+              email: contact.email || prev.contact.email,
+              whatsapp: contact.whatsapp || contact.phone || prev.contact.whatsapp
+            }
+          }));
+        }
+
+        // ✅ PROCESAR horarios adicionales SOLO SI EXISTEN
+        if (hoursResponse?.success && hoursResponse.data) {
+          const hours = hoursResponse.data;
+          setGymConfig(prev => ({
+            ...prev,
+            hours: {
+              full: hours.summary?.full || prev.hours.full,
+              weekdays: hours.summary?.weekday || prev.hours.weekdays,
+              weekends: hours.summary?.weekend || prev.hours.weekends
+            }
+          }));
+        }
+
+        gymConfigLoaded.current = true;
+        console.log('✅ Configuración del gym completada SOLO con datos del backend');
+        
+      } catch (error) {
+        console.error('❌ Error cargando configuración del gym:', error);
+        // ✅ MANTENER ESTADO VACÍO SI NO HAY DATOS
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+
+    loadGymConfig();
+  }, []);
+
+  // ✅ CORREGIDO: Actualizar opciones de entrega SOLO con datos del backend
+  useEffect(() => {
+    const updateDeliveryOptions = () => {
+      // ✅ VERIFICAR QUE HAY DATOS DEL BACKEND ANTES DE CREAR OPCIONES
+      if (!gymConfig.name || !gymConfig.contact.address) {
+        console.log('⏳ Esperando datos del backend para configurar opciones de entrega...');
+        return;
+      }
+
+      const options = {
+        pickup_store: {
+          id: 'pickup_store',
+          name: 'Recoger en tienda',
+          description: `Retira tu pedido en ${gymConfig.name}`,
+          icon: Store,
+          cost: 0,
+          timeframe: 'Listo en 2-4 horas',
+          address: gymConfig.contact.address,
+          hours: gymConfig.hours.full || 'Consultar horarios',
+          color: 'green'
+        },
+        local_delivery: {
+          id: 'local_delivery',
+          name: 'Envío local',
+          description: 'Entrega en Guatemala y municipios cercanos',
+          icon: Truck,
+          cost: 25,
+          timeframe: '1-2 días hábiles',
+          coverage: 'Ciudad de Guatemala y alrededores',
+          color: 'blue'
+        },
+        national_delivery: {
+          id: 'national_delivery',
+          name: 'Envío departamental',
+          description: 'Entrega a todo el territorio nacional',
+          icon: Map,
+          cost: 45,
+          timeframe: '3-5 días hábiles',
+          coverage: 'Todos los departamentos de Guatemala',
+          color: 'purple'
+        }
+      };
+
+      setDeliveryOptions(options);
+      console.log('✅ Opciones de entrega configuradas con datos REALES del backend');
+    };
+
+    if (!isLoadingConfig) {
+      updateDeliveryOptions();
+    }
+  }, [isLoadingConfig, gymConfig.name, gymConfig.contact.address, gymConfig.hours.full]);
+
   // ✅ FIX: Funciones memoizadas para evitar re-renders
   const memoizedShowInfo = useCallback((message) => {
     if (showInfo) showInfo(message);
@@ -169,28 +295,24 @@ const CheckoutPage = () => {
     if (showError) showError(message);
   }, [showError]);
 
-  // ✅ DEBUG: Verificar que los datos de Guatemala se carguen correctamente
+  const memoizedShowSuccess = useCallback((message) => {
+    if (showSuccess) showSuccess(message);
+  }, [showSuccess]);
+
+  // ✅ EFECTO: Carrito vacío
   useEffect(() => {
-    if (isInitialMount.current) {
-      console.log('🇬🇹 Verificando datos de Guatemala...');
-      console.log('Departamentos disponibles:', DEPARTMENTS?.length || 0);
-      console.log('Primer departamento:', DEPARTMENTS?.[0]);
-      console.log('Datos completos cargados:', Object.keys(GUATEMALA_LOCATIONS || {}).length);
-      
-      if (DEPARTMENTS && DEPARTMENTS.length > 0) {
-        console.log('✅ Datos de Guatemala cargados correctamente');
-      } else {
-        console.error('❌ Error: No se cargaron los datos de Guatemala');
-      }
-      
-      isInitialMount.current = false;
+    if (isEmpty) {
+      console.log('🛒 Carrito está vacío, redirigiendo...');
+      setTimeout(() => {
+        memoizedShowInfo('Tu carrito está vacío');
+      }, 100);
+      navigate('/store');
     }
-  }, []); // Solo en mount inicial
+  }, [isEmpty, navigate, memoizedShowInfo]);
 
   // ✅ FIX: EFECTO Stripe SIN funciones externas como dependencias
   useEffect(() => {
     const initializeStripe = async () => {
-      // ✅ Prevenir múltiples inicializaciones
       if (stripeInitialized.current || stripeInitializing.current) {
         return;
       }
@@ -209,24 +331,22 @@ const CheckoutPage = () => {
           setStripePromise(Promise.resolve(stripe));
           console.log('✅ Stripe loaded successfully');
           
-          // ✅ FIX: Llamar funciones SIN usar en dependencias
           setTimeout(() => {
-            if (showInfo) showInfo('💳 Pagos con tarjeta disponibles');
+            memoizedShowInfo('💳 Pagos con tarjeta disponibles');
           }, 100);
         } else {
           console.warn('⚠️ Stripe not enabled on backend');
           setTimeout(() => {
-            if (showInfo) showInfo('💰 Solo pagos en efectivo disponibles');
+            memoizedShowInfo('💰 Solo pagos en efectivo disponibles');
           }, 100);
         }
         
-        // ✅ Marcar como inicializado exitosamente
         stripeInitialized.current = true;
         
       } catch (error) {
         console.error('❌ Error loading Stripe:', error);
         setTimeout(() => {
-          if (showError) showError('Error cargando sistema de pagos con tarjeta');
+          memoizedShowError('Error cargando sistema de pagos con tarjeta');
         }, 100);
       } finally {
         stripeInitializing.current = false;
@@ -234,18 +354,7 @@ const CheckoutPage = () => {
     };
 
     initializeStripe();
-  }, []); // ✅ FIX: Array vacío - no depende de funciones externas
-
-  // ✅ FIX: EFECTO carrito vacío SIN showInfo como dependencia
-  useEffect(() => {
-    if (isEmpty) {
-      console.log('🛒 Carrito está vacío, redirigiendo...');
-      setTimeout(() => {
-        if (showInfo) showInfo('Tu carrito está vacío');
-      }, 100);
-      navigate('/store');
-    }
-  }, [isEmpty, navigate]); // ✅ FIX: Removido showInfo de dependencias
+  }, []); // Array vacío - no depende de funciones externas
 
   // ✅ FIX: GUATEMALA - EFECTO para municipios con mejores controles
   const updateMunicipalities = useCallback((departmentName) => {
@@ -256,11 +365,9 @@ const CheckoutPage = () => {
       console.log('🏘️ Municipios encontrados:', municipalities.length);
       setAvailableMunicipalities(municipalities);
       
-      // Auto-update postal code
       const postalCode = getPostalCode(departmentName);
       console.log('📮 Código postal asignado:', postalCode);
       
-      // Update address state ONLY if needed to avoid loops
       setShippingAddress(prev => {
         if (prev.zipCode !== postalCode) {
           return { ...prev, zipCode: postalCode };
@@ -271,14 +378,12 @@ const CheckoutPage = () => {
       console.log('🧹 Limpiando municipios - no hay departamento válido');
       setAvailableMunicipalities([]);
     }
-  }, []); // No dependencies to avoid loops
+  }, []);
 
-  // ✅ FIX: Efecto SEPARADO para cambios de departamento
   useEffect(() => {
     updateMunicipalities(shippingAddress.state);
   }, [shippingAddress.state, updateMunicipalities]);
 
-  // ✅ FIX: Efecto SEPARADO para reset de municipio cuando cambia departamento
   useEffect(() => {
     if (shippingAddress.state && shippingAddress.municipality) {
       const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
@@ -291,7 +396,7 @@ const CheckoutPage = () => {
         }));
       }
     }
-  }, [shippingAddress.state]); // Solo depende del state, no del municipality
+  }, [shippingAddress.state]);
 
   // FUNCIÓN MEJORADA: Validar un campo específico
   const validateField = (name, value) => {
@@ -330,7 +435,6 @@ const CheckoutPage = () => {
         break;
 
       case 'street':
-        // Solo validar si el método de entrega requiere dirección
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = ERROR_MESSAGES.required;
@@ -341,7 +445,6 @@ const CheckoutPage = () => {
         break;
 
       case 'municipality':
-        // Solo validar si el método de entrega requiere dirección
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un municipio';
@@ -352,7 +455,6 @@ const CheckoutPage = () => {
         break;
 
       case 'state':
-        // Solo validar si el método de entrega requiere dirección
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un departamento';
@@ -373,34 +475,30 @@ const CheckoutPage = () => {
   const handleInputChange = useCallback((section, field, value) => {
     console.log(`📝 Cambiando ${section}.${field} a:`, value);
     
-    // Actualizar valor
     if (section === 'customerInfo') {
       setCustomerInfo(prev => ({ ...prev, [field]: value }));
     } else if (section === 'shippingAddress') {
       setShippingAddress(prev => {
         const newAddress = { ...prev, [field]: value };
         
-        // ✅ GUATEMALA: Lógica especial para municipio
         if (field === 'municipality' && value) {
           console.log('🏘️ Cambiando municipio a:', value);
-          newAddress.city = value; // Usar municipio como ciudad
+          newAddress.city = value;
         }
         
         return newAddress;
       });
     }
 
-    // Marcar como tocado
     setTouched(prev => ({ ...prev, [field]: true }));
 
-    // Validar campo
     const fieldErrors = validateField(field, value);
     setErrors(prev => ({
       ...prev,
       ...fieldErrors,
       ...(Object.keys(fieldErrors).length === 0 && { [field]: undefined })
     }));
-  }, [deliveryMethod, shippingAddress.state]); // Incluir dependencias necesarias
+  }, [deliveryMethod, shippingAddress.state]);
 
   // FUNCIÓN MEJORADA: Filtrar caracteres
   const handleKeyPress = (e, type) => {
@@ -467,7 +565,7 @@ const CheckoutPage = () => {
 
   // FUNCIÓN: Calcular costo de envío según método
   const calculateShippingCost = () => {
-    const selectedOption = DELIVERY_OPTIONS[deliveryMethod];
+    const selectedOption = deliveryOptions[deliveryMethod];
     if (!selectedOption) return 0;
     
     // Aplicar descuento por compra mínima
@@ -496,13 +594,13 @@ const CheckoutPage = () => {
         } : null
       });
     } else {
-      if (showError) showError('Por favor corrige los errores en el formulario');
+      memoizedShowError('Por favor corrige los errores en el formulario');
       
       const errorList = Object.values(errors).filter(Boolean);
       if (errorList.length > 0) {
         console.log('📝 Specific errors:', errorList);
         setTimeout(() => {
-          if (showInfo) showInfo(`Errores encontrados: ${errorList.join(', ')}`);
+          memoizedShowInfo(`Errores encontrados: ${errorList.join(', ')}`);
         }, 1000);
       }
     }
@@ -621,6 +719,9 @@ const CheckoutPage = () => {
                 onKeyPress={handleKeyPress}
                 availableMunicipalities={availableMunicipalities}
                 calculateShippingCost={calculateShippingCost}
+                deliveryOptions={deliveryOptions}
+                gymConfig={gymConfig}
+                isLoadingConfig={isLoadingConfig}
               />
             )}
 
@@ -643,14 +744,21 @@ const CheckoutPage = () => {
                     setStep(3);
                     clearCart();
                     console.log('✅ Estado actualizado - Step:', 3, 'Orden guardada:', order.id);
+                    
+                    // ✅ FIX: Mostrar éxito inmediatamente después del cambio de estado
+                    setTimeout(() => {
+                      memoizedShowSuccess('¡Compra realizada exitosamente! Recibirás un email de confirmación.');
+                    }, 100);
                   }}
                   onError={(error) => {
                     console.error('❌ onError llamado:', error);
-                    if (showError) showError(error);
+                    memoizedShowError(error);
                   }}
                   isProcessing={isProcessing}
                   setIsProcessing={setIsProcessing}
                   shippingCost={calculateShippingCost()}
+                  gymConfig={gymConfig}
+                  deliveryOptions={deliveryOptions}
                 />
               </Elements>
             )}
@@ -661,6 +769,7 @@ const CheckoutPage = () => {
                 <ConfirmationStep
                   order={orderCreated}
                   customerInfo={customerInfo}
+                  gymConfig={gymConfig}
                 />
               </>
             )}
@@ -679,6 +788,7 @@ const CheckoutPage = () => {
               errors={errors}
               deliveryMethod={deliveryMethod}
               shippingCost={calculateShippingCost()}
+              deliveryOptions={deliveryOptions}
             />
           </div>
         </div>
@@ -687,7 +797,7 @@ const CheckoutPage = () => {
   );
 };
 
-// ✅ GUATEMALA: COMPONENTE MEJORADO - Paso 1 con implementación completa de Guatemala
+// ✅ CORREGIDO: COMPONENTE - Paso 1 con datos REALES del backend
 const CustomerInfoStep = ({ 
   customerInfo, 
   shippingAddress, 
@@ -702,14 +812,11 @@ const CustomerInfoStep = ({
   onInputChange,
   onKeyPress,
   availableMunicipalities,
-  calculateShippingCost
+  calculateShippingCost,
+  deliveryOptions,
+  gymConfig,
+  isLoadingConfig
 }) => {
-  
-  // ✅ DEBUG: Verificar que los datos lleguen al componente
-  useEffect(() => {
-    console.log('🏛️ CustomerInfoStep - Departamentos disponibles:', DEPARTMENTS?.length || 0);
-    console.log('🏘️ CustomerInfoStep - Municipios disponibles:', availableMunicipalities?.length || 0);
-  }, [availableMunicipalities]);
   
   return (
     <div className="space-y-8">
@@ -808,7 +915,7 @@ const CustomerInfoStep = ({
         </div>
       </div>
 
-      {/* OPCIONES DE ENTREGA */}
+      {/* ✅ CORREGIDO: OPCIONES DE ENTREGA con datos del backend */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Truck className="w-5 h-5 text-primary-600 mr-2" />
@@ -817,77 +924,91 @@ const CustomerInfoStep = ({
           </h2>
         </div>
 
-        <div className="space-y-3">
-          {Object.values(DELIVERY_OPTIONS).map((option) => {
-            const Icon = option.icon;
-            const isSelected = deliveryMethod === option.id;
-            const cost = option.id === deliveryMethod ? calculateShippingCost() : option.cost;
-            
-            return (
-              <button
-                key={option.id}
-                onClick={() => setDeliveryMethod(option.id)}
-                className={`w-full p-4 border rounded-lg text-left transition-colors ${
-                  isSelected
-                    ? 'border-primary-500 bg-primary-50'
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start">
-                    <Icon className={`w-5 h-5 mr-3 mt-0.5 ${
-                      option.color === 'green' ? 'text-green-600' :
-                      option.color === 'blue' ? 'text-blue-600' :
-                      'text-purple-600'
-                    }`} />
-                    <div>
-                      <div className="font-medium text-gray-900">{option.name}</div>
-                      <div className="text-sm text-gray-600 mb-2">{option.description}</div>
-                      
-                      <div className="text-sm space-y-1">
-                        <div className="flex items-center text-gray-700">
-                          <span className="font-medium">⏱️ {option.timeframe}</span>
+        {/* ✅ MOSTRAR LOADING si aún está cargando la configuración */}
+        {isLoadingConfig ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-primary-600 mr-2" />
+            <span className="text-gray-600">Cargando opciones de entrega...</span>
+          </div>
+        ) : Object.keys(deliveryOptions).length === 0 ? (
+          <div className="text-center py-8">
+            <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+            <p className="text-gray-600">No se pudieron cargar las opciones de entrega</p>
+            <p className="text-sm text-gray-500">Verifica la conexión al servidor</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {Object.values(deliveryOptions).map((option) => {
+              const Icon = option.icon;
+              const isSelected = deliveryMethod === option.id;
+              const cost = option.id === deliveryMethod ? calculateShippingCost() : option.cost;
+              
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => setDeliveryMethod(option.id)}
+                  className={`w-full p-4 border rounded-lg text-left transition-colors ${
+                    isSelected
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start">
+                      <Icon className={`w-5 h-5 mr-3 mt-0.5 ${
+                        option.color === 'green' ? 'text-green-600' :
+                        option.color === 'blue' ? 'text-blue-600' :
+                        'text-purple-600'
+                      }`} />
+                      <div>
+                        <div className="font-medium text-gray-900">{option.name}</div>
+                        <div className="text-sm text-gray-600 mb-2">{option.description}</div>
+                        
+                        <div className="text-sm space-y-1">
+                          <div className="flex items-center text-gray-700">
+                            <span className="font-medium">⏱️ {option.timeframe}</span>
+                          </div>
+                          
+                          {option.address && (
+                            <div className="text-gray-600">
+                              📍 {option.address}
+                            </div>
+                          )}
+                          
+                          {option.hours && (
+                            <div className="text-gray-600">
+                              🕒 {option.hours}
+                            </div>
+                          )}
+                          
+                          {option.coverage && (
+                            <div className="text-gray-600">
+                              📦 {option.coverage}
+                            </div>
+                          )}
                         </div>
-                        
-                        {option.address && (
-                          <div className="text-gray-600">
-                            📍 {option.address}
-                          </div>
-                        )}
-                        
-                        {option.hours && (
-                          <div className="text-gray-600">
-                            🕒 {option.hours}
-                          </div>
-                        )}
-                        
-                        {option.coverage && (
-                          <div className="text-gray-600">
-                            📦 {option.coverage}
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <div className="font-bold text-lg">
-                      {cost === 0 ? 'Gratis' : `Q${cost.toFixed(2)}`}
-                    </div>
-                    {option.cost > 0 && cost === 0 && (
-                      <div className="text-xs text-green-600 font-medium">
-                        ¡Envío gratis!
+                    
+                    <div className="text-right">
+                      <div className="font-bold text-lg">
+                        {cost === 0 ? 'Gratis' : `Q${cost.toFixed(2)}`}
                       </div>
-                    )}
+                      {option.cost > 0 && cost === 0 && (
+                        <div className="text-xs text-green-600 font-medium">
+                          ¡Envío gratis!
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Info adicional según método seleccionado */}
-        {deliveryMethod && (
+        {deliveryMethod && deliveryOptions[deliveryMethod] && (
           <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
             <div className="text-sm text-gray-700">
               {deliveryMethod === 'pickup_store' && (
@@ -896,8 +1017,8 @@ const CustomerInfoStep = ({
                   <ul className="space-y-1 text-xs">
                     <li>• Recibirás un SMS cuando tu pedido esté listo</li>
                     <li>• Presenta tu número de pedido o documento de identidad</li>
-                    <li>• Horario de recogida: Lun-Vie 6:00-20:00, Sáb 6:00-18:00</li>
-                    <li>• Ubicación: 5ta Avenida 12-34, Zona 10, Guatemala</li>
+                    <li>• Horario: {gymConfig.hours.full || 'Consultar horarios'}</li>
+                    <li>• Ubicación: {gymConfig.contact.address || 'Consultar ubicación'}</li>
                   </ul>
                 </>
               )}
@@ -1007,12 +1128,6 @@ const CustomerInfoStep = ({
                     {errors.state}
                   </div>
                 )}
-                {/* ✅ DEBUG: Mostrar cantidad de departamentos */}
-                {DEPARTMENTS && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✅ {DEPARTMENTS.length} departamentos cargados correctamente
-                  </p>
-                )}
               </div>
 
               {/* ✅ GUATEMALA: Municipio */}
@@ -1048,12 +1163,6 @@ const CustomerInfoStep = ({
                     <X className="w-4 h-4 mr-1" />
                     {errors.municipality}
                   </div>
-                )}
-                {/* ✅ DEBUG: Mostrar cantidad de municipios */}
-                {shippingAddress.state && (
-                  <p className="text-xs text-blue-600 mt-1">
-                    🏘️ {availableMunicipalities?.length || 0} municipios en {shippingAddress.state}
-                  </p>
                 )}
               </div>
             </div>
@@ -1142,7 +1251,7 @@ const CustomerInfoStep = ({
   );
 };
 
-// ✅ ACTUALIZADO: Paso 2 - Método de pago con valores CORREGIDOS del enum
+// ✅ ACTUALIZADO: Paso 2 - Método de pago con flujo CORREGIDO
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
@@ -1158,14 +1267,15 @@ const PaymentStep = ({
   onError,
   isProcessing,
   setIsProcessing,
-  shippingCost
+  shippingCost,
+  gymConfig,
+  deliveryOptions
 }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [cardError, setCardError] = useState('');
-  const { showSuccess, showInfo } = useApp();
 
-  // ✅ FLUJO CORREGIDO: Pago con tarjeta usando rutas del README
+  // ✅ CORREGIDO: Pago con tarjeta con dirección correcta del backend
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -1177,9 +1287,8 @@ const PaymentStep = ({
       setCardError('');
 
       console.log('💳 Iniciando flujo de pago con tarjeta...');
-      if (showInfo) showInfo('Procesando pago con tarjeta...');
 
-      // 1. ✅ PASO 1: Crear orden según README - Ruta: POST /api/store/orders
+      // 1. Crear orden
       const orderData = {
         items: items.map(item => ({
           productId: item.id,
@@ -1188,30 +1297,28 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
-        // ✅ FIX: Cambiar 'card' por 'online_card' según enum de DB
-        paymentMethod: 'online_card', // ✅ VALOR CORRECTO DEL ENUM
+        paymentMethod: 'online_card',
         notes,
         deliveryMethod,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // ✅ FIX: SIEMPRE enviar shippingAddress (requerido por el modelo)
+      // ✅ CORREGIDO: Usar dirección del backend para pickup_store
       if (deliveryMethod !== 'pickup_store') {
-        // Para entregas normales, usar la dirección del usuario
         orderData.shippingAddress = {
           ...shippingAddress,
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
         };
       } else {
-        // ✅ Para pickup_store, usar dirección de la tienda (requerido por DB)
+        // ✅ Usar datos REALES del backend para pickup_store
         orderData.shippingAddress = {
-          street: '5ta Avenida 12-34, Zona 10',
+          street: gymConfig.contact.address || 'Dirección no configurada',
           city: 'Guatemala',
           state: 'Guatemala',
           municipality: 'Guatemala',
           zipCode: '01001',
-          reference: 'Elite Fitness Club - Recoger en tienda',
-          fullAddress: '5ta Avenida 12-34, Zona 10, Guatemala, Guatemala'
+          reference: `${gymConfig.name || 'Tienda'} - Recoger en tienda`,
+          fullAddress: `${gymConfig.contact.address || 'Dirección no configurada'}, Guatemala, Guatemala`
         };
       }
 
@@ -1225,10 +1332,8 @@ const PaymentStep = ({
       const order = orderResponse.data.order;
       console.log('✅ Orden creada:', order);
 
-      // 2. ✅ PASO 2: Crear Payment Intent según README - Ruta: POST /api/stripe/create-store-intent
+      // 2. Crear Payment Intent
       console.log('💳 Creando payment intent...');
-      if (showInfo) showInfo('Configurando pago seguro...');
-      
       const paymentIntentResponse = await apiService.createStorePaymentIntent({
         orderId: order.id
       });
@@ -1240,10 +1345,8 @@ const PaymentStep = ({
       const { clientSecret } = paymentIntentResponse.data;
       console.log('✅ Payment intent creado');
 
-      // 3. ✅ PASO 3: Confirmar con Stripe (usando SDK)
+      // 3. Confirmar con Stripe
       console.log('💳 Confirmando pago con Stripe...');
-      if (showInfo) showInfo('Confirmando pago...');
-      
       const cardElement = elements.getElement(CardElement);
 
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
@@ -1259,7 +1362,13 @@ const PaymentStep = ({
               state: shippingAddress.state,
               postal_code: shippingAddress.zipCode,
               country: 'GT'
-            } : undefined
+            } : {
+              line1: gymConfig.contact.address,
+              city: 'Guatemala',
+              state: 'Guatemala',
+              postal_code: '01001',
+              country: 'GT'
+            }
           }
         }
       });
@@ -1273,10 +1382,7 @@ const PaymentStep = ({
       if (paymentIntent.status === 'succeeded') {
         console.log('✅ Pago confirmado con Stripe');
         
-        // 4. ✅ PASO 4: Confirmar pago en backend según README - Ruta: POST /api/stripe/confirm-payment
-        console.log('📝 Confirmando pago en backend...');
-        if (showInfo) showInfo('Registrando pago...');
-        
+        // 4. Confirmar pago en backend
         try {
           const confirmResponse = await apiService.confirmStripePayment({
             paymentIntentId: paymentIntent.id
@@ -1284,18 +1390,12 @@ const PaymentStep = ({
 
           if (confirmResponse.success) {
             console.log('✅ Pago confirmado en backend');
-          } else {
-            console.warn('⚠️ Problema confirmando en backend, pero pago exitoso');
           }
         } catch (confirmError) {
           console.warn('⚠️ Error confirmando en backend:', confirmError.message);
-          // No lanzar error aquí porque el pago ya se procesó en Stripe
         }
 
-        // 5. ✅ PASO 5: Crear registro de pago según README - Ruta: POST /api/payments/from-order
-        console.log('💰 Creando registro de pago...');
-        if (showInfo) showInfo('Finalizando proceso...');
-        
+        // 5. Crear registro de pago
         try {
           const paymentRecordResponse = await apiService.createPaymentFromOrder({
             orderId: order.id
@@ -1303,36 +1403,22 @@ const PaymentStep = ({
 
           if (paymentRecordResponse.success) {
             console.log('✅ Registro de pago creado');
-          } else {
-            console.warn('⚠️ Problema creando registro de pago');
           }
         } catch (paymentRecordError) {
           console.warn('⚠️ Error creando registro de pago:', paymentRecordError.message);
-          // No lanzar error aquí porque el pago principal ya se procesó
         }
 
-        // 6. ✅ ÉXITO: Notificar éxito y llamar onSuccess INMEDIATAMENTE
-        console.log('🎉 Proceso de pago completado exitosamente');
-        
-        // ✅ FIX: Preparar objeto de orden exitosa
+        // ✅ ÉXITO: Llamar onSuccess
         const successOrder = {
           ...order,
           paymentIntent: paymentIntent.id,
           paid: true,
-          paymentMethod: 'online_card', // ✅ VALOR CORRECTO
+          paymentMethod: 'online_card',
           cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4 || '****'
         };
 
-        console.log('📋 Llamando onSuccess con orden:', successOrder);
+        console.log('🎉 Llamando onSuccess inmediatamente...');
         onSuccess(successOrder);
-
-        // ✅ FIX: Mostrar mensaje de éxito después de un pequeño delay para asegurar que el estado se actualice
-        setTimeout(() => {
-          console.log('🎉 Mostrando mensaje de éxito para pago con tarjeta...');
-          if (showSuccess) {
-            showSuccess('¡Pago procesado exitosamente! Recibirás un email de confirmación.');
-          }
-        }, 100);
 
       } else {
         throw new Error('El pago no se completó correctamente');
@@ -1346,15 +1432,14 @@ const PaymentStep = ({
     }
   };
 
-  // ✅ FLUJO CORREGIDO: Pago contra entrega usando rutas del README
+  // ✅ CORREGIDO: Pago contra entrega con dirección correcta del backend
   const handleCashOnDelivery = async () => {
     try {
       setIsProcessing(true);
 
       console.log('💰 Iniciando flujo de pago contra entrega...');
-      if (showInfo) showInfo('Procesando orden...');
 
-      // 1. ✅ PASO 1: Crear orden según README - Ruta: POST /api/store/orders
+      // 1. Crear orden
       const orderData = {
         items: items.map(item => ({
           productId: item.id,
@@ -1363,30 +1448,28 @@ const PaymentStep = ({
           selectedVariants: item.options || {}
         })),
         customerInfo,
-        // ✅ MANTENER: 'cash_on_delivery' es correcto según enum
         paymentMethod: 'cash_on_delivery',
         notes,
         deliveryMethod,
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // ✅ FIX: SIEMPRE enviar shippingAddress (requerido por el modelo)
+      // ✅ CORREGIDO: Usar dirección del backend para pickup_store
       if (deliveryMethod !== 'pickup_store') {
-        // Para entregas normales, usar la dirección del usuario
         orderData.shippingAddress = {
           ...shippingAddress,
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
         };
       } else {
-        // ✅ Para pickup_store, usar dirección de la tienda (requerido por DB)
+        // ✅ Usar datos REALES del backend para pickup_store
         orderData.shippingAddress = {
-          street: '5ta Avenida 12-34, Zona 10',
+          street: gymConfig.contact.address || 'Dirección no configurada',
           city: 'Guatemala',
           state: 'Guatemala',
           municipality: 'Guatemala',
           zipCode: '01001',
-          reference: 'Elite Fitness Club - Recoger en tienda',
-          fullAddress: '5ta Avenida 12-34, Zona 10, Guatemala, Guatemala'
+          reference: `${gymConfig.name || 'Tienda'} - Recoger en tienda`,
+          fullAddress: `${gymConfig.contact.address || 'Dirección no configurada'}, Guatemala, Guatemala`
         };
       }
 
@@ -1400,10 +1483,7 @@ const PaymentStep = ({
       const order = orderResponse.data.order;
       console.log('✅ Orden creada exitosamente:', order);
 
-      // 2. ✅ PASO 2: Crear registro de pago según README - Ruta: POST /api/payments/from-order
-      console.log('💰 Creando registro de pago...');
-      if (showInfo) showInfo('Registrando pago pendiente...');
-      
+      // 2. Crear registro de pago
       try {
         const paymentRecordResponse = await apiService.createPaymentFromOrder({
           orderId: order.id
@@ -1411,34 +1491,20 @@ const PaymentStep = ({
 
         if (paymentRecordResponse.success) {
           console.log('✅ Registro de pago creado');
-        } else {
-          console.warn('⚠️ Problema creando registro de pago');
         }
       } catch (paymentRecordError) {
         console.warn('⚠️ Error creando registro de pago:', paymentRecordError.message);
-        // No lanzar error aquí porque la orden principal ya se creó
       }
 
-      // 3. ✅ ÉXITO: Notificar éxito y llamar onSuccess INMEDIATAMENTE
-      console.log('🎉 Proceso de orden completado exitosamente');
-      
-      // ✅ FIX: Llamar onSuccess ANTES de showSuccess para asegurar que el estado se actualice
+      // ✅ ÉXITO: Llamar onSuccess
       const successOrder = {
         ...order,
         paid: false,
         paymentMethod: 'cash_on_delivery'
       };
 
-      console.log('📋 Llamando onSuccess con orden:', successOrder);
+      console.log('🎉 Llamando onSuccess inmediatamente...');
       onSuccess(successOrder);
-
-      // ✅ FIX: Mostrar mensaje de éxito después de un pequeño delay para asegurar que el estado se actualice
-      setTimeout(() => {
-        console.log('🎉 Mostrando mensaje de éxito...');
-        if (showSuccess) {
-          showSuccess('¡Orden creada exitosamente! Recibirás un email de confirmación.');
-        }
-      }, 100);
 
     } catch (error) {
       console.error('❌ Cash on delivery process failed:', error);
@@ -1449,7 +1515,6 @@ const PaymentStep = ({
   };
 
   const handlePayment = () => {
-    // ✅ FIX: Cambiar 'card' por 'online_card'
     if (paymentMethod === 'online_card') {
       handleStripePayment();
     } else {
@@ -1469,10 +1534,9 @@ const PaymentStep = ({
         <div className="space-y-4">
           
           <button
-            // ✅ FIX: Cambiar 'card' por 'online_card'
             onClick={() => setPaymentMethod('online_card')}
             className={`w-full p-4 border rounded-lg text-left transition-colors ${
-              paymentMethod === 'online_card' // ✅ FIX: Cambiar comparación
+              paymentMethod === 'online_card'
                 ? 'border-primary-500 bg-primary-50'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
@@ -1528,7 +1592,6 @@ const PaymentStep = ({
         </div>
       </div>
 
-      {/* ✅ FIX: Cambiar 'card' por 'online_card' en la condición */}
       {paymentMethod === 'online_card' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4">
@@ -1598,9 +1661,12 @@ const PaymentStep = ({
                     <>
                       <li>• Prepararemos tu pedido en 2-4 horas</li>
                       <li>• Te notificaremos cuando esté listo</li>
-                      <li>• Vienes a recoger y pagas en ese momento</li>
+                      <li>• Vienes a {gymConfig.name || 'nuestra tienda'} y pagas en ese momento</li>
                       <li>• Aceptamos efectivo y tarjetas</li>
                       <li>• Sin costos adicionales de envío</li>
+                      {gymConfig.contact.address && (
+                        <li>• Ubicación: {gymConfig.contact.address}</li>
+                      )}
                     </>
                   ) : (
                     <>
@@ -1635,7 +1701,6 @@ const PaymentStep = ({
       <div className="bg-white rounded-lg shadow-sm p-6">
         <button
           onClick={handlePayment}
-          // ✅ FIX: Cambiar 'card' por 'online_card' en la condición
           disabled={isProcessing || (paymentMethod === 'online_card' && (!stripe || !elements))}
           className="w-full bg-primary-600 text-white py-4 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
         >
@@ -1648,7 +1713,6 @@ const PaymentStep = ({
             <>
               <Lock className="w-5 h-5" />
               <span>
-                {/* ✅ FIX: Cambiar 'card' por 'online_card' en la condición */}
                 {paymentMethod === 'online_card' 
                   ? `Pagar ${((summary?.subtotal || 0) + shippingCost)?.toFixed(2)} GTQ`
                   : 'Confirmar pedido'
@@ -1667,18 +1731,15 @@ const PaymentStep = ({
   );
 };
 
-// COMPONENTE: Paso 3 - Confirmación (MEJORADO con mejor feedback)
-const ConfirmationStep = ({ order, customerInfo }) => {
+// ✅ CORREGIDO: Paso 3 - Confirmación con datos del backend
+const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   const navigate = useNavigate();
 
-  // ✅ DEBUG: Verificar que la orden llegue correctamente
   console.log('🎊 ConfirmationStep renderizado con orden:', order);
   console.log('📧 Customer info:', customerInfo);
 
-  // ✅ EFECTO: Mostrar mensaje de éxito cuando se monta el componente
   useEffect(() => {
     console.log('🎉 ConfirmationStep montado - mostrando mensaje de éxito');
-    // Timeout para asegurar que la página se renderice antes del mensaje
     setTimeout(() => {
       console.log('✅ Mostrando alerta de éxito...');
       alert('🎉 ¡Compra realizada exitosamente!\n\n' + 
@@ -1727,10 +1788,24 @@ const ConfirmationStep = ({ order, customerInfo }) => {
               <div className="flex justify-between">
                 <span className="text-gray-600">Método de pago:</span>
                 <span className="font-medium">
-                  {/* ✅ FIX: Mostrar texto correcto según el método */}
                   {order?.paymentMethod === 'online_card' ? 'Tarjeta de crédito' : 'Pago contra entrega'}
                 </span>
               </div>
+
+              {/* ✅ MOSTRAR datos del backend si están disponibles */}
+              {gymConfig.name && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Empresa:</span>
+                  <span className="font-medium">{gymConfig.name}</span>
+                </div>
+              )}
+
+              {gymConfig.contact.phone && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Contacto:</span>
+                  <span className="font-medium">{gymConfig.contact.phone}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1744,7 +1819,7 @@ const ConfirmationStep = ({ order, customerInfo }) => {
                 ¡Compra realizada exitosamente!
               </p>
               <p className="text-green-600 text-sm mt-1">
-                Tu pedido está siendo procesado
+                Tu pedido está siendo procesado por {gymConfig.name || 'nuestro equipo'}
               </p>
             </div>
           </div>
@@ -1778,13 +1853,18 @@ const ConfirmationStep = ({ order, customerInfo }) => {
           <p className="mt-2">
             También recibirás actualizaciones por WhatsApp al teléfono proporcionado
           </p>
+          {gymConfig.contact.email && (
+            <p className="mt-2">
+              Para cualquier consulta: <strong>{gymConfig.contact.email}</strong>
+            </p>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-// COMPONENTE ACTUALIZADO: Resumen del pedido con nuevas opciones
+// ✅ COMPONENTE ACTUALIZADO: Resumen del pedido con opciones dinámicas
 const OrderSummary = ({ 
   items, 
   summary, 
@@ -1795,10 +1875,14 @@ const OrderSummary = ({
   isProcessing,
   errors,
   deliveryMethod,
-  shippingCost
+  shippingCost,
+  deliveryOptions
 }) => {
   const hasErrors = Object.keys(errors).filter(key => errors[key]).length > 0;
   const errorCount = Object.keys(errors).filter(key => errors[key]).length;
+
+  // ✅ Obtener información de la opción de entrega seleccionada
+  const selectedDeliveryOption = deliveryOptions[deliveryMethod];
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
@@ -1844,11 +1928,11 @@ const OrderSummary = ({
         
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">
-            {deliveryMethod && DELIVERY_OPTIONS[deliveryMethod] ? (
+            {selectedDeliveryOption ? (
               <>
-                {DELIVERY_OPTIONS[deliveryMethod].name}:
+                {selectedDeliveryOption.name}:
                 <span className="text-xs block text-gray-500">
-                  {DELIVERY_OPTIONS[deliveryMethod].timeframe}
+                  {selectedDeliveryOption.timeframe}
                 </span>
               </>
             ) : (
@@ -1904,7 +1988,7 @@ const OrderSummary = ({
           <span>Compra 100% segura</span>
         </div>
         
-        {deliveryMethod && (
+        {selectedDeliveryOption && (
           <>
             <div className="flex items-center">
               {deliveryMethod === 'pickup_store' ? (
@@ -1915,11 +1999,11 @@ const OrderSummary = ({
                 <Map className="w-4 h-4 mr-2 text-purple-500" />
               )}
               <span>
-                {DELIVERY_OPTIONS[deliveryMethod]?.description || 'Método seleccionado'}
+                {selectedDeliveryOption.description}
               </span>
             </div>
             
-            {DELIVERY_OPTIONS[deliveryMethod]?.cost > 0 && shippingCost === 0 && (
+            {selectedDeliveryOption.cost > 0 && shippingCost === 0 && (
               <div className="flex items-center">
                 <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
                 <span>¡Envío gratis aplicado!</span>
@@ -1933,7 +2017,6 @@ const OrderSummary = ({
           <span>Garantía de satisfacción</span>
         </div>
         
-        {/* ✅ NUEVO: Indicador de email automático */}
         <div className="flex items-center">
           <Mail className="w-4 h-4 mr-2 text-blue-500" />
           <span>Email de confirmación automático</span>
