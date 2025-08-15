@@ -1,710 +1,412 @@
-📚 Manual de API - Elite Fitness Club
-Guía completa para desarrolladores Frontend
+# Elite Fitness Club - Documentación Completa de API
 
-🔗 URL Base
-http://localhost:5000/api
+## 📋 Información General
 
-☁️ CLOUDINARY - ARCHIVOS
-📋 PROCESO:
+### URL Base
+```
+Desarrollo: http://localhost:3001/api
+Producción: https://your-domain.com/api
+```
 
-Frontend envía archivo al backend
-Backend sube automáticamente a Cloudinary
-Backend guarda URL en Base de Datos
-Backend devuelve URL de Cloudinary al frontend
-Frontend usa las URLs como considere mejor
+### Versión API
+- **Versión:** 2.2.0
+- **Última actualización:** 2024
 
-📁 FORMATOS SOPORTADOS:
-
-Imágenes: JPG, JPEG, PNG, WebP, SVG (logos)
-Videos: MP4, WebM, MOV, AVI
-Límites: 3MB (logos), 5-10MB (imágenes), 100MB (videos)
-
-
-🔐 AUTENTICACIÓN
-Login
-httpPOST http://localhost:5000/api/auth/login
-Content-Type: application/json
-
+### Headers Requeridos
+```javascript
+// Para todas las peticiones
 {
-  "email": "admin@gym.com",
-  "password": "admin123"
+  "Content-Type": "application/json",
+  "Accept": "application/json"
 }
-Respuesta:
-json{
+
+// Para rutas autenticadas
+{
+  "Content-Type": "application/json",
+  "Accept": "application/json",
+  "Authorization": "Bearer YOUR_JWT_TOKEN"
+}
+
+// Para uploads de archivos
+{
+  "Content-Type": "multipart/form-data",
+  "Authorization": "Bearer YOUR_JWT_TOKEN"
+}
+```
+
+---
+
+## 🔐 Sistema de Autenticación
+
+### Roles de Usuario
+- **admin**: Acceso completo al sistema
+- **colaborador**: Gestión limitada (clientes, pagos del día)
+- **cliente**: Acceso a sus propios datos
+
+### Obtener JWT Token
+
+#### Login con credenciales
+```javascript
+POST /auth/login
+{
+  "email": "usuario@ejemplo.com",
+  "password": "contraseña123"
+}
+
+// Respuesta exitosa
+{
   "success": true,
   "message": "Inicio de sesión exitoso",
   "data": {
     "user": {
       "id": 1,
-      "email": "admin@gym.com",
-      "role": "admin",
-      "firstName": "Admin",
-      "lastName": "Elite",
-      "profileImage": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/profile-images/admin-1.jpg"
+      "firstName": "Juan",
+      "lastName": "Pérez",
+      "email": "usuario@ejemplo.com",
+      "role": "cliente",
+      "isActive": true,
+      "profileImage": ""
     },
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "refresh_token_here"
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
 }
-Registro
-httpPOST http://localhost:5000/api/auth/register
-Content-Type: application/json
+```
 
+#### Google OAuth
+```javascript
+// Redirigir a:
+GET /auth/google
+
+// Callback (automático):
+GET /auth/google/callback
+
+// El sistema redirige con tokens en la URL:
+// https://frontend.com/auth/google-success?token=JWT&refresh=REFRESH&role=cliente&userId=1&name=Juan+Pérez
+```
+
+#### Verificar token válido
+```javascript
+GET /auth/verify
+Authorization: Bearer YOUR_TOKEN
+
+// Respuesta
 {
-  "firstName": "Juan",
-  "lastName": "Pérez",
-  "email": "usuario@gym.com",
-  "password": "password123",
-  "phone": "+502 5555-5555",
-  "role": "cliente"
+  "success": true,
+  "message": "Token válido",
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "usuario@ejemplo.com", 
+      "role": "cliente",
+      "name": "Juan Pérez"
+    },
+    "isAuthenticated": true
+  }
 }
-Obtener Perfil
-httpGET http://localhost:5000/api/auth/profile
-Authorization: Bearer {token}
-Respuesta:
-json{
+```
+
+#### Refresh Token
+```javascript
+POST /auth/refresh-token
+{
+  "refreshToken": "REFRESH_TOKEN_HERE"
+}
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "token": "NEW_JWT_TOKEN",
+    "refreshToken": "NEW_REFRESH_TOKEN"
+  }
+}
+```
+
+---
+
+## 👤 Gestión de Perfil (Clientes)
+
+### Obtener mi perfil
+```javascript
+GET /auth/profile
+Authorization: Bearer TOKEN
+
+// Respuesta
+{
   "success": true,
   "data": {
     "user": {
       "id": 1,
       "firstName": "Juan",
       "lastName": "Pérez",
-      "email": "juan@gym.com",
-      "phone": "+502 5555-5555",
+      "email": "usuario@ejemplo.com",
+      "phone": "12345678",
+      "whatsapp": "12345678",
       "role": "cliente",
-      "profileImage": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/profile-images/user-1.jpg",
-      "dateOfBirth": "1990-05-15",
-      "isActive": true
+      "profileImage": "",
+      "dateOfBirth": "1990-01-01",
+      "emergencyContact": "87654321",
+      "notificationPreferences": {
+        "email": true,
+        "whatsapp": true
+      }
     }
   }
 }
-Actualizar Perfil
-httpPATCH http://localhost:5000/api/auth/profile
-Authorization: Bearer {token}
-Content-Type: application/json
+```
 
+### Actualizar mi perfil
+```javascript
+PATCH /auth/profile
+Authorization: Bearer TOKEN
 {
   "firstName": "Juan Carlos",
   "lastName": "Pérez García",
-  "phone": "+502 5555-5556",
-  "dateOfBirth": "1990-05-15",
-  "emergencyContact": {
-    "name": "María Pérez",
-    "phone": "+502 5555-5557"
+  "phone": "87654321",
+  "whatsapp": "87654321",
+  "dateOfBirth": "1990-01-01",
+  "emergencyContact": "12345678",
+  "notificationPreferences": {
+    "email": true,
+    "whatsapp": false
   }
 }
-Subir Imagen de Perfil
-httpPOST http://localhost:5000/api/auth/profile/image
-Authorization: Bearer {token}
+```
+
+### Subir imagen de perfil
+```javascript
+POST /auth/profile/image
+Authorization: Bearer TOKEN
 Content-Type: multipart/form-data
 
-FormData: {
-  image: [archivo_imagen]
-}
-Respuesta:
-json{
+FormData:
+- image: File (JPG, PNG, WebP, máximo 5MB)
+
+// Respuesta
+{
   "success": true,
   "message": "Imagen de perfil actualizada exitosamente",
   "data": {
-    "profileImage": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/profile-images/user-1.jpg",
-    "publicId": "gym/profile-images/user-1",
+    "profileImage": "https://cloudinary.com/...",
     "user": {
       "id": 1,
       "firstName": "Juan",
       "lastName": "Pérez",
-      "email": "juan@gym.com",
-      "profileImage": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/profile-images/user-1.jpg"
+      "email": "usuario@ejemplo.com",
+      "profileImage": "https://cloudinary.com/..."
     }
   }
 }
-Verificar Token
-httpGET http://localhost:5000/api/auth/verify
-Authorization: Bearer {token}
-Refresh Token
-httpPOST http://localhost:5000/api/auth/refresh-token
-Content-Type: application/json
+```
 
+### Cambiar contraseña
+```javascript
+PATCH /auth/change-password
+Authorization: Bearer TOKEN
 {
-  "refreshToken": "refresh_token_here"
+  "currentPassword": "contraseña_actual",
+  "newPassword": "nueva_contraseña"
 }
+```
 
-👥 GESTIÓN DE USUARIOS
-Listar Usuarios (Staff/Admin)
-httpGET http://localhost:5000/api/users?page=1&limit=20&role=cliente&search=juan&isActive=true
-Authorization: Bearer {token}
-Respuesta:
-json{
+---
+
+## 🎫 Mis Datos (Endpoints para Clientes)
+
+### Mis Membresías
+```javascript
+GET /auth/my-memberships
+Authorization: Bearer TOKEN
+
+// Respuesta
+{
   "success": true,
   "data": {
-    "users": [
+    "memberships": [
       {
         "id": 1,
-        "firstName": "Juan",
-        "lastName": "Pérez",
-        "email": "juan@gym.com",
-        "phone": "+502 5555-5555",
-        "role": "cliente",
-        "profileImage": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/profile-images/user-1.jpg",
-        "isActive": true,
-        "createdAt": "2025-01-01T00:00:00.000Z",
-        "memberships": []
+        "type": "premium",
+        "status": "active",
+        "price": 250.00,
+        "startDate": "2024-01-01",
+        "endDate": "2024-02-01",
+        "autoRenew": true,
+        "registeredByUser": {
+          "id": 2,
+          "firstName": "Admin",
+          "lastName": "Gym"
+        }
+      }
+    ],
+    "pagination": { "total": 1 }
+  }
+}
+```
+
+### Mis Pagos
+```javascript
+GET /auth/my-payments?limit=10&page=1
+Authorization: Bearer TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "payments": [
+      {
+        "id": 1,
+        "amount": 250.00,
+        "paymentMethod": "cash",
+        "paymentType": "membership",
+        "status": "completed",
+        "paymentDate": "2024-01-15T10:30:00Z",
+        "description": "Pago de membresía premium",
+        "membership": {
+          "id": 1,
+          "type": "premium",
+          "endDate": "2024-02-01"
+        },
+        "registeredByUser": {
+          "id": 2,
+          "firstName": "Admin",
+          "lastName": "Gym"
+        }
       }
     ],
     "pagination": {
-      "total": 145,
+      "total": 15,
       "page": 1,
-      "pages": 8,
-      "limit": 20
+      "pages": 2,
+      "limit": 10
     }
   }
 }
-Crear Usuario (Staff/Admin)
-httpPOST http://localhost:5000/api/users
-Authorization: Bearer {token}
-Content-Type: application/json
+```
 
+### Mi Carrito
+```javascript
+GET /auth/my-cart
+Authorization: Bearer TOKEN
+
+// Respuesta
 {
-  "firstName": "María",
-  "lastName": "González",
-  "email": "maria@example.com",
-  "password": "password123",
-  "phone": "+502 5555-5558",
-  "role": "cliente",
-  "dateOfBirth": "1985-03-20"
-}
-Obtener Usuario por ID
-httpGET http://localhost:5000/api/users/{id}
-Authorization: Bearer {token}
-Actualizar Usuario
-httpPATCH http://localhost:5000/api/users/{id}
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "firstName": "María José",
-  "role": "colaborador",
-  "isActive": true
-}
-Buscar Usuarios
-httpGET http://localhost:5000/api/users/search?q=maria&role=cliente
-Authorization: Bearer {token}
-Estadísticas de Usuarios (Admin)
-httpGET http://localhost:5000/api/users/stats
-Authorization: Bearer {token}
-Clientes Frecuentes
-httpGET http://localhost:5000/api/users/frequent-daily-clients?days=30&minVisits=10
-Authorization: Bearer {token}
-
-💳 MEMBRESÍAS
-Listar Membresías
-httpGET http://localhost:5000/api/memberships?status=active&page=1&limit=20&search=juan
-Authorization: Bearer {token}
-Crear Membresía
-httpPOST http://localhost:5000/api/memberships
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "userId": 1,
-  "type": "monthly",
-  "price": 250.00,
-  "startDate": "2025-01-01",
-  "endDate": "2025-02-01",
-  "preferredSchedule": {
-    "monday": "06:00-08:00",
-    "wednesday": "18:00-20:00",
-    "friday": "06:00-08:00"
-  },
-  "notes": "Cliente prefiere horarios matutinos",
-  "autoRenew": false
-}
-Obtener Membresía por ID
-httpGET http://localhost:5000/api/memberships/{id}
-Authorization: Bearer {token}
-Actualizar Membresía
-httpPATCH http://localhost:5000/api/memberships/{id}
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "type": "quarterly",
-  "price": 600.00,
-  "endDate": "2025-04-01",
-  "status": "active",
-  "notes": "Actualizado a plan trimestral"
-}
-Renovar Membresía
-httpPOST http://localhost:5000/api/memberships/{id}/renew
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "months": 3,
-  "price": 200.00
-}
-Cancelar Membresía
-httpPOST http://localhost:5000/api/memberships/{id}/cancel
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "reason": "Cliente se muda de ciudad"
-}
-Membresías Vencidas
-httpGET http://localhost:5000/api/memberships/expired?days=0
-Authorization: Bearer {token}
-Membresías Próximas a Vencer
-httpGET http://localhost:5000/api/memberships/expiring-soon?days=7
-Authorization: Bearer {token}
-Planes de Membresía (Público)
-httpGET http://localhost:5000/api/memberships/plans
-Estadísticas de Membresías
-httpGET http://localhost:5000/api/memberships/stats
-Authorization: Bearer {token}
-
-💰 PAGOS
-Listar Pagos
-httpGET http://localhost:5000/api/payments?paymentType=membership&status=completed&page=1&limit=20&startDate=2025-01-01&endDate=2025-01-31
-Authorization: Bearer {token}
-Crear Pago
-httpPOST http://localhost:5000/api/payments
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "userId": 1,
-  "membershipId": 5,
-  "amount": 250.00,
-  "paymentMethod": "cash",
-  "paymentType": "membership",
-  "description": "Pago de membresía mensual",
-  "notes": "Pago en efectivo recibido en recepción",
-  "paymentDate": "2025-01-15T10:30:00.000Z"
-}
-Pago Diario
-httpPOST http://localhost:5000/api/payments
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "userId": 1,
-  "amount": 25.00,
-  "paymentMethod": "cash",
-  "paymentType": "daily",
-  "description": "Pago diario",
-  "dailyPaymentCount": 1
-}
-Pago Múltiple (Bulk Daily)
-httpPOST http://localhost:5000/api/payments
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "userId": 1,
-  "amount": 125.00,
-  "paymentMethod": "cash",
-  "paymentType": "bulk_daily",
-  "description": "Pago por 5 días",
-  "dailyPaymentCount": 5
-}
-Pago Anónimo (Sin usuario registrado)
-httpPOST http://localhost:5000/api/payments
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "amount": 25.00,
-  "paymentMethod": "cash",
-  "paymentType": "daily",
-  "description": "Pago diario - cliente no registrado",
-  "anonymousClientInfo": {
-    "name": "Carlos González",
-    "phone": "+502 5555-5559"
-  }
-}
-Obtener Pago por ID
-httpGET http://localhost:5000/api/payments/{id}
-Authorization: Bearer {token}
-Subir Comprobante de Transferencia
-httpPOST http://localhost:5000/api/payments/{id}/transfer-proof
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
-
-FormData: {
-  proof: [archivo_imagen]
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Comprobante subido exitosamente. Pendiente de validación.",
-  "data": {
-    "transferProof": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/transfer-proofs/proof-123.jpg"
-  }
-}
-Validar Transferencia (Admin)
-httpPOST http://localhost:5000/api/payments/{id}/validate-transfer
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "approved": true,
-  "notes": "Transferencia validada correctamente"
-}
-Transferencias Pendientes
-httpGET http://localhost:5000/api/payments/transfers/pending
-Authorization: Bearer {token}
-Reportes de Pagos Mejorados (Admin)
-httpGET http://localhost:5000/api/payments/reports/enhanced?period=month&startDate=2025-01-01&endDate=2025-01-31
-Authorization: Bearer {token}
-Respuesta:
-json{
-  "success": true,
-  "data": {
-    "totalIncome": 25750.50,
-    "incomeBySource": [
-      {
-        "source": "Membresías",
-        "total": 15000.00,
-        "count": 60,
-        "percentage": "58.3"
-      },
-      {
-        "source": "Productos",
-        "total": 8500.50,
-        "count": 45,
-        "percentage": "33.0"
-      },
-      {
-        "source": "Pagos Diarios",
-        "total": 2250.00,
-        "count": 90,
-        "percentage": "8.7"
-      }
-    ],
-    "paymentMethodStats": [
-      {
-        "method": "cash",
-        "total": 18000.00,
-        "count": 120
-      },
-      {
-        "method": "card",
-        "total": 5500.50,
-        "count": 35
-      },
-      {
-        "method": "transfer",
-        "total": 2250.00,
-        "count": 40
-      }
-    ],
-    "dailyTrend": [
-      {
-        "date": "2025-01-01",
-        "memberships": 500,
-        "daily": 150,
-        "products": 200,
-        "other": 0,
-        "total": 850
-      }
-    ],
-    "topProducts": [
-      {
-        "id": 1,
-        "name": "Proteína Whey Premium",
-        "totalSold": 25,
-        "totalRevenue": 8750.00
-      }
-    ]
-  }
-}
-Crear Pago desde Orden de Tienda
-httpPOST http://localhost:5000/api/payments/from-order
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "orderId": 1
-}
-
-🛍️ TIENDA
-Productos (Público)
-httpGET http://localhost:5000/api/store/products?category=1&brand=2&search=proteina&minPrice=100&maxPrice=500&featured=true&page=1&limit=20&sortBy=price&sortOrder=ASC
-Respuesta:
-json{
-  "success": true,
-  "data": {
-    "products": [
-      {
-        "id": 1,
-        "name": "Proteína Whey Premium",
-        "description": "Proteína de suero de alta calidad",
-        "price": 350.00,
-        "originalPrice": 400.00,
-        "sku": "PROT-WHY-001",
-        "stockQuantity": 25,
-        "minStock": 5,
-        "isFeatured": true,
-        "isActive": true,
-        "category": {
-          "id": 1,
-          "name": "Suplementos",
-          "slug": "suplementos"
-        },
-        "brand": {
-          "id": 1,
-          "name": "Elite Nutrition"
-        },
-        "images": [
-          {
-            "id": 1,
-            "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/products/producto-1-principal.jpg",
-            "altText": "Proteína Whey Premium",
-            "isPrimary": true,
-            "displayOrder": 1
-          }
-        ],
-        "discountPercentage": 12.5,
-        "inStock": true,
-        "lowStock": false
-      }
-    ],
-    "pagination": {
-      "total": 45,
-      "page": 1,
-      "pages": 3,
-      "limit": 20
-    }
-  }
-}
-Productos Destacados
-httpGET http://localhost:5000/api/store/featured-products?limit=8
-Producto por ID
-httpGET http://localhost:5000/api/store/products/{id}
-Categorías
-httpGET http://localhost:5000/api/store/categories
-Respuesta:
-json{
-  "success": true,
-  "data": {
-    "categories": [
-      {
-        "id": 1,
-        "name": "Suplementos",
-        "slug": "suplementos",
-        "description": "Suplementos nutricionales",
-        "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/categories/suplementos.jpg",
-        "isActive": true,
-        "displayOrder": 1,
-        "productsCount": 25
-      }
-    ]
-  }
-}
-Marcas
-httpGET http://localhost:5000/api/store/brands
-CARRITO
-Ver Carrito
-httpGET http://localhost:5000/api/store/cart?sessionId=guest_12345
-Authorization: Bearer {token} (opcional)
-Respuesta:
-json{
   "success": true,
   "data": {
     "cartItems": [
       {
         "id": 1,
-        "productId": 1,
         "quantity": 2,
-        "unitPrice": 350.00,
-        "selectedVariants": {
-          "flavor": "chocolate",
-          "size": "2kg"
-        },
+        "unitPrice": 150.00,
         "product": {
           "id": 1,
-          "name": "Proteína Whey Premium",
-          "images": [
-            {
-              "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/products/producto-1-principal.jpg",
-              "altText": "Proteína Whey Premium",
-              "isPrimary": true
-            }
-          ]
+          "name": "Proteína Whey",
+          "price": 150.00,
+          "images": [...]
         }
       }
     ],
     "summary": {
       "itemsCount": 1,
-      "subtotal": 700.00,
-      "taxAmount": 84.00,
-      "shippingAmount": 0.00,
-      "totalAmount": 784.00
+      "subtotal": 300.00,
+      "taxAmount": 36.00,
+      "shippingAmount": 0,
+      "totalAmount": 336.00
     }
   }
 }
-Agregar al Carrito
-httpPOST http://localhost:5000/api/store/cart
-Authorization: Bearer {token} (opcional)
-Content-Type: application/json
+```
 
-{
-  "productId": 1,
-  "quantity": 2,
-  "selectedVariants": {
-    "flavor": "chocolate",
-    "size": "2kg"
-  },
-  "sessionId": "guest_12345"
-}
-Actualizar Carrito
-httpPUT http://localhost:5000/api/store/cart/{cartItemId}?sessionId=guest_12345
-Authorization: Bearer {token} (opcional)
-Content-Type: application/json
+### Mis Órdenes
+```javascript
+GET /auth/my-orders?limit=10&page=1
+Authorization: Bearer TOKEN
 
+// Respuesta
 {
-  "quantity": 3
-}
-Eliminar del Carrito
-httpDELETE http://localhost:5000/api/store/cart/{cartItemId}?sessionId=guest_12345
-Authorization: Bearer {token} (opcional)
-ÓRDENES
-Crear Orden (Checkout)
-httpPOST http://localhost:5000/api/store/orders
-Authorization: Bearer {token} (opcional)
-Content-Type: application/json
-
-{
-  "sessionId": "guest_12345",
-  "customerInfo": {
-    "name": "Juan Pérez",
-    "email": "juan@example.com",
-    "phone": "+502 5555-5555"
-  },
-  "shippingAddress": {
-    "street": "5ta Avenida 12-34",
-    "city": "Guatemala",
-    "state": "Guatemala",
-    "zipCode": "01001",
-    "reference": "Casa blanca con portón negro"
-  },
-  "paymentMethod": "cash_on_delivery",
-  "deliveryTimeSlot": "morning",
-  "notes": "Entregar en horario de oficina"
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Orden creada exitosamente",
-  "data": {
-    "order": {
-      "id": 1,
-      "orderNumber": "ORD-2025-001",
-      "userId": null,
-      "subtotal": 700.00,
-      "taxAmount": 84.00,
-      "shippingAmount": 0.00,
-      "totalAmount": 784.00,
-      "paymentMethod": "cash_on_delivery",
-      "paymentStatus": "pending",
-      "status": "pending",
-      "customerInfo": {
-        "name": "Juan Pérez",
-        "email": "juan@example.com",
-        "phone": "+502 5555-5555"
-      },
-      "shippingAddress": {
-        "street": "5ta Avenida 12-34",
-        "city": "Guatemala",
-        "state": "Guatemala",
-        "zipCode": "01001"
-      },
-      "items": [
-        {
-          "id": 1,
-          "productId": 1,
-          "productName": "Proteína Whey Premium",
-          "quantity": 2,
-          "unitPrice": 350.00,
-          "totalPrice": 700.00
-        }
-      ],
-      "createdAt": "2025-01-15T10:30:00.000Z"
-    }
-  }
-}
-Mis Órdenes (Usuario logueado)
-httpGET http://localhost:5000/api/store/my-orders?page=1&limit=10
-Authorization: Bearer {token}
-Ver Orden por ID
-httpGET http://localhost:5000/api/store/orders/{id}
-Authorization: Bearer {token} (opcional)
-ADMINISTRACIÓN DE TIENDA (Staff)
-Todas las Órdenes
-httpGET http://localhost:5000/api/store/admin/orders?status=pending&page=1&limit=20
-Authorization: Bearer {token}
-Actualizar Estado de Orden
-httpPUT http://localhost:5000/api/store/admin/orders/{id}
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "status": "delivered",
-  "notes": "Entregado exitosamente al cliente",
-  "trackingNumber": "TRACK123"
-}
-Estados disponibles: pending, confirmed, preparing, shipped, delivered, cancelled
-Dashboard de Tienda
-httpGET http://localhost:5000/api/store/admin/dashboard
-Authorization: Bearer {token}
-Respuesta:
-json{
   "success": true,
   "data": {
-    "ordersToday": 5,
-    "revenueToday": 1250.50,
-    "pendingOrders": 12,
-    "lowStockProducts": 3,
-    "recentOrders": [
+    "orders": [
       {
         "id": 1,
-        "orderNumber": "ORD-2025-001",
-        "totalAmount": 784.00,
-        "status": "pending",
-        "user": {
-          "firstName": "Juan",
-          "lastName": "Pérez"
-        },
-        "createdAt": "2025-01-15T10:30:00.000Z"
+        "orderNumber": "ORD-2024-001",
+        "status": "delivered",
+        "paymentStatus": "paid",
+        "subtotal": 300.00,
+        "totalAmount": 336.00,
+        "createdAt": "2024-01-15T10:00:00Z",
+        "deliveryDate": "2024-01-17T15:30:00Z",
+        "items": [
+          {
+            "id": 1,
+            "productName": "Proteína Whey",
+            "quantity": 2,
+            "unitPrice": 150.00,
+            "totalPrice": 300.00
+          }
+        ]
+      }
+    ],
+    "pagination": {
+      "total": 5,
+      "page": 1,
+      "pages": 1,
+      "limit": 10
+    }
+  }
+}
+```
+
+### Mi Horario
+```javascript
+GET /auth/my-schedule
+Authorization: Bearer TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "schedules": [
+      {
+        "id": 1,
+        "dayOfWeek": "monday",
+        "preferredStartTime": "06:00",
+        "preferredEndTime": "08:00",
+        "workoutType": "cardio",
+        "priority": 5,
+        "isActive": true
       }
     ]
   }
 }
-Reporte de Ventas
-httpGET http://localhost:5000/api/store/admin/sales-report?startDate=2025-01-01&endDate=2025-01-31&groupBy=day
-Authorization: Bearer {token}
+```
 
-🏢 CONFIGURACIÓN DEL GYM
-Información General (Público)
-httpGET http://localhost:5000/api/gym/config
-Respuesta:
-json{
+---
+
+## 🏢 Información del Gimnasio (Público)
+
+### Configuración Principal
+```javascript
+GET /gym/config
+
+// Respuesta
+{
   "success": true,
   "data": {
     "name": "Elite Fitness Club",
     "description": "El mejor gimnasio de Guatemala",
     "tagline": "Transforma tu cuerpo, eleva tu mente",
     "logo": {
-      "url": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/logos/logo-principal.jpg",
+      "url": "https://cloudinary.com/...",
       "alt": "Elite Fitness Club Logo",
       "width": 200,
       "height": 80
     },
     "contact": {
-      "address": "5ta Avenida 12-34, Zona 10, Guatemala",
-      "phone": "+502 2345-6789",
+      "address": "Zona 10, Guatemala City",
+      "phone": "2234-5678",
       "email": "info@elitefitness.com",
-      "whatsapp": "+502 5555-5555"
+      "whatsapp": "50512345678"
     },
     "hours": {
       "full": "Lun-Vie 5:00-22:00, Sáb-Dom 6:00-20:00",
@@ -712,24 +414,11 @@ json{
       "weekends": "6:00-20:00"
     },
     "social": {
-      "instagram": {
-        "url": "https://instagram.com/elitefitness",
-        "handle": "@elitefitness",
-        "active": true
-      },
-      "facebook": {
-        "url": "https://facebook.com/elitefitness",
-        "handle": "Elite Fitness Club",
-        "active": true
-      },
-      "whatsapp": {
-        "url": "https://wa.me/50255555555",
-        "handle": "WhatsApp",
-        "active": true
-      }
+      "instagram": { "url": "https://instagram.com/elite", "active": true },
+      "facebook": { "url": "https://facebook.com/elite", "active": true }
     },
     "hero": {
-      "title": "Bienvenido a Elite Fitness Club",
+      "title": "Elite Fitness Club",
       "description": "Transforma tu cuerpo, eleva tu mente",
       "ctaText": "Comienza Hoy",
       "ctaButtons": [
@@ -738,16 +427,10 @@ json{
           "type": "primary",
           "action": "register",
           "icon": "gift"
-        },
-        {
-          "text": "Ver Tienda",
-          "type": "secondary",
-          "action": "store",
-          "icon": "shopping-cart"
         }
       ],
-      "videoUrl": "https://res.cloudinary.com/tu-cloud/video/upload/v123/gym/hero-videos/video-hero.mp4",
-      "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/hero-images/hero-bg.jpg",
+      "videoUrl": "https://cloudinary.com/video.mp4",
+      "imageUrl": "https://cloudinary.com/hero.jpg",
       "hasVideo": true,
       "hasImage": true,
       "videoConfig": {
@@ -755,7 +438,7 @@ json{
         "muted": true,
         "loop": true,
         "controls": true,
-        "posterUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/hero-images/hero-bg.jpg"
+        "posterUrl": "https://cloudinary.com/hero.jpg"
       }
     },
     "multimedia": {
@@ -767,56 +450,67 @@ json{
     }
   }
 }
-Servicios (Público)
-httpGET http://localhost:5000/api/gym/services
-Respuesta:
-json{
+```
+
+### Servicios
+```javascript
+GET /gym/services
+
+// Respuesta
+{
   "success": true,
   "data": [
     {
       "id": 1,
       "title": "Entrenamiento Personalizado",
-      "description": "Sesiones individuales con entrenadores certificados",
-      "icon": "User",
-      "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/services/entrenamiento-personalizado.jpg",
+      "description": "Rutinas diseñadas específicamente para ti",
+      "icon": "user",
+      "imageUrl": "https://cloudinary.com/...",
       "features": [
-        "Plan personalizado según tus objetivos",
-        "Seguimiento constante del progreso",
-        "Ajustes nutricionales incluidos"
+        "Evaluación inicial completa",
+        "Plan de entrenamiento personalizado",
+        "Seguimiento semanal"
       ],
       "active": true,
       "order": 1
     }
   ]
 }
-Testimonios (Público)
-httpGET http://localhost:5000/api/gym/testimonials
-Respuesta:
-json{
+```
+
+### Testimonios
+```javascript
+GET /gym/testimonials
+
+// Respuesta
+{
   "success": true,
   "data": [
     {
       "id": 1,
       "name": "María González",
       "role": "Empresaria",
-      "text": "Elite Fitness cambió mi vida completamente. Los entrenadores son excepcionales.",
+      "text": "Elite Fitness cambió mi vida completamente...",
       "rating": 5,
       "image": {
-        "url": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/testimonials/maria-gonzalez.jpg",
-        "alt": "María González",
-        "cloudinaryPublicId": "gym/testimonials/maria-gonzalez"
+        "url": "https://cloudinary.com/...",
+        "alt": "María González"
       },
       "verified": true,
-      "date": "2025-01-10",
+      "date": "2024-01-15",
       "active": true
     }
   ],
-  "total": 15
+  "total": 10
 }
-Estadísticas (Público)
-httpGET http://localhost:5000/api/gym/stats
-Respuesta:
-json{
+```
+
+### Estadísticas
+```javascript
+GET /gym/stats
+
+// Respuesta
+{
   "success": true,
   "data": {
     "members": 500,
@@ -824,23 +518,17 @@ json{
     "experience": 10,
     "satisfaction": 98,
     "facilities": 50,
-    "customStats": [
-      {
-        "label": "Equipos Modernos",
-        "value": 200,
-        "icon": "Trophy"
-      }
-    ]
+    "customStats": []
   }
 }
-Información de Contacto
-httpGET http://localhost:5000/api/gym/contact
-Horarios
-httpGET http://localhost:5000/api/gym/hours
-Planes de Membresía (Público)
-httpGET http://localhost:5000/api/gym/membership-plans
-Respuesta:
-json{
+```
+
+### Planes de Membresía
+```javascript
+GET /gym/membership-plans
+
+// Respuesta
+{
   "success": true,
   "data": [
     {
@@ -855,13 +543,11 @@ json{
       "color": "#3b82f6",
       "features": [
         "Acceso al gimnasio",
-        "Uso de equipos básicos",
-        "Duchas y lockers"
+        "Uso de equipos básicos"
       ],
       "benefits": [
-        {"text": "Acceso al gimnasio", "included": true},
-        {"text": "Uso de equipos básicos", "included": true},
-        {"text": "Clases grupales", "included": false}
+        { "text": "Acceso al gimnasio", "included": true },
+        { "text": "Uso de equipos básicos", "included": true }
       ],
       "active": true,
       "order": 1,
@@ -879,13 +565,13 @@ json{
       "color": "#3b82f6",
       "features": [
         "Todo lo del plan básico",
-        "Clases grupales ilimitadas",
-        "1 sesión de entrenamiento personal"
+        "Clases grupales",
+        "Entrenador personal"
       ],
       "benefits": [
-        {"text": "Todo lo del plan básico", "included": true},
-        {"text": "Clases grupales", "included": true},
-        {"text": "Entrenamiento personal", "included": true}
+        { "text": "Todo lo del plan básico", "included": true },
+        { "text": "Clases grupales", "included": true },
+        { "text": "Entrenador personal", "included": true }
       ],
       "active": true,
       "order": 2,
@@ -893,573 +579,14 @@ json{
     }
   ]
 }
-Información Completa
-httpGET http://localhost:5000/api/gym/info
+```
 
-🎨 MULTIMEDIA - SUBIR ARCHIVOS
-1. Subir Logo del Gym (Admin)
-httpPOST http://localhost:5000/api/gym-media/upload-logo
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
+### Promociones Activas
+```javascript
+GET /promotions/active
 
-FormData: {
-  logo: [archivo_imagen]
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Logo subido y guardado exitosamente",
-  "data": {
-    "logoUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/logos/logo-principal.jpg",
-    "publicId": "gym/logos/logo-principal",
-    "config": {
-      "gymName": "Elite Fitness Club",
-      "logoUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/logos/logo-principal.jpg"
-    }
-  }
-}
-2. Subir Video Hero (Admin)
-httpPOST http://localhost:5000/api/gym-media/upload-hero-video
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
-
-FormData: {
-  video: [archivo_video]
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Video hero subido y guardado exitosamente",
-  "data": {
-    "videoUrl": "https://res.cloudinary.com/tu-cloud/video/upload/v123/gym/hero-videos/video-hero.mp4",
-    "posterUrl": "https://res.cloudinary.com/tu-cloud/video/upload/so_0/v123/gym/hero-videos/video-hero.jpg",
-    "publicId": "gym/hero-videos/video-hero",
-    "videoInfo": {
-      "hasVideo": true,
-      "hasCustomImage": false,
-      "usingPosterAsImage": true,
-      "currentImageUrl": "https://res.cloudinary.com/tu-cloud/video/upload/so_0/v123/gym/hero-videos/video-hero.jpg",
-      "imageType": "poster"
-    },
-    "videoSettings": {
-      "autoplay": false,
-      "muted": true,
-      "loop": true,
-      "controls": true
-    },
-    "frontendData": {
-      "videoUrl": "https://res.cloudinary.com/tu-cloud/video/upload/v123/gym/hero-videos/video-hero.mp4",
-      "imageUrl": "https://res.cloudinary.com/tu-cloud/video/upload/so_0/v123/gym/hero-videos/video-hero.jpg",
-      "hasVideo": true,
-      "hasImage": true,
-      "imageType": "poster"
-    }
-  }
-}
-3. Subir Imagen Hero (Admin)
-httpPOST http://localhost:5000/api/gym-media/upload-hero-image
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
-
-FormData: {
-  image: [archivo_imagen]
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Imagen hero subida y guardada exitosamente",
-  "data": {
-    "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/hero-images/hero-bg.jpg",
-    "publicId": "gym/hero-images/hero-bg",
-    "imageInfo": {
-      "hasImage": true,
-      "hasVideo": true,
-      "isCustomImage": true,
-      "replacedPoster": true,
-      "imageType": "custom"
-    },
-    "frontendData": {
-      "videoUrl": "https://res.cloudinary.com/tu-cloud/video/upload/v123/gym/hero-videos/video-hero.mp4",
-      "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/hero-images/hero-bg.jpg",
-      "hasVideo": true,
-      "hasImage": true,
-      "imageType": "custom"
-    }
-  }
-}
-4. Subir Imagen de Servicio (Admin)
-httpPOST http://localhost:5000/api/gym-media/upload-service-image/{serviceId}
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
-
-FormData: {
-  image: [archivo_imagen]
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Imagen de servicio subida y guardada exitosamente",
-  "data": {
-    "serviceId": 1,
-    "serviceName": "Entrenamiento Personalizado",
-    "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/services/entrenamiento-personalizado.jpg",
-    "publicId": "gym/services/entrenamiento-personalizado"
-  }
-}
-5. Subir Imagen de Testimonio (Admin)
-httpPOST http://localhost:5000/api/gym-media/upload-testimonial-image/{testimonialId}
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
-
-FormData: {
-  image: [archivo_imagen]
-}
-6. Subir Imagen de Producto (Staff)
-httpPOST http://localhost:5000/api/gym-media/upload-product-image/{productId}
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
-
-FormData: {
-  image: [archivo_imagen],
-  isPrimary: true
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Imagen de producto subida y guardada exitosamente",
-  "data": {
-    "productId": 1,
-    "productName": "Proteína Whey Premium",
-    "imageId": 5,
-    "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/products/proteina-whey-premium.jpg",
-    "publicId": "gym/products/proteina-whey-premium",
-    "isPrimary": true,
-    "displayOrder": 1
-  }
-}
-7. Subir Imagen de Perfil de Usuario (Staff)
-httpPOST http://localhost:5000/api/gym-media/upload-user-profile/{userId}
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
-
-FormData: {
-  image: [archivo_imagen]
-}
-8. Información de Archivos Multimedia (Staff)
-httpGET http://localhost:5000/api/gym-media/media-info
-Authorization: Bearer {token}
-Respuesta:
-json{
-  "success": true,
-  "data": {
-    "logo": {
-      "exists": true,
-      "url": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/logos/logo-principal.jpg",
-      "publicId": "gym/logos/logo-principal"
-    },
-    "heroVideo": {
-      "exists": true,
-      "url": "https://res.cloudinary.com/tu-cloud/video/upload/v123/gym/hero-videos/video-hero.mp4",
-      "publicId": "gym/hero-videos/video-hero",
-      "settings": {
-        "autoplay": false,
-        "muted": true,
-        "loop": true,
-        "controls": true
-      }
-    },
-    "heroImage": {
-      "exists": true,
-      "url": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/hero-images/hero-bg.jpg",
-      "publicId": "gym/hero-images/hero-bg"
-    },
-    "services": [
-      {
-        "id": 1,
-        "title": "Entrenamiento Personalizado",
-        "hasImage": true,
-        "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/services/entrenamiento-personalizado.jpg",
-        "publicId": "gym/services/entrenamiento-personalizado"
-      }
-    ],
-    "testimonials": [
-      {
-        "id": 1,
-        "name": "María González",
-        "hasImage": true,
-        "imageUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/testimonials/maria-gonzalez.jpg",
-        "publicId": "gym/testimonials/maria-gonzalez"
-      }
-    ],
-    "summary": {
-      "totalFiles": 15,
-      "hasLogo": true,
-      "hasHeroVideo": true,
-      "hasHeroImage": true,
-      "servicesWithImages": 5,
-      "testimonialsWithImages": 8
-    }
-  }
-}
-9. Eliminar Archivo (Admin)
-httpDELETE http://localhost:5000/api/gym-media/delete/{type}/{id}/{imageId}
-Authorization: Bearer {token}
-Tipos disponibles:
-
-logo - Elimina logo del gym
-hero-video - Elimina video hero
-hero-image - Elimina imagen hero
-service - Elimina imagen de servicio (requiere {id} = serviceId)
-testimonial - Elimina imagen de testimonio (requiere {id} = testimonialId)
-product - Elimina imagen de producto (requiere {imageId})
-user-profile - Elimina imagen de perfil (requiere {id} = userId)
-
-Ejemplos:
-httpDELETE http://localhost:5000/api/gym-media/delete/logo
-DELETE http://localhost:5000/api/gym-media/delete/service/1
-DELETE http://localhost:5000/api/gym-media/delete/product/0/5
-10. Configuración de Video Hero (Admin)
-httpPATCH http://localhost:5000/api/gym-media/hero-video-settings
-Authorization: Bearer {token}
-Content-Type: application/json
-
+// Respuesta
 {
-  "autoplay": false,
-  "muted": true,
-  "loop": true,
-  "controls": true
-}
-11. Estado del Servicio (Público)
-httpGET http://localhost:5000/api/gym-media/status
-Respuesta:
-json{
-  "success": true,
-  "data": {
-    "cloudinaryConfigured": true,
-    "availableUploads": [
-      "logo",
-      "heroVideo", 
-      "heroImage",
-      "serviceImage",
-      "testimonialImage", 
-      "productImage",
-      "profileImage"
-    ],
-    "maxFileSizes": {
-      "logo": "3MB",
-      "heroVideo": "100MB",
-      "heroImage": "10MB",
-      "serviceImage": "5MB",
-      "testimonialImage": "3MB",
-      "productImage": "5MB",
-      "profileImage": "5MB"
-    },
-    "supportedFormats": {
-      "images": ["JPG", "JPEG", "PNG", "WebP"],
-      "videos": ["MP4", "WebM", "MOV", "AVI"],
-      "logos": ["JPG", "JPEG", "PNG", "WebP", "SVG"]
-    }
-  }
-}
-
-📊 DASHBOARD Y REPORTES
-Dashboard Unificado (Staff)
-httpGET http://localhost:5000/api/dashboard/unified
-Authorization: Bearer {token}
-Respuesta:
-json{
-  "success": true,
-  "data": {
-    "today": {
-      "totalIncome": 1250.50,
-      "breakdown": {
-        "memberships": 750.00,
-        "daily": 200.50,
-        "products": 300.00
-      }
-    },
-    "stats": {
-      "totalUsers": 145,
-      "activeMemberships": 89,
-      "ordersToday": 5,
-      "productsLowStock": 3
-    },
-    "monthlyFinancial": {
-      "totalIncome": 35450.75,
-      "totalExpenses": 8200.00,
-      "netProfit": 27250.75
-    },
-    "weeklyTrend": [
-      {
-        "date": "2025-01-01",
-        "memberships": 500,
-        "daily": 150,
-        "products": 200,
-        "other": 0,
-        "total": 850
-      }
-    ]
-  }
-}
-Métricas de Rendimiento (Staff)
-httpGET http://localhost:5000/api/dashboard/metrics?period=month
-Authorization: Bearer {token}
-
-💼 FINANZAS
-Dashboard Financiero (Staff)
-httpGET http://localhost:5000/api/financial/dashboard
-Authorization: Bearer {token}
-Crear Movimiento Financiero (Staff)
-httpPOST http://localhost:5000/api/financial/movements
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "type": "expense",
-  "category": "equipment",
-  "description": "Compra de mancuernas nuevas",
-  "amount": 2500.00,
-  "paymentMethod": "cash",
-  "movementDate": "2025-01-15",
-  "notes": "Equipo para área de pesas libre",
-  "receiptUrl": "https://res.cloudinary.com/tu-cloud/image/upload/v123/gym/receipts/factura-001.jpg"
-}
-Listar Movimientos Financieros (Staff)
-httpGET http://localhost:5000/api/financial/movements?type=income&category=membership_sale&startDate=2025-01-01&endDate=2025-01-31&page=1&limit=20
-Authorization: Bearer {token}
-Reporte Financiero Completo (Admin)
-httpGET http://localhost:5000/api/financial/reports?period=month&startDate=2025-01-01&endDate=2025-01-31
-Authorization: Bearer {token}
-Reporte Ingresos vs Egresos (Admin)
-httpGET http://localhost:5000/api/financial/reports/income-vs-expenses?groupBy=week
-Authorization: Bearer {token}
-
-📅 HORARIOS DE USUARIOS
-Mis Horarios
-httpGET http://localhost:5000/api/schedule/my-schedule
-Authorization: Bearer {token}
-Actualizar Mis Horarios
-httpPUT http://localhost:5000/api/schedule/my-schedule
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "schedules": [
-    {
-      "dayOfWeek": "monday",
-      "preferredStartTime": "06:00",
-      "preferredEndTime": "08:00",
-      "workoutType": "cardio",
-      "priority": 5,
-      "notes": "Cardio matutino"
-    },
-    {
-      "dayOfWeek": "wednesday",
-      "preferredStartTime": "18:00",
-      "preferredEndTime": "20:00",
-      "workoutType": "weights",
-      "priority": 4,
-      "notes": "Entrenamiento de fuerza"
-    }
-  ]
-}
-Agregar Horario Individual
-httpPOST http://localhost:5000/api/schedule/my-schedule
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "dayOfWeek": "friday",
-  "preferredStartTime": "19:00",
-  "preferredEndTime": "21:00",
-  "workoutType": "mixed",
-  "priority": 3,
-  "notes": "Entrenamiento mixto"
-}
-Eliminar Horario
-httpDELETE http://localhost:5000/api/schedule/my-schedule/{scheduleId}
-Authorization: Bearer {token}
-Horarios Populares (Staff)
-httpGET http://localhost:5000/api/schedule/popular-times
-Authorization: Bearer {token}
-Disponibilidad del Gym
-httpGET http://localhost:5000/api/schedule/availability?dayOfWeek=monday&date=2025-01-20
-Authorization: Bearer {token}
-Crear Horarios por Defecto
-httpPOST http://localhost:5000/api/schedule/create-default
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "userId": 1
-}
-
-💳 PAGOS CON STRIPE
-Configuración Pública
-httpGET http://localhost:5000/api/stripe/config
-Respuesta:
-json{
-  "success": true,
-  "data": {
-    "stripe": {
-      "enabled": true,
-      "mode": "test",
-      "currency": "gtq",
-      "publishableKey": "pk_test_...",
-      "country": "GT"
-    },
-    "message": "Stripe habilitado"
-  }
-}
-Crear Payment Intent para Membresía
-httpPOST http://localhost:5000/api/stripe/create-membership-intent
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "membershipId": 1,
-  "membershipType": "monthly",
-  "price": 250.00
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Intención de pago creada exitosamente",
-  "data": {
-    "clientSecret": "pi_1234567890_secret_abcdef",
-    "paymentIntentId": "pi_1234567890",
-    "amount": 25000,
-    "currency": "gtq",
-    "membership": {
-      "type": "monthly",
-      "price": 250.00
-    },
-    "user": {
-      "id": 1,
-      "name": "Juan Pérez",
-      "email": "juan@gym.com"
-    }
-  }
-}
-Crear Payment Intent para Pago Diario
-httpPOST http://localhost:5000/api/stripe/create-daily-intent
-Authorization: Bearer {token} (opcional)
-Content-Type: application/json
-
-{
-  "amount": 25.00,
-  "dailyCount": 1,
-  "clientInfo": {
-    "name": "Juan Pérez",
-    "email": "juan@example.com",
-    "phone": "+502 5555-5555"
-  }
-}
-Crear Payment Intent para Tienda
-httpPOST http://localhost:5000/api/stripe/create-store-intent
-Authorization: Bearer {token} (opcional)
-Content-Type: application/json
-
-{
-  "orderId": 1
-}
-Confirmar Pago Exitoso
-httpPOST http://localhost:5000/api/stripe/confirm-payment
-Authorization: Bearer {token} (opcional)
-Content-Type: application/json
-
-{
-  "paymentIntentId": "pi_1234567890"
-}
-Respuesta:
-json{
-  "success": true,
-  "message": "Pago confirmado y registrado exitosamente",
-  "data": {
-    "payment": {
-      "id": 15,
-      "amount": 250.00,
-      "paymentMethod": "card",
-      "paymentType": "membership",
-      "status": "completed",
-      "cardLast4": "4242",
-      "paymentDate": "2025-01-15T10:30:00.000Z"
-    },
-    "stripe": {
-      "paymentIntentId": "pi_1234567890",
-      "status": "succeeded"
-    }
-  }
-}
-Crear Reembolso (Staff)
-httpPOST http://localhost:5000/api/stripe/refund
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "paymentId": 15,
-  "amount": 125.00,
-  "reason": "Solicitud del cliente"
-}
-Estado del Servicio Stripe
-httpGET http://localhost:5000/api/stripe/status
-
-🧹 ADMINISTRACIÓN AVANZADA
-Información del Sistema (Admin)
-httpGET http://localhost:5000/api/admin/system-info
-Authorization: Bearer {token}
-Respuesta:
-json{
-  "success": true,
-  "data": {
-    "services": {
-      "cloudinary": true,
-      "email": false,
-      "whatsapp": true,
-      "googleOAuth": true
-    },
-    "database": {
-      "connected": true,
-      "timezone": "UTC-6"
-    },
-    "server": {
-      "nodeVersion": "v18.19.0",
-      "uptime": 3600,
-      "environment": "development"
-    }
-  }
-}
-Subir Archivo General (Admin)
-httpPOST http://localhost:5000/api/admin/upload
-Authorization: Bearer {token}
-Content-Type: multipart/form-data
-
-FormData: {
-  file: [archivo]
-}
-Limpieza de Datos (Admin)
-Resumen de Datos
-httpGET http://localhost:5000/api/data-cleanup/summary
-Authorization: Bearer {token}
-Limpiar Usuarios de Prueba
-httpDELETE http://localhost:5000/api/data-cleanup/test-users
-Authorization: Bearer {token}
-Limpiar Datos de Tienda
-httpDELETE http://localhost:5000/api/data-cleanup/store-data
-Authorization: Bearer {token}
-Limpieza Completa (⚠️ PELIGROSO)
-httpDELETE http://localhost:5000/api/data-cleanup/all
-Authorization: Bearer {token}
-
-🎨 CONTENIDO ESPECÍFICO PARA FRONTEND
-Contenido de Landing
-httpGET http://localhost:5000/api/content/landing
-Tema de Branding
-httpGET http://localhost:5000/api/branding/theme
-Promociones Activas
-httpGET http://localhost:5000/api/promotions/active
-Respuesta:
-json{
   "success": true,
   "data": {
     "freeWeekActive": true,
@@ -1482,65 +609,1548 @@ json{
     }
   }
 }
+```
 
-🚀 ENDPOINTS DE UTILIDAD
-Health Check
-httpGET http://localhost:5000/api/health
-Lista de Endpoints Disponibles
-httpGET http://localhost:5000/api/endpoints
-Servicios Disponibles de Auth
-httpGET http://localhost:5000/api/auth/services
+### Contenido de Landing
+```javascript
+GET /content/landing
 
-🔧 ROLES Y PERMISOS
-Roles Disponibles:
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "hero": {
+      "title": "Transforma tu cuerpo y mente",
+      "description": "Únete a Elite Fitness y descubre tu mejor versión...",
+      "imageUrl": "",
+      "videoUrl": "",
+      "ctaText": "Comienza Hoy"
+    },
+    "services": {
+      "title": "Todo lo que necesitas para alcanzar tus metas",
+      "subtitle": "Servicios profesionales diseñados para llevarte al siguiente nivel"
+    },
+    "store": {
+      "title": "Productos premium para tu entrenamiento",
+      "subtitle": "Descubre nuestra selección de suplementos...",
+      "benefits": [
+        { "text": "Envío gratis +Q200", "icon": "truck" },
+        { "text": "Garantía de calidad", "icon": "shield" }
+      ]
+    }
+  }
+}
+```
 
-admin: Acceso completo a todo el sistema
-colaborador: Gestión de usuarios, membresías, pagos, tienda
-cliente: Acceso a su perfil, horarios, órdenes
+### Tema/Branding
+```javascript
+GET /branding/theme
 
-Permisos por Endpoint:
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "colors": {
+      "primary": "#14b8a6",
+      "secondary": "#ec4899",
+      "success": "#22c55e",
+      "warning": "#f59e0b"
+    },
+    "fonts": {
+      "primary": "Inter",
+      "headings": "Inter"
+    },
+    "logo_variants": {
+      "main": "/uploads/logos/logo-main.png",
+      "white": "/uploads/logos/logo-white.png",
+      "dark": "/uploads/logos/logo-dark.png",
+      "icon": "/uploads/logos/logo-icon.png"
+    },
+    "customCSS": ".hero { background: linear-gradient(...) }",
+    "cssVariables": {
+      "--primary-color": "#14b8a6",
+      "--secondary-color": "#ec4899"
+    }
+  }
+}
+```
 
-🌐 Público: Sin autenticación requerida
-🔒 Usuario: Requiere Authorization: Bearer {token}
-👥 Staff: Requiere rol admin o colaborador
-⚡ Admin: Requiere rol admin únicamente
+---
 
+## 🛍️ Tienda Online
 
-❌ MANEJO DE ERRORES
-Códigos de Estado HTTP:
+### Productos
 
-200: Éxito
-201: Creado exitosamente
-400: Error en la solicitud
-401: No autorizado
-403: Prohibido (sin permisos)
-404: No encontrado
-500: Error interno del servidor
-503: Servicio no disponible
+#### Obtener productos
+```javascript
+GET /store/products?category=1&brand=2&search=proteina&minPrice=100&maxPrice=500&page=1&limit=20
 
-Formato de Error:
-json{
-  "success": false,
-  "message": "Descripción del error",
-  "error": "Detalles técnicos del error"
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "products": [
+      {
+        "id": 1,
+        "name": "Proteína Whey Premium",
+        "description": "Proteína de alta calidad...",
+        "price": 350.00,
+        "originalPrice": 400.00,
+        "sku": "PROT-001",
+        "stockQuantity": 50,
+        "category": {
+          "id": 1,
+          "name": "Suplementos",
+          "slug": "suplementos"
+        },
+        "brand": {
+          "id": 1,
+          "name": "Elite Nutrition"
+        },
+        "images": [
+          {
+            "id": 1,
+            "imageUrl": "https://cloudinary.com/...",
+            "altText": "Proteína Whey Premium",
+            "isPrimary": true
+          }
+        ],
+        "discountPercentage": 12.5,
+        "inStock": true,
+        "lowStock": false,
+        "isFeatured": true
+      }
+    ],
+    "pagination": {
+      "total": 150,
+      "page": 1,
+      "pages": 8,
+      "limit": 20
+    }
+  }
+}
+```
+
+#### Productos destacados
+```javascript
+GET /store/featured-products?limit=8
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "products": [
+      {
+        "id": 1,
+        "name": "Proteína Whey Premium",
+        "price": 350.00,
+        "originalPrice": 400.00,
+        "discountPercentage": 12.5,
+        "inStock": true,
+        "images": [...]
+      }
+    ]
+  }
+}
+```
+
+#### Producto por ID
+```javascript
+GET /store/products/1
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "product": {
+      "id": 1,
+      "name": "Proteína Whey Premium",
+      "description": "Proteína de suero de leche de alta calidad...",
+      "price": 350.00,
+      "originalPrice": 400.00,
+      "sku": "PROT-001",
+      "stockQuantity": 50,
+      "specifications": {
+        "peso": "2.5kg",
+        "sabor": "Chocolate",
+        "porciones": "80"
+      },
+      "category": {
+        "id": 1,
+        "name": "Suplementos",
+        "description": "Suplementos nutricionales"
+      },
+      "brand": {
+        "id": 1,
+        "name": "Elite Nutrition",
+        "description": "Marca premium de suplementos"
+      },
+      "images": [
+        {
+          "id": 1,
+          "imageUrl": "https://cloudinary.com/...",
+          "altText": "Proteína Whey Premium - Vista frontal",
+          "isPrimary": true,
+          "displayOrder": 1
+        }
+      ],
+      "discountPercentage": 12.5,
+      "inStock": true,
+      "lowStock": false
+    }
+  }
+}
+```
+
+### Categorías y Marcas
+
+#### Categorías
+```javascript
+GET /store/categories
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "categories": [
+      {
+        "id": 1,
+        "name": "Suplementos",
+        "slug": "suplementos",
+        "description": "Suplementos nutricionales",
+        "imageUrl": "https://cloudinary.com/...",
+        "isActive": true,
+        "displayOrder": 1
+      }
+    ]
+  }
+}
+```
+
+#### Marcas
+```javascript
+GET /store/brands
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "brands": [
+      {
+        "id": 1,
+        "name": "Elite Nutrition",
+        "description": "Marca premium de suplementos",
+        "logoUrl": "https://cloudinary.com/...",
+        "isActive": true
+      }
+    ]
+  }
+}
+```
+
+### Carrito (Usuarios Registrados e Invitados)
+
+#### Obtener carrito
+```javascript
+// Para usuarios registrados
+GET /store/cart
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados
+GET /store/cart?sessionId=guest_session_12345
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "cartItems": [
+      {
+        "id": 1,
+        "productId": 1,
+        "quantity": 2,
+        "unitPrice": 350.00,
+        "selectedVariants": {
+          "sabor": "chocolate",
+          "tamaño": "2.5kg"
+        },
+        "product": {
+          "id": 1,
+          "name": "Proteína Whey Premium",
+          "price": 350.00,
+          "stockQuantity": 50,
+          "images": [...]
+        }
+      }
+    ],
+    "summary": {
+      "itemsCount": 1,
+      "subtotal": 700.00,
+      "taxAmount": 84.00,
+      "shippingAmount": 0,
+      "totalAmount": 784.00
+    }
+  }
+}
+```
+
+#### Agregar al carrito
+```javascript
+// Para usuarios registrados
+POST /store/cart
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados
+POST /store/cart
+
+{
+  "productId": 1,
+  "quantity": 2,
+  "selectedVariants": {
+    "sabor": "chocolate",
+    "tamaño": "2.5kg"
+  },
+  "sessionId": "guest_session_12345" // Solo para invitados
 }
 
-🔑 HEADERS REQUERIDOS
-Para rutas protegidas:
-httpAuthorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-Content-Type: application/json
-Para subir archivos:
-httpAuthorization: Bearer {token}
+// Respuesta
+{
+  "success": true,
+  "message": "Producto agregado al carrito exitosamente"
+}
+```
+
+#### Actualizar cantidad
+```javascript
+// Para usuarios registrados
+PUT /store/cart/1
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados
+PUT /store/cart/1?sessionId=guest_session_12345
+
+{
+  "quantity": 3
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Carrito actualizado exitosamente"
+}
+```
+
+#### Eliminar del carrito
+```javascript
+// Para usuarios registrados
+DELETE /store/cart/1
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados
+DELETE /store/cart/1?sessionId=guest_session_12345
+
+// Respuesta
+{
+  "success": true,
+  "message": "Item eliminado del carrito"
+}
+```
+
+### Órdenes
+
+#### Crear orden (Checkout)
+```javascript
+// Para usuarios registrados
+POST /store/orders
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados
+POST /store/orders
+
+{
+  "sessionId": "guest_session_12345", // Solo para invitados
+  "customerInfo": { // Solo para invitados
+    "firstName": "Juan",
+    "lastName": "Pérez",
+    "email": "juan@ejemplo.com",
+    "phone": "12345678"
+  },
+  "shippingAddress": {
+    "street": "Calle Principal 123",
+    "city": "Guatemala",
+    "state": "Guatemala",
+    "zipCode": "01001",
+    "country": "Guatemala"
+  },
+  "paymentMethod": "cash_on_delivery", // cash_on_delivery, card_on_delivery, online_card, transfer
+  "deliveryTimeSlot": "morning", // morning, afternoon, evening
+  "notes": "Entregar en recepción"
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Orden creada exitosamente",
+  "data": {
+    "order": {
+      "id": 1,
+      "orderNumber": "ORD-2024-001",
+      "userId": 1, // null para invitados
+      "customerInfo": null, // Info del cliente para invitados
+      "subtotal": 700.00,
+      "taxAmount": 84.00,
+      "shippingAmount": 25.00,
+      "totalAmount": 809.00,
+      "paymentMethod": "cash_on_delivery",
+      "paymentStatus": "pending",
+      "status": "pending",
+      "shippingAddress": {...},
+      "deliveryTimeSlot": "morning",
+      "notes": "Entregar en recepción",
+      "items": [
+        {
+          "id": 1,
+          "productId": 1,
+          "productName": "Proteína Whey Premium",
+          "productSku": "PROT-001",
+          "quantity": 2,
+          "unitPrice": 350.00,
+          "totalPrice": 700.00,
+          "selectedVariants": {...}
+        }
+      ]
+    }
+  }
+}
+```
+
+#### Obtener orden por ID
+```javascript
+// Para usuarios registrados
+GET /store/orders/1
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados (solo órdenes sin usuario)
+GET /store/orders/1
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "order": {
+      "id": 1,
+      "orderNumber": "ORD-2024-001",
+      "status": "confirmed",
+      "paymentStatus": "paid",
+      "totalAmount": 809.00,
+      "trackingNumber": "TRACK123",
+      "estimatedDelivery": "2024-01-20",
+      "items": [...],
+      "shippingAddress": {...}
+    }
+  }
+}
+```
+
+---
+
+## 💳 Pagos con Stripe
+
+### Configuración de Stripe
+```javascript
+GET /stripe/config
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "stripe": {
+      "enabled": true,
+      "mode": "test", // test o live
+      "publishableKey": "pk_test_...",
+      "currency": "gtq"
+    },
+    "message": "Stripe habilitado"
+  }
+}
+```
+
+### Payment Intents
+
+#### Para Membresías
+```javascript
+POST /stripe/create-membership-intent
+Authorization: Bearer TOKEN
+{
+  "membershipId": 1, // Opcional
+  "membershipType": "premium",
+  "price": 250.00
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Intención de pago creada exitosamente",
+  "data": {
+    "clientSecret": "pi_1234_secret_5678",
+    "paymentIntentId": "pi_1234567890",
+    "amount": 25000, // En centavos
+    "currency": "gtq",
+    "membership": {
+      "type": "premium",
+      "price": 250.00
+    },
+    "user": {
+      "id": 1,
+      "name": "Juan Pérez",
+      "email": "juan@ejemplo.com"
+    }
+  }
+}
+```
+
+#### Para Pagos Diarios
+```javascript
+// Para usuarios registrados
+POST /stripe/create-daily-intent
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados
+POST /stripe/create-daily-intent
+
+{
+  "amount": 25.00,
+  "dailyCount": 1,
+  "clientInfo": { // Solo para usuarios no registrados
+    "name": "Juan Pérez",
+    "email": "juan@ejemplo.com",
+    "phone": "12345678"
+  }
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Intención de pago diario creada exitosamente",
+  "data": {
+    "clientSecret": "pi_1234_secret_5678",
+    "paymentIntentId": "pi_1234567890",
+    "amount": 2500,
+    "currency": "gtq",
+    "dailyData": {
+      "amount": 25.00,
+      "count": 1
+    },
+    "clientInfo": {
+      "name": "Juan Pérez",
+      "email": "juan@ejemplo.com"
+    },
+    "isRegisteredUser": false
+  }
+}
+```
+
+#### Para Productos de Tienda
+```javascript
+// Para usuarios registrados
+POST /stripe/create-store-intent
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados
+POST /stripe/create-store-intent
+
+{
+  "orderId": 1
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Intención de pago para tienda creada exitosamente",
+  "data": {
+    "clientSecret": "pi_1234_secret_5678",
+    "paymentIntentId": "pi_1234567890",
+    "amount": 80900, // En centavos
+    "currency": "gtq",
+    "order": {
+      "id": 1,
+      "orderNumber": "ORD-2024-001",
+      "totalAmount": 809.00,
+      "itemsCount": 2
+    },
+    "customer": {
+      "name": "Juan Pérez",
+      "email": "juan@ejemplo.com",
+      "address": {...}
+    }
+  }
+}
+```
+
+### Confirmar Pago
+```javascript
+// Para usuarios registrados
+POST /stripe/confirm-payment
+Authorization: Bearer TOKEN
+
+// Para usuarios invitados
+POST /stripe/confirm-payment
+
+{
+  "paymentIntentId": "pi_1234567890"
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Pago confirmado y registrado exitosamente",
+  "data": {
+    "payment": {
+      "id": 1,
+      "amount": 250.00,
+      "paymentMethod": "card",
+      "paymentType": "membership",
+      "status": "completed",
+      "cardLast4": "4242",
+      "paymentDate": "2024-01-15T10:30:00Z"
+    },
+    "stripe": {
+      "paymentIntentId": "pi_1234567890",
+      "status": "succeeded"
+    }
+  }
+}
+```
+
+---
+
+## 🎬 Gestión de Multimedia (Solo Admin)
+
+### Estado del Servicio
+```javascript
+GET /gym-media/status
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "cloudinaryConfigured": true,
+    "availableUploads": ["logo", "heroVideo", "heroImage", "serviceImage", "testimonialImage"],
+    "maxFileSizes": {
+      "logo": "3MB",
+      "heroVideo": "100MB",
+      "heroImage": "10MB",
+      "serviceImage": "5MB"
+    },
+    "supportedFormats": {
+      "images": ["JPG", "JPEG", "PNG", "WebP"],
+      "videos": ["MP4", "WebM", "MOV", "AVI"]
+    }
+  }
+}
+```
+
+### Subir Logo
+```javascript
+POST /gym-media/upload-logo
+Authorization: Bearer ADMIN_TOKEN
 Content-Type: multipart/form-data
 
-📋 NOTAS IMPORTANTES
+FormData:
+- logo: File (JPG, PNG, WebP, SVG, máximo 3MB)
 
-🔄 Tokens JWT: Tienen expiración, usar refresh token para renovar
-👤 Roles: Verificar permisos antes de mostrar opciones en UI
-📁 Archivos: Máximo 5MB imágenes, 100MB videos
-🎨 Formatos: JPG, PNG, WebP para imágenes; MP4, WebM para videos
-🛒 Carrito: Funciona con usuarios logueados o sessionId para invitados
-💳 Stripe: Requiere configuración en variables de entorno
-☁️ Cloudinary: URLs se guardan automáticamente en BD al subir archivos
-🌐 URLs: El backend siempre devuelve URLs completas y listas para usar
-📱 LocalHost: Usar http://localhost:5000/api para desarrollo
+// Respuesta
+{
+  "success": true,
+  "message": "Logo subido y guardado exitosamente",
+  "data": {
+    "logoUrl": "https://cloudinary.com/...",
+    "publicId": "gym/logos/abc123",
+    "config": {
+      "gymName": "Elite Fitness Club",
+      "logoUrl": "https://cloudinary.com/..."
+    }
+  }
+}
+```
+
+### Subir Video Hero
+```javascript
+POST /gym-media/upload-hero-video
+Authorization: Bearer ADMIN_TOKEN
+Content-Type: multipart/form-data
+
+FormData:
+- video: File (MP4, WebM, MOV, AVI, máximo 100MB)
+
+// Respuesta
+{
+  "success": true,
+  "message": "Video hero subido y guardado exitosamente",
+  "data": {
+    "videoUrl": "https://cloudinary.com/video.mp4",
+    "posterUrl": "https://cloudinary.com/video_poster.jpg",
+    "publicId": "gym/hero-videos/xyz789",
+    "videoInfo": {
+      "hasVideo": true,
+      "hasCustomImage": false,
+      "usingPosterAsImage": true,
+      "currentImageUrl": "https://cloudinary.com/video_poster.jpg",
+      "imageType": "poster"
+    },
+    "videoSettings": {
+      "autoplay": false,
+      "muted": true,
+      "loop": true,
+      "controls": true
+    }
+  }
+}
+```
+
+### Subir Imagen Hero
+```javascript
+POST /gym-media/upload-hero-image
+Authorization: Bearer ADMIN_TOKEN
+Content-Type: multipart/form-data
+
+FormData:
+- image: File (JPG, PNG, WebP, máximo 10MB)
+
+// Respuesta
+{
+  "success": true,
+  "message": "Imagen hero subida y guardada exitosamente",
+  "data": {
+    "imageUrl": "https://cloudinary.com/hero.jpg",
+    "publicId": "gym/hero-images/def456",
+    "imageInfo": {
+      "hasImage": true,
+      "hasVideo": true,
+      "isCustomImage": true,
+      "imageType": "custom"
+    }
+  }
+}
+```
+
+### Configurar Video Hero
+```javascript
+PATCH /gym-media/hero-video-settings
+Authorization: Bearer ADMIN_TOKEN
+{
+  "autoplay": true,
+  "muted": true,
+  "loop": false,
+  "controls": true
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Configuración de video actualizada",
+  "data": {
+    "videoSettings": {
+      "autoplay": true,
+      "muted": true,
+      "loop": false,
+      "controls": true
+    }
+  }
+}
+```
+
+### Información de Archivos
+```javascript
+GET /gym-media/media-info
+Authorization: Bearer STAFF_TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "logo": {
+      "exists": true,
+      "url": "https://cloudinary.com/...",
+      "publicId": "gym/logos/abc123"
+    },
+    "heroVideo": {
+      "exists": true,
+      "url": "https://cloudinary.com/video.mp4",
+      "publicId": "gym/hero-videos/xyz789",
+      "settings": {
+        "autoplay": false,
+        "muted": true,
+        "loop": true,
+        "controls": true
+      }
+    },
+    "summary": {
+      "totalFiles": 5,
+      "hasLogo": true,
+      "hasHeroVideo": true,
+      "hasHeroImage": true
+    }
+  }
+}
+```
+
+---
+
+## 📊 Dashboard y Reportes (Solo Staff)
+
+### Dashboard Unificado
+```javascript
+GET /dashboard/unified?period=month
+Authorization: Bearer STAFF_TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "period": "month", // Para admin: month/week/today. Para colaborador: siempre "today"
+    "userRole": "admin", // admin, colaborador
+    "summary": {
+      "totalIncome": 15750.00,
+      "paymentsCount": 63,
+      "activeMemberships": 45,
+      "expiringSoon": 8,
+      "newUsers": 12
+    },
+    "breakdown": {
+      "paymentsBy": [
+        {
+          "type": "membership",
+          "total": 12500.00,
+          "count": 50
+        },
+        {
+          "type": "daily",
+          "total": 3250.00,
+          "count": 13
+        }
+      ],
+      "topPaymentMethods": [
+        {
+          "method": "cash",
+          "count": 35
+        },
+        {
+          "method": "card",
+          "count": 28
+        }
+      ]
+    },
+    // Solo para colaboradores:
+    "collaboratorInfo": {
+      "id": 2,
+      "name": "Juan Colaborador",
+      "todayOnly": true,
+      "message": "Dashboard personal del día actual"
+    }
+  }
+}
+```
+
+### Métricas de Rendimiento
+```javascript
+GET /dashboard/metrics?days=30
+Authorization: Bearer STAFF_TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "period": 30,
+    "userRole": "admin",
+    "totalDays": 30,
+    "averageDailyIncome": 525.00,
+    "bestDay": {
+      "date": "2024-01-15",
+      "income": 850.00,
+      "transactions": 12
+    },
+    "weeklyTrend": {
+      "direction": "up", // up, down, stable
+      "percentage": 15.5,
+      "firstWeekTotal": 3200.00,
+      "lastWeekTotal": 3696.00
+    },
+    "dailyMetrics": [
+      {
+        "date": "2024-01-01",
+        "income": 450.00,
+        "transactions": 8
+      }
+    ],
+    // Solo para colaboradores:
+    "personalMetrics": true,
+    "collaboratorName": "Juan Colaborador",
+    "note": "Estas métricas incluyen únicamente los pagos que registraste"
+  }
+}
+```
+
+---
+
+## 💰 Reportes Financieros
+
+### Reporte Personal Diario (Solo Colaboradores)
+```javascript
+GET /payments/my-daily-report
+Authorization: Bearer COLABORADOR_TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "date": "2024-01-15",
+    "collaboratorId": 2,
+    "collaboratorName": "Juan Colaborador",
+    "summary": {
+      "totalAmount": 1250.00,
+      "totalCount": 8,
+      "byType": {
+        "membership": {
+          "total": 1000.00,
+          "count": 4
+        },
+        "daily": {
+          "total": 250.00,
+          "count": 4
+        }
+      }
+    },
+    "payments": [
+      {
+        "id": 15,
+        "amount": 250.00,
+        "paymentMethod": "cash",
+        "paymentType": "membership",
+        "user": {
+          "id": 10,
+          "firstName": "María",
+          "lastName": "García"
+        }
+      }
+    ]
+  }
+}
+```
+
+### Estadísticas Diarias Personales (Solo Colaboradores)
+```javascript
+GET /payments/my-daily-stats
+Authorization: Bearer COLABORADOR_TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "today": {
+      "amount": 1250.00,
+      "count": 8,
+      "date": "2024-01-15"
+    },
+    "comparison": {
+      "weeklyAverage": 1100.00,
+      "percentageVsAverage": "113.6"
+    },
+    "collaborator": {
+      "id": 2,
+      "name": "Juan Colaborador"
+    }
+  }
+}
+```
+
+### Reportes de Pagos (Solo Staff)
+```javascript
+GET /payments/reports?period=month&startDate=2024-01-01&endDate=2024-01-31
+Authorization: Bearer STAFF_TOKEN
+
+// Respuesta (Admin ve todo, colaborador solo sus datos del día)
+{
+  "success": true,
+  "data": {
+    "totalIncome": 15750.00,
+    "period": "month", // Para colaborador siempre "today"
+    "userRole": "admin",
+    "incomeByType": [
+      {
+        "type": "membership",
+        "total": 12500.00,
+        "count": 50
+      }
+    ],
+    "incomeByMethod": [
+      {
+        "method": "cash",
+        "total": 8900.00,
+        "count": 35
+      }
+    ],
+    "dailyPayments": [
+      {
+        "date": "2024-01-15",
+        "total": 850.00,
+        "count": 12
+      }
+    ]
+  }
+}
+```
+
+### Estadísticas de Invitados (Solo Staff)
+```javascript
+GET /payments/guest-stats?period=month
+Authorization: Bearer STAFF_TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "period": "month",
+    "guestPayments": {
+      "total": 25,
+      "totalAmount": 1250.00,
+      "averageOrderValue": 50.00,
+      "percentage": 15.8
+    },
+    "registeredPayments": {
+      "total": 133,
+      "totalAmount": 6650.00,
+      "averageOrderValue": 50.00,
+      "percentage": 84.2
+    },
+    "comparison": {
+      "totalPayments": 158,
+      "guestVsRegisteredRatio": "0.19",
+      "averageOrderComparison": "100.0%"
+    },
+    "insights": {
+      "guestConversionOpportunity": true,
+      "averageOrderHigher": false,
+      "significantGuestVolume": false
+    }
+  }
+}
+```
+
+---
+
+## 📅 Gestión de Horarios
+
+### Mi Horario
+```javascript
+GET /schedule/my-schedule
+Authorization: Bearer TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "schedules": [
+      {
+        "id": 1,
+        "dayOfWeek": "monday",
+        "preferredStartTime": "06:00",
+        "preferredEndTime": "08:00",
+        "workoutType": "cardio",
+        "priority": 5,
+        "notes": "Preferencia por cardio matutino",
+        "isActive": true
+      }
+    ]
+  }
+}
+```
+
+### Actualizar Mi Horario
+```javascript
+PUT /schedule/my-schedule
+Authorization: Bearer TOKEN
+{
+  "schedules": [
+    {
+      "dayOfWeek": "monday",
+      "preferredStartTime": "06:00",
+      "preferredEndTime": "08:00",
+      "workoutType": "cardio",
+      "priority": 5,
+      "notes": "Cardio matutino"
+    },
+    {
+      "dayOfWeek": "wednesday",
+      "preferredStartTime": "18:00",
+      "preferredEndTime": "20:00",
+      "workoutType": "strength",
+      "priority": 4,
+      "notes": "Entrenamiento de fuerza"
+    }
+  ]
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Horarios actualizados exitosamente",
+  "data": {
+    "schedules": [...]
+  }
+}
+```
+
+### Agregar Horario Específico
+```javascript
+POST /schedule/my-schedule
+Authorization: Bearer TOKEN
+{
+  "dayOfWeek": "friday",
+  "preferredStartTime": "17:00",
+  "preferredEndTime": "19:00",
+  "workoutType": "mixed",
+  "priority": 3,
+  "notes": "Entrenamiento de fin de semana"
+}
+
+// Respuesta
+{
+  "success": true,
+  "message": "Horario agregado exitosamente",
+  "data": {
+    "schedule": {
+      "id": 5,
+      "dayOfWeek": "friday",
+      "preferredStartTime": "17:00",
+      "preferredEndTime": "19:00",
+      "workoutType": "mixed",
+      "priority": 3,
+      "notes": "Entrenamiento de fin de semana",
+      "isActive": true
+    }
+  }
+}
+```
+
+### Eliminar Horario
+```javascript
+DELETE /schedule/my-schedule/5
+Authorization: Bearer TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "message": "Horario eliminado exitosamente"
+}
+```
+
+### Horarios Populares (Solo Staff)
+```javascript
+GET /schedule/popular-times
+Authorization: Bearer STAFF_TOKEN
+
+// Respuesta
+{
+  "success": true,
+  "data": {
+    "popularTimes": [
+      {
+        "hour": "06:00",
+        "userCount": 25,
+        "day": "monday"
+      }
+    ],
+    "dayStatistics": [
+      {
+        "day": "monday",
+        "count": 45,
+        "avgPriority": "4.2"
+      }
+    ],
+    "workoutTypeStats": [
+      {
+        "type": "cardio",
+        "count": 35
+      }
+    ]
+  }
+}
+```
+
+---
+
+## ❌ Códigos de Error
+
+### Errores de Autenticación
+```javascript
+// 401 - No autorizado
+{
+  "success": false,
+  "message": "Token de autenticación requerido"
+}
+
+// 401 - Token inválido
+{
+  "success": false,
+  "message": "Token inválido o expirado"
+}
+
+// 403 - Sin permisos
+{
+  "success": false,
+  "message": "No tienes permisos para realizar esta acción"
+}
+```
+
+### Errores de Validación
+```javascript
+// 400 - Datos inválidos
+{
+  "success": false,
+  "message": "Datos de entrada inválidos",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Email debe ser válido"
+    },
+    {
+      "field": "password",
+      "message": "Contraseña debe tener al menos 6 caracteres"
+    }
+  ]
+}
+```
+
+### Errores de Recursos
+```javascript
+// 404 - No encontrado
+{
+  "success": false,
+  "message": "Recurso no encontrado"
+}
+
+// 409 - Conflicto
+{
+  "success": false,
+  "message": "El email ya está registrado"
+}
+```
+
+### Errores de Servidor
+```javascript
+// 500 - Error interno
+{
+  "success": false,
+  "message": "Error interno del servidor",
+  "error": "Descripción técnica del error"
+}
+
+// 503 - Servicio no disponible
+{
+  "success": false,
+  "message": "Servicio de archivos no configurado. Configura Cloudinary para subir imágenes."
+}
+```
+
+---
+
+## 🔧 Variables de Entorno Relevantes
+
+### URLs del Frontend
+```bash
+# URLs de redirección para diferentes roles
+FRONTEND_URL=http://localhost:3000
+FRONTEND_CLIENT_URL=http://localhost:3000
+FRONTEND_ADMIN_URL=http://localhost:3000/admin
+
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CALLBACK_URL=http://localhost:3001/api/auth/google/callback
+
+# Stripe
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# Base de datos
+DATABASE_URL=postgresql://...
+```
+
+---
+
+## 🚀 Ejemplos de Uso Completos
+
+### Flujo Completo: Usuario Invitado Compra Productos
+
+```javascript
+// 1. Obtener productos destacados
+const products = await fetch('/api/store/featured-products');
+
+// 2. Agregar al carrito (sin login)
+const sessionId = 'guest_' + Math.random().toString(36).substr(2, 9);
+await fetch('/api/store/cart', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    productId: 1,
+    quantity: 2,
+    sessionId: sessionId
+  })
+});
+
+// 3. Ver carrito
+const cart = await fetch(`/api/store/cart?sessionId=${sessionId}`);
+
+// 4. Crear orden
+const order = await fetch('/api/store/orders', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    sessionId: sessionId,
+    customerInfo: {
+      firstName: "Juan",
+      lastName: "Pérez",
+      email: "juan@ejemplo.com",
+      phone: "12345678"
+    },
+    shippingAddress: {
+      street: "Calle Principal 123",
+      city: "Guatemala",
+      zipCode: "01001"
+    },
+    paymentMethod: "online_card"
+  })
+});
+
+// 5. Pagar con Stripe
+const paymentIntent = await fetch('/api/stripe/create-store-intent', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    orderId: order.data.order.id
+  })
+});
+
+// 6. Confirmar pago (después de Stripe)
+const confirmation = await fetch('/api/stripe/confirm-payment', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    paymentIntentId: paymentIntent.data.paymentIntentId
+  })
+});
+```
+
+### Flujo Completo: Cliente Registrado Gestiona Membresía
+
+```javascript
+// 1. Login
+const login = await fetch('/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    email: "cliente@ejemplo.com",
+    password: "contraseña123"
+  })
+});
+
+const token = login.data.token;
+const authHeaders = {
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${token}`
+};
+
+// 2. Ver mis membresías
+const memberships = await fetch('/api/auth/my-memberships', {
+  headers: authHeaders
+});
+
+// 3. Ver planes disponibles
+const plans = await fetch('/api/gym/membership-plans');
+
+// 4. Crear payment intent para nueva membresía
+const paymentIntent = await fetch('/api/stripe/create-membership-intent', {
+  method: 'POST',
+  headers: authHeaders,
+  body: JSON.stringify({
+    membershipType: "premium",
+    price: 250.00
+  })
+});
+
+// 5. Confirmar pago (después de procesar con Stripe)
+const confirmation = await fetch('/api/stripe/confirm-payment', {
+  method: 'POST',
+  headers: authHeaders,
+  body: JSON.stringify({
+    paymentIntentId: paymentIntent.data.paymentIntentId
+  })
+});
+
+// 6. Ver historial de pagos
+const payments = await fetch('/api/auth/my-payments?limit=10&page=1', {
+  headers: authHeaders
+});
+```
+
+### Flujo Completo: Admin Gestiona Multimedia
+
+```javascript
+const adminToken = "admin_jwt_token";
+const adminHeaders = {
+  'Authorization': `Bearer ${adminToken}`
+};
+
+// 1. Verificar estado del servicio
+const status = await fetch('/api/gym-media/status');
+
+// 2. Subir logo
+const logoFormData = new FormData();
+logoFormData.append('logo', logoFile);
+
+const logoUpload = await fetch('/api/gym-media/upload-logo', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${adminToken}` },
+  body: logoFormData
+});
+
+// 3. Subir video hero
+const videoFormData = new FormData();
+videoFormData.append('video', videoFile);
+
+const videoUpload = await fetch('/api/gym-media/upload-hero-video', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${adminToken}` },
+  body: videoFormData
+});
+
+// 4. Configurar settings de video
+const videoSettings = await fetch('/api/gym-media/hero-video-settings', {
+  method: 'PATCH',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${adminToken}`
+  },
+  body: JSON.stringify({
+    autoplay: true,
+    muted: true,
+    loop: false,
+    controls: true
+  })
+});
+
+// 5. Obtener configuración actualizada para el frontend
+const gymConfig = await fetch('/api/gym/config');
+```
+
+---
+
+## 📱 Integración con Frontend
+
+### Headers Recomendados
+```javascript
+// Para todas las peticiones
+const defaultHeaders = {
+  'Content-Type': 'application/json',
+  'Accept': 'application/json',
+  'X-Client-Version': '1.0.0'
+};
+
+// Función helper para autenticación
+function getAuthHeaders(token) {
+  return {
+    ...defaultHeaders,
+    'Authorization': `Bearer ${token}`
+  };
+}
+```
+
+### Manejo de Errores
+```javascript
+async function apiCall(url, options = {}) {
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Error en la API');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error en API:', error);
+    throw error;
+  }
+}
+```
+
+### Gestión de Tokens
+```javascript
+// Guardar token
+localStorage.setItem('auth_token', token);
+localStorage.setItem('refresh_token', refreshToken);
+
+// Obtener token
+const token = localStorage.getItem('auth_token');
+
+// Verificar si necesita refresh
+async function checkTokenValid() {
+  try {
+    await fetch('/api/auth/verify', {
+      headers: getAuthHeaders(token)
+    });
+    return true;
+  } catch {
+    // Intentar refresh
+    try {
+      const refreshResponse = await fetch('/api/auth/refresh-token', {
+        method: 'POST',
+        headers: defaultHeaders,
+        body: JSON.stringify({
+          refreshToken: localStorage.getItem('refresh_token')
+        })
+      });
+      
+      if (refreshResponse.ok) {
+        const newTokens = await refreshResponse.json();
+        localStorage.setItem('auth_token', newTokens.data.token);
+        localStorage.setItem('refresh_token', newTokens.data.refreshToken);
+        return true;
+      }
+    } catch {
+      // Redirigir a login
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
+      window.location.href = '/login';
+      return false;
+    }
+  }
+}
+```
+
+---
+
+## 🔗 Enlaces Útiles
+
+- **Health Check:** `GET /api/health`
+- **Lista de Endpoints:** `GET /api/endpoints`
+- **Configuración OAuth:** `GET /api/auth/oauth-config`
+- **Estado de Stripe:** `GET /api/stripe/status`
+- **Estado de Multimedia:** `GET /api/gym-media/status`
+
+---
+
+**Nota:** Esta documentación cubre la versión 2.2.0 de la API. Para soporte técnico o dudas específicas, contacta al equipo de desarrollo backend.
