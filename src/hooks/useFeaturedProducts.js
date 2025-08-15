@@ -1,6 +1,5 @@
 // src/hooks/useFeaturedProducts.js
-// FUNCIÓN: Hook CORREGIDO para cargar productos destacados
-// ARREGLA: Extrae solo la data del response del backend
+// 🔧 HOOK CORREGIDO: Maneja la estructura real del backend
 
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
@@ -22,47 +21,92 @@ const useFeaturedProducts = () => {
       console.log('📡 Requesting featured products...');
       const response = await apiService.getFeaturedProducts();
       
-      console.log('🛍️ Featured products received:', response);
+      console.group('🛍️ Response Structure Analysis');
+      console.log('Full response:', response);
+      console.log('response.success:', response?.success);
+      console.log('response.data:', response?.data);
+      console.log('response.data.products:', response?.data?.products);
+      console.groupEnd();
       
-      // 🔧 ARREGLO CRÍTICO: Extraer solo la data del response
+      // 🎯 ESTRUCTURA CORREGIDA: Backend devuelve { success: true, data: { products: [...] } }
       let productsData = [];
       
-      if (response && response.success && response.data) {
-        // Backend devuelve: { success: true, data: [ { id: 1, name: "...", ... }, ... ] }
+      if (response && response.success && response.data && response.data.products) {
+        // ✅ RUTA CORRECTA: response.data.products
+        productsData = response.data.products;
+        console.log('✅ Products extracted from response.data.products:', productsData.length);
+      } else if (response && response.success && response.data && Array.isArray(response.data)) {
+        // Fallback: response.data es array directo
         productsData = response.data;
-        console.log('🛍️ Products data extracted:');
-        console.log('  - Total products:', productsData.length);
-        if (Array.isArray(productsData)) {
-          productsData.forEach((product, i) => {
-            console.log(`  - Product ${i + 1}: ${product.name} - Q${product.price} (Stock: ${product.inStock})`);
-          });
-        }
+        console.log('✅ Products extracted from response.data (array):', productsData.length);
       } else if (response && Array.isArray(response)) {
-        // Si el response ya es la data directamente
+        // Fallback: response es array directo
         productsData = response;
-        console.log('🛍️ Products data (direct array):', productsData.length);
+        console.log('✅ Products extracted from response (direct array):', productsData.length);
       } else {
-        console.warn('⚠️ Invalid products response structure:', response);
-        throw new Error('Invalid response structure');
+        console.warn('⚠️ Unexpected response structure:', response);
+        throw new Error('Unexpected response structure');
       }
 
-      // Filtrar solo productos disponibles y destacados
-      const availableProducts = Array.isArray(productsData) 
-        ? productsData.filter(product => 
-            product.inStock !== false && 
-            product.featured !== false
-          )
+      // 🐛 MOSTRAR TODOS LOS PRODUCTOS RECIBIDOS
+      if (Array.isArray(productsData) && productsData.length > 0) {
+        console.group('📦 ALL PRODUCTS RECEIVED');
+        productsData.forEach((product, i) => {
+          console.log(`Product ${i + 1}: ${product.name}`, {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            isFeatured: product.isFeatured,
+            isActive: product.isActive,
+            inStock: product.inStock,
+            categoryName: product.category?.name,
+            brandName: product.brand?.name
+          });
+        });
+        console.groupEnd();
+      }
+
+      // 🔧 FILTRO CORRECTO: Usar las propiedades reales del backend
+      const featuredProducts = Array.isArray(productsData) 
+        ? productsData.filter(product => {
+            // Backend usa: isFeatured, isActive, inStock (no featured, active)
+            const isFeatured = product.isFeatured !== false;
+            const isActive = product.isActive !== false;  
+            const inStock = product.inStock !== false;
+            
+            const shouldInclude = isFeatured && isActive && inStock;
+            
+            console.log(`🔍 Filter check for "${product.name}":`, {
+              isFeatured: product.isFeatured,
+              isActive: product.isActive,
+              inStock: product.inStock,
+              shouldInclude
+            });
+            
+            return shouldInclude;
+          })
         : [];
 
-      setProducts(availableProducts); // ✅ Guardamos solo la data, no el wrapper
+      console.group('✅ FILTERED RESULTS');
+      console.log(`📊 ${featuredProducts.length} of ${productsData.length} products passed filter`);
+      featuredProducts.forEach((product, i) => {
+        console.log(`✅ Featured Product ${i + 1}: ${product.name} - Q${product.price}`);
+      });
+      console.groupEnd();
+
+      setProducts(featuredProducts);
       setIsLoaded(true);
-      console.log(`✅ Featured products loaded successfully! (${availableProducts.length} available)`);
+      console.log(`🎉 Featured products loaded successfully! (${featuredProducts.length} featured products)`);
 
     } catch (err) {
-      console.error('❌ Error loading featured products:', err.message);
+      console.group('❌ FETCH ERROR');
+      console.error('Error message:', err.message);
+      console.error('Error details:', err);
+      console.groupEnd();
+      
       setError(err);
-      setProducts([]); // Fallback a array vacío
-      setIsLoaded(true); // Marcar como cargado aunque falle
+      setProducts([]);
+      setIsLoaded(true);
     } finally {
       setIsLoading(false);
     }
@@ -80,15 +124,29 @@ const useFeaturedProducts = () => {
   // Función manual de reload
   const reload = useCallback(() => {
     console.log('🔄 Manual products reload requested');
+    setProducts([]);
+    setIsLoaded(false);
+    setError(null);
     fetchProducts();
   }, [fetchProducts]);
 
+  // Log final del estado
+  useEffect(() => {
+    console.log('🎯 useFeaturedProducts FINAL STATE:', {
+      productsCount: products?.length || 0,
+      isLoaded,
+      isLoading,
+      hasError: !!error,
+      firstProduct: products?.[0]?.name || 'None'
+    });
+  }, [products, isLoaded, isLoading, error]);
+
   return {
-    products,        // ✅ Solo la data: [ { id: 1, name: "...", ... }, ... ]
-    isLoaded,        // true cuando terminó de cargar
-    isLoading,       // true mientras está cargando
-    error,           // Error si falló
-    reload           // Función para recargar manualmente
+    products,        // ✅ Productos filtrados correctamente
+    isLoaded,        
+    isLoading,       
+    error,           
+    reload           
   };
 };
 

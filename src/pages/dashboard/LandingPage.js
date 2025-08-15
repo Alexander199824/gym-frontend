@@ -1,8 +1,9 @@
 // src/pages/dashboard/LandingPage.js
 // FUNCIÓN: Landing page COMPLETA - Sin icono de carrito en navbar, usa carrito flotante
 // CAMBIOS: ✅ Removido icono carrito del navbar ✅ Usa carrito flotante ✅ Mantiene todas las funcionalidades
+// 🔧 FIX: Corregida la lógica para mostrar la sección de tienda
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Dumbbell, Star, Users, Target, Trophy, Clock, MapPin, Phone, Mail,
@@ -73,7 +74,7 @@ const LandingPage = () => {
   const { stats, isLoaded: statsLoaded } = useGymStats();
   const { services, isLoaded: servicesLoaded } = useGymServices();
   const { testimonials, isLoaded: testimonialsLoaded } = useTestimonials();
-  const { products, isLoaded: productsLoaded } = useFeaturedProducts();
+  const { products, isLoaded: productsLoaded, error: productsError } = useFeaturedProducts();
   const { plans, isLoaded: plansLoaded } = useMembershipPlans();
   
   // 🔄 Redirigir si ya está autenticado
@@ -92,6 +93,45 @@ const LandingPage = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // 🐛 DEBUG DETALLADO PARA PRODUCTOS - NUEVO
+  useEffect(() => {
+    console.group('🛍️ STORE SECTION DEBUG - DETAILED');
+    console.log('🔍 Products state check:');
+    console.log('  - products variable:', products);
+    console.log('  - products type:', typeof products);
+    console.log('  - products is null:', products === null);
+    console.log('  - products is undefined:', products === undefined);
+    console.log('  - products is array:', Array.isArray(products));
+    console.log('  - products length:', products?.length);
+    console.log('  - productsLoaded:', productsLoaded);
+    console.log('  - productsError:', productsError);
+    
+    // Verificar la condición exacta que usa el renderizado
+    const condition1 = products && products.length > 0;
+    const condition2 = products && Array.isArray(products) && products.length > 0;
+    
+    console.log('🧮 Render conditions:');
+    console.log('  - products && products.length > 0:', condition1);
+    console.log('  - products && Array.isArray(products) && products.length > 0:', condition2);
+    console.log('  - Should render store section:', condition1 || condition2);
+    
+    // Si hay productos, mostrar detalles
+    if (products && Array.isArray(products) && products.length > 0) {
+      console.log('📦 Products details:');
+      products.forEach((product, index) => {
+        console.log(`  Product ${index + 1}:`, {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          featured: product.featured,
+          inStock: product.inStock
+        });
+      });
+    }
+    
+    console.groupEnd();
+  }, [products, productsLoaded, productsError]);
   
   // 💬 TESTIMONIOS AUTOMÁTICOS - CORREGIDO
   useEffect(() => {
@@ -235,6 +275,33 @@ const LandingPage = () => {
         clearInterval(productIntervalRef.current);
       }
     };
+  }, []);
+
+  // 🧹 FUNCIÓN PARA LIMPIAR CACHE - NUEVA
+  const clearAppCache = useCallback(() => {
+    try {
+      // Guardar datos del carrito antes de limpiar
+      const cartData = localStorage.getItem('gym-cart-items');
+      const cartTimestamp = localStorage.getItem('gym-cart-timestamp');
+      
+      // Limpiar todo el localStorage excepto el carrito
+      Object.keys(localStorage).forEach(key => {
+        if (!key.startsWith('gym-cart')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Limpiar sessionStorage también
+      sessionStorage.clear();
+      
+      console.log('🧹 Cache cleared successfully (cart preserved)');
+      
+      // Recargar la página para refrescar todos los hooks
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+    }
   }, []);
   
   // ✅ USAR DATOS REALES DEL BACKEND
@@ -418,6 +485,8 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-white">
       
+
+      
       {/* 🔴 INDICADOR DE CONEXIÓN */}
       <ConnectionIndicator show={process.env.NODE_ENV === 'development'} />
       
@@ -477,7 +546,7 @@ const LandingPage = () => {
                   Planes
                 </a>
               )}
-              {products && products.length > 0 && (
+              {products && Array.isArray(products) && products.length > 0 && (
                 <a href="#tienda" className="font-medium text-gray-600 hover:text-primary-600 transition-colors">
                   Tienda
                 </a>
@@ -527,7 +596,7 @@ const LandingPage = () => {
                   🎫 Planes
                 </a>
               )}
-              {products && products.length > 0 && (
+              {products && Array.isArray(products) && products.length > 0 && (
                 <a href="#tienda" className="block text-gray-600 hover:text-primary-600 font-medium py-2" onClick={() => setIsMenuOpen(false)}>
                   🛍️ Tienda
                 </a>
@@ -611,7 +680,7 @@ const LandingPage = () => {
                   <Gift className="w-5 h-5 mr-2" />
                   Únete Ahora
                 </Link>
-                {products && products.length > 0 && (
+                {products && Array.isArray(products) && products.length > 0 && (
                   <a href="#tienda" className={`btn-secondary hover:scale-105 transition-all ${
                     isMobile ? 'py-3 px-6 text-base' : 'px-8 py-4 text-lg'
                   }`}>
@@ -752,11 +821,25 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 🛍️ SECCIÓN DE TIENDA - CAROUSEL AUTOMÁTICO EN MÓVIL */}
-      {products && products.length > 0 && (
+      {/* 🛍️ SECCIÓN DE TIENDA - LÓGICA CORREGIDA */}
+      {(() => {
+        // Debug en tiempo real del renderizado
+        const hasProducts = products && Array.isArray(products) && products.length > 0;
+        
+        console.log('🛍️ Store render decision:', {
+          products: !!products,
+          isArray: Array.isArray(products),
+          length: products?.length || 0,
+          hasProducts,
+          timestamp: new Date().toLocaleTimeString()
+        });
+        
+        return hasProducts;
+      })() && (
         <section id="tienda" className="py-16 bg-gradient-to-br from-primary-50 to-secondary-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
+   
             {/* Header de tienda */}
             <div className="text-center mb-12">
               <div className="inline-flex items-center px-4 py-2 bg-primary-100 rounded-full mb-4">
@@ -1369,7 +1452,7 @@ const LandingPage = () => {
                   </ul>
                 </div>
                 
-                {products && products.length > 0 && (
+                {products && Array.isArray(products) && products.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-4 text-lg">Tienda</h3>
                     <ul className="space-y-2">
