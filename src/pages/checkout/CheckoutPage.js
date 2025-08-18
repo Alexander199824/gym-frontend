@@ -1261,9 +1261,7 @@ const CustomerInfoStep = ({
   );
 };
 
-// ACTUALIZADO: Paso 2 - Método de pago con flujo CORREGIDO
-// REPARACIÓN CRÍTICA: PaymentStep component con método EXISTENTE
-
+// PaymentStep component - CORREGIDO SIN LLAMADAS A ENDPOINTS DE STAFF
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
@@ -1287,7 +1285,7 @@ const PaymentStep = ({
   const elements = useElements();
   const [cardError, setCardError] = useState('');
 
-  // ✅ REPARACIÓN CRÍTICA: Pago con tarjeta con manejo de errores mejorado
+  // ✅ REPARACIÓN CRÍTICA: Pago con tarjeta SIN llamadas a staff endpoints
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -1315,14 +1313,13 @@ const PaymentStep = ({
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // ✅ REPARACIÓN: Usar dirección del backend para pickup_store
+      // ✅ Configurar dirección según método de entrega
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
         };
       } else {
-        // ✅ Usar datos REALES del backend para pickup_store
         if (!gymConfig.contact.address) {
           throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
         }
@@ -1400,33 +1397,21 @@ const PaymentStep = ({
       if (paymentIntent.status === 'succeeded') {
         console.log('✅ Pago confirmado con Stripe');
         
-        // 4. Confirmar pago en backend
+        // 4. ✅ REPARACIÓN CRÍTICA: Solo confirmar pago en backend (sin llamadas adicionales)
         try {
           const confirmResponse = await apiService.confirmStripePayment({
             paymentIntentId: paymentIntent.id
           });
 
           if (confirmResponse.success) {
-            console.log('✅ Pago confirmado en backend');
+            console.log('✅ Pago confirmado en backend - TODO registrado automáticamente');
+          } else {
+            console.warn('⚠️ Confirmación parcial en backend:', confirmResponse.message);
+            // Continuar de todas formas porque el pago en Stripe fue exitoso
           }
         } catch (confirmError) {
-          console.warn('⚠️ Error confirmando en backend:', confirmError.message);
-        }
-
-        // 5. ✅ REPARACIÓN CRÍTICA: Intentar crear registro de pago con manejo de errores
-        try {
-          const paymentRecordResponse = await apiService.createPaymentFromOrder({
-            orderId: order.id
-          });
-
-          if (paymentRecordResponse.success) {
-            console.log('✅ Registro de pago creado');
-          } else {
-            console.warn('⚠️ No se pudo crear registro de pago, pero la orden es válida:', paymentRecordResponse.message);
-          }
-        } catch (paymentRecordError) {
-          console.warn('⚠️ Error creando registro de pago (no crítico):', paymentRecordError.message);
-          // ✅ NO FALLAR EL PROCESO si no se puede crear el registro de pago
+          console.warn('⚠️ Error confirmando en backend (no crítico):', confirmError.message);
+          // Continuar de todas formas porque el pago en Stripe fue exitoso
         }
 
         // ✅ ÉXITO: Llamar onSuccess SIEMPRE si el pago de Stripe es exitoso
@@ -1453,7 +1438,7 @@ const PaymentStep = ({
     }
   };
 
-  // ✅ REPARACIÓN CRÍTICA: Pago contra entrega con manejo de errores mejorado
+  // ✅ REPARACIÓN CRÍTICA: Pago contra entrega SIN llamadas a staff endpoints
   const handleCashOnDelivery = async () => {
     try {
       setIsProcessing(true);
@@ -1475,19 +1460,17 @@ const PaymentStep = ({
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // ✅ REPARACIÓN: Usar dirección del backend para pickup_store
+      // ✅ Configurar dirección
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
         };
       } else {
-        // ✅ Verificar que hay configuración del backend
         if (!gymConfig.contact.address) {
           throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
         }
         
-        // ✅ Usar datos REALES del backend para pickup_store
         orderData.shippingAddress = {
           street: gymConfig.contact.address,
           city: 'Guatemala',
@@ -1509,30 +1492,15 @@ const PaymentStep = ({
       const order = orderResponse.data.order;
       console.log('✅ Orden creada exitosamente:', order);
 
-      // 2. ✅ REPARACIÓN CRÍTICA: Intentar crear registro de pago con manejo de errores
-      try {
-        const paymentRecordResponse = await apiService.createPaymentFromOrder({
-          orderId: order.id
-        });
-
-        if (paymentRecordResponse.success) {
-          console.log('✅ Registro de pago creado');
-        } else {
-          console.warn('⚠️ No se pudo crear registro de pago, pero la orden es válida:', paymentRecordResponse.message);
-        }
-      } catch (paymentRecordError) {
-        console.warn('⚠️ Error creando registro de pago (no crítico):', paymentRecordError.message);
-        // ✅ NO FALLAR EL PROCESO si no se puede crear el registro de pago
-      }
-
-      // ✅ ÉXITO: Llamar onSuccess SIEMPRE si la orden se creó exitosamente
+      // ✅ ÉXITO INMEDIATO: No necesitamos registros de pago adicionales
+      // La orden ya está creada y es válida para pago contra entrega
       const successOrder = {
         ...order,
         paid: false,
         paymentMethod: 'cash_on_delivery'
       };
 
-      console.log('🎉 Llamando onSuccess con orden exitosa...');
+      console.log('🎉 Llamando onSuccess con orden contra entrega...');
       onSuccess(successOrder);
 
     } catch (error) {
