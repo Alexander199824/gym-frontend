@@ -1285,7 +1285,9 @@ const PaymentStep = ({
   const elements = useElements();
   const [cardError, setCardError] = useState('');
 
-  // ✅ REPARACIÓN CRÍTICA: Pago con tarjeta SIN llamadas a staff endpoints
+
+
+  // ✅ REPARACIÓN CRÍTICA: Pago con tarjeta CON manejo correcto de errores
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -1397,34 +1399,45 @@ const PaymentStep = ({
       if (paymentIntent.status === 'succeeded') {
         console.log('✅ Pago confirmado con Stripe');
         
-        // 4. ✅ REPARACIÓN CRÍTICA: Solo confirmar pago en backend (sin llamadas adicionales)
+        // 4. ✅ REPARACIÓN CRÍTICA: Confirmar pago en backend CON manejo correcto de errores
         try {
+          console.log('💳 Confirmando pago en backend...');
+          
           const confirmResponse = await apiService.confirmStripePayment({
             paymentIntentId: paymentIntent.id
           });
 
-          if (confirmResponse.success) {
-            console.log('✅ Pago confirmado en backend - TODO registrado automáticamente');
-          } else {
-            console.warn('⚠️ Confirmación parcial en backend:', confirmResponse.message);
-            // Continuar de todas formas porque el pago en Stripe fue exitoso
+          if (!confirmResponse.success) {
+            // ✅ REPARACIÓN: Si falla la confirmación, es un ERROR CRÍTICO
+            console.error('❌ Error crítico confirmando pago en backend:', confirmResponse.message);
+            throw new Error(`Error al registrar el pago: ${confirmResponse.message || 'Error del servidor'}`);
           }
+
+          console.log('✅ Pago confirmado exitosamente en backend');
+          
+          // ✅ ÉXITO COMPLETO: Todo el proceso exitoso
+          const successOrder = {
+            ...order,
+            paymentIntent: paymentIntent.id,
+            paid: true,
+            paymentMethod: 'online_card',
+            cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4 || '****',
+            backendConfirmed: true // ✅ NUEVO: Indicador de confirmación completa
+          };
+
+          console.log('🎉 Llamando onSuccess con orden completamente exitosa...');
+          onSuccess(successOrder);
+
         } catch (confirmError) {
-          console.warn('⚠️ Error confirmando en backend (no crítico):', confirmError.message);
-          // Continuar de todas formas porque el pago en Stripe fue exitoso
+          // ✅ REPARACIÓN CRÍTICA: Error de confirmación es CRÍTICO, no continuar
+          console.error('❌ Error CRÍTICO al confirmar pago en backend:', confirmError.message);
+          
+          // El pago se procesó en Stripe pero falló en nuestro sistema
+          onError(`El pago se procesó correctamente, pero hubo un error al registrarlo en nuestro sistema. 
+                   Contacta a soporte con este ID: ${paymentIntent.id}. 
+                   Error: ${confirmError.message}`);
+          return;
         }
-
-        // ✅ ÉXITO: Llamar onSuccess SIEMPRE si el pago de Stripe es exitoso
-        const successOrder = {
-          ...order,
-          paymentIntent: paymentIntent.id,
-          paid: true,
-          paymentMethod: 'online_card',
-          cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4 || '****'
-        };
-
-        console.log('🎉 Llamando onSuccess con orden exitosa...');
-        onSuccess(successOrder);
 
       } else {
         throw new Error('El pago no se completó correctamente');
