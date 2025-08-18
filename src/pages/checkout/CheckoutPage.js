@@ -1261,7 +1261,9 @@ const CustomerInfoStep = ({
   );
 };
 
-// ✅ ACTUALIZADO: Paso 2 - Método de pago con flujo CORREGIDO
+// ACTUALIZADO: Paso 2 - Método de pago con flujo CORREGIDO
+// REPARACIÓN CRÍTICA: PaymentStep component con método EXISTENTE
+
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
@@ -1285,7 +1287,7 @@ const PaymentStep = ({
   const elements = useElements();
   const [cardError, setCardError] = useState('');
 
-  // ✅ CORREGIDO: Pago con tarjeta con dirección correcta del backend
+  // ✅ REPARACIÓN CRÍTICA: Pago con tarjeta con manejo de errores mejorado
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -1313,7 +1315,7 @@ const PaymentStep = ({
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // ✅ CORREGIDO: Usar dirección del backend para pickup_store
+      // ✅ REPARACIÓN: Usar dirección del backend para pickup_store
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
@@ -1411,7 +1413,7 @@ const PaymentStep = ({
           console.warn('⚠️ Error confirmando en backend:', confirmError.message);
         }
 
-        // 5. Crear registro de pago
+        // 5. ✅ REPARACIÓN CRÍTICA: Intentar crear registro de pago con manejo de errores
         try {
           const paymentRecordResponse = await apiService.createPaymentFromOrder({
             orderId: order.id
@@ -1419,12 +1421,15 @@ const PaymentStep = ({
 
           if (paymentRecordResponse.success) {
             console.log('✅ Registro de pago creado');
+          } else {
+            console.warn('⚠️ No se pudo crear registro de pago, pero la orden es válida:', paymentRecordResponse.message);
           }
         } catch (paymentRecordError) {
-          console.warn('⚠️ Error creando registro de pago:', paymentRecordError.message);
+          console.warn('⚠️ Error creando registro de pago (no crítico):', paymentRecordError.message);
+          // ✅ NO FALLAR EL PROCESO si no se puede crear el registro de pago
         }
 
-        // ✅ ÉXITO: Llamar onSuccess
+        // ✅ ÉXITO: Llamar onSuccess SIEMPRE si el pago de Stripe es exitoso
         const successOrder = {
           ...order,
           paymentIntent: paymentIntent.id,
@@ -1433,7 +1438,7 @@ const PaymentStep = ({
           cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4 || '****'
         };
 
-        console.log('🎉 Llamando onSuccess inmediatamente...');
+        console.log('🎉 Llamando onSuccess con orden exitosa...');
         onSuccess(successOrder);
 
       } else {
@@ -1448,7 +1453,7 @@ const PaymentStep = ({
     }
   };
 
-  // ✅ CORREGIDO: Pago contra entrega con dirección correcta del backend
+  // ✅ REPARACIÓN CRÍTICA: Pago contra entrega con manejo de errores mejorado
   const handleCashOnDelivery = async () => {
     try {
       setIsProcessing(true);
@@ -1470,7 +1475,7 @@ const PaymentStep = ({
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // ✅ CORREGIDO: Usar dirección del backend para pickup_store
+      // ✅ REPARACIÓN: Usar dirección del backend para pickup_store
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
@@ -1504,7 +1509,7 @@ const PaymentStep = ({
       const order = orderResponse.data.order;
       console.log('✅ Orden creada exitosamente:', order);
 
-      // 2. Crear registro de pago
+      // 2. ✅ REPARACIÓN CRÍTICA: Intentar crear registro de pago con manejo de errores
       try {
         const paymentRecordResponse = await apiService.createPaymentFromOrder({
           orderId: order.id
@@ -1512,19 +1517,22 @@ const PaymentStep = ({
 
         if (paymentRecordResponse.success) {
           console.log('✅ Registro de pago creado');
+        } else {
+          console.warn('⚠️ No se pudo crear registro de pago, pero la orden es válida:', paymentRecordResponse.message);
         }
       } catch (paymentRecordError) {
-        console.warn('⚠️ Error creando registro de pago:', paymentRecordError.message);
+        console.warn('⚠️ Error creando registro de pago (no crítico):', paymentRecordError.message);
+        // ✅ NO FALLAR EL PROCESO si no se puede crear el registro de pago
       }
 
-      // ✅ ÉXITO: Llamar onSuccess
+      // ✅ ÉXITO: Llamar onSuccess SIEMPRE si la orden se creó exitosamente
       const successOrder = {
         ...order,
         paid: false,
         paymentMethod: 'cash_on_delivery'
       };
 
-      console.log('🎉 Llamando onSuccess inmediatamente...');
+      console.log('🎉 Llamando onSuccess con orden exitosa...');
       onSuccess(successOrder);
 
     } catch (error) {
