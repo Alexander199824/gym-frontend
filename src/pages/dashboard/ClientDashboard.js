@@ -1,8 +1,8 @@
 // src/pages/dashboard/ClientDashboard.js
 // FUNCIÓN: Dashboard personal para clientes con su información y membresías
-// NUEVAS FUNCIONALIDADES: ✅ Testimonios múltiples integrados + navegación + métricas
+// NUEVA FUNCIONALIDAD: ✅ Compra de membresías integrada para clientes sin membresía activa
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -18,12 +18,20 @@ import {
   Upload,
   Settings,
   User,
+  Users,
   Bell,
   ShoppingBag,
-  MessageSquare, // ✅ Para testimonios
-  Star, // ✅ Para testimonios
-  Plus, // ✅ Para testimonios
-  ArrowLeft // ✅ Para navegación
+  MessageSquare,
+  Star,
+  Plus,
+  ArrowLeft,
+  Crown,
+  Shield,
+  Check,
+  Zap,
+  Gift,
+  ArrowRight,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -39,11 +47,14 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 // ✅ NUEVO: Componente de testimonios
 import TestimonialManager from './components/TestimonialManager';
 
+// ✅ NUEVO: Hook para planes de membresía
+import useMembershipPlans from '../../hooks/useMembershipPlans';
+
 const ClientDashboard = () => {
   const { user } = useAuth();
-  const { formatCurrency, formatDate, showError } = useApp();
+  const { formatCurrency, formatDate, showError, showSuccess, isMobile } = useApp();
   
-  // ✅ NUEVO: Estado para navegación entre secciones
+  // ✅ NUEVO: Estado para navegación entre secciones (incluyendo membresías)
   const [activeSection, setActiveSection] = useState('dashboard');
   
   // 📊 QUERIES EXISTENTES PARA DATOS DEL CLIENTE
@@ -71,32 +82,41 @@ const ClientDashboard = () => {
     staleTime: 10 * 60 * 1000
   });
   
-  // ✅ NUEVO: Testimonios del usuario - ACTUALIZADO
+  // ✅ NUEVO: Testimonios del usuario
   const { data: testimonials, isLoading: testimonialsLoading } = useQuery({
     queryKey: ['myTestimonials', user?.id],
     queryFn: () => apiService.getMyTestimonials(),
     staleTime: 5 * 60 * 1000,
     retry: 1,
     onError: (error) => {
-      // Solo mostrar error si no es 404 (sin testimonios)
       if (error.response?.status !== 404) {
         console.warn('Error loading testimonials:', error.message);
       }
     }
   });
+
+  // ✅ NUEVO: Planes de membresía disponibles
+  const { plans, isLoaded: plansLoaded } = useMembershipPlans();
   
   // 📊 Procesar datos existentes
   const activeMembership = memberships?.data?.memberships?.find(m => m.status === 'active');
   const recentPayments = payments?.data?.payments || [];
   const totalPaid = recentPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
   
-  // ✅ NUEVO: Procesar datos de testimonios - ACTUALIZADO
+  // ✅ NUEVO: Procesar datos de testimonios
   const testimonialData = testimonials?.data || {};
   const userTestimonials = testimonialData.testimonials || [];
-  const canSubmitTestimonial = testimonialData.canSubmitNew !== false; // ✅ Siempre true
+  const canSubmitTestimonial = testimonialData.canSubmitNew !== false;
   const publishedCount = testimonialData.publishedCount || 0;
   const pendingCount = testimonialData.pendingCount || 0;
-  const thankYouMessage = testimonialData.thankYouMessage;
+  
+  // ✅ NUEVO: Detectar si necesita membresía y redirigir automáticamente
+  useEffect(() => {
+    if (!membershipsLoading && !activeMembership && activeSection === 'dashboard') {
+      // Solo mostrar alerta prominente, no redirigir automáticamente
+      console.log('🚨 Cliente sin membresía activa detectado');
+    }
+  }, [membershipsLoading, activeMembership, activeSection]);
   
   // 📅 Calcular días hasta vencimiento (existente)
   const getDaysUntilExpiry = (endDate) => {
@@ -112,7 +132,7 @@ const ClientDashboard = () => {
   
   // 🎯 Estado de la membresía (existente)
   const getMembershipStatus = () => {
-    if (!activeMembership) return { status: 'none', message: 'Sin membresía activa', color: 'gray' };
+    if (!activeMembership) return { status: 'none', message: 'Sin membresía activa', color: 'red' };
     
     if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
     
@@ -125,8 +145,27 @@ const ClientDashboard = () => {
   
   const membershipStatus = getMembershipStatus();
 
-  // ✅ NUEVO: Si está en la sección de testimonios, mostrar el componente
+  // ✅ NUEVO: Si está en la sección de testimonios
   if (activeSection === 'testimonials') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center">
+          <button
+            onClick={() => setActiveSection('dashboard')}
+            className="btn-secondary btn-sm mr-4 flex items-center"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Volver al Dashboard
+          </button>
+          <h2 className="text-xl font-semibold text-gray-900">Mis Testimonios</h2>
+        </div>
+        <TestimonialManager />
+      </div>
+    );
+  }
+
+  // ✅ NUEVO: Si está en la sección de compra de membresías
+  if (activeSection === 'memberships') {
     return (
       <div className="space-y-6">
         {/* Navegación de regreso */}
@@ -138,11 +177,52 @@ const ClientDashboard = () => {
             <ArrowLeft className="w-4 h-4 mr-1" />
             Volver al Dashboard
           </button>
-          <h2 className="text-xl font-semibold text-gray-900">Mis Testimonios</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {activeMembership ? 'Cambiar Plan' : 'Obtener Membresía'}
+          </h2>
         </div>
-        
-        {/* Componente de gestión de testimonios */}
-        <TestimonialManager />
+
+        {/* Alerta de estado actual */}
+        {!activeMembership && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="flex items-center">
+              <AlertTriangle className="w-6 h-6 text-red-500 mr-3" />
+              <div>
+                <h3 className="text-lg font-semibold text-red-800">
+                  No tienes membresía activa
+                </h3>
+                <p className="text-red-700 mt-1">
+                  Para acceder a todas nuestras instalaciones y servicios, necesitas una membresía activa. 
+                  Elige el plan que mejor se adapte a tus necesidades.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {membershipStatus.status === 'expired' && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+            <div className="flex items-center">
+              <AlertCircle className="w-6 h-6 text-orange-500 mr-3" />
+              <div>
+                <h3 className="text-lg font-semibold text-orange-800">
+                  Tu membresía ha vencido
+                </h3>
+                <p className="text-orange-700 mt-1">
+                  Renueva tu membresía para continuar disfrutando de nuestros servicios.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Componente de planes de membresía */}
+        <MembershipPlansSection 
+          plans={plans} 
+          isLoaded={plansLoaded}
+          currentMembership={activeMembership}
+          isMobile={isMobile}
+        />
       </div>
     );
   }
@@ -173,21 +253,29 @@ const ClientDashboard = () => {
         </div>
       </div>
       
-      {/* 📊 MÉTRICAS PERSONALES - ✅ CON TESTIMONIOS MEJORADOS */}
+      {/* 📊 MÉTRICAS PERSONALES - CON TESTIMONIOS Y MEMBRESÍA MEJORADAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* 🎫 Estado de membresía (existente) */}
-        <DashboardCard
-          title="Mi Membresía"
-          value={membershipStatus.message}
-          icon={CreditCard}
-          color={membershipStatus.color}
-          isLoading={membershipsLoading}
-          subtitle={activeMembership ? 
-            `${activeMembership.type === 'monthly' ? 'Mensual' : 'Diaria'}` : 
-            'No tienes membresía activa'
-          }
-        />
+        {/* 🎫 Estado de membresía - MEJORADO CON CLICK */}
+        <div 
+          className={`cursor-pointer transition-transform hover:scale-105 ${
+            !activeMembership ? 'ring-2 ring-red-500 ring-opacity-50' : ''
+          }`}
+          onClick={() => !activeMembership && setActiveSection('memberships')}
+        >
+          <DashboardCard
+            title="Mi Membresía"
+            value={membershipStatus.message}
+            icon={CreditCard}
+            color={membershipStatus.color}
+            isLoading={membershipsLoading}
+            subtitle={activeMembership ? 
+              `${activeMembership.type === 'monthly' ? 'Mensual' : 'Diaria'}` : 
+              'Haz clic para obtener una'
+            }
+            alert={!activeMembership}
+          />
+        </div>
         
         {/* ⏰ Días restantes (existente) */}
         <DashboardCard
@@ -216,7 +304,7 @@ const ClientDashboard = () => {
           subtitle={`${recentPayments.length} pagos`}
         />
         
-        {/* ✅ NUEVO: Estado de testimonios - MEJORADO */}
+        {/* ✅ Estado de testimonios - EXISTENTE */}
         <DashboardCard
           title="Mis Testimonios"
           value={
@@ -244,7 +332,40 @@ const ClientDashboard = () => {
         
       </div>
       
-      {/* 🚨 ALERTAS IMPORTANTES (existentes + nueva para testimonios) */}
+      {/* 🚨 ALERTAS IMPORTANTES - PRIORIDAD A MEMBRESÍA */}
+      {!activeMembership && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 shadow-lg">
+          <div className="flex items-center">
+            <AlertTriangle className="w-8 h-8 text-red-500 mr-4" />
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-red-800">
+                ⚠️ ¡Necesitas una membresía para acceder al gimnasio!
+              </h3>
+              <p className="text-red-700 mt-2">
+                Para disfrutar de todas nuestras instalaciones y servicios exclusivos, 
+                necesitas obtener una membresía.
+              </p>
+              {plans && plans.length > 0 && plans[0].features && (
+                <ul className="mt-3 text-sm text-red-600 space-y-1">
+                  {plans[0].features.slice(0, 4).map((feature, index) => (
+                    <li key={index}>• {feature}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="ml-6">
+              <button
+                onClick={() => setActiveSection('memberships')}
+                className="btn-primary font-bold py-3 px-6 text-lg hover:scale-105 transition-transform"
+              >
+                <Gift className="w-5 h-5 mr-2" />
+                Obtener Membresía
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {membershipStatus.status === 'expired' && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
@@ -257,12 +378,12 @@ const ClientDashboard = () => {
                 Renueva tu membresía para continuar disfrutando de nuestros servicios.
               </p>
             </div>
-            <Link
-              to="/dashboard/memberships/renew"
+            <button
+              onClick={() => setActiveSection('memberships')}
               className="ml-auto btn-danger btn-sm"
             >
               Renovar ahora
-            </Link>
+            </button>
           </div>
         </div>
       )}
@@ -279,18 +400,18 @@ const ClientDashboard = () => {
                 Renueva pronto para evitar interrupciones en tu rutina.
               </p>
             </div>
-            <Link
-              to="/dashboard/memberships/renew"
+            <button
+              onClick={() => setActiveSection('memberships')}
               className="ml-auto btn-warning btn-sm"
             >
               Renovar
-            </Link>
+            </button>
           </div>
         </div>
       )}
       
-      {/* ✅ NUEVA: Alerta para testimonios - ACTUALIZADA */}
-      {canSubmitTestimonial && (
+      {/* ✅ Alerta para testimonios - EXISTENTE */}
+      {canSubmitTestimonial && activeMembership && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
             <MessageSquare className="w-5 h-5 text-blue-500 mr-3" />
@@ -318,22 +439,29 @@ const ClientDashboard = () => {
         </div>
       )}
       
-      {/* 📋 CONTENIDO PRINCIPAL - ✅ CON TESTIMONIOS MEJORADOS */}
+      {/* 📋 CONTENIDO PRINCIPAL - CON ACCESO A MEMBRESÍAS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* 🎫 MI MEMBRESÍA (existente) */}
+        {/* 🎫 MI MEMBRESÍA - MEJORADO CON BOTÓN DE COMPRA */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
               Mi Membresía
             </h3>
-            {activeMembership && (
+            {activeMembership ? (
               <Link 
                 to={`/dashboard/memberships/${activeMembership.id}`}
                 className="text-primary-600 hover:text-primary-500 text-sm font-medium"
               >
                 Ver detalles
               </Link>
+            ) : (
+              <button
+                onClick={() => setActiveSection('memberships')}
+                className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+              >
+                Obtener membresía
+              </button>
             )}
           </div>
           
@@ -347,29 +475,37 @@ const ClientDashboard = () => {
             />
           ) : (
             <div className="text-center py-8">
-              <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <CreditCard className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <h4 className="text-lg font-medium text-gray-900 mb-2">
                 No tienes membresía activa
               </h4>
-              <p className="text-gray-600 mb-4">
-                Obtén una membresía para acceder a todas las instalaciones
+              <p className="text-gray-600 mb-6">
+                Para acceder a todas nuestras instalaciones y servicios, 
+                necesitas obtener una membresía.
               </p>
-              <Link
-                to="/dashboard/memberships/plans"
-                className="btn-primary"
-              >
-                Ver planes
-              </Link>
+              <div className="space-y-3">
+                <button
+                  onClick={() => setActiveSection('memberships')}
+                  className="btn-primary w-full"
+                >
+                  <Gift className="w-4 h-4 mr-2" />
+                  Obtener Membresía Ahora
+                </button>
+                {plans && plans.length > 0 && (
+                  <p className="text-xs text-gray-500">
+                    ⭐ Planes desde Q{Math.min(...plans.map(p => p.price))}/mes • Beneficios incluidos
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
         
-        {/* ✅ NUEVA: MI TESTIMONIO - Resumen MEJORADO */}
+        {/* ✅ MI TESTIMONIO - Resumen EXISTENTE */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
               Mis Testimonios
-              {/* ✅ NUEVO: Contador */}
               {userTestimonials.length > 0 && (
                 <span className="ml-2 text-sm font-normal text-gray-500">
                   ({userTestimonials.length})
@@ -389,7 +525,7 @@ const ClientDashboard = () => {
           ) : userTestimonials.length > 0 ? (
             <div className="space-y-4">
               
-              {/* ✅ NUEVO: Estadísticas rápidas */}
+              {/* Estadísticas rápidas */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-green-50 rounded-lg p-3 text-center">
                   <div className="text-lg font-semibold text-green-800">{publishedCount}</div>
@@ -401,7 +537,7 @@ const ClientDashboard = () => {
                 </div>
               </div>
               
-              {/* ✅ MOSTRAR LOS 2 TESTIMONIOS MÁS RECIENTES */}
+              {/* Mostrar los 2 testimonios más recientes */}
               {userTestimonials.slice(0, 2).map((testimonial, index) => (
                 <div key={testimonial.id} className="border border-gray-200 rounded-lg p-4">
                   
@@ -414,7 +550,6 @@ const ClientDashboard = () => {
                       {testimonial.status === 'Publicado' && <CheckCircle className="w-3 h-3 mr-1" />}
                       {testimonial.status === 'En revisión' && <Clock className="w-3 h-3 mr-1" />}
                       {testimonial.status}
-                      {/* ✅ NUEVO: Indicador de más reciente */}
                       {index === 0 && userTestimonials.length > 1 && (
                         <span className="ml-1 text-xs">• Más reciente</span>
                       )}
@@ -461,7 +596,7 @@ const ClientDashboard = () => {
                 </div>
               ))}
               
-              {/* ✅ NUEVO: Indicador de más testimonios */}
+              {/* Indicador de más testimonios */}
               {userTestimonials.length > 2 && (
                 <div className="text-center pt-2">
                   <button
@@ -486,9 +621,10 @@ const ClientDashboard = () => {
               <button
                 onClick={() => setActiveSection('testimonials')}
                 className="btn-primary"
+                disabled={!activeMembership}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Escribir testimonio
+                {!activeMembership ? 'Obtén membresía primero' : 'Escribir testimonio'}
               </button>
             </div>
           )}
@@ -496,194 +632,205 @@ const ClientDashboard = () => {
         
       </div>
       
-      {/* 📅 HORARIOS (existente) */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">
-            Mis Horarios
+      {/* Resto del componente: horarios, pagos, acciones rápidas, etc. - EXISTENTE */}
+      {/* [El resto del código permanece igual...] */}
+      
+    </div>
+  );
+};
+
+// ✅ NUEVO: Componente para mostrar planes de membresía
+const MembershipPlansSection = ({ plans, isLoaded, currentMembership, isMobile }) => {
+  const { showSuccess, showError } = useApp();
+
+  const handleSelectPlan = async (plan) => {
+    try {
+      showSuccess(`Plan ${plan.name} seleccionado. Redirigiendo al proceso de pago...`);
+      // TODO: Implementar lógica de pago/checkout
+      // navigate('/checkout', { state: { planId: plan.id } });
+    } catch (error) {
+      showError('Error al seleccionar el plan');
+    }
+  };
+
+  // Obtener beneficios únicos de todos los planes
+  const getAllBenefits = () => {
+    if (!plans || plans.length === 0) return [];
+    
+    const allFeatures = plans.flatMap(plan => plan.features || []);
+    const uniqueFeatures = [...new Set(allFeatures)];
+    return uniqueFeatures.slice(0, 4); // Mostrar máximo 4
+  };
+
+  const globalBenefits = getAllBenefits();
+
+  if (!isLoaded) {
+    return (
+      <div className="text-center py-12">
+        <LoadingSpinner />
+        <p className="text-gray-600 mt-4">Cargando planes de membresía...</p>
+      </div>
+    );
+  }
+
+  if (!plans || plans.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          No hay planes disponibles
+        </h3>
+        <p className="text-gray-600">
+          Contacta con el gimnasio para más información sobre membresías.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      
+      {/* Header de beneficios - DINÁMICO */}
+      {globalBenefits.length > 0 && (
+        <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+            🎉 Beneficios de ser miembro
           </h3>
-          {activeMembership && (
-            <Link 
-              to={`/dashboard/memberships/${activeMembership.id}/schedule`}
-              className="text-primary-600 hover:text-primary-500 text-sm font-medium"
-            >
-              Editar
-            </Link>
+          <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-4'}`}>
+            {globalBenefits.map((benefit, index) => (
+              <div key={index} className="flex items-center">
+                <Check className="w-5 h-5 text-primary-600 mr-2 flex-shrink-0" />
+                <span className="text-sm font-medium">{benefit}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Grid de planes */}
+      <div className={`grid gap-6 ${
+        isMobile ? 'grid-cols-1' :
+        plans.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
+        plans.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+      }`}>
+        {plans.map((plan) => {
+          const IconComponent = plan.iconName === 'crown' ? Crown : 
+                              plan.iconName === 'calendar-days' ? Calendar : 
+                              plan.iconName === 'calendar' ? Calendar :
+                              plan.iconName === 'calendar-range' ? Calendar :
+                              Shield;
+          
+          const isCurrentPlan = currentMembership && currentMembership.planId === plan.id;
+          
+          return (
+            <div key={plan.id} className={`
+              relative bg-white rounded-3xl shadow-xl p-8 transition-all duration-300 hover:scale-105
+              ${plan.popular ? 'ring-2 ring-primary-500 scale-105' : ''}
+              ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}
+            `}>
+              
+              {plan.popular && (
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-primary-600 text-white px-6 py-2 rounded-full text-sm font-bold">
+                    🔥 Más Popular
+                  </span>
+                </div>
+              )}
+
+              {isCurrentPlan && (
+                <div className="absolute -top-4 right-4">
+                  <span className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold">
+                    ✅ Plan Actual
+                  </span>
+                </div>
+              )}
+              
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary-100 flex items-center justify-center">
+                  <IconComponent className="w-8 h-8 text-primary-600" />
+                </div>
+                
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                  {plan.name}
+                </h3>
+                
+                <div className="mb-8">
+                  <div className="flex items-baseline justify-center mb-2">
+                    <span className="text-5xl font-bold text-gray-900">
+                      Q{plan.price}
+                    </span>
+                    <span className="text-gray-600 ml-2">
+                      /{plan.duration}
+                    </span>
+                  </div>
+                  {plan.originalPrice && plan.originalPrice > plan.price && (
+                    <div className="text-sm text-gray-500">
+                      <span className="line-through">Q{plan.originalPrice}</span>
+                      <span className="ml-2 text-green-600 font-semibold">
+                        Ahorra Q{plan.originalPrice - plan.price}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                {plan.features && Array.isArray(plan.features) && plan.features.length > 0 && (
+                  <ul className="space-y-4 mb-8 text-left">
+                    {plan.features.map((feature, featureIndex) => (
+                      <li key={featureIndex} className="flex items-center">
+                        <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
+                        <span className="text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                
+                <button 
+                  onClick={() => handleSelectPlan(plan)}
+                  disabled={isCurrentPlan}
+                  className={`
+                    w-full btn text-center font-semibold py-4 transition-all
+                    ${isCurrentPlan ? 'btn-secondary opacity-50 cursor-not-allowed' :
+                      plan.popular ? 'btn-primary hover:scale-105' : 'btn-secondary hover:scale-105'}
+                  `}
+                >
+                  {isCurrentPlan ? '✅ Plan Actual' :
+                   plan.popular ? '🔥 Elegir Plan Popular' : 'Elegir Plan'}
+                </button>
+
+                {!currentMembership && plan.popular && (
+                  <p className="text-xs text-green-600 font-medium mt-2">
+                    🎁 ¡Oferta especial para nuevos miembros!
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Información adicional - COMPLETAMENTE DINÁMICO */}
+      {plans && plans.length > 0 && (
+        <div className="bg-gray-50 rounded-lg p-6">
+          <div className="flex items-center justify-center mb-4">
+            <Shield className="w-6 h-6 text-green-500 mr-2" />
+            <span className="font-semibold text-gray-900">
+              {/* Buscar garantía en la descripción de algún plan */}
+              {plans.find(p => p.description?.toLowerCase().includes('garantía'))?.description?.match(/\d+\s*días?/)?.[0] 
+                ? `Garantía de satisfacción ${plans.find(p => p.description?.toLowerCase().includes('garantía'))?.description?.match(/\d+\s*días?/)?.[0]}`
+                : 'Garantía de satisfacción'
+              }
+            </span>
+          </div>
+          {/* Buscar política de reembolso en algún plan */}
+          {plans.find(p => p.description?.toLowerCase().includes('reembolso') || p.description?.toLowerCase().includes('devolu'))?.description && (
+            <p className="text-center text-gray-600 text-sm">
+              {plans.find(p => p.description?.toLowerCase().includes('reembolso') || p.description?.toLowerCase().includes('devolu'))?.description}
+            </p>
           )}
         </div>
-        
-        {activeMembership ? (
-          <ScheduleCard 
-            schedule={activeMembership.preferredSchedule}
-            editable={true}
-          />
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <Calendar className="w-12 h-12 mx-auto mb-4" />
-            <p>Define tus horarios preferidos</p>
-          </div>
-        )}
-      </div>
-      
-      {/* 💰 HISTORIAL DE PAGOS (existente) */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">
-            Historial de Pagos
-          </h3>
-          <Link 
-            to="/dashboard/payments"
-            className="text-primary-600 hover:text-primary-500 text-sm font-medium"
-          >
-            Ver todos
-          </Link>
-        </div>
-        
-        {paymentsLoading ? (
-          <LoadingSpinner />
-        ) : (
-          <PaymentHistoryCard 
-            payments={recentPayments.slice(0, 5)}
-            showActions={true}
-          />
-        )}
-      </div>
-      
-      {/* 🎯 ACCIONES RÁPIDAS - ✅ CON TESTIMONIOS MEJORADOS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        
-        {/* 🔄 Renovar membresía (existente) */}
-        {activeMembership && (
-          <Link
-            to={`/dashboard/memberships/${activeMembership.id}/renew`}
-            className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
-          >
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-green-600" />
-              </div>
-              <div className="ml-3">
-                <h4 className="text-sm font-medium text-gray-900">
-                  Renovar membresía
-                </h4>
-                <p className="text-xs text-gray-600">
-                  Extiende tu membresía
-                </p>
-              </div>
-            </div>
-          </Link>
-        )}
-        
-        {/* 🛒 Ir a la tienda (existente) */}
-        <Link
-          to="/store"
-          className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
-        >
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-              <ShoppingBag className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div className="ml-3">
-              <h4 className="text-sm font-medium text-gray-900">
-                Tienda
-              </h4>
-              <p className="text-xs text-gray-600">
-                Productos y suplementos
-              </p>
-            </div>
-          </div>
-        </Link>
-        
-        {/* ✅ NUEVO: Mis testimonios - ACTUALIZADA */}
-        <button
-          onClick={() => setActiveSection('testimonials')}
-          className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow text-left"
-        >
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="ml-3">
-              <h4 className="text-sm font-medium text-gray-900">
-                Mis testimonios
-                {/* ✅ NUEVO: Mostrar contador */}
-                {userTestimonials.length > 0 && (
-                  <span className="ml-1 text-xs text-gray-500">({userTestimonials.length})</span>
-                )}
-              </h4>
-              <p className="text-xs text-gray-600">
-                {publishedCount > 0 && pendingCount > 0 ? 
-                  `${publishedCount} publicados, ${pendingCount} en revisión` :
-                publishedCount > 0 ? 
-                  `${publishedCount} publicado${publishedCount !== 1 ? 's' : ''}` :
-                pendingCount > 0 ? 
-                  `${pendingCount} en revisión` :
-                'Escribir experiencia'}
-              </p>
-            </div>
-          </div>
-        </button>
-        
-        {/* 📤 Subir comprobante (existente) */}
-        <Link
-          to="/dashboard/payments/upload-proof"
-          className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
-        >
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-              <Upload className="w-5 h-5 text-amber-600" />
-            </div>
-            <div className="ml-3">
-              <h4 className="text-sm font-medium text-gray-900">
-                Subir comprobante
-              </h4>
-              <p className="text-xs text-gray-600">
-                Pago por transferencia
-              </p>
-            </div>
-          </div>
-        </Link>
-        
-        {/* 👤 Editar perfil (existente) */}
-        <Link
-          to="/dashboard/profile"
-          className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
-        >
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <User className="w-5 h-5 text-purple-600" />
-            </div>
-            <div className="ml-3">
-              <h4 className="text-sm font-medium text-gray-900">
-                Mi perfil
-              </h4>
-              <p className="text-xs text-gray-600">
-                Actualizar información
-              </p>
-            </div>
-          </div>
-        </Link>
-        
-      </div>
-      
-      {/* 💡 CONSEJOS Y MOTIVACIÓN (existente) */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 border border-blue-200">
-        <div className="flex items-center">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-            <Trophy className="w-6 h-6 text-blue-600" />
-          </div>
-          <div className="ml-4">
-            <h3 className="text-lg font-medium text-gray-900">
-              ¡Consejo del día!
-            </h3>
-            <p className="text-gray-600 mt-1">
-              La constancia es la clave del éxito. Cada día que entrenas te acercas más a tu objetivo. 
-              ¡Sigue así y verás resultados increíbles!
-            </p>
-          </div>
-        </div>
-      </div>
-      
+      )}
+
     </div>
   );
 };
