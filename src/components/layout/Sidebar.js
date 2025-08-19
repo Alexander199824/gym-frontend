@@ -1,6 +1,6 @@
 // src/components/layout/Sidebar.js
 // FUNCIÓN: Sidebar SOLO para desktop - reparado para colapso correcto
-// CAMBIOS: Texto que desaparece correctamente, logout sin errores
+// CAMBIOS: ✅ Tienda agregada para todos los usuarios ✅ Logout sin errores CORREGIDO
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -14,7 +14,8 @@ import {
   LogOut,
   User,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ShoppingBag  // ✅ AGREGADO para la tienda
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -31,7 +32,7 @@ const Sidebar = ({ collapsed }) => {
   const isActiveRoute = (path) => location.pathname === path;
   const isActiveSection = (paths) => paths.some(path => location.pathname.startsWith(path));
   
-  // 📋 Obtener elementos del menú según el rol
+  // 📋 Obtener elementos del menú según el rol - ✅ TIENDA AGREGADA
   const getMenuItems = () => {
     const baseItems = [
       {
@@ -75,6 +76,15 @@ const Sidebar = ({ collapsed }) => {
         show: true
       });
     }
+
+    // 🛍️ TIENDA - ✅ AGREGADA PARA TODOS LOS USUARIOS
+    baseItems.push({
+      id: 'store',
+      label: 'Tienda',
+      icon: ShoppingBag,
+      path: '/store', // Ruta pública de la tienda
+      show: true
+    });
     
     // 📊 Reportes
     if (hasPermission('view_reports')) {
@@ -117,25 +127,58 @@ const Sidebar = ({ collapsed }) => {
   
   const menuItems = getMenuItems();
   
-  // 🔐 Manejar logout REPARADO
+  // 🔐 Manejar logout ✅ CORREGIDO - MÁS ROBUSTO
   const handleLogout = async () => {
     if (isLoggingOut) return;
     
     try {
       setIsLoggingOut(true);
-      await logout();
-      navigate('/login', { replace: true });
-      showSuccess && showSuccess('Sesión cerrada correctamente');
-    } catch (error) {
-      console.error('Error durante logout:', error);
-      showError && showError('Error al cerrar sesión');
+      console.log('🔐 Iniciando logout...');
       
-      // Fallback si hay error
+      // ✅ Limpiar datos locales ANTES del logout
       try {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        localStorage.removeItem('elite_fitness_cart');
+        localStorage.removeItem('elite_fitness_session_id');
+        localStorage.removeItem('elite_fitness_wishlist');
+        console.log('🧹 Datos locales limpiados');
+      } catch (localStorageError) {
+        console.warn('⚠️ Error limpiando localStorage:', localStorageError);
+      }
+      
+      // ✅ Llamar al logout del contexto con timeout
+      const logoutPromise = logout();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Logout timeout')), 5000)
+      );
+      
+      await Promise.race([logoutPromise, timeoutPromise]);
+      
+      console.log('✅ Logout exitoso');
+      showSuccess && showSuccess('Sesión cerrada correctamente');
+      
+      // ✅ Navegar después del logout exitoso
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ Error durante logout:', error);
+      
+      // ✅ FALLBACK ROBUSTO: Forzar limpieza y redirección
+      try {
+        // Limpiar todo el localStorage
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        console.log('🔄 Forzando recarga para limpiar estado...');
+        showError && showError('Cerrando sesión...');
+        
+        // Forzar redirección
         window.location.href = '/login';
-      } catch {
+        
+      } catch (fallbackError) {
+        console.error('❌ Error en fallback:', fallbackError);
+        // Último recurso
         window.location.reload();
       }
     } finally {
@@ -261,7 +304,7 @@ const Sidebar = ({ collapsed }) => {
           )}
         </Link>
         
-        {/* 🔴 Cerrar Sesión */}
+        {/* 🔴 Cerrar Sesión - ✅ CORREGIDO */}
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}

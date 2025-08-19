@@ -2,6 +2,7 @@
 // UBICACIÓN: /gym-frontend/src/pages/dashboard/ClientDashboard.js
 // FUNCIÓN: Dashboard personal para clientes con su información y membresías
 // CONECTA CON: Endpoints específicos del cliente logueado
+// MEJORAS: ✅ Botón de tienda agregado en acciones rápidas
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -19,7 +20,8 @@ import {
   Upload,
   Settings,
   User,
-  Bell
+  Bell,
+  ShoppingBag  // ✅ AGREGADO para la tienda
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -318,7 +320,7 @@ const ClientDashboard = () => {
         )}
       </div>
       
-      {/* 🎯 ACCIONES RÁPIDAS */}
+      {/* 🎯 ACCIONES RÁPIDAS - ✅ CON TIENDA AGREGADA */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* 🔄 Renovar membresía */}
@@ -342,6 +344,26 @@ const ClientDashboard = () => {
             </div>
           </Link>
         )}
+        
+        {/* 🛒 ✅ NUEVO: Ir a la tienda */}
+        <Link
+          to="/store"
+          className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
+        >
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+              <ShoppingBag className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div className="ml-3">
+              <h4 className="text-sm font-medium text-gray-900">
+                Tienda
+              </h4>
+              <p className="text-xs text-gray-600">
+                Productos y suplementos
+              </p>
+            </div>
+          </div>
+        </Link>
         
         {/* 📤 Subir comprobante */}
         <Link

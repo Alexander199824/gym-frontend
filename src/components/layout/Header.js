@@ -2,9 +2,7 @@
 // UBICACIÓN: /gym-frontend/src/components/layout/Header.js
 // FUNCIÓN: Barra superior del dashboard con navegación y acciones del usuario
 // CONECTA CON: AuthContext, AppContext, componentes de notificación
-
-// src/components/layout/Header.js
-// FUNCIÓN: Header CORREGIDO con logo desde configuración
+// MEJORAS: ✅ Logout mejorado sin errores ✅ Manejo robusto de errores
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -31,7 +29,9 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
     notifications, 
     theme, 
     setTheme,
-    formatDate 
+    formatDate,
+    showSuccess,
+    showError
   } = useApp();
   
   const navigate = useNavigate();
@@ -40,6 +40,7 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false); // ✅ Estado para logout
   
   // 🎯 Referencias
   const userMenuRef = useRef(null);
@@ -71,6 +72,67 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
+  };
+  
+  // ✅ FUNCIÓN MEJORADA: Manejar logout robusto sin errores
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    try {
+      setIsLoggingOut(true);
+      setShowUserMenu(false);
+      
+      console.log('🔐 Header: Iniciando logout...');
+      
+      // ✅ Limpiar datos locales ANTES del logout
+      try {
+        localStorage.removeItem('elite_fitness_cart');
+        localStorage.removeItem('elite_fitness_session_id');
+        localStorage.removeItem('elite_fitness_wishlist');
+        console.log('🧹 Header: Datos locales limpiados');
+      } catch (localStorageError) {
+        console.warn('⚠️ Header: Error limpiando localStorage:', localStorageError);
+      }
+      
+      // ✅ Llamar al logout del contexto con timeout
+      const logoutPromise = logout();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Header logout timeout')), 5000)
+      );
+      
+      await Promise.race([logoutPromise, timeoutPromise]);
+      
+      console.log('✅ Header: Logout exitoso');
+      showSuccess && showSuccess('Sesión cerrada correctamente');
+      
+      // ✅ Redireccionar después de logout exitoso
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ Header: Error durante logout:', error);
+      
+      // ✅ FALLBACK ROBUSTO: Forzar limpieza y redirección
+      try {
+        // Limpiar todo el localStorage y sessionStorage
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        console.log('🔄 Header: Forzando redirección después de error...');
+        showError && showError('Cerrando sesión...');
+        
+        // Forzar redirección inmediata
+        window.location.href = '/login';
+        
+      } catch (fallbackError) {
+        console.error('❌ Header: Error en fallback:', fallbackError);
+        // Último recurso: recargar página
+        window.location.reload();
+      }
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
   
   // 🔔 Notificaciones no leídas
@@ -273,15 +335,25 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
                 
                 <div className="border-t border-gray-200 my-2" />
                 
+                {/* ✅ BOTÓN DE LOGOUT MEJORADO */}
                 <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    logout();
-                  }}
-                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <LogOut className="w-4 h-4 mr-3" />
-                  Cerrar Sesión
+                  {isLoggingOut ? (
+                    <>
+                      <div className="w-4 h-4 mr-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                      </div>
+                      Cerrando sesión...
+                    </>
+                  ) : (
+                    <>
+                      <LogOut className="w-4 h-4 mr-3" />
+                      Cerrar Sesión
+                    </>
+                  )}
                 </button>
               </div>
             </div>
