@@ -1,7 +1,8 @@
 // src/pages/checkout/CheckoutPage.js
 // FUNCIÓN: Página de checkout COMPLETA - CORREGIDA - Solo datos del backend
 // FIX: ✅ Sin datos hardcodeados - Solo del backend
-// FIX: ✅ Flujo de éxito corregido
+// FIX: ✅ Flujo de éxito corregido - MENSAJE DE ÉXITO ARREGLADO
+// FIX: ✅ Layout de confirmación sin resumen vacío
 // FIX: ✅ Emails para usuarios invitados
 // GUATEMALA: ✅ Implementación completa de departamentos y municipios
 
@@ -301,16 +302,17 @@ const CheckoutPage = () => {
     if (showSuccess) showSuccess(message);
   }, [showSuccess]);
 
-  // ✅ EFECTO: Carrito vacío
+  // ✅ FIX CRÍTICO: EFECTO Carrito vacío - NO redirigir en step 3
   useEffect(() => {
-    if (isEmpty) {
+    // ✅ FIX: No redirigir si estamos en step 3 (página de confirmación)
+    if (isEmpty && step !== 3) {
       console.log('🛒 Carrito está vacío, redirigiendo...');
       setTimeout(() => {
         memoizedShowInfo('Tu carrito está vacío');
       }, 100);
       navigate('/store');
     }
-  }, [isEmpty, navigate, memoizedShowInfo]);
+  }, [isEmpty, navigate, memoizedShowInfo, step]); // ✅ Agregar 'step' como dependencia
 
   // ✅ FIX: EFECTO Stripe SIN funciones externas como dependencias
   useEffect(() => {
@@ -617,7 +619,7 @@ const CheckoutPage = () => {
     }
   };
 
-  if (isEmpty) {
+  if (isEmpty && step !== 3) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -699,101 +701,113 @@ const CheckoutPage = () => {
 
       {/* 📱 CONTENIDO PRINCIPAL */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* 📝 FORMULARIO PRINCIPAL */}
-          <div className="lg:col-span-2">
-            {step === 1 && (
-              <CustomerInfoStep
-                customerInfo={customerInfo}
-                setCustomerInfo={setCustomerInfo}
-                shippingAddress={shippingAddress}
-                setShippingAddress={setShippingAddress}
-                deliveryMethod={deliveryMethod}
-                setDeliveryMethod={setDeliveryMethod}
-                notes={notes}
-                setNotes={setNotes}
-                errors={errors}
-                touched={touched}
-                isAuthenticated={isAuthenticated}
-                user={user}
-                onInputChange={handleInputChange}
-                onKeyPress={handleKeyPress}
-                availableMunicipalities={availableMunicipalities}
-                calculateShippingCost={calculateShippingCost}
-                deliveryOptions={deliveryOptions}
-                gymConfig={gymConfig}
-                isLoadingConfig={isLoadingConfig}
-              />
-            )}
-
-            {step === 2 && stripePromise && (
-              <Elements stripe={stripePromise}>
-                <PaymentStep
-                  paymentMethod={paymentMethod}
-                  setPaymentMethod={setPaymentMethod}
-                  customerInfo={customerInfo}
-                  shippingAddress={shippingAddress}
-                  deliveryMethod={deliveryMethod}
-                  notes={notes}
-                  items={items}
-                  summary={summary}
-                  isAuthenticated={isAuthenticated}
-                  sessionInfo={sessionInfo}
-                  onSuccess={(order) => {
-                    console.log('🎯 onSuccess llamado con orden:', order);
-                    setOrderCreated(order);
-                    setStep(3);
-                    clearCart();
-                    console.log('✅ Estado actualizado - Step:', 3, 'Orden guardada:', order.id);
-                    
-                    // ✅ FIX: Mostrar éxito inmediatamente después del cambio de estado
-                    setTimeout(() => {
-                      memoizedShowSuccess('¡Compra realizada exitosamente! Recibirás un email de confirmación.');
-                    }, 100);
-                  }}
-                  onError={(error) => {
-                    console.error('❌ onError llamado:', error);
-                    memoizedShowError(error);
-                  }}
-                  isProcessing={isProcessing}
-                  setIsProcessing={setIsProcessing}
-                  shippingCost={calculateShippingCost()}
-                  gymConfig={gymConfig}
-                  deliveryOptions={deliveryOptions}
-                />
-              </Elements>
-            )}
-
-            {step === 3 && (
-              <>
-                {console.log('🎊 Renderizando ConfirmationStep con orden:', orderCreated)}
-                <ConfirmationStep
-                  order={orderCreated}
-                  customerInfo={customerInfo}
-                  gymConfig={gymConfig}
-                />
-              </>
-            )}
-          </div>
-
-          {/* 📋 RESUMEN DEL PEDIDO */}
-          <div className="lg:col-span-1">
-            <OrderSummary
-              items={items}
-              summary={summary}
-              formatCurrency={formatCurrency}
-              step={step}
-              onContinue={handleContinue}
-              canContinue={step === 1}
-              isProcessing={isProcessing}
-              errors={errors}
-              deliveryMethod={deliveryMethod}
-              shippingCost={calculateShippingCost()}
-              deliveryOptions={deliveryOptions}
+        {/* ✅ FIX: Layout diferente para step 3 (confirmación) */}
+        {step === 3 ? (
+          // Layout especial para confirmación - CENTRADO Y SIN RESUMEN
+          <div className="max-w-4xl mx-auto">
+            {console.log('🎊 Renderizando ConfirmationStep con orden:', orderCreated)}
+            <ConfirmationStep
+              order={orderCreated}
+              customerInfo={customerInfo}
+              gymConfig={gymConfig}
             />
           </div>
-        </div>
+        ) : (
+          // Layout normal para steps 1 y 2 - CON RESUMEN
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* 📝 FORMULARIO PRINCIPAL */}
+            <div className="lg:col-span-2">
+              {step === 1 && (
+                <CustomerInfoStep
+                  customerInfo={customerInfo}
+                  setCustomerInfo={setCustomerInfo}
+                  shippingAddress={shippingAddress}
+                  setShippingAddress={setShippingAddress}
+                  deliveryMethod={deliveryMethod}
+                  setDeliveryMethod={setDeliveryMethod}
+                  notes={notes}
+                  setNotes={setNotes}
+                  errors={errors}
+                  touched={touched}
+                  isAuthenticated={isAuthenticated}
+                  user={user}
+                  onInputChange={handleInputChange}
+                  onKeyPress={handleKeyPress}
+                  availableMunicipalities={availableMunicipalities}
+                  calculateShippingCost={calculateShippingCost}
+                  deliveryOptions={deliveryOptions}
+                  gymConfig={gymConfig}
+                  isLoadingConfig={isLoadingConfig}
+                />
+              )}
+
+              {step === 2 && stripePromise && (
+                <Elements stripe={stripePromise}>
+                  <PaymentStep
+                    paymentMethod={paymentMethod}
+                    setPaymentMethod={setPaymentMethod}
+                    customerInfo={customerInfo}
+                    shippingAddress={shippingAddress}
+                    deliveryMethod={deliveryMethod}
+                    notes={notes}
+                    items={items}
+                    summary={summary}
+                    isAuthenticated={isAuthenticated}
+                    sessionInfo={sessionInfo}
+                    onSuccess={(order) => {
+                      console.log('🎯 onSuccess llamado con orden:', order);
+                      setOrderCreated(order);
+                      setStep(3);
+                      
+                      // ✅ FIX CRÍTICO: NO limpiar carrito inmediatamente
+                      // clearCart(); // ❌ COMENTADO para evitar redirección
+                      
+                      console.log('✅ Estado actualizado - Step:', 3, 'Orden guardada:', order.id);
+                      
+                      // ✅ Mostrar éxito inmediatamente
+                      setTimeout(() => {
+                        memoizedShowSuccess('¡Compra realizada exitosamente! Recibirás un email de confirmación.');
+                      }, 100);
+                      
+                      // ✅ FIX: Limpiar carrito DESPUÉS de mostrar confirmación (opcional)
+                      setTimeout(() => {
+                        console.log('🧹 Limpiando carrito después de mostrar confirmación...');
+                        clearCart();
+                      }, 10000); // 10 segundos para que el usuario vea la confirmación
+                    }}
+                    onError={(error) => {
+                      console.error('❌ onError llamado:', error);
+                      memoizedShowError(error);
+                    }}
+                    isProcessing={isProcessing}
+                    setIsProcessing={setIsProcessing}
+                    shippingCost={calculateShippingCost()}
+                    gymConfig={gymConfig}
+                    deliveryOptions={deliveryOptions}
+                  />
+                </Elements>
+              )}
+            </div>
+
+            {/* 📋 RESUMEN DEL PEDIDO - SOLO EN STEPS 1 Y 2 */}
+            <div className="lg:col-span-1">
+              <OrderSummary
+                items={items}
+                summary={summary}
+                formatCurrency={formatCurrency}
+                step={step}
+                onContinue={handleContinue}
+                canContinue={step === 1}
+                isProcessing={isProcessing}
+                errors={errors}
+                deliveryMethod={deliveryMethod}
+                shippingCost={calculateShippingCost()}
+                deliveryOptions={deliveryOptions}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1741,135 +1755,199 @@ const PaymentStep = ({
   );
 };
 
-// ✅ CORREGIDO: Paso 3 - Confirmación con datos del backend
+// ✅ COMPONENTE COMPLETAMENTE NUEVO: Paso 3 - Confirmación compacta y bien organizada
 const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   const navigate = useNavigate();
+  const { clearCart } = useCart();
 
   console.log('🎊 ConfirmationStep renderizado con orden:', order);
   console.log('📧 Customer info:', customerInfo);
 
   useEffect(() => {
-    console.log('🎉 ConfirmationStep montado - mostrando mensaje de éxito');
+    console.log('🎉 ConfirmationStep montado - paso completado exitosamente');
     setTimeout(() => {
-      console.log('✅ Mostrando alerta de éxito...');
-      alert('🎉 ¡Compra realizada exitosamente!\n\n' + 
-            '✅ Tu pedido ha sido confirmado\n' + 
-            '📧 Recibirás un email de confirmación\n' + 
-            '📱 Te contactaremos por WhatsApp\n\n' + 
-            'Número de pedido: ' + (order?.orderNumber || order?.id || 'N/A'));
+      console.log('✅ ConfirmationStep completamente montado y funcional');
     }, 500);
   }, [order]);
 
+  // ✅ Función para continuar comprando
+  const handleContinueShopping = () => {
+    console.log('🛒 Usuario eligió continuar comprando - limpiando carrito...');
+    clearCart();
+    navigate('/store');
+  };
+
+  // ✅ Función para ir al inicio  
+  const handleGoHome = () => {
+    console.log('🏠 Usuario eligió ir al inicio - limpiando carrito...');
+    clearCart();
+    navigate('/');
+  };
+
   return (
-    <div className="text-center space-y-6">
-      <div className="bg-white rounded-lg shadow-sm p-8">
-        <div className="mb-6">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            ¡Pedido confirmado!
-          </h2>
-          <p className="text-gray-600">
-            Hemos recibido tu pedido y comenzaremos a prepararlo
-          </p>
-        </div>
-
-        <div className="bg-gray-50 rounded-lg p-6 mb-6">
-          <div className="text-left">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Detalles del pedido
-            </h3>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Número de pedido:</span>
-                <span className="font-medium">{order?.orderNumber || order?.id}</span>
-              </div>
-              
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total:</span>
-                <span className="font-medium">Q{order?.totalAmount?.toFixed(2) || '0.00'}</span>
-              </div>
-              
-              <div className="flex justify-between">
-                <span className="text-gray-600">Estado:</span>
-                <span className="text-green-600 font-medium">Confirmado</span>
-              </div>
-              
-              <div className="flex justify-between">
-                <span className="text-gray-600">Método de pago:</span>
-                <span className="font-medium">
-                  {order?.paymentMethod === 'online_card' ? 'Tarjeta de crédito' : 'Pago contra entrega'}
-                </span>
-              </div>
-
-              {/* ✅ MOSTRAR datos del backend solo si están disponibles */}
-              {gymConfig.name && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Empresa:</span>
-                  <span className="font-medium">{gymConfig.name}</span>
-                </div>
-              )}
-
-              {gymConfig.contact.phone && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Contacto:</span>
-                  <span className="font-medium">{gymConfig.contact.phone}</span>
-                </div>
-              )}
-            </div>
+    <div className="space-y-8">
+      
+      {/* ✅ BANNER DE ÉXITO COMPACTO Y ATRACTIVO */}
+      <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl p-8 text-center shadow-xl">
+        <div className="flex flex-col items-center">
+          <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle className="w-12 h-12 text-white" />
           </div>
-        </div>
-
-        {/* ✅ NUEVO: Banner de éxito más visible */}
-        <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center justify-center">
-            <CheckCircle className="w-6 h-6 text-green-500 mr-2" />
-            <div className="text-center">
-              <p className="text-green-800 font-bold text-lg">
-                ¡Compra realizada exitosamente!
-              </p>
-              <p className="text-green-600 text-sm mt-1">
-                Tu pedido está siendo procesado por {gymConfig.name || 'nuestro equipo'}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <button
-            onClick={() => navigate('/store')}
-            className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors"
-          >
-            Seguir comprando
-          </button>
-          
-          <button
-            onClick={() => navigate('/')}
-            className="w-full text-primary-600 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors"
-          >
-            Volver al inicio
-          </button>
-        </div>
-
-        {/* ✅ INFORMACIÓN MEJORADA: Email confirmación */}
-        <div className="mt-6 text-sm text-gray-500">
-          <div className="flex items-center justify-center mb-2">
-            <Mail className="w-4 h-4 mr-1 text-green-500" />
-            <span className="font-medium text-green-600">Email de confirmación enviado</span>
-          </div>
-          <p>
-            Se ha enviado un email con todos los detalles a <strong>{customerInfo.email}</strong>
+          <h1 className="text-3xl md:text-4xl font-bold mb-3">
+            🎉 ¡COMPRA EXITOSA!
+          </h1>
+          <p className="text-green-100 text-lg md:text-xl mb-4">
+            Tu pedido ha sido confirmado y procesado correctamente
           </p>
-          <p className="mt-2">
-            También recibirás actualizaciones por WhatsApp al teléfono proporcionado
-          </p>
-          {gymConfig.contact.email && (
-            <p className="mt-2">
-              Para cualquier consulta: <strong>{gymConfig.contact.email}</strong>
+          <div className="bg-white bg-opacity-20 rounded-lg px-4 py-2">
+            <p className="text-green-100">
+              Pedido: <span className="font-bold text-white">{order?.orderNumber || order?.id}</span>
             </p>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* ✅ RESUMEN COMPACTO EN TARJETAS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* Detalles del pedido */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <Package className="w-6 h-6 text-primary-600 mr-2" />
+            Detalles del pedido
+          </h3>
+          
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Número:</span>
+              <span className="font-semibold">{order?.orderNumber || order?.id}</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total:</span>
+              <span className="font-bold text-xl text-green-600">Q{order?.totalAmount || '0.00'}</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-gray-600">Estado:</span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                <CheckCircle className="w-4 h-4 mr-1" />
+                Confirmado
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-gray-600">Pago:</span>
+              <span className="font-medium">
+                {order?.paymentMethod === 'online_card' ? 'Tarjeta' : 'Contra entrega'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Información de contacto */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+            <Mail className="w-6 h-6 text-blue-600 mr-2" />
+            Confirmación enviada
+          </h3>
+          
+          <div className="space-y-3">
+            <div className="flex items-center text-sm">
+              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+              <span>Email enviado a <strong>{customerInfo.email}</strong></span>
+            </div>
+            
+            <div className="flex items-center text-sm">
+              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+              <span>Actualizaciones por WhatsApp</span>
+            </div>
+            
+            {gymConfig.name && (
+              <div className="flex items-center text-sm">
+                <Store className="w-4 h-4 text-blue-500 mr-2" />
+                <span>Procesado por <strong>{gymConfig.name}</strong></span>
+              </div>
+            )}
+            
+            {gymConfig.contact.phone && (
+              <div className="flex items-center text-sm">
+                <Phone className="w-4 h-4 text-blue-500 mr-2" />
+                <span>Soporte: <strong>{gymConfig.contact.phone}</strong></span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ ESTADO DE CONFIRMACIÓN COMPACTO */}
+      <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
+              <Mail className="w-6 h-6 text-green-600" />
+            </div>
+            <p className="font-semibold text-green-800">Email confirmado</p>
+            <p className="text-sm text-green-600">Detalles enviados</p>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
+              <Phone className="w-6 h-6 text-green-600" />
+            </div>
+            <p className="font-semibold text-green-800">WhatsApp activo</p>
+            <p className="text-sm text-green-600">Seguimiento en tiempo real</p>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
+              <Package className="w-6 h-6 text-green-600" />
+            </div>
+            <p className="font-semibold text-green-800">En preparación</p>
+            <p className="text-sm text-green-600">Comenzamos ahora</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ BOTONES DE ACCIÓN COMPACTOS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <button
+          onClick={handleContinueShopping}
+          className="w-full bg-primary-600 text-white py-4 rounded-xl text-lg font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center"
+        >
+          <Package className="w-5 h-5 mr-2" />
+          Seguir comprando
+        </button>
+        
+        <button
+          onClick={handleGoHome}
+          className="w-full text-primary-600 py-4 rounded-xl text-lg font-semibold hover:bg-primary-50 transition-colors border-2 border-primary-600 flex items-center justify-center"
+        >
+          <Home className="w-5 h-5 mr-2" />
+          Volver al inicio
+        </button>
+      </div>
+
+      {/* ✅ INFORMACIÓN ADICIONAL COMPACTA */}
+      {(gymConfig.contact.email || gymConfig.contact.phone) && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+          <p className="text-blue-800 font-medium mb-2">
+            ¿Necesitas ayuda con tu pedido?
+          </p>
+          <div className="flex justify-center space-x-4 text-sm">
+            {gymConfig.contact.email && (
+              <span className="text-blue-600">
+                📧 {gymConfig.contact.email}
+              </span>
+            )}
+            {gymConfig.contact.phone && (
+              <span className="text-blue-600">
+                📞 {gymConfig.contact.phone}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
