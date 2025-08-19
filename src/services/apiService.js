@@ -694,6 +694,260 @@ class ApiService {
     }
   }
   
+// ================================
+// 💬 MÉTODOS DE TESTIMONIOS - NUEVOS PARA CLIENTES
+// ================================
+
+// ✅ CREAR TESTIMONIO (Solo para clientes autenticados)
+async createTestimonial(testimonialData) {
+  console.log('💬 CREATING TESTIMONIAL...');
+  console.log('📤 Testimonial data to send:', testimonialData);
+  
+  try {
+    const result = await this.post('/testimonials', testimonialData);
+    
+    console.log('✅ TESTIMONIAL CREATED SUCCESSFULLY:', result);
+    
+    // Validar estructura según API documentada
+    if (result && result.success) {
+      console.log('✅ Testimonial creation response structure is correct');
+      console.log('💬 Testimonial details:', {
+        hasThankYouMessage: !!result.data?.thankYouMessage,
+        testimonialId: result.data?.testimonial?.id,
+        rating: result.data?.testimonial?.rating,
+        submittedAt: result.data?.testimonial?.submittedAt
+      });
+      
+      if (result.data?.thankYouMessage) {
+        console.log('💝 Thank you message:', result.data.thankYouMessage);
+      }
+    } else {
+      console.warn('⚠️ Testimonial creation response structure might be different from API docs');
+    }
+    
+    return result;
+  } catch (error) {
+    console.log('❌ TESTIMONIAL CREATION FAILED:', error.message);
+    
+    if (error.response?.status === 400) {
+      console.log('💬 TESTIMONIAL: User already has a testimonial');
+      console.log('💝 Response includes thank you message:', !!error.response.data?.data?.thankYouMessage);
+    } else if (error.response?.status === 422) {
+      console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
+      console.log('💡 Common validation issues:');
+      console.log('   - text: Must be between 10 and 500 characters');
+      console.log('   - rating: Must be between 1 and 5');
+      console.log('   - role: Must be provided');
+    } else if (error.response?.status === 403) {
+      console.log('🔒 TESTIMONIAL: Only clients can submit testimonials');
+    } else if (error.response?.status === 401) {
+      console.log('🔐 TESTIMONIAL: Authentication required');
+    }
+    
+    throw error;
+  }
+}
+
+// ✅ OBTENER MIS TESTIMONIOS (Solo para clientes autenticados)
+async getMyTestimonials() {
+  console.log('💬 FETCHING MY TESTIMONIALS...');
+  
+  try {
+    const result = await this.get('/testimonials/my-testimonials');
+    
+    console.log('✅ MY TESTIMONIALS RECEIVED:', result);
+    
+    // Validar estructura según API documentada
+    if (result && result.success && result.data) {
+      console.log('✅ My testimonials response structure is correct');
+      console.log('💬 My testimonials details:', {
+        totalTestimonials: result.data.total || 0,
+        testimonialsCount: result.data.testimonials?.length || 0,
+        hasActiveTestimonial: result.data.hasActiveTestimonial || false,
+        hasPendingTestimonial: result.data.hasPendingTestimonial || false,
+        canSubmitNew: result.data.canSubmitNew !== false,
+        hasThankYouMessage: !!result.data.thankYouMessage
+      });
+      
+      // Analizar cada testimonio
+      if (result.data.testimonials && Array.isArray(result.data.testimonials)) {
+        result.data.testimonials.forEach((testimonial, index) => {
+          console.log(`💬 Testimonial ${index + 1}:`, {
+            id: testimonial.id,
+            rating: testimonial.rating,
+            status: testimonial.status,
+            featured: testimonial.featured || false,
+            canEdit: testimonial.canEdit || false,
+            canDelete: testimonial.canDelete || false,
+            textLength: testimonial.text?.length || 0
+          });
+        });
+      }
+      
+      if (result.data.thankYouMessage) {
+        console.log('💝 Thank you message:', result.data.thankYouMessage);
+      }
+    } else {
+      console.warn('⚠️ My testimonials response structure might be different from API docs');
+    }
+    
+    return result;
+  } catch (error) {
+    console.log('❌ GET MY TESTIMONIALS FAILED:', error.message);
+    
+    if (error.response?.status === 404) {
+      console.log('💬 TESTIMONIALS: No testimonials found or user has empty testimonials list');
+      // Devolver estructura vacía compatible según API
+      return {
+        success: true,
+        data: {
+          testimonials: [],
+          total: 0,
+          hasActiveTestimonial: false,
+          hasPendingTestimonial: false,
+          canSubmitNew: true,
+          thankYouMessage: null
+        }
+      };
+    } else if (error.response?.status === 403) {
+      console.log('🔒 TESTIMONIALS: Only clients can view their testimonials');
+    } else if (error.response?.status === 401) {
+      console.log('🔐 TESTIMONIALS: Authentication required');
+    }
+    
+    throw error;
+  }
+}
+
+// ✅ VALIDAR DATOS DE TESTIMONIO ANTES DE ENVÍO
+validateTestimonialData(testimonialData) {
+  console.log('🔍 VALIDATING TESTIMONIAL DATA STRUCTURE...');
+  
+  const errors = [];
+  const warnings = [];
+  
+  // Validar texto del testimonio
+  if (!testimonialData.text || typeof testimonialData.text !== 'string') {
+    errors.push('text is required and must be a string');
+  } else {
+    const textLength = testimonialData.text.trim().length;
+    if (textLength < 10) {
+      errors.push('text must be at least 10 characters long');
+    } else if (textLength > 500) {
+      errors.push('text cannot exceed 500 characters');
+    }
+  }
+  
+  // Validar rating
+  if (!testimonialData.rating || typeof testimonialData.rating !== 'number') {
+    errors.push('rating is required and must be a number');
+  } else if (testimonialData.rating < 1 || testimonialData.rating > 5) {
+    errors.push('rating must be between 1 and 5');
+  }
+  
+  // Validar rol
+  if (!testimonialData.role || typeof testimonialData.role !== 'string') {
+    errors.push('role is required and must be a string');
+  } else if (testimonialData.role.trim().length === 0) {
+    errors.push('role cannot be empty');
+  }
+  
+  // Advertencias para mejores prácticas
+  if (testimonialData.text && testimonialData.text.trim().length < 20) {
+    warnings.push('text is very short (recommended at least 20 characters for better testimonials)');
+  }
+  
+  if (testimonialData.rating && testimonialData.rating < 4) {
+    warnings.push('rating is below 4 stars (consider providing specific feedback for improvement)');
+  }
+  
+  const validation = {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    summary: {
+      hasErrors: errors.length > 0,
+      hasWarnings: warnings.length > 0,
+      totalIssues: errors.length + warnings.length,
+      textLength: testimonialData.text?.trim()?.length || 0,
+      rating: testimonialData.rating,
+      role: testimonialData.role?.trim()
+    }
+  };
+  
+  if (errors.length > 0) {
+    console.log('❌ TESTIMONIAL DATA VALIDATION FAILED:');
+    errors.forEach(error => console.log(`   - ${error}`));
+  } else {
+    console.log('✅ TESTIMONIAL DATA VALIDATION PASSED');
+  }
+  
+  if (warnings.length > 0) {
+    console.log('⚠️ TESTIMONIAL DATA WARNINGS:');
+    warnings.forEach(warning => console.log(`   - ${warning}`));
+  }
+  
+  return validation;
+}
+
+// ✅ HELPER: FORMATEAR DATOS DE TESTIMONIO PARA API
+formatTestimonialDataForAPI(testimonialData) {
+  console.log('🔄 FORMATTING TESTIMONIAL DATA FOR API...');
+  
+  // Estructura según API documentada
+  const formattedData = {
+    text: testimonialData.text?.trim() || '',
+    rating: parseInt(testimonialData.rating) || 1,
+    role: testimonialData.role?.trim() || ''
+  };
+  
+  console.log('✅ Testimonial data formatted for API:', {
+    textLength: formattedData.text.length,
+    rating: formattedData.rating,
+    role: formattedData.role,
+    isValid: formattedData.text.length >= 10 && 
+             formattedData.rating >= 1 && 
+             formattedData.rating <= 5 && 
+             formattedData.role.length > 0
+  });
+  
+  return formattedData;
+}
+
+// ✅ MÉTODO COMPLETO PARA CREAR TESTIMONIO CON VALIDACIÓN
+async submitTestimonial(testimonialData) {
+  console.log('💬 SUBMITTING TESTIMONIAL WITH VALIDATION...');
+  console.log('📤 Raw testimonial data received:', testimonialData);
+  
+  try {
+    // 1. Validar datos de entrada
+    const validation = this.validateTestimonialData(testimonialData);
+    
+    if (!validation.isValid) {
+      const errorMessage = 'Datos de testimonio inválidos: ' + validation.errors.join(', ');
+      console.log('❌ Validation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
+    
+    // 2. Formatear datos para la API
+    const formattedData = this.formatTestimonialDataForAPI(testimonialData);
+    
+    // 3. Crear testimonio usando el método base
+    const result = await this.createTestimonial(formattedData);
+    
+    console.log('✅ TESTIMONIAL SUBMITTED SUCCESSFULLY:', result);
+    
+    return result;
+    
+  } catch (error) {
+    console.log('❌ TESTIMONIAL SUBMISSION FAILED:', error.message);
+    throw error;
+  }
+}
+
+
+
+
   // ================================
   // 🛍️ MÉTODOS DE TIENDA - MANTIENE TODA LA FUNCIONALIDAD EXISTENTE
   // ================================

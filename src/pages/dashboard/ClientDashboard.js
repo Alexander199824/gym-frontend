@@ -1,8 +1,6 @@
 // src/pages/dashboard/ClientDashboard.js
-// UBICACIÓN: /gym-frontend/src/pages/dashboard/ClientDashboard.js
 // FUNCIÓN: Dashboard personal para clientes con su información y membresías
-// CONECTA CON: Endpoints específicos del cliente logueado
-// MEJORAS: ✅ Botón de tienda agregado en acciones rápidas
+// NUEVAS FUNCIONALIDADES: ✅ Testimonios integrados + navegación + métricas
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -21,24 +19,34 @@ import {
   Settings,
   User,
   Bell,
-  ShoppingBag  // ✅ AGREGADO para la tienda
+  ShoppingBag,
+  MessageSquare, // ✅ NUEVO: Para testimonios
+  Star, // ✅ NUEVO: Para testimonios
+  Plus, // ✅ NUEVO: Para testimonios
+  ArrowLeft // ✅ NUEVO: Para navegación
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// 📊 Componentes
+// 📊 Componentes existentes
 import DashboardCard from '../../components/common/DashboardCard';
 import MembershipCard from '../../components/memberships/MembershipCard';
 import PaymentHistoryCard from '../../components/payments/PaymentHistoryCard';
 import ScheduleCard from '../../components/memberships/ScheduleCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
+// ✅ NUEVO: Componente de testimonios
+import TestimonialManager from './components/TestimonialManager';
+
 const ClientDashboard = () => {
   const { user } = useAuth();
   const { formatCurrency, formatDate, showError } = useApp();
   
-  // 📊 QUERIES PARA DATOS DEL CLIENTE
+  // ✅ NUEVO: Estado para navegación entre secciones
+  const [activeSection, setActiveSection] = useState('dashboard');
+  
+  // 📊 QUERIES EXISTENTES PARA DATOS DEL CLIENTE
   
   // Membresías del cliente
   const { data: memberships, isLoading: membershipsLoading } = useQuery({
@@ -63,12 +71,33 @@ const ClientDashboard = () => {
     staleTime: 10 * 60 * 1000
   });
   
-  // 📊 Procesar datos
+  // ✅ NUEVO: Testimonios del usuario
+  const { data: testimonials, isLoading: testimonialsLoading } = useQuery({
+    queryKey: ['myTestimonials', user?.id],
+    queryFn: () => apiService.getMyTestimonials(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    onError: (error) => {
+      // Solo mostrar error si no es 404 (sin testimonios)
+      if (error.response?.status !== 404) {
+        console.warn('Error loading testimonials:', error.message);
+      }
+    }
+  });
+  
+  // 📊 Procesar datos existentes
   const activeMembership = memberships?.data?.memberships?.find(m => m.status === 'active');
   const recentPayments = payments?.data?.payments || [];
   const totalPaid = recentPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
   
-  // 📅 Calcular días hasta vencimiento
+  // ✅ NUEVO: Procesar datos de testimonios
+  const testimonialData = testimonials?.data || {};
+  const userTestimonials = testimonialData.testimonials || [];
+  const hasActiveTestimonial = testimonialData.hasActiveTestimonial || false;
+  const hasPendingTestimonial = testimonialData.hasPendingTestimonial || false;
+  const canSubmitTestimonial = testimonialData.canSubmitNew !== false;
+  
+  // 📅 Calcular días hasta vencimiento (existente)
   const getDaysUntilExpiry = (endDate) => {
     if (!endDate) return null;
     const today = new Date();
@@ -80,7 +109,7 @@ const ClientDashboard = () => {
   
   const daysUntilExpiry = activeMembership ? getDaysUntilExpiry(activeMembership.endDate) : null;
   
-  // 🎯 Estado de la membresía
+  // 🎯 Estado de la membresía (existente)
   const getMembershipStatus = () => {
     if (!activeMembership) return { status: 'none', message: 'Sin membresía activa', color: 'gray' };
     
@@ -95,10 +124,33 @@ const ClientDashboard = () => {
   
   const membershipStatus = getMembershipStatus();
 
+  // ✅ NUEVO: Si está en la sección de testimonios, mostrar el componente
+  if (activeSection === 'testimonials') {
+    return (
+      <div className="space-y-6">
+        {/* Navegación de regreso */}
+        <div className="flex items-center">
+          <button
+            onClick={() => setActiveSection('dashboard')}
+            className="btn-secondary btn-sm mr-4 flex items-center"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Volver al Dashboard
+          </button>
+          <h2 className="text-xl font-semibold text-gray-900">Mis Testimonios</h2>
+        </div>
+        
+        {/* Componente de gestión de testimonios */}
+        <TestimonialManager />
+      </div>
+    );
+  }
+
+  // Vista principal del dashboard
   return (
     <div className="space-y-6">
       
-      {/* 🏠 HEADER PERSONALIZADO */}
+      {/* 🏠 HEADER PERSONALIZADO (existente) */}
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
@@ -120,10 +172,10 @@ const ClientDashboard = () => {
         </div>
       </div>
       
-      {/* 📊 MÉTRICAS PERSONALES */}
+      {/* 📊 MÉTRICAS PERSONALES - ✅ CON TESTIMONIOS AGREGADOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* 🎫 Estado de membresía */}
+        {/* 🎫 Estado de membresía (existente) */}
         <DashboardCard
           title="Mi Membresía"
           value={membershipStatus.message}
@@ -136,7 +188,7 @@ const ClientDashboard = () => {
           }
         />
         
-        {/* ⏰ Días restantes */}
+        {/* ⏰ Días restantes (existente) */}
         <DashboardCard
           title="Días restantes"
           value={daysUntilExpiry !== null ? 
@@ -153,7 +205,7 @@ const ClientDashboard = () => {
           alert={daysUntilExpiry !== null && daysUntilExpiry <= 3}
         />
         
-        {/* 💰 Total pagado */}
+        {/* 💰 Total pagado (existente) */}
         <DashboardCard
           title="Total pagado"
           value={formatCurrency(totalPaid)}
@@ -163,18 +215,31 @@ const ClientDashboard = () => {
           subtitle={`${recentPayments.length} pagos`}
         />
         
-        {/* 📈 Progreso */}
+        {/* ✅ NUEVO: Estado de testimonio */}
         <DashboardCard
-          title="Progreso"
-          value="En forma"
-          icon={TrendingUp}
-          color="blue"
-          subtitle="¡Sigue así!"
+          title="Mi Testimonio"
+          value={
+            hasActiveTestimonial ? 'Publicado' :
+            hasPendingTestimonial ? 'En revisión' :
+            canSubmitTestimonial ? 'Pendiente' : 'Completado'
+          }
+          icon={MessageSquare}
+          color={
+            hasActiveTestimonial ? 'green' :
+            hasPendingTestimonial ? 'yellow' :
+            canSubmitTestimonial ? 'blue' : 'gray'
+          }
+          isLoading={testimonialsLoading}
+          subtitle={
+            hasActiveTestimonial ? 'Testimonio visible' :
+            hasPendingTestimonial ? 'Siendo revisado' :
+            canSubmitTestimonial ? 'Compartir experiencia' : 'Ya compartido'
+          }
         />
         
       </div>
       
-      {/* 🚨 ALERTAS IMPORTANTES */}
+      {/* 🚨 ALERTAS IMPORTANTES (existentes + nueva para testimonios) */}
       {membershipStatus.status === 'expired' && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
@@ -219,10 +284,33 @@ const ClientDashboard = () => {
         </div>
       )}
       
-      {/* 📋 CONTENIDO PRINCIPAL */}
+      {/* ✅ NUEVA: Alerta para testimonios pendientes */}
+      {canSubmitTestimonial && !hasActiveTestimonial && !hasPendingTestimonial && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <MessageSquare className="w-5 h-5 text-blue-500 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">
+                ¡Comparte tu experiencia!
+              </h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Tu opinión es muy valiosa. Ayuda a otros miembros compartiendo tu experiencia en el gimnasio.
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveSection('testimonials')}
+              className="ml-auto btn-primary btn-sm"
+            >
+              Escribir testimonio
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* 📋 CONTENIDO PRINCIPAL - ✅ CON TESTIMONIOS AGREGADOS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* 🎫 MI MEMBRESÍA */}
+        {/* 🎫 MI MEMBRESÍA (existente) */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
@@ -265,38 +353,133 @@ const ClientDashboard = () => {
           )}
         </div>
         
-        {/* 📅 HORARIOS */}
+        {/* ✅ NUEVA: MI TESTIMONIO - Resumen */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
-              Mis Horarios
+              Mi Testimonio
             </h3>
-            {activeMembership && (
-              <Link 
-                to={`/dashboard/memberships/${activeMembership.id}/schedule`}
-                className="text-primary-600 hover:text-primary-500 text-sm font-medium"
-              >
-                Editar
-              </Link>
-            )}
+            <button
+              onClick={() => setActiveSection('testimonials')}
+              className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+            >
+              {userTestimonials.length > 0 ? 'Ver detalles' : 'Escribir testimonio'}
+            </button>
           </div>
           
-          {activeMembership ? (
-            <ScheduleCard 
-              schedule={activeMembership.preferredSchedule}
-              editable={true}
-            />
+          {testimonialsLoading ? (
+            <LoadingSpinner />
+          ) : userTestimonials.length > 0 ? (
+            <div className="space-y-4">
+              {userTestimonials.map((testimonial) => (
+                <div key={testimonial.id} className="border border-gray-200 rounded-lg p-4">
+                  
+                  {/* Estado del testimonio */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      testimonial.status === 'Publicado' ? 'bg-green-100 text-green-800' :
+                      testimonial.status === 'Pendiente de aprobación' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {testimonial.status === 'Publicado' && <CheckCircle className="w-3 h-3 mr-1" />}
+                      {testimonial.status === 'Pendiente de aprobación' && <Clock className="w-3 h-3 mr-1" />}
+                      {testimonial.status === 'No público - Guardado para análisis' && <MessageSquare className="w-3 h-3 mr-1" />}
+                      {testimonial.status}
+                    </span>
+                    
+                    {/* Calificación */}
+                    <div className="flex items-center">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-4 h-4 ${
+                            star <= testimonial.rating
+                              ? 'text-yellow-400 fill-current'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                      <span className="ml-2 text-sm text-gray-600">
+                        ({testimonial.rating}/5)
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Contenido del testimonio */}
+                  <p className="text-gray-800 text-sm leading-relaxed mb-3">
+                    "{testimonial.text.length > 100 ? 
+                      testimonial.text.substring(0, 100) + '...' : 
+                      testimonial.text}"
+                  </p>
+                  
+                  {/* Meta información */}
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>Como {testimonial.role}</span>
+                    <span>Enviado el {formatDate(testimonial.submittedAt)}</span>
+                  </div>
+                  
+                  {/* Destacado */}
+                  {testimonial.featured && (
+                    <div className="mt-2 flex items-center text-xs text-purple-600">
+                      <Star className="w-3 h-3 mr-1 fill-current" />
+                      Testimonio destacado
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Calendar className="w-12 h-12 mx-auto mb-4" />
-              <p>Define tus horarios preferidos</p>
+            <div className="text-center py-8">
+              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                Comparte tu experiencia
+              </h4>
+              <p className="text-gray-600 mb-4">
+                Tu testimonio ayuda a otros miembros a conocer los beneficios del gimnasio
+              </p>
+              <button
+                onClick={() => setActiveSection('testimonials')}
+                className="btn-primary"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Escribir testimonio
+              </button>
             </div>
           )}
         </div>
         
       </div>
       
-      {/* 💰 HISTORIAL DE PAGOS */}
+      {/* 📅 HORARIOS (existente) */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Mis Horarios
+          </h3>
+          {activeMembership && (
+            <Link 
+              to={`/dashboard/memberships/${activeMembership.id}/schedule`}
+              className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+            >
+              Editar
+            </Link>
+          )}
+        </div>
+        
+        {activeMembership ? (
+          <ScheduleCard 
+            schedule={activeMembership.preferredSchedule}
+            editable={true}
+          />
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Calendar className="w-12 h-12 mx-auto mb-4" />
+            <p>Define tus horarios preferidos</p>
+          </div>
+        )}
+      </div>
+      
+      {/* 💰 HISTORIAL DE PAGOS (existente) */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-900">
@@ -320,10 +503,10 @@ const ClientDashboard = () => {
         )}
       </div>
       
-      {/* 🎯 ACCIONES RÁPIDAS - ✅ CON TIENDA AGREGADA */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 🎯 ACCIONES RÁPIDAS - ✅ CON TESTIMONIOS AGREGADOS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         
-        {/* 🔄 Renovar membresía */}
+        {/* 🔄 Renovar membresía (existente) */}
         {activeMembership && (
           <Link
             to={`/dashboard/memberships/${activeMembership.id}/renew`}
@@ -345,7 +528,7 @@ const ClientDashboard = () => {
           </Link>
         )}
         
-        {/* 🛒 ✅ NUEVO: Ir a la tienda */}
+        {/* 🛒 Ir a la tienda (existente) */}
         <Link
           to="/store"
           className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
@@ -365,14 +548,36 @@ const ClientDashboard = () => {
           </div>
         </Link>
         
-        {/* 📤 Subir comprobante */}
+        {/* ✅ NUEVO: Mis testimonios */}
+        <button
+          onClick={() => setActiveSection('testimonials')}
+          className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow text-left"
+        >
+          <div className="flex items-center">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="ml-3">
+              <h4 className="text-sm font-medium text-gray-900">
+                Mis testimonios
+              </h4>
+              <p className="text-xs text-gray-600">
+                {hasActiveTestimonial ? 'Ver testimonio' : 
+                 hasPendingTestimonial ? 'En revisión' : 
+                 'Escribir experiencia'}
+              </p>
+            </div>
+          </div>
+        </button>
+        
+        {/* 📤 Subir comprobante (existente) */}
         <Link
           to="/dashboard/payments/upload-proof"
           className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
         >
           <div className="flex items-center">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Upload className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+              <Upload className="w-5 h-5 text-amber-600" />
             </div>
             <div className="ml-3">
               <h4 className="text-sm font-medium text-gray-900">
@@ -385,7 +590,7 @@ const ClientDashboard = () => {
           </div>
         </Link>
         
-        {/* 👤 Editar perfil */}
+        {/* 👤 Editar perfil (existente) */}
         <Link
           to="/dashboard/profile"
           className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
@@ -405,29 +610,9 @@ const ClientDashboard = () => {
           </div>
         </Link>
         
-        {/* 🔔 Notificaciones */}
-        <Link
-          to="/dashboard/notifications"
-          className="bg-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-shadow"
-        >
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <Bell className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div className="ml-3">
-              <h4 className="text-sm font-medium text-gray-900">
-                Notificaciones
-              </h4>
-              <p className="text-xs text-gray-600">
-                Configurar alertas
-              </p>
-            </div>
-          </div>
-        </Link>
-        
       </div>
       
-      {/* 💡 CONSEJOS Y MOTIVACIÓN */}
+      {/* 💡 CONSEJOS Y MOTIVACIÓN (existente) */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 border border-blue-200">
         <div className="flex items-center">
           <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
