@@ -1,6 +1,6 @@
 // src/pages/dashboard/components/ProfileManager.js
-// FUNCIÓN: Gestión completa del perfil con VALIDACIONES y estructura correcta del README
-// CORREGIDO: Compatible con LoadingSpinner existente, rutas correctas del backend, validaciones completas
+// FUNCIÓN: Gestión completa del perfil con VALIDACIONES MEJORADAS y cambios individuales permitidos
+// CORREGIDO: Validaciones menos restrictivas, permite guardar cambios individuales, mantiene funcionalidades
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -51,8 +51,12 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     role: ''
   });
   
-  // ⚠️ Estados de validación
+  // 👤 Estados originales para comparar cambios
+  const [originalPersonalInfo, setOriginalPersonalInfo] = useState({});
+  
+  // ⚠️ Estados de validación - MEJORADOS PARA SER MENOS RESTRICTIVOS
   const [validationErrors, setValidationErrors] = useState({});
+  const [validationWarnings, setValidationWarnings] = useState({});
   const [isUnderAge, setIsUnderAge] = useState(false);
   
   // 🔐 Estados de seguridad
@@ -120,53 +124,66 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   ];
   
-  // 🔍 FUNCIONES DE VALIDACIÓN
+  // ✅ MEJORADAS: FUNCIONES DE VALIDACIÓN MENOS RESTRICTIVAS
   
-  // Validar nombres (solo letras, espacios, acentos, guiones)
-  const validateName = (name) => {
-    const nameRegex = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-']+$/;
-    if (!name.trim()) {
-      return 'Este campo es obligatorio';
+  // Validar nombres - SOLO errores críticos
+  const validateName = (name, fieldName = 'campo') => {
+    if (!name || !name.trim()) {
+      return `${fieldName} es obligatorio`;
     }
-    if (name.trim().length < 2) {
-      return 'Debe tener al menos 2 caracteres';
-    }
-    if (!nameRegex.test(name)) {
-      return 'Solo se permiten letras, espacios, acentos y guiones';
-    }
-    if (name.length > 50) {
-      return 'Máximo 50 caracteres';
-    }
-    return null;
-  };
-  
-  // Validar teléfono (solo números, espacios, guiones, paréntesis, signo +)
-  const validatePhone = (phone) => {
-    if (!phone.trim()) return null; // Opcional
     
-    const phoneRegex = /^[\d\s\-\(\)\+]+$/;
-    if (!phoneRegex.test(phone)) {
-      return 'Solo se permiten números, espacios, guiones, paréntesis y signo +';
+    if (name.trim().length < 2) {
+      return `${fieldName} debe tener al menos 2 caracteres`;
     }
-    if (phone.replace(/\s/g, '').length < 8) {
-      return 'Debe tener al menos 8 dígitos';
+    
+    if (name.length > 50) {
+      return `${fieldName} no puede exceder 50 caracteres`;
     }
+    
+    // ✅ MEJORADO: Solo caracteres completamente inválidos generan error
+    const nameRegex = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'.]+$/;
+    if (!nameRegex.test(name)) {
+      return `${fieldName} contiene caracteres no válidos`;
+    }
+    
     return null;
   };
   
-  // Validar email
+  // Validar teléfono - MÁS PERMISIVO
+  const validatePhone = (phone) => {
+    if (!phone || !phone.trim()) return null; // Opcional
+    
+    // ✅ MEJORADO: Más formatos permitidos
+    const phoneRegex = /^[\d\s\-\(\)\+\.]+$/;
+    if (!phoneRegex.test(phone)) {
+      return 'Formato de teléfono no válido';
+    }
+    
+    // ✅ MEJORADO: Menos restrictivo en longitud
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length < 7) {
+      return 'Teléfono debe tener al menos 7 dígitos';
+    }
+    
+    return null;
+  };
+  
+  // Validar email - SOLO formato básico
   const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) {
+    if (!email || !email.trim()) {
       return 'Email es obligatorio';
     }
+    
+    // ✅ MEJORADO: Validación básica más permisiva
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return 'Formato de email inválido';
+      return 'Formato de email no válido';
     }
+    
     return null;
   };
   
-  // Calcular edad y validar restricción de 13 años
+  // Calcular edad
   const calculateAge = (dateOfBirth) => {
     if (!dateOfBirth) return null;
     
@@ -182,63 +199,104 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     return age;
   };
   
-  // Validar fecha de nacimiento
+  // Validar fecha de nacimiento - MENOS RESTRICTIVO
   const validateDateOfBirth = (dateOfBirth) => {
     if (!dateOfBirth) return null; // Opcional
     
     const age = calculateAge(dateOfBirth);
-    if (age === null) return 'Fecha inválida';
+    if (age === null) return 'Fecha no válida';
     
     if (age < 13) {
-      return 'Debes tener al menos 13 años para usar esta plataforma';
+      return 'Debes tener al menos 13 años';
     }
     
     if (age > 120) {
-      return 'Fecha de nacimiento inválida';
+      return 'Fecha no válida';
     }
     
     return null;
   };
   
-  // Validar todos los campos
-  const validateAllFields = () => {
+  // ✅ NUEVA FUNCIÓN: Validar solo campos críticos para guardar
+  const validateCriticalFieldsOnly = () => {
     const errors = {};
     
-    // Validar nombres
-    const firstNameError = validateName(personalInfo.firstName);
-    if (firstNameError) errors.firstName = firstNameError;
+    // Solo validar campos que tienen valor y son críticos
+    if (personalInfo.firstName) {
+      const firstNameError = validateName(personalInfo.firstName, 'Nombre');
+      if (firstNameError) errors.firstName = firstNameError;
+    }
     
-    const lastNameError = validateName(personalInfo.lastName);
-    if (lastNameError) errors.lastName = lastNameError;
+    if (personalInfo.lastName) {
+      const lastNameError = validateName(personalInfo.lastName, 'Apellido');
+      if (lastNameError) errors.lastName = lastNameError;
+    }
     
-    // Validar email
-    const emailError = validateEmail(personalInfo.email);
-    if (emailError) errors.email = emailError;
+    if (personalInfo.email) {
+      const emailError = validateEmail(personalInfo.email);
+      if (emailError) errors.email = emailError;
+    }
     
-    // Validar teléfono
-    const phoneError = validatePhone(personalInfo.phone);
-    if (phoneError) errors.phone = phoneError;
+    if (personalInfo.phone && personalInfo.phone.trim()) {
+      const phoneError = validatePhone(personalInfo.phone);
+      if (phoneError) errors.phone = phoneError;
+    }
     
-    // Validar fecha de nacimiento
-    const dateError = validateDateOfBirth(personalInfo.dateOfBirth);
-    if (dateError) errors.dateOfBirth = dateError;
+    if (personalInfo.dateOfBirth) {
+      const dateError = validateDateOfBirth(personalInfo.dateOfBirth);
+      if (dateError) errors.dateOfBirth = dateError;
+    }
     
-    // Validar contacto de emergencia
-    if (personalInfo.emergencyContact.name) {
-      const emergencyNameError = validateName(personalInfo.emergencyContact.name);
+    // Validar contacto de emergencia solo si tiene datos
+    if (personalInfo.emergencyContact.name && personalInfo.emergencyContact.name.trim()) {
+      const emergencyNameError = validateName(personalInfo.emergencyContact.name, 'Contacto de emergencia');
       if (emergencyNameError) errors.emergencyName = emergencyNameError;
     }
     
-    if (personalInfo.emergencyContact.phone) {
+    if (personalInfo.emergencyContact.phone && personalInfo.emergencyContact.phone.trim()) {
       const emergencyPhoneError = validatePhone(personalInfo.emergencyContact.phone);
       if (emergencyPhoneError) errors.emergencyPhone = emergencyPhoneError;
     }
     
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
+    return errors;
   };
   
-  // 🔄 CARGAR DATOS DEL PERFIL - ESTRUCTURA CORRECTA DEL README
+  // ✅ NUEVA FUNCIÓN: Verificar si hay cambios reales
+  const hasRealChanges = () => {
+    if (!originalPersonalInfo) return false;
+    
+    // Comparar campos principales
+    const fieldsToCompare = ['firstName', 'lastName', 'phone', 'dateOfBirth', 'address', 'city', 'zipCode', 'bio'];
+    
+    for (const field of fieldsToCompare) {
+      const original = originalPersonalInfo[field] || '';
+      const current = personalInfo[field] || '';
+      
+      if (original.trim() !== current.trim()) {
+        console.log(`📝 Campo cambiado: ${field}`, { original, current });
+        return true;
+      }
+    }
+    
+    // Comparar contacto de emergencia
+    const originalEmergency = originalPersonalInfo.emergencyContact || {};
+    const currentEmergency = personalInfo.emergencyContact || {};
+    
+    const emergencyFields = ['name', 'phone', 'relationship'];
+    for (const field of emergencyFields) {
+      const original = originalEmergency[field] || '';
+      const current = currentEmergency[field] || '';
+      
+      if (original.trim() !== current.trim()) {
+        console.log(`📝 Contacto emergencia cambiado: ${field}`, { original, current });
+        return true;
+      }
+    }
+    
+    return false;
+  };
+  
+  // 🔄 CARGAR DATOS DEL PERFIL - MANTIENE FUNCIONALIDAD EXISTENTE
   const loadProfileData = async () => {
     try {
       setLoading(true);
@@ -275,6 +333,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         };
         
         setPersonalInfo(mappedPersonalInfo);
+        setOriginalPersonalInfo(JSON.parse(JSON.stringify(mappedPersonalInfo))); // ✅ NUEVO: Guardar estado original
         
         // Verificar si es menor de edad
         const age = calculateAge(mappedPersonalInfo.dateOfBirth);
@@ -317,6 +376,11 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
           });
         }
         
+        // ✅ NUEVO: Limpiar errores y cambios al cargar
+        setValidationErrors({});
+        setValidationWarnings({});
+        setHasUnsavedChanges(false);
+        
       } else {
         console.warn('⚠️ No user data found in response');
         showError('No se pudo cargar la información del perfil');
@@ -327,7 +391,6 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       
       if (error.response?.status === 401) {
         showError('Sesión expirada. Redirigiendo...');
-        // El interceptor manejará la redirección
       } else if (error.response?.status === 404) {
         showError('Perfil no encontrado');
       } else {
@@ -338,48 +401,100 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 💾 GUARDAR INFORMACIÓN PERSONAL - USANDO PATCH COMO DICE EL README
+  // ✅ MEJORADO: GUARDAR INFORMACIÓN PERSONAL - MÁS PERMISIVO
   const savePersonalInfo = async () => {
     try {
       setSaving(true);
+      console.log('💾 Saving personal info...');
       
-      // Validar todos los campos antes de enviar
-      if (!validateAllFields()) {
+      // ✅ MEJORADO: Solo validar campos críticos
+      const criticalErrors = validateCriticalFieldsOnly();
+      
+      if (Object.keys(criticalErrors).length > 0) {
+        setValidationErrors(criticalErrors);
         showError('Por favor corrige los errores antes de guardar');
         return;
       }
       
-      console.log('💾 Saving personal info...');
+      // ✅ NUEVO: Verificar si hay cambios reales
+      if (!hasRealChanges()) {
+        showError('No hay cambios para guardar');
+        return;
+      }
       
-      // Preparar datos según estructura del README
-      const dataToSend = {
-        firstName: personalInfo.firstName.trim(),
-        lastName: personalInfo.lastName.trim(),
-        phone: personalInfo.phone.trim(),
-        dateOfBirth: personalInfo.dateOfBirth || undefined,
-        address: personalInfo.address.trim() || undefined,
-        city: personalInfo.city.trim() || undefined,
-        zipCode: personalInfo.zipCode.trim() || undefined,
-        bio: personalInfo.bio.trim() || undefined
-      };
+      // ✅ MEJORADO: Preparar solo campos que cambiaron
+      const dataToSend = {};
       
-      // Agregar contacto de emergencia solo si tiene datos
-      if (personalInfo.emergencyContact.name.trim() || personalInfo.emergencyContact.phone.trim()) {
+      // Solo enviar campos que cambiaron
+      if (originalPersonalInfo.firstName !== personalInfo.firstName) {
+        dataToSend.firstName = personalInfo.firstName.trim();
+      }
+      
+      if (originalPersonalInfo.lastName !== personalInfo.lastName) {
+        dataToSend.lastName = personalInfo.lastName.trim();
+      }
+      
+      if (originalPersonalInfo.phone !== personalInfo.phone) {
+        dataToSend.phone = personalInfo.phone.trim();
+      }
+      
+      if (originalPersonalInfo.dateOfBirth !== personalInfo.dateOfBirth) {
+        dataToSend.dateOfBirth = personalInfo.dateOfBirth || undefined;
+      }
+      
+      if (originalPersonalInfo.address !== personalInfo.address) {
+        dataToSend.address = personalInfo.address.trim() || undefined;
+      }
+      
+      if (originalPersonalInfo.city !== personalInfo.city) {
+        dataToSend.city = personalInfo.city.trim() || undefined;
+      }
+      
+      if (originalPersonalInfo.zipCode !== personalInfo.zipCode) {
+        dataToSend.zipCode = personalInfo.zipCode.trim() || undefined;
+      }
+      
+      if (originalPersonalInfo.bio !== personalInfo.bio) {
+        dataToSend.bio = personalInfo.bio.trim() || undefined;
+      }
+      
+      // Verificar cambios en contacto de emergencia
+      const originalEmergency = originalPersonalInfo.emergencyContact || {};
+      const currentEmergency = personalInfo.emergencyContact || {};
+      
+      let emergencyChanged = false;
+      ['name', 'phone', 'relationship'].forEach(field => {
+        if ((originalEmergency[field] || '') !== (currentEmergency[field] || '')) {
+          emergencyChanged = true;
+        }
+      });
+      
+      if (emergencyChanged) {
         dataToSend.emergencyContact = {
-          name: personalInfo.emergencyContact.name.trim(),
-          phone: personalInfo.emergencyContact.phone.trim(),
-          relationship: personalInfo.emergencyContact.relationship || 'otro'
+          name: currentEmergency.name?.trim() || '',
+          phone: currentEmergency.phone?.trim() || '',
+          relationship: currentEmergency.relationship || ''
         };
       }
       
-      console.log('📤 Data to send:', dataToSend);
+      console.log('📤 Data to send (only changed fields):', dataToSend);
+      
+      // ✅ NUEVO: Verificar que hay datos para enviar
+      if (Object.keys(dataToSend).length === 0) {
+        showError('No hay cambios para guardar');
+        return;
+      }
       
       // Usar updateProfile que usa PATCH como dice el README
       const response = await apiService.updateProfile(dataToSend);
       
       console.log('✅ Profile updated successfully:', response);
       
-      showSuccess('Información personal actualizada exitosamente');
+      showSuccess(`Información actualizada: ${Object.keys(dataToSend).join(', ')}`);
+      
+      // ✅ NUEVO: Actualizar estado original con los nuevos datos
+      const updatedInfo = { ...personalInfo };
+      setOriginalPersonalInfo(JSON.parse(JSON.stringify(updatedInfo)));
       
       // Actualizar contexto de usuario
       if (updateUser) {
@@ -393,6 +508,8 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       }
       
       setHasUnsavedChanges(false);
+      setValidationErrors({});
+      setValidationWarnings({});
       
       if (onSave) {
         onSave({ type: 'profile', section: 'personal' });
@@ -414,7 +531,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 🔐 CAMBIAR CONTRASEÑA
+  // 🔐 CAMBIAR CONTRASEÑA - MANTIENE FUNCIONALIDAD EXISTENTE
   const changePassword = async () => {
     try {
       setSaving(true);
@@ -473,7 +590,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📸 SUBIR IMAGEN DE PERFIL - RUTA CORRECTA DEL README
+  // 📸 SUBIR IMAGEN DE PERFIL - MANTIENE FUNCIONALIDAD EXISTENTE
   const uploadProfileImage = async (file) => {
     try {
       setUploadingImage(true);
@@ -492,6 +609,12 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       
       if (imageUrl) {
         setPersonalInfo(prev => ({
+          ...prev,
+          profileImage: imageUrl
+        }));
+        
+        // ✅ NUEVO: Actualizar también el estado original
+        setOriginalPersonalInfo(prev => ({
           ...prev,
           profileImage: imageUrl
         }));
@@ -526,7 +649,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📸 Manejar selección de imagen
+  // 📸 Manejar selección de imagen - MANTIENE FUNCIONALIDAD EXISTENTE
   const handleImageSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -555,7 +678,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     uploadProfileImage(file);
   };
   
-  // 💾 GUARDAR PREFERENCIAS
+  // 💾 GUARDAR PREFERENCIAS - MANTIENE FUNCIONALIDAD EXISTENTE
   const savePreferences = async () => {
     try {
       setSaving(true);
@@ -578,76 +701,106 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ⏰ Cargar datos al montar
+  // ⏰ Cargar datos al montar - MANTIENE FUNCIONALIDAD EXISTENTE
   useEffect(() => {
     if (currentUser) {
       loadProfileData();
     }
   }, [currentUser]);
   
-  // 🔔 Notificar cambios sin guardar
+  // 🔔 Notificar cambios sin guardar - MANTIENE FUNCIONALIDAD EXISTENTE
   useEffect(() => {
     if (onUnsavedChanges) {
       onUnsavedChanges(hasUnsavedChanges);
     }
   }, [hasUnsavedChanges, onUnsavedChanges]);
   
-  // 📝 Manejar cambio de información personal con FILTRADO PREVENTIVO
+  // ✅ MEJORADO: Manejar cambio de información personal CON VALIDACIÓN MENOS RESTRICTIVA
   const handlePersonalInfoChange = (field, value) => {
     let filteredValue = value;
     
-    // 🚫 FILTRADO PREVENTIVO: Bloquear caracteres no permitidos
+    // 🚫 FILTRADO PREVENTIVO: Bloquear caracteres no permitidos solo casos extremos
     if (field === 'firstName' || field === 'lastName') {
-      // Solo permitir letras, espacios, acentos y guiones - FILTRAR TODO LO DEMÁS
-      filteredValue = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s\-']/g, '');
+      // Solo permitir letras, espacios, acentos, guiones y apostrofes
+      filteredValue = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s\-'.]/g, '');
     } else if (field === 'phone') {
-      // Solo permitir números, espacios, guiones, paréntesis y signo +
-      filteredValue = value.replace(/[^\d\s\-\(\)\+]/g, '');
+      // Solo permitir números, espacios, guiones, paréntesis, signo + y puntos
+      filteredValue = value.replace(/[^\d\s\-\(\)\+\.]/g, '');
     }
     
     setPersonalInfo(prev => ({
       ...prev,
       [field]: filteredValue
     }));
-    setHasUnsavedChanges(true);
     
-    // Validación en tiempo real solo para errores estructurales
+    // ✅ NUEVO: Verificar cambios reales para habilitar botón
+    const tempInfo = { ...personalInfo, [field]: filteredValue };
+    const hasChanges = Object.keys(tempInfo).some(key => {
+      if (key === 'emergencyContact') return false; // Se maneja por separado
+      return (originalPersonalInfo[key] || '') !== (tempInfo[key] || '');
+    });
+    
+    setHasUnsavedChanges(hasChanges);
+    
+    // ✅ MEJORADO: Validación en tiempo real SOLO para errores críticos
     let error = null;
+    let warning = null;
+    
     if (field === 'firstName' || field === 'lastName') {
-      if (!filteredValue.trim()) {
-        error = 'Este campo es obligatorio';
-      } else if (filteredValue.trim().length < 2) {
-        error = 'Debe tener al menos 2 caracteres';
+      if (filteredValue.trim() && filteredValue.trim().length < 2) {
+        warning = 'Muy corto (mínimo 2 caracteres)';
       } else if (filteredValue.length > 50) {
-        error = 'Máximo 50 caracteres';
+        error = 'Demasiado largo (máximo 50 caracteres)';
       }
     } else if (field === 'phone') {
-      if (filteredValue.trim() && filteredValue.replace(/\s/g, '').length < 8) {
-        error = 'Debe tener al menos 8 dígitos';
+      if (filteredValue.trim()) {
+        const digitsOnly = filteredValue.replace(/\D/g, '');
+        if (digitsOnly.length < 7) {
+          warning = 'Puede ser muy corto (mínimo 7 dígitos)';
+        }
       }
     } else if (field === 'dateOfBirth') {
-      error = validateDateOfBirth(filteredValue);
+      const dateError = validateDateOfBirth(filteredValue);
+      if (dateError) {
+        error = dateError;
+      }
       const age = calculateAge(filteredValue);
       setIsUnderAge(age !== null && age < 13);
     }
     
-    setValidationErrors(prev => ({
-      ...prev,
-      [field]: error
-    }));
+    // ✅ MEJORADO: Solo mostrar errores críticos, warnings como información
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[field] = error;
+      } else {
+        delete newErrors[field];
+      }
+      return newErrors;
+    });
+    
+    setValidationWarnings(prev => {
+      const newWarnings = { ...prev };
+      if (warning) {
+        newWarnings[field] = warning;
+      } else {
+        delete newWarnings[field];
+      }
+      return newWarnings;
+    });
   };
   
-  // 📝 Manejar cambio de contacto de emergencia con FILTRADO PREVENTIVO
+  // ✅ MEJORADO: Manejar cambio de contacto de emergencia
   const handleEmergencyContactChange = (field, value) => {
     let filteredValue = value;
     
     // 🚫 FILTRADO PREVENTIVO: Bloquear caracteres no permitidos
     if (field === 'name') {
-      // Solo permitir letras, espacios, acentos y guiones - FILTRAR TODO LO DEMÁS
-      filteredValue = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s\-']/g, '');
+      // Solo permitir letras, espacios, acentos y guiones
+      filteredValue = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s\-'.]/g, '');
     } else if (field === 'phone') {
-      // Solo permitir números, espacios, guiones, paréntesis y signo +
-      filteredValue = value.replace(/[^\d\s\-\(\)\+]/g, '');
+      // Solo permitir números, espacios, guiones, paréntesis, signo + y puntos
+      filteredValue = value.replace(/[^\d\s\-\(\)\+\.]/g, '');
     }
     
     setPersonalInfo(prev => ({
@@ -657,37 +810,65 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         [field]: filteredValue
       }
     }));
-    setHasUnsavedChanges(true);
     
-    // Validación en tiempo real solo para errores estructurales
+    // ✅ NUEVO: Verificar cambios en contacto de emergencia
+    const originalEmergency = originalPersonalInfo.emergencyContact || {};
+    const newEmergency = { ...personalInfo.emergencyContact, [field]: filteredValue };
+    
+    const emergencyChanged = Object.keys(newEmergency).some(key => 
+      (originalEmergency[key] || '') !== (newEmergency[key] || '')
+    );
+    
+    const hasOtherChanges = Object.keys(personalInfo).some(key => {
+      if (key === 'emergencyContact') return false;
+      return (originalPersonalInfo[key] || '') !== (personalInfo[key] || '');
+    });
+    
+    setHasUnsavedChanges(emergencyChanged || hasOtherChanges);
+    
+    // ✅ MEJORADO: Validación menos restrictiva
     let error = null;
+    let warning = null;
+    
     if (field === 'name') {
       if (filteredValue.trim() && filteredValue.trim().length < 2) {
-        error = 'Debe tener al menos 2 caracteres';
+        warning = 'Muy corto (mínimo 2 caracteres)';
       } else if (filteredValue.length > 50) {
-        error = 'Máximo 50 caracteres';
+        error = 'Demasiado largo (máximo 50 caracteres)';
       }
     } else if (field === 'phone') {
-      if (filteredValue.trim() && filteredValue.replace(/\s/g, '').length < 8) {
-        error = 'Debe tener al menos 8 dígitos';
+      if (filteredValue.trim()) {
+        const digitsOnly = filteredValue.replace(/\D/g, '');
+        if (digitsOnly.length < 7) {
+          warning = 'Puede ser muy corto (mínimo 7 dígitos)';
+        }
       }
     }
     
-    if (error) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [`emergency${field.charAt(0).toUpperCase() + field.slice(1)}`]: error
-      }));
-    } else {
-      setValidationErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[`emergency${field.charAt(0).toUpperCase() + field.slice(1)}`];
-        return newErrors;
-      });
-    }
+    const errorKey = `emergency${field.charAt(0).toUpperCase() + field.slice(1)}`;
+    
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[errorKey] = error;
+      } else {
+        delete newErrors[errorKey];
+      }
+      return newErrors;
+    });
+    
+    setValidationWarnings(prev => {
+      const newWarnings = { ...prev };
+      if (warning) {
+        newWarnings[errorKey] = warning;
+      } else {
+        delete newWarnings[errorKey];
+      }
+      return newWarnings;
+    });
   };
   
-  // 📝 Manejar cambio de preferencias
+  // 📝 Manejar cambio de preferencias - MANTIENE FUNCIONALIDAD EXISTENTE
   const handlePreferenceChange = (field, value) => {
     setPreferences(prev => ({
       ...prev,
@@ -696,7 +877,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     setHasUnsavedChanges(true);
   };
   
-  // 📝 Manejar cambio de privacidad
+  // 📝 Manejar cambio de privacidad - MANTIENE FUNCIONALIDAD EXISTENTE
   const handlePrivacyChange = (field, value) => {
     setPreferences(prev => ({
       ...prev,
@@ -854,8 +1035,9 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                 <h4 className="text-lg font-medium text-gray-900">Información Personal</h4>
                 <button
                   onClick={savePersonalInfo}
-                  disabled={saving || Object.keys(validationErrors).length > 0}
+                  disabled={saving || Object.keys(validateCriticalFieldsOnly()).length > 0 || !hasRealChanges()}
                   className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  title={!hasRealChanges() ? 'No hay cambios para guardar' : Object.keys(validateCriticalFieldsOnly()).length > 0 ? 'Corrige los errores antes de guardar' : 'Guardar cambios'}
                 >
                   {saving ? (
                     <ButtonSpinner size="sm" className="mr-2" />
@@ -865,6 +1047,18 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                   Guardar Cambios
                 </button>
               </div>
+              
+              {/* ✅ NUEVO: Indicador de cambios */}
+              {hasRealChanges() && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center">
+                    <Info className="w-4 h-4 text-blue-600 mr-2" />
+                    <span className="text-sm text-blue-800">
+                      Tienes cambios sin guardar. Haz clic en "Guardar Cambios" para aplicarlos.
+                    </span>
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
@@ -877,12 +1071,16 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                     value={personalInfo.firstName}
                     onChange={(e) => handlePersonalInfoChange('firstName', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-                      validationErrors.firstName ? 'border-red-500' : 'border-gray-300'
+                      validationErrors.firstName ? 'border-red-500' : 
+                      validationWarnings.firstName ? 'border-yellow-400' : 'border-gray-300'
                     }`}
                     placeholder="Solo letras y espacios"
                   />
                   {validationErrors.firstName && (
                     <p className="text-red-500 text-xs mt-1">{validationErrors.firstName}</p>
+                  )}
+                  {!validationErrors.firstName && validationWarnings.firstName && (
+                    <p className="text-yellow-600 text-xs mt-1">{validationWarnings.firstName}</p>
                   )}
                 </div>
                 
@@ -895,12 +1093,16 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                     value={personalInfo.lastName}
                     onChange={(e) => handlePersonalInfoChange('lastName', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-                      validationErrors.lastName ? 'border-red-500' : 'border-gray-300'
+                      validationErrors.lastName ? 'border-red-500' : 
+                      validationWarnings.lastName ? 'border-yellow-400' : 'border-gray-300'
                     }`}
                     placeholder="Solo letras y espacios"
                   />
                   {validationErrors.lastName && (
                     <p className="text-red-500 text-xs mt-1">{validationErrors.lastName}</p>
+                  )}
+                  {!validationErrors.lastName && validationWarnings.lastName && (
+                    <p className="text-yellow-600 text-xs mt-1">{validationWarnings.lastName}</p>
                   )}
                 </div>
                 
@@ -911,7 +1113,6 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                   <input
                     type="email"
                     value={personalInfo.email}
-                    onChange={(e) => handlePersonalInfoChange('email', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50"
                     disabled
                   />
@@ -929,12 +1130,16 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                     value={personalInfo.phone}
                     onChange={(e) => handlePersonalInfoChange('phone', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-                      validationErrors.phone ? 'border-red-500' : 'border-gray-300'
+                      validationErrors.phone ? 'border-red-500' : 
+                      validationWarnings.phone ? 'border-yellow-400' : 'border-gray-300'
                     }`}
-                    placeholder="Solo números: +502 1234-5678"
+                    placeholder="Ejemplo: +502 1234-5678"
                   />
                   {validationErrors.phone && (
                     <p className="text-red-500 text-xs mt-1">{validationErrors.phone}</p>
+                  )}
+                  {!validationErrors.phone && validationWarnings.phone && (
+                    <p className="text-yellow-600 text-xs mt-1">{validationWarnings.phone}</p>
                   )}
                 </div>
                 
@@ -1023,12 +1228,16 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                       value={personalInfo.emergencyContact.name}
                       onChange={(e) => handleEmergencyContactChange('name', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-                        validationErrors.emergencyName ? 'border-red-500' : 'border-gray-300'
+                        validationErrors.emergencyName ? 'border-red-500' : 
+                        validationWarnings.emergencyName ? 'border-yellow-400' : 'border-gray-300'
                       }`}
                       placeholder="Solo letras y espacios"
                     />
                     {validationErrors.emergencyName && (
                       <p className="text-red-500 text-xs mt-1">{validationErrors.emergencyName}</p>
+                    )}
+                    {!validationErrors.emergencyName && validationWarnings.emergencyName && (
+                      <p className="text-yellow-600 text-xs mt-1">{validationWarnings.emergencyName}</p>
                     )}
                   </div>
                   
@@ -1041,12 +1250,16 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                       value={personalInfo.emergencyContact.phone}
                       onChange={(e) => handleEmergencyContactChange('phone', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
-                        validationErrors.emergencyPhone ? 'border-red-500' : 'border-gray-300'
+                        validationErrors.emergencyPhone ? 'border-red-500' : 
+                        validationWarnings.emergencyPhone ? 'border-yellow-400' : 'border-gray-300'
                       }`}
-                      placeholder="Solo números: +502 1234-5678"
+                      placeholder="Ejemplo: +502 1234-5678"
                     />
                     {validationErrors.emergencyPhone && (
                       <p className="text-red-500 text-xs mt-1">{validationErrors.emergencyPhone}</p>
+                    )}
+                    {!validationErrors.emergencyPhone && validationWarnings.emergencyPhone && (
+                      <p className="text-yellow-600 text-xs mt-1">{validationWarnings.emergencyPhone}</p>
                     )}
                   </div>
                   
@@ -1075,7 +1288,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
             </div>
           )}
           
-          {/* TAB: SEGURIDAD */}
+          {/* TAB: SEGURIDAD - MANTIENE FUNCIONALIDAD EXISTENTE */}
           {activeTab === 'security' && (
             <div className="space-y-6">
               
@@ -1179,7 +1392,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
             </div>
           )}
           
-          {/* TAB: PREFERENCIAS */}
+          {/* TAB: PREFERENCIAS - MANTIENE FUNCIONALIDAD EXISTENTE */}
           {activeTab === 'preferences' && (
             <div className="space-y-6">
               
@@ -1322,7 +1535,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
             </div>
           )}
           
-          {/* TAB: ESTADÍSTICAS */}
+          {/* TAB: ESTADÍSTICAS - MANTIENE FUNCIONALIDAD EXISTENTE */}
           {activeTab === 'stats' && (
             <div className="space-y-6">
               
