@@ -1,5 +1,5 @@
 // src/pages/dashboard/components/TestimonialManager.js
-// FUNCIÓN: Gestión completa de testimonios para CLIENTES
+// FUNCIÓN: Gestión completa de testimonios para CLIENTES - MÚLTIPLES TESTIMONIOS
 // CONECTA CON: API de testimonios según documento de especificaciones
 
 import React, { useState, useEffect } from 'react';
@@ -98,8 +98,8 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
       console.error('❌ Error creando testimonio:', error);
       
       if (error.response?.status === 400) {
-        // Usuario ya tiene testimonio
-        const message = error.response.data?.message || 'Ya has compartido tu experiencia con nosotros';
+        // Usuario ya tiene testimonio - ESTE CASO YA NO DEBERÍA OCURRIR
+        const message = error.response.data?.message || 'Error al crear testimonio';
         showError(message);
         
         // Mostrar mensaje de agradecimiento si está disponible
@@ -124,12 +124,12 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     }
   });
   
-  // 📊 Procesar datos de testimonios
+  // 📊 Procesar datos de testimonios - ACTUALIZADO
   const testimonialData = testimonials?.data || {};
   const userTestimonials = testimonialData.testimonials || [];
-  const canSubmitNew = testimonialData.canSubmitNew !== false;
-  const hasActiveTestimonial = testimonialData.hasActiveTestimonial || false;
-  const hasPendingTestimonial = testimonialData.hasPendingTestimonial || false;
+  const canSubmitNew = testimonialData.canSubmitNew !== false; // ✅ Siempre true ahora
+  const publishedCount = testimonialData.publishedCount || 0;
+  const pendingCount = testimonialData.pendingCount || 0;
   const thankYouMessage = testimonialData.thankYouMessage;
   
   // 🔧 FUNCIONES HELPER
@@ -222,10 +222,12 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     switch (status) {
       case 'Publicado':
         return 'bg-green-100 text-green-800 border-green-200';
+      case 'En revisión':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'Pendiente de aprobación':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'No público - Guardado para análisis':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -236,6 +238,8 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     switch (status) {
       case 'Publicado':
         return CheckCircle;
+      case 'En revisión':
+        return Clock;
       case 'Pendiente de aprobación':
         return Clock;
       case 'No público - Guardado para análisis':
@@ -275,47 +279,55 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* 🔝 HEADER - ACTUALIZADO */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
             <MessageSquare className="w-6 h-6 mr-2 text-blue-600" />
             Mis Testimonios
+            {/* ✅ NUEVO: Mostrar contador */}
+            {userTestimonials.length > 0 && (
+              <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                {userTestimonials.length}
+              </span>
+            )}
           </h3>
           <p className="text-gray-600 mt-1">
-            Comparte tu experiencia en el gimnasio para ayudar a otros miembros
+            {userTestimonials.length === 0 ? 
+              "Comparte tu experiencia en el gimnasio para ayudar a otros miembros" :
+              `Tienes ${userTestimonials.length} testimonio${userTestimonials.length !== 1 ? 's' : ''}. ${publishedCount} publicado${publishedCount !== 1 ? 's' : ''}, ${pendingCount} en revisión.`
+            }
           </p>
         </div>
         
         <div className="flex items-center space-x-3 mt-4 lg:mt-0">
-          {/* Mostrar estado general */}
-          {hasActiveTestimonial && (
+          {/* ✅ NUEVO: Mostrar estadísticas */}
+          {publishedCount > 0 && (
             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center">
               <CheckCircle className="w-4 h-4 mr-1" />
-              Testimonio Publicado
+              {publishedCount} Publicado{publishedCount !== 1 ? 's' : ''}
             </span>
           )}
           
-          {hasPendingTestimonial && !hasActiveTestimonial && (
-            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm flex items-center">
+          {pendingCount > 0 && (
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center">
               <Clock className="w-4 h-4 mr-1" />
-              En Revisión
+              {pendingCount} En Revisión
             </span>
           )}
           
-          {canSubmitNew && (
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="btn-primary btn-sm"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Escribir Testimonio
-            </button>
-          )}
+          {/* ✅ SIEMPRE mostrar botón para agregar más */}
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="btn-primary btn-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {userTestimonials.length === 0 ? 'Escribir Testimonio' : 'Agregar Otro Testimonio'}
+          </button>
         </div>
       </div>
       
-      {/* 💬 MENSAJE DE AGRADECIMIENTO */}
+      {/* 💬 MENSAJE DE AGRADECIMIENTO - MEJORADO */}
       {thankYouMessage && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
@@ -327,12 +339,18 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               <p className="text-sm text-blue-800">
                 {thankYouMessage}
               </p>
+              {/* ✅ NUEVO: Recordatorio sobre poder agregar más */}
+              {userTestimonials.length > 0 && (
+                <p className="text-xs text-blue-700 mt-2">
+                  💡 Recuerda que puedes agregar más testimonios sobre diferentes aspectos del gimnasio.
+                </p>
+              )}
             </div>
           </div>
         </div>
       )}
       
-      {/* 📋 LISTA DE TESTIMONIOS */}
+      {/* 📋 LISTA DE TESTIMONIOS - MEJORADA */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         
         {testimonialsLoading ? (
@@ -349,25 +367,33 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
             <p className="text-gray-600 mb-4">
               Comparte tu experiencia en el gimnasio para ayudar a otros miembros
             </p>
-            {canSubmitNew && (
-              <button 
-                onClick={() => setShowCreateForm(true)}
-                className="btn-primary"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Escribir mi Primer Testimonio
-              </button>
-            )}
+            <button 
+              onClick={() => setShowCreateForm(true)}
+              className="btn-primary"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Escribir mi Primer Testimonio
+            </button>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {userTestimonials.map((testimonial) => {
+            {userTestimonials.map((testimonial, index) => {
               const StatusIcon = getStatusIcon(testimonial.status);
               
               return (
                 <div key={testimonial.id} className="p-6">
                   
-                  {/* Header del testimonio */}
+                  {/* ✅ NUEVO: Indicador de más reciente */}
+                  {index === 0 && userTestimonials.length > 1 && (
+                    <div className="mb-3">
+                      <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                        <Star className="w-3 h-3 mr-1" />
+                        Más reciente
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Header del testimonio - MEJORADO */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
@@ -392,11 +418,18 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                         <div className="flex items-center space-x-2 text-sm text-gray-500">
                           <Calendar className="w-4 h-4" />
                           <span>Enviado el {formatDate(testimonial.submittedAt)}</span>
+                          {/* ✅ NUEVO: Mostrar fecha de publicación si está publicado */}
+                          {testimonial.status === 'Publicado' && testimonial.publishedAt && (
+                            <>
+                              <span>•</span>
+                              <span>Publicado el {formatDate(testimonial.publishedAt)}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
                     
-                    {/* Estado */}
+                    {/* ✅ Estado mejorado */}
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(testimonial.status)}`}>
                       <StatusIcon className="w-3 h-3 mr-1" />
                       {testimonial.status}
@@ -428,40 +461,29 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                           </span>
                         </div>
                       </div>
-                      
-                      {/* Fecha de publicación */}
-                      {testimonial.publishedAt && (
-                        <div className="text-sm text-gray-500">
-                          Publicado el {formatDate(testimonial.publishedAt)}
-                        </div>
-                      )}
                     </div>
                   </div>
                   
-                  {/* Información adicional según estado */}
+                  {/* ✅ Información adicional según estado - MEJORADO */}
                   {testimonial.status === 'Publicado' && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                       <div className="flex items-center text-sm text-green-800">
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Tu testimonio está publicado y visible para otros usuarios
+                        {testimonial.featured && (
+                          <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                            ⭐ Destacado
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
                   
-                  {testimonial.status === 'Pendiente de aprobación' && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <div className="flex items-center text-sm text-yellow-800">
-                        <Clock className="w-4 h-4 mr-2" />
-                        Tu testimonio está siendo revisado por nuestro equipo
-                      </div>
-                    </div>
-                  )}
-                  
-                  {testimonial.status === 'No público - Guardado para análisis' && (
+                  {testimonial.status === 'En revisión' && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="flex items-center text-sm text-blue-800">
-                        <Eye className="w-4 h-4 mr-2" />
-                        Tu opinión es muy valiosa y la usamos para mejorar nuestros servicios
+                        <Clock className="w-4 h-4 mr-2" />
+                        Tu testimonio está siendo revisado por nuestro equipo. Te notificaremos cuando esté publicado.
                       </div>
                     </div>
                   )}
@@ -469,6 +491,20 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                 </div>
               );
             })}
+            
+            {/* ✅ NUEVO: Botón para agregar más al final */}
+            <div className="p-6 bg-gray-50 text-center">
+              <p className="text-gray-600 mb-3">
+                ¿Tienes más experiencias que compartir?
+              </p>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="btn-secondary"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar Otro Testimonio
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -483,7 +519,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900 flex items-center">
                   <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
-                  Escribir Testimonio
+                  {userTestimonials.length === 0 ? 'Escribir Testimonio' : 'Agregar Otro Testimonio'}
                 </h3>
                 <button
                   onClick={() => {
@@ -506,11 +542,16 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                   <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
                   <div>
                     <h4 className="text-sm font-medium text-blue-900 mb-1">
-                      Comparte tu experiencia
+                      {userTestimonials.length === 0 ? 
+                        'Comparte tu experiencia' :
+                        'Comparte otra experiencia'
+                      }
                     </h4>
                     <p className="text-sm text-blue-800">
-                      Tu testimonio ayudará a otros miembros a conocer los beneficios de nuestro gimnasio. 
-                      Será revisado por nuestro equipo antes de ser publicado.
+                      {userTestimonials.length === 0 ? 
+                        'Tu testimonio ayudará a otros miembros a conocer los beneficios de nuestro gimnasio.' :
+                        'Puedes compartir diferentes aspectos de tu experiencia en el gimnasio (entrenamientos, instalaciones, ambiente, etc.).'
+                      } Será revisado por nuestro equipo antes de ser publicado.
                     </p>
                   </div>
                 </div>
@@ -530,7 +571,10 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none ${
                       fieldErrors.text ? 'border-red-300 bg-red-50' : 'border-gray-300'
                     }`}
-                    placeholder="Comparte tu experiencia en el gimnasio... ¿Cómo te ha ayudado? ¿Qué es lo que más te gusta?"
+                    placeholder={userTestimonials.length === 0 ? 
+                      "Comparte tu experiencia en el gimnasio... ¿Cómo te ha ayudado? ¿Qué es lo que más te gusta?" :
+                      "Comparte otro aspecto de tu experiencia... ¿Qué más te gusta del gimnasio? ¿Alguna mejora que hayas notado?"
+                    }
                     maxLength={500}
                   />
                   <div className="flex items-center justify-between mt-1">
@@ -648,8 +692,8 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 💡 INFORMACIÓN ADICIONAL */}
-      {!hasActiveTestimonial && !hasPendingTestimonial && canSubmitNew && (
+      {/* 💡 INFORMACIÓN ADICIONAL - ACTUALIZADA */}
+      {userTestimonials.length === 0 && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
           <div className="flex items-start">
             <Info className="w-5 h-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
@@ -661,6 +705,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                 <p>• Ayuda a otros miembros a conocer los beneficios del gimnasio</p>
                 <p>• Tu experiencia puede motivar a otros a alcanzar sus objetivos</p>
                 <p>• Contribuyes a mejorar la comunidad del gimnasio</p>
+                <p>• Puedes agregar múltiples testimonios sobre diferentes aspectos</p>
                 <p>• Todos los testimonios son revisados antes de ser publicados</p>
               </div>
             </div>
