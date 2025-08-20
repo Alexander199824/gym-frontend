@@ -1,6 +1,6 @@
 // src/pages/dashboard/ClientDashboard.js
-// FUNCIÓN: Dashboard personal para clientes con su información y membresías
-// NUEVA FUNCIONALIDAD: ✅ Compra de membresías integrada para clientes sin membresía activa
+// FUNCIÓN: Dashboard personal para clientes ACTUALIZADO con compra de membresías completa
+// NUEVA FUNCIONALIDAD: ✅ MembershipCheckout integrado con Stripe y transferencias
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -31,7 +31,8 @@ import {
   Zap,
   Gift,
   ArrowRight,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -43,6 +44,9 @@ import MembershipCard from '../../components/memberships/MembershipCard';
 import PaymentHistoryCard from '../../components/payments/PaymentHistoryCard';
 import ScheduleCard from '../../components/memberships/ScheduleCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+
+// ✅ NUEVO: Componente de checkout de membresías
+import MembershipCheckout from '../../components/memberships/MembershipCheckout';
 
 // ✅ NUEVO: Componente de testimonios
 import TestimonialManager from './components/TestimonialManager';
@@ -56,11 +60,12 @@ const ClientDashboard = () => {
   
   // ✅ NUEVO: Estado para navegación entre secciones (incluyendo membresías)
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [selectedPlan, setSelectedPlan] = useState(null); // ✅ NUEVO: Plan seleccionado para checkout
   
   // 📊 QUERIES EXISTENTES PARA DATOS DEL CLIENTE
   
   // Membresías del cliente
-  const { data: memberships, isLoading: membershipsLoading } = useQuery({
+  const { data: memberships, isLoading: membershipsLoading, refetch: refetchMemberships } = useQuery({
     queryKey: ['userMemberships', user?.id],
     queryFn: () => apiService.getMemberships({ userId: user?.id }),
     staleTime: 5 * 60 * 1000,
@@ -96,7 +101,7 @@ const ClientDashboard = () => {
   });
 
   // ✅ NUEVO: Planes de membresía disponibles
-  const { plans, isLoaded: plansLoaded } = useMembershipPlans();
+  const { plans, isLoaded: plansLoaded, isLoading: plansLoading } = useMembershipPlans();
   
   // 📊 Procesar datos existentes
   const activeMembership = memberships?.data?.memberships?.find(m => m.status === 'active');
@@ -145,6 +150,38 @@ const ClientDashboard = () => {
   
   const membershipStatus = getMembershipStatus();
 
+  // ✅ NUEVA FUNCIÓN: Manejar selección de plan
+  const handleSelectPlan = (plan) => {
+    console.log('📋 Plan seleccionado:', plan);
+    setSelectedPlan(plan);
+    setActiveSection('checkout');
+  };
+
+  // ✅ NUEVA FUNCIÓN: Manejar éxito de compra
+  const handleMembershipSuccess = (membership) => {
+    console.log('✅ Membresía adquirida exitosamente:', membership);
+    
+    // Mostrar mensaje de éxito
+    if (membership.paymentMethod === 'stripe') {
+      showSuccess('¡Membresía activada exitosamente! Ya puedes usar todas nuestras instalaciones.');
+    } else {
+      showSuccess('Solicitud de membresía enviada. Te notificaremos cuando se valide tu transferencia.');
+    }
+    
+    // Refrescar datos de membresías
+    refetchMemberships();
+    
+    // Volver al dashboard
+    setSelectedPlan(null);
+    setActiveSection('dashboard');
+  };
+
+  // ✅ NUEVA FUNCIÓN: Volver desde checkout
+  const handleBackFromCheckout = () => {
+    setSelectedPlan(null);
+    setActiveSection('memberships');
+  };
+
   // ✅ NUEVO: Si está en la sección de testimonios
   if (activeSection === 'testimonials') {
     return (
@@ -161,6 +198,17 @@ const ClientDashboard = () => {
         </div>
         <TestimonialManager />
       </div>
+    );
+  }
+
+  // ✅ NUEVO: Si está en checkout de membresía
+  if (activeSection === 'checkout' && selectedPlan) {
+    return (
+      <MembershipCheckout
+        selectedPlan={selectedPlan}
+        onBack={handleBackFromCheckout}
+        onSuccess={handleMembershipSuccess}
+      />
     );
   }
 
@@ -220,8 +268,10 @@ const ClientDashboard = () => {
         <MembershipPlansSection 
           plans={plans} 
           isLoaded={plansLoaded}
+          isLoading={plansLoading}
           currentMembership={activeMembership}
           isMobile={isMobile}
+          onSelectPlan={handleSelectPlan} // ✅ NUEVO: Callback para selección
         />
       </div>
     );
@@ -639,15 +689,22 @@ const ClientDashboard = () => {
   );
 };
 
-// ✅ NUEVO: Componente para mostrar planes de membresía
-const MembershipPlansSection = ({ plans, isLoaded, currentMembership, isMobile }) => {
+// ✅ NUEVO: Componente para mostrar planes de membresía con callback de selección
+const MembershipPlansSection = ({ 
+  plans, 
+  isLoaded, 
+  isLoading, 
+  currentMembership, 
+  isMobile, 
+  onSelectPlan // ✅ NUEVO: Callback para seleccionar plan
+}) => {
   const { showSuccess, showError } = useApp();
 
+  // ✅ ACTUALIZADO: Usar callback en lugar de navegación directa
   const handleSelectPlan = async (plan) => {
     try {
-      showSuccess(`Plan ${plan.name} seleccionado. Redirigiendo al proceso de pago...`);
-      // TODO: Implementar lógica de pago/checkout
-      // navigate('/checkout', { state: { planId: plan.id } });
+      console.log(`✅ Plan ${plan.name} seleccionado para checkout`);
+      onSelectPlan(plan); // ✅ NUEVO: Llamar callback
     } catch (error) {
       showError('Error al seleccionar el plan');
     }
@@ -664,16 +721,16 @@ const MembershipPlansSection = ({ plans, isLoaded, currentMembership, isMobile }
 
   const globalBenefits = getAllBenefits();
 
-  if (!isLoaded) {
+  if (isLoading) {
     return (
       <div className="text-center py-12">
-        <LoadingSpinner />
-        <p className="text-gray-600 mt-4">Cargando planes de membresía...</p>
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
+        <p className="text-gray-600">Cargando planes de membresía...</p>
       </div>
     );
   }
 
-  if (!plans || plans.length === 0) {
+  if (!isLoaded || !plans || plans.length === 0) {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -785,6 +842,7 @@ const MembershipPlansSection = ({ plans, isLoaded, currentMembership, isMobile }
                   </ul>
                 )}
                 
+                {/* ✅ NUEVO: Botón que llama al callback de selección */}
                 <button 
                   onClick={() => handleSelectPlan(plan)}
                   disabled={isCurrentPlan}
@@ -795,7 +853,7 @@ const MembershipPlansSection = ({ plans, isLoaded, currentMembership, isMobile }
                   `}
                 >
                   {isCurrentPlan ? '✅ Plan Actual' :
-                   plan.popular ? '🔥 Elegir Plan Popular' : 'Elegir Plan'}
+                   plan.popular ? '🔥 Adquirir Plan Popular' : 'Adquirir Plan'}
                 </button>
 
                 {!currentMembership && plan.popular && (

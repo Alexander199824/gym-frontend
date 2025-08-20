@@ -2203,6 +2203,127 @@ class ApiService {
     window.location.href = '/login';
   }
 
+
+  // ✅ MÉTODO: Para compatibilidad con useMembershipPlans hook
+async getMembershipPlans() {
+  try {
+    console.log('🎫 ApiService: Getting membership plans...');
+    
+    // Usar el endpoint del backend para planes de membresía  
+    const response = await this.get('/api/gym/membership-plans');
+    
+    console.log('📦 ApiService: Membership plans response:', response);
+    
+    return response;
+    
+  } catch (error) {
+    console.error('❌ ApiService: Error getting membership plans:', error);
+    throw error;
+  }
+}
+
+// ✅ MÉTODO: Obtener membresías del usuario actual
+async getMemberships(params = {}) {
+  try {
+    console.log('👤 ApiService: Getting user memberships...');
+    
+    const response = await this.get('/api/memberships', { params });
+    
+    console.log('📦 ApiService: User memberships response:', response);
+    
+    return response;
+    
+  } catch (error) {
+    console.error('❌ ApiService: Error getting memberships:', error);
+    throw error;
+  }
+}
+
+// ✅ MÉTODO: Obtener historial de pagos del usuario
+async getPayments(params = {}) {
+  try {
+    console.log('💰 ApiService: Getting user payments...');
+    
+    const response = await this.get('/api/payments', { params });
+    
+    console.log('📦 ApiService: User payments response:', response);
+    
+    return response;
+    
+  } catch (error) {
+    console.error('❌ ApiService: Error getting payments:', error);
+    throw error;
+  }
+}
+
+// ✅ MÉTODO: Crear Payment Intent para tienda
+async createStorePaymentIntent(orderData) {
+  try {
+    console.log('💳 ApiService: Creating store payment intent...');
+    
+    const response = await this.post('/api/stripe/create-store-intent', orderData);
+    
+    console.log('📦 ApiService: Store payment intent response:', response);
+    
+    return response;
+    
+  } catch (error) {
+    console.error('❌ ApiService: Error creating store payment intent:', error);
+    throw error;
+  }
+}
+
+// ✅ MÉTODO: Confirmar pago de Stripe
+async confirmStripePayment(paymentData) {
+  try {
+    console.log('✅ ApiService: Confirming Stripe payment...');
+    
+    const response = await this.post('/api/stripe/confirm-payment', paymentData);
+    
+    console.log('📦 ApiService: Confirm payment response:', response);
+    
+    return response;
+    
+  } catch (error) {
+    console.error('❌ ApiService: Error confirming Stripe payment:', error);
+    throw error;
+  }
+}
+
+// ✅ MÉTODO: Obtener configuración de Stripe
+async getStripeConfig() {
+  try {
+    console.log('⚙️ ApiService: Getting Stripe config...');
+    
+    const response = await this.get('/api/stripe/config');
+    
+    console.log('📦 ApiService: Stripe config response:', response);
+    
+    return response;
+    
+  } catch (error) {
+    console.error('❌ ApiService: Error getting Stripe config:', error);
+    throw error;
+  }
+}
+
+// ✅ MÉTODO: Crear orden de tienda
+async createOrder(orderData) {
+  try {
+    console.log('🛒 ApiService: Creating store order...');
+    
+    const response = await this.post('/api/orders', orderData);
+    
+    console.log('📦 ApiService: Create order response:', response);
+    
+    return response;
+    
+  } catch (error) {
+    console.error('❌ ApiService: Error creating order:', error);
+    throw error;
+  }
+}
+
   // ================================
   // ✅ NUEVOS MÉTODOS PARA DEBUGGING Y VALIDACIÓN
   // ================================
