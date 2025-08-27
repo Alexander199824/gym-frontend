@@ -1,6 +1,6 @@
 // src/pages/dashboard/AdminDashboard.js
-// FUNCIÓN: Dashboard ACTUALIZADO - Interfaz mejorada, header simplificado, debug discreto
-// CAMBIOS: Eliminado header de gestión web, debug info discreto, interfaz más limpia
+// FUNCIÓN: Dashboard FUSIONADO - Interfaz limpia + Sistema de Horarios Flexibles completo
+// MEJORAS: Debug discreto, header simplificado, funcionalidades avanzadas de horarios flexibles
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -20,7 +20,7 @@ import DashboardCard from '../../components/common/DashboardCard';
 import QuickActionCard from '../../components/common/QuickActionCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
-// 🆕 COMPONENTES CORREGIDOS para gestión de contenido
+// 🆕 COMPONENTES CORREGIDOS para gestión de contenido con horarios flexibles
 import ContentEditor from './components/ContentEditor';
 import ServicesManager from './components/ServicesManager';
 import PlansManager from './components/PlansManager';
@@ -39,7 +39,7 @@ const AdminDashboard = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
   
-  // 🆕 Estados para gestión de contenido
+  // 🆕 Estados para gestión de contenido - MEJORADOS
   const [activeContentTab, setActiveContentTab] = useState('general');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
@@ -55,11 +55,14 @@ const AdminDashboard = () => {
   const [pendingTransfers, setPendingTransfers] = useState({ data: null, isLoading: false, error: null });
   const [todayPayments, setTodayPayments] = useState({ data: null, isLoading: false, error: null });
   
-  // 🆕 Estados para datos de contenido - MEJORADOS
+  // 🆕 Estados para datos de contenido - MEJORADOS con soporte para horarios flexibles
   const [gymConfigData, setGymConfigData] = useState({ data: null, isLoading: false, error: null });
   const [servicesData, setServicesData] = useState({ data: null, isLoading: false, error: null });
   const [membershipPlansData, setMembershipPlansData] = useState({ data: null, isLoading: false, error: null });
   const [featuredProductsData, setFeaturedProductsData] = useState({ data: null, isLoading: false, error: null });
+  
+  // 🆕 Estados específicos para horarios flexibles
+  const [capacityMetrics, setCapacityMetrics] = useState({ data: null, isLoading: false, error: null });
   
   // 🛍️ Estados para gestión de inventario
   const [inventoryStats, setInventoryStats] = useState({ data: null, isLoading: false, error: null });
@@ -104,23 +107,56 @@ const AdminDashboard = () => {
     }
   };
   
-  // 🔄 CARGAR DATOS DE CONTENIDO - MEJORADO
+  // 🔄 CARGAR DATOS DE CONTENIDO - MEJORADO con soporte para horarios flexibles
   const loadContentData = async () => {
     if (!canManageContent) return;
     
     console.log('📄 Loading content management data...');
     
     try {
-      // Configuración del gimnasio
+      // ✅ NUEVO: Usar el endpoint específico para ContentEditor que incluye horarios flexibles
       setGymConfigData({ data: null, isLoading: true, error: null });
       try {
-        const gymConfigResponse = await apiService.getGymConfig();
+        console.log('🔄 Loading gym config using editor endpoint...');
+        const gymConfigResponse = await apiService.getGymConfigEditor();
         const configData = gymConfigResponse?.data || gymConfigResponse;
         setGymConfigData({ data: configData, isLoading: false, error: null });
-        console.log('✅ Gym config loaded for AdminDashboard:', configData);
+        
+        console.log('✅ Gym config loaded for AdminDashboard with flexible hours:', {
+          hasConfig: !!configData,
+          hasName: !!configData?.name,
+          hasHours: !!configData?.hours,
+          hasFlexibleStructure: configData?.hours ? 
+            Object.values(configData.hours).some(day => day?.timeSlots?.length > 0) : false
+        });
+        
+        // ✅ NUEVO: Mostrar estructura de horarios cargados para debug
+        if (configData?.hours) {
+          const openDays = Object.keys(configData.hours).filter(day => configData.hours[day]?.isOpen);
+          const totalSlots = openDays.reduce((sum, day) => {
+            return sum + (configData.hours[day]?.timeSlots?.length || 0);
+          }, 0);
+          
+          console.log('🕒 Flexible hours loaded:', {
+            openDays: openDays.length,
+            totalSlots: totalSlots,
+            hasMultipleSlots: openDays.some(day => configData.hours[day]?.timeSlots?.length > 1)
+          });
+        }
+        
       } catch (error) {
-        console.log('⚠️ Gym config not available:', error.message);
-        setGymConfigData({ data: null, isLoading: false, error });
+        console.log('⚠️ Gym config editor not available, trying fallback:', error.message);
+        
+        // Fallback al endpoint regular
+        try {
+          const gymConfigResponse = await apiService.getGymConfig();
+          const configData = gymConfigResponse?.data || gymConfigResponse;
+          setGymConfigData({ data: configData, isLoading: false, error: null });
+          console.log('✅ Gym config loaded using fallback endpoint:', configData);
+        } catch (fallbackError) {
+          console.log('❌ Both gym config endpoints failed:', fallbackError.message);
+          setGymConfigData({ data: null, isLoading: false, error: fallbackError });
+        }
       }
       
       // Servicios
@@ -159,6 +195,18 @@ const AdminDashboard = () => {
         setFeaturedProductsData({ data: null, isLoading: false, error });
       }
       
+      // ✅ NUEVO: Cargar métricas de capacidad para horarios flexibles
+      setCapacityMetrics({ data: null, isLoading: true, error: null });
+      try {
+        const capacityResponse = await apiService.getCapacityMetrics();
+        const capacity = capacityResponse?.data || capacityResponse;
+        setCapacityMetrics({ data: capacity, isLoading: false, error: null });
+        console.log('✅ Capacity metrics loaded for AdminDashboard:', capacity);
+      } catch (error) {
+        console.log('⚠️ Capacity metrics not available:', error.message);
+        setCapacityMetrics({ data: null, isLoading: false, error });
+      }
+      
     } catch (error) {
       console.error('❌ Error loading content data:', error);
     }
@@ -183,7 +231,7 @@ const AdminDashboard = () => {
     }
   };
   
-  // 🔄 Refrescar datos
+  // 🔄 Refrescar datos - MEJORADO con soporte para horarios flexibles
   const refreshDashboard = () => {
     setRefreshKey(prev => prev + 1);
     loadDashboardData();
@@ -252,14 +300,16 @@ const AdminDashboard = () => {
     { value: 'quarter', label: 'Este trimestre' }
   ];
   
-  // 🆕 Tabs para gestión de contenido - ACTUALIZADOS
+  // 🆕 Tabs para gestión de contenido - ACTUALIZADOS con indicadores de horarios flexibles
   const contentTabs = [
     {
       id: 'general',
       title: 'Información General',
       icon: Info,
-      description: 'Nombre, descripción, contacto, horarios, estadísticas',
-      dataLoaded: !!gymConfigData.data && !gymConfigData.isLoading
+      description: 'Nombre, descripción, contacto, horarios flexibles, estadísticas',
+      dataLoaded: !!gymConfigData.data && !gymConfigData.isLoading,
+      hasFlexibleHours: gymConfigData.data?.hours ? 
+        Object.values(gymConfigData.data.hours).some(day => day?.timeSlots?.length > 0) : false
     },
     {
       id: 'services',
@@ -307,36 +357,158 @@ const AdminDashboard = () => {
   // 📱 Estado de carga general
   const isLoading = userStats.isLoading || membershipStats.isLoading || paymentReports.isLoading;
 
-  // 📄 FUNCIONES DE GUARDADO PARA COMPONENTES
-  const handleSaveConfig = (data) => {
-    console.log('💾 AdminDashboard - Saving gym config:', data);
-    // Aquí iría la llamada a apiService.updateGymConfig(data)
-    // Por ahora simulamos éxito
-    showSuccess('Configuración guardada (simulado)');
+  // ================================
+  // 🆕 FUNCIONES MEJORADAS PARA SISTEMA DE HORARIOS FLEXIBLES
+  // ================================
+  
+  // 📄 GUARDAR CONFIGURACIÓN - MEJORADO con soporte para horarios flexibles
+  const handleSaveConfig = async (saveData) => {
+    console.log('💾 AdminDashboard - Saving gym config with flexible hours:', saveData);
+    
+    try {
+      let result;
+      
+      // Verificar si es guardado por secciones (nuevo sistema de horarios flexibles)
+      if (saveData.section && saveData.data) {
+        console.log(`💾 Saving section: ${saveData.section}`);
+        
+        // Usar el nuevo método para guardar por secciones
+        if (saveData.section === 'schedule') {
+          // Guardar horarios flexibles
+          result = await apiService.saveFlexibleSchedule(saveData.data.hours);
+        } else {
+          // Guardar otras secciones
+          result = await apiService.saveGymConfigSection(saveData.section, saveData.data);
+        }
+        
+      } else {
+        // Guardado tradicional (mantener compatibilidad)
+        console.log('💾 Using traditional save method');
+        result = await apiService.updateGymConfig(saveData);
+      }
+      
+      if (result && result.success) {
+        console.log('✅ Config saved successfully:', result);
+        
+        // Actualizar datos locales después del guardado exitoso
+        await loadContentData();
+        
+        // Mostrar mensaje de éxito específico
+        const successMessage = result.message || 'Configuración guardada exitosamente';
+        showSuccess(successMessage);
+        
+        // ✅ NUEVO: Si se guardaron horarios, actualizar métricas de capacidad
+        if (saveData.section === 'schedule') {
+          console.log('🔄 Refreshing capacity metrics after schedule save...');
+          try {
+            const capacityResponse = await apiService.getCapacityMetrics();
+            const capacity = capacityResponse?.data || capacityResponse;
+            setCapacityMetrics({ data: capacity, isLoading: false, error: null });
+            console.log('✅ Capacity metrics updated:', capacity);
+          } catch (error) {
+            console.log('⚠️ Could not update capacity metrics:', error.message);
+          }
+        }
+        
+      } else {
+        console.warn('⚠️ Save result might be different from expected:', result);
+        showSuccess('Configuración guardada');
+      }
+      
+    } catch (error) {
+      console.error('❌ AdminDashboard - Save config failed:', error);
+      
+      // Mostrar mensaje de error específico
+      if (error.response?.status === 422) {
+        showError('Error de validación en los datos');
+      } else if (error.response?.status === 403) {
+        showError('Sin permisos para guardar configuración');
+      } else if (error.response?.status === 404) {
+        showError('Función no disponible en el servidor');
+      } else {
+        showError('Error al guardar configuración');
+      }
+    }
   };
   
-  const handleSaveServices = (data) => {
+  // 🏋️ GUARDAR SERVICIOS - MEJORADO
+  const handleSaveServices = async (data) => {
     console.log('💾 AdminDashboard - Saving services:', data);
-    // Aquí iría la llamada a apiService.updateGymServices(data)
-    showSuccess('Servicios guardados (simulado)');
+    
+    try {
+      const result = await apiService.updateGymServices(data);
+      
+      if (result && result.success) {
+        await loadContentData();
+        showSuccess('Servicios guardados exitosamente');
+      } else {
+        showSuccess('Servicios guardados');
+      }
+      
+    } catch (error) {
+      console.error('❌ AdminDashboard - Save services failed:', error);
+      showError('Error al guardar servicios');
+    }
   };
   
-  const handleSavePlans = (data) => {
+  // 🎫 GUARDAR PLANES - MEJORADO
+  const handleSavePlans = async (data) => {
     console.log('💾 AdminDashboard - Saving plans:', data);
-    // Aquí iría la llamada a apiService.updateMembershipPlans(data)
-    showSuccess('Planes guardados (simulado)');
+    
+    try {
+      const result = await apiService.updateMembershipPlans(data);
+      
+      if (result && result.success) {
+        await loadContentData();
+        showSuccess('Planes guardados exitosamente');
+      } else {
+        showSuccess('Planes guardados');
+      }
+      
+    } catch (error) {
+      console.error('❌ AdminDashboard - Save plans failed:', error);
+      showError('Error al guardar planes');
+    }
   };
   
-  const handleSaveProducts = (data) => {
+  // 🛍️ GUARDAR PRODUCTOS - MEJORADO
+  const handleSaveProducts = async (data) => {
     console.log('💾 AdminDashboard - Saving products:', data);
-    // Aquí iría la llamada a apiService.updateFeaturedProducts(data)
-    showSuccess('Productos guardados (simulado)');
+    
+    try {
+      const result = await apiService.updateFeaturedProducts(data);
+      
+      if (result && result.success) {
+        await loadContentData();
+        showSuccess('Productos guardados exitosamente');
+      } else {
+        showSuccess('Productos guardados');
+      }
+      
+    } catch (error) {
+      console.error('❌ AdminDashboard - Save products failed:', error);
+      showError('Error al guardar productos');
+    }
   };
   
-  const handleSaveMedia = (data) => {
+  // 🖼️ GUARDAR MULTIMEDIA - MEJORADO
+  const handleSaveMedia = async (data) => {
     console.log('💾 AdminDashboard - Saving media:', data);
-    // Aquí iría la llamada para actualizar multimedia
-    showSuccess('Multimedia guardada (simulado)');
+    
+    try {
+      const result = await apiService.updateGymMedia(data);
+      
+      if (result && result.success) {
+        await loadContentData();
+        showSuccess('Multimedia guardada exitosamente');
+      } else {
+        showSuccess('Multimedia guardada');
+      }
+      
+    } catch (error) {
+      console.error('❌ AdminDashboard - Save media failed:', error);
+      showError('Error al guardar multimedia');
+    }
   };
 
   return (
@@ -355,21 +527,45 @@ const AdminDashboard = () => {
           
           {showDebugInfo && (
             <div className="absolute bottom-10 right-0 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 shadow-lg min-w-80">
-              <div className="font-medium mb-2">🔍 DEBUG INFO</div>
+              <div className="font-medium mb-2">🔍 DEBUG INFO - FLEXIBLE HOURS</div>
               <div className="space-y-1">
                 <div>User: {user?.firstName} {user?.lastName} ({user?.role})</div>
                 <div>canManageContent: {canManageContent ? '✅' : '❌'}</div>
                 <div>Active tab: {activeTab}</div>
                 <div>Content tab: {activeContentTab}</div>
-                <div>Data loaded: Config {gymConfigData.data ? '✅' : '❌'} | Services {servicesData.data ? '✅' : '❌'} | Plans {membershipPlansData.data ? '✅' : '❌'}</div>
-                <div>Content loading: Config {gymConfigData.isLoading ? '⏳' : '✅'} | Services {servicesData.isLoading ? '⏳' : '✅'}</div>
+                
+                {/* ✅ NUEVO: Debug info específico para horarios flexibles */}
+                <div className="border-t pt-1 mt-1">
+                  <div className="font-medium text-green-700">🕒 Flexible Hours Status:</div>
+                  <div>Config loaded: {gymConfigData.data ? '✅' : '❌'}</div>
+                  <div>Has hours: {gymConfigData.data?.hours ? '✅' : '❌'}</div>
+                  {gymConfigData.data?.hours && (
+                    <>
+                      <div>Open days: {Object.keys(gymConfigData.data.hours).filter(day => gymConfigData.data.hours[day]?.isOpen).length}/7</div>
+                      <div>Total slots: {Object.values(gymConfigData.data.hours).reduce((sum, day) => sum + (day?.timeSlots?.length || 0), 0)}</div>
+                      <div>Has flexible: {Object.values(gymConfigData.data.hours).some(day => day?.timeSlots?.length > 1) ? '✅' : '❌'}</div>
+                    </>
+                  )}
+                  <div>Capacity metrics: {capacityMetrics.data ? '✅' : '❌'}</div>
+                  {capacityMetrics.data && (
+                    <>
+                      <div>Total capacity: {capacityMetrics.data.totalCapacity || 0}</div>
+                      <div>Occupancy: {capacityMetrics.data.averageOccupancy || 0}%</div>
+                    </>
+                  )}
+                </div>
+                
+                <div className="border-t pt-1 mt-1">
+                  <div>Services: {servicesData.data ? '✅' : '❌'} | Plans: {membershipPlansData.data ? '✅' : '❌'}</div>
+                  <div>Loading: Config {gymConfigData.isLoading ? '⏳' : '✅'} | Services {servicesData.isLoading ? '⏳' : '✅'}</div>
+                </div>
               </div>
             </div>
           )}
         </div>
       )}
       
-      {/* 🏠 HEADER DEL DASHBOARD */}
+      {/* 🏠 HEADER DEL DASHBOARD - SIMPLIFICADO */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center space-x-3 mb-2">
@@ -379,7 +575,7 @@ const AdminDashboard = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Bienvenido, {user?.firstName}. Gestiona tu página web y gimnasio.
+            Bienvenido, {user?.firstName}. Gestiona tu página web y gimnasio con horarios flexibles.
           </p>
         </div>
         
@@ -455,7 +651,7 @@ const AdminDashboard = () => {
             Operaciones Diarias
           </button>
           
-          {/* TAB: Gestión de Página Web - SIMPLIFICADO */}
+          {/* TAB: Gestión de Página Web - CON INDICADOR DE HORARIOS FLEXIBLES */}
           {canManageContent && (
             <button
               onClick={() => setActiveTab('content')}
@@ -467,6 +663,10 @@ const AdminDashboard = () => {
             >
               <Globe className="w-4 h-4 inline mr-2" />
               Página Web
+              {/* ✅ NUEVO: Indicador de horarios flexibles activos */}
+              {contentTabs[0]?.hasFlexibleHours && (
+                <span className="ml-1 w-2 h-2 bg-green-500 rounded-full inline-block" title="Horarios flexibles configurados"></span>
+              )}
               {hasUnsavedChanges && activeTab === 'content' && (
                 <span className="ml-1 w-2 h-2 bg-yellow-500 rounded-full inline-block"></span>
               )}
@@ -539,6 +739,57 @@ const AdminDashboard = () => {
             />
             
           </div>
+          
+          {/* ✅ NUEVO: Métricas de horarios flexibles si están disponibles */}
+          {capacityMetrics.data && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Clock className="w-5 h-5 text-blue-600 mr-2" />
+                Métricas de Capacidad (Horarios Flexibles)
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{capacityMetrics.data.totalCapacity || 0}</div>
+                  <div className="text-sm text-gray-600">Capacidad Total</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{capacityMetrics.data.availableSpaces || 0}</div>
+                  <div className="text-sm text-gray-600">Espacios Libres</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${
+                    (capacityMetrics.data.averageOccupancy || 0) >= 90 ? 'text-red-600' :
+                    (capacityMetrics.data.averageOccupancy || 0) >= 75 ? 'text-yellow-600' :
+                    (capacityMetrics.data.averageOccupancy || 0) >= 50 ? 'text-blue-600' : 'text-green-600'
+                  }`}>
+                    {capacityMetrics.data.averageOccupancy || 0}%
+                  </div>
+                  <div className="text-sm text-gray-600">Ocupación Promedio</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-lg font-bold text-purple-600">{capacityMetrics.data.busiestDay || 'N/A'}</div>
+                  <div className="text-sm text-gray-600">Día Más Ocupado</div>
+                </div>
+              </div>
+              
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => {
+                    setActiveTab('content');
+                    setActiveContentTab('general');
+                  }}
+                  className="btn-secondary btn-sm"
+                >
+                  <Settings className="w-4 h-4 mr-1" />
+                  Configurar Horarios
+                </button>
+              </div>
+            </div>
+          )}
           
           {/* 📈 GRÁFICOS Y ANÁLISIS EJECUTIVOS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -762,11 +1013,11 @@ const AdminDashboard = () => {
         </div>
       )}
       
-      {/* TAB: PÁGINA WEB - SIMPLIFICADO SIN HEADER GRANDE */}
+      {/* TAB: PÁGINA WEB - MEJORADO con soporte completo para horarios flexibles */}
       {activeTab === 'content' && canManageContent && (
         <div className="space-y-6">
           
-          {/* 🔗 SUB-NAVEGACIÓN PARA GESTIÓN DE PÁGINA WEB */}
+          {/* 🔗 SUB-NAVEGACIÓN PARA GESTIÓN DE PÁGINA WEB - MEJORADA */}
           <div className="bg-white rounded-lg shadow-sm p-4">
             <div className="flex justify-between items-center mb-4">
               <div className="flex space-x-1 overflow-x-auto">
@@ -782,8 +1033,14 @@ const AdminDashboard = () => {
                   >
                     <tab.icon className="w-4 h-4 mr-2" />
                     {tab.title}
+                    {/* ✅ NUEVO: Indicadores mejorados con horarios flexibles */}
                     {tab.dataLoaded && (
                       <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
+                    )}
+                    {tab.hasFlexibleHours && (
+                      <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 rounded" title="Horarios flexibles activos">
+                        flex
+                      </span>
                     )}
                   </button>
                 ))}
@@ -810,11 +1067,12 @@ const AdminDashboard = () => {
           {/* 📋 CONTENIDO SEGÚN SUB-TAB ACTIVO */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             
-            {/* SUB-TAB: Información General */}
+            {/* SUB-TAB: Información General - MEJORADO con horarios flexibles */}
             {activeContentTab === 'general' && (
               <ContentEditor 
                 gymConfig={gymConfigData}
-                onSave={handleSaveConfig}
+                capacityMetrics={capacityMetrics} // ✅ NUEVO: Pasar métricas de capacidad
+                onSave={handleSaveConfig} // ✅ MEJORADO: Maneja horarios flexibles
                 onUnsavedChanges={setHasUnsavedChanges}
               />
             )}
