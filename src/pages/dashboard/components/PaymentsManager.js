@@ -4,11 +4,11 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  DollarSign, Plus, Search, Filter, Eye, Check, X, Clock, AlertCircle,
+  Coins, Plus, Search, Filter, Eye, Check, X, Clock, AlertCircle,
   CreditCard, Banknote, Building, Smartphone, Upload, Download,
   RefreshCw, Calendar, User, FileText, CheckCircle, XCircle,
   TrendingUp, PieChart, BarChart3, Calculator, Bell, Settings,
-  ImageIcon, Loader, MoreHorizontal
+  ImageIcon, Loader, MoreHorizontal, CircleDollarSign
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -108,7 +108,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         sortOrder
       };
       
-      console.log('🔄 Loading payments with params:', params);
+      console.log('🔄 Cargando pagos con parámetros:', params);
       
       const response = await apiService.get('/payments', { params });
       const paymentData = response.data || response;
@@ -120,13 +120,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         setPayments(paymentData);
         setTotalPayments(paymentData.length);
       } else {
-        console.warn('⚠️ Payments data format unexpected:', paymentData);
+        console.warn('⚠️ Formato de datos de pagos inesperado:', paymentData);
         setPayments([]);
         setTotalPayments(0);
       }
       
     } catch (error) {
-      console.error('❌ Error loading payments:', error);
+      console.error('❌ Error al cargar pagos:', error);
       showError('Error al cargar pagos');
       setPayments([]);
       setTotalPayments(0);
@@ -142,10 +142,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       });
-      console.log('📊 Payment stats loaded:', stats);
+      console.log('📊 Estadísticas de pagos cargadas:', stats);
       setPaymentStats(stats);
     } catch (error) {
-      console.error('❌ Error loading payment stats:', error);
+      console.error('❌ Error al cargar estadísticas de pagos:', error);
       setPaymentStats({
         totalIncome: 0,
         totalPayments: 0,
@@ -162,7 +162,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       const transfersData = response.data || response;
       setPendingTransfers(Array.isArray(transfersData) ? transfersData : transfersData.transfers || []);
     } catch (error) {
-      console.error('❌ Error loading pending transfers:', error);
+      console.error('❌ Error al cargar transferencias pendientes:', error);
       setPendingTransfers([]);
     }
   };
@@ -200,12 +200,12 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
       // Validaciones
       if (paymentFormData.amount <= 0) {
-        showError('El monto debe ser mayor a 0');
+        showError('El monto debe ser mayor a 0 quetzales');
         return;
       }
       
       if (!paymentFormData.paymentDate) {
-        showError('Fecha de pago es obligatoria');
+        showError('La fecha de pago es obligatoria');
         return;
       }
       
@@ -253,7 +253,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error saving payment:', error);
+      console.error('❌ Error al guardar pago:', error);
       const errorMsg = error.response?.data?.message || 'Error al guardar pago';
       showError(errorMsg);
     } finally {
@@ -275,7 +275,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       await loadPendingTransfers();
       
     } catch (error) {
-      console.error('❌ Error validating transfer:', error);
+      console.error('❌ Error al validar transferencia:', error);
       showError('Error al validar transferencia');
     }
   };
@@ -298,7 +298,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       await loadPendingTransfers();
       
     } catch (error) {
-      console.error('❌ Error uploading transfer proof:', error);
+      console.error('❌ Error al subir comprobante:', error);
       showError('Error al subir comprobante');
     }
   };
@@ -375,11 +375,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-            <DollarSign className="w-6 h-6 mr-2 text-green-600" />
+            <Coins className="w-6 h-6 mr-2 text-green-600" />
             Gestión de Pagos
           </h3>
           <p className="text-gray-600 mt-1">
-            Administra pagos, transferencias y reportes financieros
+            Administra pagos, transferencias y reportes financieros en quetzales
           </p>
         </div>
         
@@ -423,12 +423,12 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center">
-            <DollarSign className="w-8 h-8 text-green-600" />
+            <Coins className="w-8 h-8 text-green-600" />
             <div className="ml-3">
               <div className="text-2xl font-bold text-green-900">
                 {formatCurrency(paymentStats.totalIncome || 0)}
               </div>
-              <div className="text-sm text-green-600">Ingresos Totales</div>
+              <div className="text-sm text-green-600">Ingresos Totales (GTQ)</div>
             </div>
           </div>
         </div>
@@ -440,7 +440,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               <div className="text-2xl font-bold text-blue-900">
                 {paymentStats.totalPayments || 0}
               </div>
-              <div className="text-sm text-blue-600">Total Pagos</div>
+              <div className="text-sm text-blue-600">Total de Pagos</div>
             </div>
           </div>
         </div>
@@ -452,7 +452,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               <div className="text-2xl font-bold text-purple-900">
                 {formatCurrency(paymentStats.averagePayment || 0)}
               </div>
-              <div className="text-sm text-purple-600">Promedio</div>
+              <div className="text-sm text-purple-600">Promedio (GTQ)</div>
             </div>
           </div>
         </div>
@@ -464,7 +464,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               <div className="text-2xl font-bold text-orange-900">
                 {pendingTransfers.length}
               </div>
-              <div className="text-sm text-orange-600">Pendientes</div>
+              <div className="text-sm text-orange-600">Transferencias Pendientes</div>
             </div>
           </div>
         </div>
@@ -557,12 +557,12 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           </div>
         ) : filteredPayments.length === 0 ? (
           <div className="text-center py-12">
-            <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay pagos</h3>
+            <Coins className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay pagos registrados</h3>
             <p className="text-gray-600 mb-4">
               {searchTerm || selectedPaymentType !== 'all' || selectedMethod !== 'all' || selectedStatus !== 'all'
                 ? 'No se encontraron pagos con los filtros aplicados'
-                : 'Comienza registrando tu primer pago'
+                : 'Comienza registrando tu primer pago en quetzales'
               }
             </p>
             {hasPermission('create_payments') && (
@@ -586,7 +586,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                       Tipo / Método
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Monto
+                      Monto (GTQ)
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Fecha
@@ -636,7 +636,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                 }
                               </div>
                               <div className="text-sm text-gray-500">
-                                {payment.user?.email || payment.anonymousClientInfo?.phone || 'Sin datos'}
+                                {payment.user?.email || payment.anonymousClientInfo?.phone || 'Sin datos de contacto'}
                               </div>
                             </div>
                           </div>
@@ -898,7 +898,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 {/* Monto */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Monto *
+                    Monto en Quetzales (GTQ) *
                   </label>
                   <input
                     type="number"
@@ -907,6 +907,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                     value={paymentFormData.amount}
                     onChange={(e) => setPaymentFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    placeholder="0.00"
                   />
                 </div>
                 
@@ -954,7 +955,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 {/* Descripción */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción
+                    Descripción del Pago
                   </label>
                   <input
                     type="text"
@@ -1003,7 +1004,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                           anonymousClientInfo: { ...prev.anonymousClientInfo, name: e.target.value }
                         }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        placeholder="Nombre completo"
+                        placeholder="Nombre completo del cliente"
                       />
                     </div>
                     
@@ -1028,14 +1029,14 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 {/* Notas */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notas
+                    Notas Adicionales
                   </label>
                   <textarea
                     value={paymentFormData.notes}
                     onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Notas adicionales sobre el pago..."
+                    placeholder="Notas adicionales sobre el pago en quetzales..."
                   />
                 </div>
                 
@@ -1104,7 +1105,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               {pendingTransfers.length === 0 ? (
                 <div className="text-center py-8">
                   <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No hay transferencias pendientes</p>
+                  <p className="text-gray-600">No hay transferencias pendientes de validación</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1119,7 +1120,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             }
                           </div>
                           <div className="text-sm text-gray-500 mt-1">
-                            {formatCurrency(transfer.amount)} • {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy')}
+                            {formatCurrency(transfer.amount)} GTQ • {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy')}
                           </div>
                           {transfer.transferProof && (
                             <div className="mt-2">

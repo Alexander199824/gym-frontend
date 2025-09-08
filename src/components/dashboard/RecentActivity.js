@@ -1,9 +1,8 @@
-// src/components/dashboard/RecentActivity.js
-// UBICACIÓN: /gym-frontend/src/components/dashboard/RecentActivity.js
-// FUNCIÓN: Actividad reciente del sistema
+// Autor: Alexander Echeverria
+// Ubicación: /gym-frontend/src/components/dashboard/RecentActivity.js
 
 import React from 'react';
-import { Clock, User, CreditCard, DollarSign } from 'lucide-react';
+import { Clock, User, CreditCard, Coins } from 'lucide-react';
 
 const RecentActivity = ({ activities = [], isLoading = false }) => {
   const getActivityIcon = (type) => {
@@ -13,7 +12,7 @@ const RecentActivity = ({ activities = [], isLoading = false }) => {
       case 'membership_created':
         return <CreditCard className="w-4 h-4 text-green-500" />;
       case 'payment_received':
-        return <DollarSign className="w-4 h-4 text-yellow-500" />;
+        return <Coins className="w-4 h-4 text-yellow-500" />;
       default:
         return <Clock className="w-4 h-4 text-gray-500" />;
     }
@@ -55,3 +54,42 @@ const RecentActivity = ({ activities = [], isLoading = false }) => {
 };
 
 export default RecentActivity;
+
+/*
+FUNCIONALIDAD:
+Este componente muestra la actividad reciente del sistema del gimnasio en tiempo real.
+Presenta un feed de eventos importantes que han ocurrido en la aplicación.
+
+CARACTERÍSTICAS:
+- Lista cronológica de actividades del sistema
+- Iconos específicos para diferentes tipos de actividades
+- Estado de carga con animación skeleton
+- Timestamps formateados en hora local
+- Efectos de hover para mejor experiencia de usuario
+- Manejo dinámico de diferentes tipos de eventos
+
+TIPOS DE ACTIVIDADES:
+- user_created: Nuevos usuarios registrados (icono de usuario azul)
+- membership_created: Nuevas membresías creadas (icono de tarjeta verde)
+- payment_received: Pagos recibidos (icono de monedas amarillo)
+- default: Actividades generales (icono de reloj gris)
+
+ESTRUCTURA DE DATOS:
+Recibe un array de actividades con la siguiente estructura:
+- type: Tipo de actividad para determinar el icono
+- message: Descripción de la actividad
+- timestamp: Fecha y hora del evento
+
+CONEXIONES:
+- Importa desde 'react' para funcionalidad del componente
+- Importa iconos desde 'lucide-react' (Clock, User, CreditCard, Coins)
+- Utilizado en el dashboard principal para mostrar eventos recientes
+- Recibe datos de componentes padre que consultan APIs de actividad/logs
+- Se integra con sistemas de notificaciones y auditoría
+- Conecta con módulos de usuarios, membresías y pagos
+
+PROPÓSITO:
+Mantener al personal administrativo informado sobre la actividad en tiempo real del gimnasio,
+permitiendo monitorear nuevos registros, pagos y cambios importantes en el sistema para
+una mejor gestión operativa y detección temprana de problemas o tendencias.
+*/

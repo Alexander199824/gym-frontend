@@ -1,5 +1,5 @@
+// Autor: Alexander Echeverria
 // src/components/common/QuickActionCard.js
-// UBICACIÓN: /gym-frontend/src/components/common/QuickActionCard.js
 // FUNCIÓN: Componente para acciones rápidas en el dashboard
 // USADO EN: StaffDashboard, ClientDashboard
 
@@ -19,7 +19,7 @@ const QuickActionCard = ({
   className = ''
 }) => {
   
-  // 🎨 CONFIGURACIÓN DE COLORES
+  // CONFIGURACIÓN DE COLORES
   const colorConfig = {
     blue: {
       bg: 'bg-blue-50',
@@ -67,7 +67,7 @@ const QuickActionCard = ({
   
   const colors = colorConfig[color] || colorConfig.blue;
   
-  // 📊 CONTENIDO DE LA TARJETA
+  // CONTENIDO DE LA TARJETA
   const cardContent = (
     <div className={`
       relative bg-white rounded-lg shadow-lg p-6 transition-all duration-200
@@ -75,7 +75,7 @@ const QuickActionCard = ({
       ${className}
     `}>
       
-      {/* 🔔 BADGE */}
+      {/* BADGE */}
       {badge && (
         <div className="absolute top-2 right-2">
           <span className={`
@@ -88,7 +88,7 @@ const QuickActionCard = ({
       )}
       
       <div className="flex items-center justify-between">
-        {/* 🎯 ICONO Y CONTENIDO */}
+        {/* ICONO Y CONTENIDO */}
         <div className="flex items-center">
           <div className={`
             w-12 h-12 rounded-lg flex items-center justify-center
@@ -107,7 +107,7 @@ const QuickActionCard = ({
           </div>
         </div>
         
-        {/* 🔗 INDICADOR DE ACCIÓN */}
+        {/* INDICADOR DE ACCIÓN */}
         <div className={`
           w-8 h-8 rounded-full flex items-center justify-center
           ${colors.bg}
@@ -118,7 +118,7 @@ const QuickActionCard = ({
     </div>
   );
   
-  // 🔗 WRAPPER CON LINK O CLICK
+  // WRAPPER CON LINK O CLICK
   if (link && !disabled) {
     return (
       <Link to={link} className="block">
@@ -138,7 +138,7 @@ const QuickActionCard = ({
   return cardContent;
 };
 
-// 📊 VARIANTE: Tarjeta compacta
+// VARIANTE: Tarjeta compacta
 export const CompactQuickActionCard = ({ 
   title, 
   icon: Icon, 
@@ -198,7 +198,7 @@ export const CompactQuickActionCard = ({
   return cardContent;
 };
 
-// 📊 VARIANTE: Tarjeta con progreso
+// VARIANTE: Tarjeta con progreso
 export const ProgressQuickActionCard = ({ 
   title, 
   description,
@@ -236,7 +236,7 @@ export const ProgressQuickActionCard = ({
         </div>
       </div>
       
-      {/* 📊 BARRA DE PROGRESO */}
+      {/* BARRA DE PROGRESO */}
       <div className="w-full bg-gray-200 rounded-full h-2">
         <div 
           className={`h-2 rounded-full ${colors[color] || colors.blue} transition-all duration-300`}
@@ -269,7 +269,7 @@ export const ProgressQuickActionCard = ({
   return cardContent;
 };
 
-// 📊 VARIANTE: Tarjeta con estado
+// VARIANTE: Tarjeta con estado
 export const StatusQuickActionCard = ({ 
   title, 
   description,
@@ -359,3 +359,137 @@ export const StatusQuickActionCard = ({
 };
 
 export default QuickActionCard;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE QuickActionCard
+
+PROPÓSITO:
+Este componente proporciona tarjetas de acciones rápidas personalizables para dashboards,
+permitiendo a los usuarios acceder fácilmente a funciones importantes del sistema del gimnasio.
+Incluye múltiples variantes especializadas para diferentes tipos de acciones y estados.
+
+FUNCIONALIDADES PRINCIPALES:
+- Tarjetas interactivas con iconos y descripciones
+- Sistema de colores temáticos configurables
+- Soporte para badges informativos
+- Estados activos/deshabilitados
+- Navegación por enlaces o acciones personalizadas
+- Múltiples variantes especializadas
+- Animaciones y efectos hover
+
+VARIANTES DISPONIBLES:
+- QuickActionCard: Componente base principal
+- CompactQuickActionCard: Versión compacta para espacios reducidos
+- ProgressQuickActionCard: Con barras de progreso integradas
+- StatusQuickActionCard: Con indicadores de estado específicos
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+COMPONENTES IMPORTADOS:
+- Link (react-router-dom): Para navegación interna
+- ArrowRight, ExternalLink (lucide-react): Iconos de interfaz
+
+ARCHIVOS QUE USAN ESTE COMPONENTE:
+- StaffDashboard: Panel del personal con acciones rápidas
+- ClientDashboard: Panel del cliente con funciones frecuentes
+- AdminDashboard: Panel de administración con controles rápidos
+- Páginas de gestión: Accesos directos a funciones específicas
+
+PROPS DEL COMPONENTE BASE:
+- title: Título de la acción
+- description: Descripción breve de la función
+- icon: Componente de icono (Lucide React)
+- color: Tema de color ('blue', 'green', 'yellow', etc.)
+- link: Ruta para navegación
+- onClick: Función de click personalizada
+- badge: Etiqueta informativa opcional
+- disabled: Estado deshabilitado
+- className: Clases CSS adicionales
+
+CONFIGURACIÓN DE COLORES:
+Soporta 6 temas de color predefinidos:
+- blue: Acciones generales
+- green: Acciones exitosas o confirmaciones
+- yellow: Advertencias o pendientes
+- purple: Acciones especiales o premium
+- red: Acciones críticas o eliminación
+- gray: Acciones deshabilitadas o neutras
+
+CASOS DE USO EN EL GIMNASIO:
+
+STAFF DASHBOARD:
+- Registrar nuevo miembro
+- Ver asistencia del día
+- Gestionar equipos
+- Programar mantenimiento
+- Revisar pagos pendientes
+
+CLIENT DASHBOARD:
+- Reservar clase
+- Ver rutina personalizada
+- Actualizar perfil
+- Revisar historial de pagos (en quetzales)
+- Contactar entrenador
+
+ADMIN DASHBOARD:
+- Generar reportes
+- Gestionar personal
+- Configurar promociones
+- Revisar finanzas (en quetzales)
+- Administrar instalaciones
+
+VARIANTES ESPECIALIZADAS:
+
+COMPACT VERSION:
+- Para sidebars o espacios reducidos
+- Muestra contador opcional
+- Acción directa sin descripción
+
+PROGRESS VERSION:
+- Para tareas con progreso measurable
+- Barra de progreso visual
+- Porcentaje de completado
+
+STATUS VERSION:
+- Para elementos con estados específicos
+- Indicadores visuales de estado
+- Animaciones para estados pendientes
+
+CARACTERÍSTICAS TÉCNICAS:
+- Responsive design automático
+- Animaciones CSS suaves
+- Estados hover interactivos
+- Accesibilidad con navegación por teclado
+- Sistema de colores consistente
+- Lazy loading de iconos
+
+INTEGRACIÓN CON NAVEGACIÓN:
+- Soporte completo para React Router
+- Enlaces internos y externos
+- Acciones personalizadas
+- Estados de carga
+
+ACCESIBILIDAD:
+- Roles ARIA apropiados
+- Navegación por teclado
+- Contraste de colores adecuado
+- Estados visuales claros
+- Texto descriptivo
+
+ESTRUCTURA VISUAL:
+- Icono temático a la izquierda
+- Título y descripción central
+- Indicador de acción a la derecha
+- Badge opcional en esquina superior
+- Efectos de sombra y hover
+
+PERSONALIZACIÓN:
+- Colores adaptables al tema del gimnasio
+- Iconos intercambiables
+- Contenido completamente personalizable
+- Estilos CSS extendibles
+
+Este componente es fundamental para crear interfaces de dashboard intuitivas
+y eficientes que permitan a usuarios del gimnasio (staff, clientes, administradores)
+acceder rápidamente a las funciones más importantes del sistema.
+*/

@@ -1,6 +1,5 @@
-// src/components/dashboard/QuickStats.js
-// UBICACIÓN: /gym-frontend/src/components/dashboard/QuickStats.js
-// FUNCIÓN: Estadísticas rápidas para el dashboard admin
+// Autor: Alexander Echeverria
+// Ubicación: /gym-frontend/src/components/dashboard/QuickStats.js
 
 import React from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
@@ -48,3 +47,36 @@ const QuickStats = ({ stats = [], isLoading = false }) => {
 };
 
 export default QuickStats;
+
+/*
+FUNCIONALIDAD:
+Este componente se encarga de mostrar estadísticas rápidas en tarjetas para el dashboard administrativo del gimnasio.
+Presenta métricas clave de manera visual y accesible, con indicadores de tendencia.
+
+CARACTERÍSTICAS:
+- Muestra estadísticas en formato de tarjetas responsivas
+- Incluye estado de carga con animación de skeleton
+- Presenta indicadores de cambio/tendencia con iconos y colores
+- Grid responsivo que se adapta a diferentes tamaños de pantalla
+- Manejo de datos dinámicos desde props
+- Indicadores visuales de crecimiento (verde) o decrecimiento (rojo)
+
+ESTRUCTURA DE DATOS:
+Recibe un array de estadísticas con la siguiente estructura:
+- label: Etiqueta descriptiva de la métrica
+- value: Valor actual de la estadística
+- change: Porcentaje de cambio (opcional, puede ser positivo o negativo)
+
+CONEXIONES:
+- Importa desde 'react' para funcionalidad del componente
+- Importa iconos desde 'lucide-react' (TrendingUp, TrendingDown)
+- Utilizado en componentes del dashboard que agregan métricas del gimnasio
+- Recibe datos de componentes padre que calculan estadísticas desde APIs
+- Se integra con el layout del dashboard principal
+- Conecta con sistemas de métricas como ingresos, membresías activas, usuarios registrados
+
+PROPÓSITO:
+Proporcionar una vista rápida y comprensible de las métricas más importantes del gimnasio,
+permitiendo al personal administrativo monitorear el rendimiento del negocio de un vistazo
+y identificar tendencias positivas o negativas en indicadores clave.
+*/

@@ -1,6 +1,6 @@
 // src/components/layout/Sidebar.js
 // FUNCIÓN: Sidebar SOLO para desktop - reparado para colapso correcto
-// CAMBIOS: ✅ Tienda agregada para todos los usuarios ✅ Logout sin errores CORREGIDO
+// CAMBIOS: ✅ Tienda agregada para todos los usuarios ✅ Logout sin errores CORREGIDO ✅ Iconos actualizados para GTQ
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -8,7 +8,7 @@ import {
   Home, 
   Users, 
   CreditCard, 
-  DollarSign, 
+  Coins, // ✅ CAMBIADO: DollarSign por Coins para representar quetzales
   BarChart3, 
   Settings,
   LogOut,
@@ -37,7 +37,7 @@ const Sidebar = ({ collapsed }) => {
     const baseItems = [
       {
         id: 'dashboard',
-        label: 'Dashboard',
+        label: 'Tablero Principal',
         icon: Home,
         path: getDashboardPath(),
         show: true
@@ -66,12 +66,12 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // 💰 Pagos
+    // 💰 Pagos - ✅ ACTUALIZADO con icono de quetzales
     if (hasPermission('view_payments')) {
       baseItems.push({
         id: 'payments',
-        label: 'Pagos',
-        icon: DollarSign,
+        label: 'Pagos (GTQ)',
+        icon: Coins, // ✅ CAMBIADO: Icono específico para quetzales
         path: '/dashboard/payments',
         show: true
       });
@@ -90,7 +90,7 @@ const Sidebar = ({ collapsed }) => {
     if (hasPermission('view_reports')) {
       baseItems.push({
         id: 'reports',
-        label: 'Reportes',
+        label: 'Reportes Financieros',
         icon: BarChart3,
         path: '/dashboard/reports',
         show: true
@@ -101,7 +101,7 @@ const Sidebar = ({ collapsed }) => {
     if (hasPermission('manage_system_settings')) {
       baseItems.push({
         id: 'settings',
-        label: 'Configuración',
+        label: 'Configuración del Sistema',
         icon: Settings,
         path: '/dashboard/settings',
         show: true
@@ -133,14 +133,16 @@ const Sidebar = ({ collapsed }) => {
     
     try {
       setIsLoggingOut(true);
-      console.log('🔐 Iniciando logout...');
+      console.log('🔐 Iniciando cierre de sesión...');
       
       // ✅ Limpiar datos locales ANTES del logout
       try {
         localStorage.removeItem('elite_fitness_cart');
         localStorage.removeItem('elite_fitness_session_id');
         localStorage.removeItem('elite_fitness_wishlist');
-        console.log('🧹 Datos locales limpiados');
+        localStorage.removeItem('elite_fitness_payments_cache');
+        localStorage.removeItem('elite_fitness_user_preferences');
+        console.log('🧹 Datos locales limpiados correctamente');
       } catch (localStorageError) {
         console.warn('⚠️ Error limpiando localStorage:', localStorageError);
       }
@@ -148,12 +150,12 @@ const Sidebar = ({ collapsed }) => {
       // ✅ Llamar al logout del contexto con timeout
       const logoutPromise = logout();
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Logout timeout')), 5000)
+        setTimeout(() => reject(new Error('Timeout en cierre de sesión')), 5000)
       );
       
       await Promise.race([logoutPromise, timeoutPromise]);
       
-      console.log('✅ Logout exitoso');
+      console.log('✅ Cierre de sesión exitoso');
       showSuccess && showSuccess('Sesión cerrada correctamente');
       
       // ✅ Navegar después del logout exitoso
@@ -162,7 +164,7 @@ const Sidebar = ({ collapsed }) => {
       }, 100);
       
     } catch (error) {
-      console.error('❌ Error durante logout:', error);
+      console.error('❌ Error durante el cierre de sesión:', error);
       
       // ✅ FALLBACK ROBUSTO: Forzar limpieza y redirección
       try {
@@ -177,7 +179,7 @@ const Sidebar = ({ collapsed }) => {
         window.location.href = '/login';
         
       } catch (fallbackError) {
-        console.error('❌ Error en fallback:', fallbackError);
+        console.error('❌ Error en fallback de cierre de sesión:', fallbackError);
         // Último recurso
         window.location.reload();
       }
@@ -205,7 +207,7 @@ const Sidebar = ({ collapsed }) => {
         <button
           onClick={toggleSidebar}
           className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0"
-          title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          title={collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}
         >
           {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
         </button>
@@ -240,7 +242,7 @@ const Sidebar = ({ collapsed }) => {
               </div>
               <div className="text-xs text-gray-500">
                 {user?.role === 'admin' ? 'Administrador' : 
-                 user?.role === 'colaborador' ? 'Personal' : 'Cliente'}
+                 user?.role === 'colaborador' ? 'Personal del Gimnasio' : 'Cliente Miembro'}
               </div>
             </div>
           )}
@@ -327,7 +329,7 @@ const Sidebar = ({ collapsed }) => {
           {/* Texto */}
           {!collapsed && (
             <span className="text-sm font-medium transition-opacity duration-300">
-              {isLoggingOut ? 'Cerrando...' : 'Cerrar Sesión'}
+              {isLoggingOut ? 'Cerrando Sesión...' : 'Cerrar Sesión'}
             </span>
           )}
         </button>

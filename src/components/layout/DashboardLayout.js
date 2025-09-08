@@ -1,12 +1,13 @@
+// Autor: Alexander Echeverria
 // src/components/layout/DashboardLayout.js
-// FUNCIÓN: Layout principal CORREGIDO - Menú móvil funcional garantizado
+// FUNCIÓN: Layout principal
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 
-// 📱 Componentes del Layout mejorados
+// Componentes del Layout mejorados
 import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileMenu from './MobileMenu';
@@ -23,14 +24,14 @@ const DashboardLayout = () => {
   } = useApp();
   const location = useLocation();
   
-  // 📱 Estados locales optimizados para móvil - MEJORADOS
+  // Estados locales optimizados para móvil - MEJORADOS
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [headerVisible, setHeaderVisible] = useState(true);
   
-  // 🔧 DETECCIÓN DE MÓVIL MEJORADA - Fallback si AppContext falla
+  // DETECCIÓN DE MÓVIL MEJORADA - Fallback si AppContext falla
   const [isMobileState, setIsMobileState] = useState(false);
   
   useEffect(() => {
@@ -41,7 +42,7 @@ const DashboardLayout = () => {
       
       // Debug info
       if (process.env.NODE_ENV === 'development') {
-        console.log('📱 Mobile detection:', {
+        console.log('Mobile detection:', {
           windowWidth: width,
           isMobileFromContext: isMobile,
           isMobileDetected,
@@ -58,13 +59,13 @@ const DashboardLayout = () => {
   // Usar detección propia si la del contexto falla
   const actualIsMobile = isMobile !== undefined ? isMobile : isMobileState;
   
-  // 🎯 FUNCIONES DE CONTROL MEJORADAS - Con debug
+  // FUNCIONES DE CONTROL MEJORADAS - Con debug
   const toggleMobileMenu = useCallback(() => {
-    console.log('📱 Toggling mobile menu, current state:', showMobileMenu);
+    console.log('Toggling mobile menu, current state:', showMobileMenu);
     
     setShowMobileMenu(prev => {
       const newState = !prev;
-      console.log('📱 Mobile menu new state:', newState);
+      console.log('Mobile menu new state:', newState);
       
       // Prevenir scroll del body cuando el menú está abierto
       if (newState) {
@@ -82,7 +83,7 @@ const DashboardLayout = () => {
   }, [showMobileMenu]);
   
   const toggleNotifications = useCallback(() => {
-    console.log('🔔 Toggling notifications, current state:', showNotifications);
+    console.log('Toggling notifications, current state:', showNotifications);
     
     setShowNotifications(prev => {
       const newState = !prev;
@@ -100,7 +101,7 @@ const DashboardLayout = () => {
   }, [showNotifications]);
   
   const closeMobileMenu = useCallback(() => {
-    console.log('📱 Closing mobile menu');
+    console.log('Closing mobile menu');
     setShowMobileMenu(false);
     document.body.style.overflow = 'unset';
     document.body.style.paddingRight = '0px';
@@ -108,13 +109,13 @@ const DashboardLayout = () => {
   }, []);
   
   const closeNotifications = useCallback(() => {
-    console.log('🔔 Closing notifications');
+    console.log('Closing notifications');
     setShowNotifications(false);
     document.body.style.overflow = 'unset';
     document.body.style.paddingRight = '0px';
   }, []);
   
-  // 📱 Auto-cerrar menú móvil al cambiar de ruta
+  // Auto-cerrar menú móvil al cambiar de ruta
   useEffect(() => {
     if (showMobileMenu) {
       closeMobileMenu();
@@ -124,7 +125,7 @@ const DashboardLayout = () => {
     }
   }, [location.pathname, closeMobileMenu, closeNotifications]);
   
-  // 📱 Manejar scroll inteligente en móvil (ocultar header al scroll down)
+  // Manejar scroll inteligente en móvil (ocultar header al scroll down)
   useEffect(() => {
     if (!actualIsMobile) return;
     
@@ -150,7 +151,7 @@ const DashboardLayout = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [actualIsMobile, lastScrollY]);
   
-  // 📱 Gestos táctiles para cerrar menús (swipe) - MEJORADO
+  // Gestos táctiles para cerrar menús (swipe) - MEJORADO
   useEffect(() => {
     if (!actualIsMobile) return;
     
@@ -219,7 +220,7 @@ const DashboardLayout = () => {
     };
   }, [actualIsMobile, showMobileMenu, showNotifications, closeMobileMenu, closeNotifications]);
   
-  // 📱 Limpiar overflow del body al desmontar
+  // Limpiar overflow del body al desmontar
   useEffect(() => {
     return () => {
       document.body.style.overflow = 'unset';
@@ -228,7 +229,7 @@ const DashboardLayout = () => {
     };
   }, []);
   
-  // 📱 Prevenir zoom en inputs en iOS
+  // Prevenir zoom en inputs en iOS
   useEffect(() => {
     if (!actualIsMobile) return;
     
@@ -242,7 +243,7 @@ const DashboardLayout = () => {
     return () => document.removeEventListener('focusin', preventZoom);
   }, [actualIsMobile]);
   
-  // 🔐 Manejar escape para cerrar menús
+  // Manejar escape para cerrar menús
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
@@ -262,7 +263,7 @@ const DashboardLayout = () => {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       
-      {/* 🖥️ SIDEBAR DESKTOP */}
+      {/* SIDEBAR DESKTOP */}
       {!actualIsMobile && (
         <div className={`
           transition-all duration-300 ease-in-out
@@ -274,7 +275,7 @@ const DashboardLayout = () => {
         </div>
       )}
       
-      {/* 📱 MOBILE MENU OVERLAY - MEJORADO CON Z-INDEX MÁS ALTOS */}
+      {/* MOBILE MENU OVERLAY - MEJORADO CON Z-INDEX MÁS ALTOS */}
       {actualIsMobile && (
         <>
           {/* Backdrop siempre renderizado, pero visible solo cuando showMobileMenu es true */}
@@ -303,10 +304,10 @@ const DashboardLayout = () => {
         </>
       )}
       
-      {/* 🏠 CONTENIDO PRINCIPAL */}
+      {/* CONTENIDO PRINCIPAL */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         
-        {/* 🔝 HEADER CON Z-INDEX ALTO Y COMPORTAMIENTO INTELIGENTE */}
+        {/* HEADER CON Z-INDEX ALTO Y COMPORTAMIENTO INTELIGENTE */}
         <div className={`
           transition-all duration-300 ease-in-out
           ${actualIsMobile ? 'sticky top-0 z-[99999]' : 'relative z-[99999]'}
@@ -322,7 +323,7 @@ const DashboardLayout = () => {
           />
         </div>
         
-        {/* 📄 ÁREA DE CONTENIDO CON SCROLL MEJORADO */}
+        {/* ÁREA DE CONTENIDO CON SCROLL MEJORADO */}
         <main className={`
           flex-1 overflow-y-auto
           ${actualIsMobile ? 'overflow-x-hidden' : ''}
@@ -334,19 +335,19 @@ const DashboardLayout = () => {
             ${actualIsMobile ? 'py-4' : 'py-6'}
           `}>
             
-            {/* 🎯 BREADCRUMBS (opcional y responsive) */}
+            {/* BREADCRUMBS (opcional y responsive) */}
             {!actualIsMobile && (
               <div className="mb-6">
                 <Breadcrumbs />
               </div>
             )}
             
-            {/* 📊 CONTENIDO DE LA PÁGINA */}
+            {/* CONTENIDO DE LA PÁGINA */}
             <div className={`${actualIsMobile ? 'space-y-4' : 'space-y-6'}`}>
               <Outlet />
             </div>
             
-            {/* 📱 Espaciado extra en móvil para evitar que el contenido quede oculto */}
+            {/* Espaciado extra en móvil para evitar que el contenido quede oculto */}
             {actualIsMobile && <div className="h-20"></div>}
             
           </div>
@@ -354,7 +355,7 @@ const DashboardLayout = () => {
         
       </div>
       
-      {/* 🔔 PANEL DE NOTIFICACIONES CON Z-INDEX MEJORADO */}
+      {/* PANEL DE NOTIFICACIONES CON Z-INDEX MEJORADO */}
       {showNotifications && (
         <>
           {/* Backdrop */}
@@ -382,14 +383,14 @@ const DashboardLayout = () => {
         </>
       )}
       
-      {/* 🟢 INDICADOR CIRCULAR SIMPLE DEL SISTEMA (esquina inferior izquierda) */}
+      {/* INDICADOR CIRCULAR SIMPLE DEL SISTEMA (esquina inferior izquierda) */}
       <SystemStatusIndicator show={true} />
       
     </div>
   );
 };
 
-// 🍞 COMPONENTE DE BREADCRUMBS (sin cambios)
+// COMPONENTE DE BREADCRUMBS (sin cambios)
 const Breadcrumbs = React.memo(() => {
   const location = useLocation();
   const { user, hasPermission } = useAuth();
@@ -477,18 +478,133 @@ Breadcrumbs.displayName = 'Breadcrumbs';
 
 export default DashboardLayout;
 
-// 📝 MEJORAS IMPLEMENTADAS PARA MÓVIL:
-// ✅ Header inteligente que se oculta al hacer scroll hacia abajo
-// ✅ Gestos táctiles (swipe) para cerrar menús
-// ✅ Animaciones mejoradas para overlay y menús
-// ✅ Prevención de scroll del body cuando los menús están abiertos
-// ✅ Auto-cierre de menús al navegar entre páginas
-// ✅ Prevención de zoom automático en inputs en iOS
-// ✅ Espaciado optimizado para contenido móvil
-// ✅ Scroll personalizado con scrollbar delgada
-// ✅ Indicador de conexión discreto en desarrollo
-// ✅ Breadcrumbs ocultos en móvil para ahorrar espacio
-// ✅ Backdrop mejorado con opacidad gradual
-// ✅ Limpieza automática de overflow al desmontar
-// ✅ Panel de notificaciones responsive
-// ✅ Mantiene TODA la funcionalidad original del dashboard
+/*
+DOCUMENTACIÓN DEL COMPONENTE DashboardLayout
+
+PROPÓSITO:
+Este componente implementa el layout principal de la aplicación del gimnasio, proporcionando
+una estructura responsive y funcional para dashboards de administradores, personal y clientes.
+Incluye navegación móvil optimizada, header inteligente y gestión avanzada de estados.
+
+FUNCIONALIDADES PRINCIPALES:
+- Layout responsive con sidebar para desktop y menú móvil
+- Header inteligente que se oculta/muestra al hacer scroll en móvil
+- Sistema de navegación por gestos táctiles (swipe)
+- Panel de notificaciones deslizable
+- Breadcrumbs contextuales para navegación
+- Indicador de estado del sistema integrado
+- Gestión optimizada de overflow y scroll
+
+ESTRUCTURA DEL LAYOUT:
+1. Sidebar (desktop) / Mobile Menu (móvil)
+2. Header con controles de navegación
+3. Área de contenido principal con Outlet
+4. Panel de notificaciones lateral
+5. Indicador de estado del sistema
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+CONTEXTS REQUERIDOS:
+- AuthContext (../../contexts/AuthContext): Autenticación y permisos de usuario
+- AppContext (../../contexts/AppContext): Estado global y configuración móvil
+
+COMPONENTES IMPORTADOS:
+- Sidebar (./Sidebar): Barra lateral de navegación para desktop
+- Header (./Header): Cabecera con controles y navegación
+- MobileMenu (./MobileMenu): Menú de navegación móvil
+- NotificationPanel (./NotificationPanel): Panel de notificaciones
+- SystemStatusIndicator (../common/SystemStatusIndicator): Indicador de estado
+
+HOOKS DE REACT ROUTER:
+- Outlet: Renderiza componentes de rutas hijas
+- useLocation: Detecta cambios de ruta para auto-cierre de menús
+
+ESTADOS MANEJADOS:
+- showMobileMenu: Control del menú móvil
+- showNotifications: Control del panel de notificaciones
+- isScrolled: Estado de scroll para efectos visuales
+- lastScrollY: Posición previa de scroll para header inteligente
+- headerVisible: Visibilidad del header en móvil
+- isMobileState: Detección de dispositivo móvil (fallback)
+
+CARACTERÍSTICAS MÓVILES OPTIMIZADAS:
+- Header inteligente que se oculta al scroll down, aparece al scroll up
+- Gestos táctiles para cerrar menús (swipe left/right)
+- Prevención de zoom automático en inputs iOS
+- Gestión de overflow del body durante menús abiertos
+- Animaciones suaves para transiciones
+- Z-index optimizado para overlays
+
+NAVEGACIÓN POR GESTOS:
+- Swipe left: Cierra menú móvil
+- Swipe right: Cierra panel de notificaciones
+- Escape key: Cierra cualquier panel abierto
+- Click en backdrop: Cierra overlays
+
+BREADCRUMBS CONTEXTUALES:
+- Solo visibles en desktop para ahorrar espacio móvil
+- Traducción automática de rutas a nombres amigables
+- Soporte para rutas del gimnasio (membresías, pagos, reportes)
+- Enlaces navegables con hover effects
+
+RUTAS SOPORTADAS EN BREADCRUMBS:
+- dashboard: Panel principal
+- admin/staff/client: Roles de usuario
+- memberships: Gestión de membresías
+- payments: Pagos en quetzales
+- reports/analytics: Reportes y análisis
+- store: Tienda de productos
+- users: Gestión de usuarios
+- settings: Configuración
+
+OPTIMIZACIONES DE RENDIMIENTO:
+- useCallback para funciones de control
+- React.memo para Breadcrumbs
+- Event listeners con cleanup automático
+- Detección de móvil con fallback
+- Lazy loading de paneles
+
+ACCESIBILIDAD:
+- Aria labels en breadcrumbs
+- Navegación por teclado (Escape)
+- Roles semánticos apropiados
+- Focus management en menús
+- Contraste adecuado en overlays
+
+CARACTERÍSTICAS TÉCNICAS:
+- Z-index escalonado para overlays (99990-99999)
+- Transiciones CSS optimizadas (300ms ease-out)
+- Backdrop blur effects en header con scroll
+- Scrollbar personalizada delgada
+- Prevención de body scroll durante overlays
+
+INTEGRACIÓN CON EL SISTEMA DEL GIMNASIO:
+- Soporte para roles diferenciados (admin, staff, client)
+- Navegación contextual según permisos
+- Monitoreo de estado del sistema integrado
+- Breadcrumbs específicos para operaciones del gimnasio
+- Optimización para flujos de trabajo del gimnasio
+
+RESPONSIVE DESIGN:
+- Breakpoint principal en 768px (md)
+- Sidebar colapsable en desktop
+- Menú deslizable en móvil (85% max-width)
+- Header sticky en móvil, relativo en desktop
+- Spacing adaptativo (py-4 móvil, py-6 desktop)
+
+GESTIÓN DE MEMORIA:
+- Cleanup automático de event listeners
+- Restauración de estilos del body al desmontar
+- Eliminación de clases CSS temporales
+- Prevención de memory leaks
+
+DEBUGGING Y DESARROLLO:
+- Logs de console para debugging de estados móviles
+- Información de detección de dispositivo
+- Indicador de estado del sistema visible
+- Variables de entorno para debug mode
+
+Este componente es fundamental para la experiencia de usuario en la aplicación
+del gimnasio, proporcionando una base sólida y responsive para todos los
+dashboards mientras mantiene optimizaciones específicas para dispositivos móviles.
+*/

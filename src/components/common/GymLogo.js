@@ -1,6 +1,7 @@
+// Autor: Alexander Echeverria
 // src/components/common/GymLogo.js
 // CONECTA CON: useGymConfig hook
-// MEJORAS: Persistencia entre navegaciones, cache de imagen, re-intentos automáticos
+
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dumbbell } from 'lucide-react';
@@ -23,7 +24,7 @@ const GymLogo = ({
     loading: false
   });
   
-  // 🔧 Memoizar URL de imagen para evitar recálculos
+  // Memoizar URL de imagen para evitar recálculos
   const imageUrl = useMemo(() => {
     if (!config?.logo?.url) {
       return null;
@@ -42,7 +43,7 @@ const GymLogo = ({
     return `${baseUrl}${cleanPath}`;
   }, [config?.logo?.url]);
   
-  // 🔧 Cache de imágenes en sessionStorage para persistir entre navegaciones
+  // Cache de imágenes en sessionStorage para persistir entre navegaciones
   const getCachedImageStatus = useCallback((url) => {
     if (!url) return null;
     try {
@@ -65,7 +66,7 @@ const GymLogo = ({
     }
   }, []);
   
-  // 🔍 Verificar imagen con cache y re-intentos
+  // Verificar imagen con cache y re-intentos
   const verifyImage = useCallback((url) => {
     if (!url || imageState.loading) return;
     
@@ -73,21 +74,21 @@ const GymLogo = ({
     const cached = getCachedImageStatus(url);
     if (cached && cached.status === 'loaded') {
       // Cache hit - imagen ya verificada
-      console.log('🖼️ GymLogo: Using cached image status');
+      console.log('GymLogo: Using cached image status');
       setImageState({ loaded: true, error: false, loading: false });
       return;
     }
     
-    console.group('🖼️ GymLogo Image Verification');
-    console.log('📁 Image URL:', url);
-    console.log('🔄 Cache status:', cached ? 'miss' : 'empty');
+    console.group('GymLogo Image Verification');
+    console.log('Image URL:', url);
+    console.log('Cache status:', cached ? 'miss' : 'empty');
     
     setImageState(prev => ({ ...prev, loading: true, error: false }));
     
     const img = new Image();
     
     img.onload = () => {
-      console.log('✅ Logo loaded successfully');
+      console.log('Logo loaded successfully');
       console.groupEnd();
       
       const newState = { loaded: true, error: false, loading: false };
@@ -96,9 +97,9 @@ const GymLogo = ({
     };
     
     img.onerror = () => {
-      console.warn('❌ Failed to load logo');
-      console.log('🔧 Solution: Check if the image exists at:', url);
-      console.log('💡 Fallback: Using dumbbell icon instead');
+      console.warn('Failed to load logo');
+      console.log('Solution: Check if the image exists at:', url);
+      console.log('Fallback: Using dumbbell icon instead');
       console.groupEnd();
       
       const newState = { loaded: false, error: true, loading: false };
@@ -108,14 +109,14 @@ const GymLogo = ({
       // Re-intentar después de 5 segundos si es alta prioridad
       if (priority === 'high') {
         setTimeout(() => {
-          console.log('🔄 Retrying logo load...');
+          console.log('Retrying logo load...');
           setImageState(prev => ({ ...prev, error: false }));
           verifyImage(url);
         }, 5000);
       }
     };
     
-    // 🚀 Cargar basado en prioridad
+    // Cargar basado en prioridad
     if (priority === 'high') {
       img.src = url; // Cargar inmediatamente
     } else if (priority === 'normal') {
@@ -129,18 +130,18 @@ const GymLogo = ({
     }
   }, [imageState.loading, priority, getCachedImageStatus, setCachedImageStatus]);
   
-  // 🔍 Efecto para verificar imagen cuando sea necesario
+  // Efecto para verificar imagen cuando sea necesario
   useEffect(() => {
     if (isLoaded && imageUrl && !imageState.loading) {
       verifyImage(imageUrl);
     }
   }, [isLoaded, imageUrl, imageState.loading, verifyImage]);
   
-  // 🔄 Re-verificar imagen cuando se regresa a la página
+  // Re-verificar imagen cuando se regresa a la página
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && imageUrl && imageState.error) {
-        console.log('🔄 Page became visible, retrying logo load...');
+        console.log('Page became visible, retrying logo load...');
         setTimeout(() => {
           verifyImage(imageUrl);
         }, 1000);
@@ -151,7 +152,7 @@ const GymLogo = ({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [imageUrl, imageState.error, verifyImage]);
   
-  // 📏 CONFIGURACIÓN DE TAMAÑOS RESPONSIVA
+  // CONFIGURACIÓN DE TAMAÑOS RESPONSIVA
   const sizeConfig = useMemo(() => ({
     xs: { 
       container: 'w-6 h-6', 
@@ -197,7 +198,7 @@ const GymLogo = ({
     }
   }), []);
   
-  // 🎨 CONFIGURACIÓN DE VARIANTES
+  // CONFIGURACIÓN DE VARIANTES
   const variantConfig = useMemo(() => ({
     professional: { 
       container: 'bg-primary-600', 
@@ -243,7 +244,7 @@ const GymLogo = ({
     }
   }), []);
   
-  // 📱 Detectar si estamos en móvil
+  // Detectar si estamos en móvil
   const isMobile = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return window.innerWidth < 768;
@@ -252,7 +253,7 @@ const GymLogo = ({
   const currentSize = sizeConfig[size] || sizeConfig.md;
   const currentVariant = variantConfig[variant] || variantConfig.professional;
   
-  // 📱 Función para obtener el tamaño correcto según el dispositivo
+  // Función para obtener el tamaño correcto según el dispositivo
   const getResponsiveSize = useCallback((property) => {
     if (isMobile && currentSize.mobile && property === 'container') {
       return currentSize.mobile;
@@ -262,7 +263,7 @@ const GymLogo = ({
   
   const getTextSize = () => textSize !== 'auto' ? textSize : currentSize.text;
   
-  // 🖼️ RENDERIZAR LOGO - Optimizado para persistencia
+  // RENDERIZAR LOGO - Optimizado para persistencia
   const logoContent = useMemo(() => {
     const containerClasses = `
       ${getResponsiveSize('container')} 
@@ -281,7 +282,7 @@ const GymLogo = ({
             alt={config?.logo?.alt || config?.name || 'Logo'}
             className={`${getResponsiveSize('container')} object-contain`}
             onError={() => {
-              console.log('🖼️ Image error during render, retrying...');
+              console.log('Image error during render, retrying...');
               setImageState(prev => ({ ...prev, error: true, loaded: false }));
               // Re-intentar inmediatamente
               setTimeout(() => verifyImage(imageUrl), 100);
@@ -328,7 +329,7 @@ const GymLogo = ({
     setCachedImageStatus
   ]);
 
-  // 🎭 Texto del logo con persistencia
+  // Texto del logo con persistencia
   const logoText = useMemo(() => {
     if (!showText) return null;
     
@@ -350,7 +351,7 @@ const GymLogo = ({
     );
   }, [showText, config?.name, currentVariant.text, getTextSize, isMobile]);
 
-  // 📱 Skeleton mejorado con retry
+  // Skeleton mejorado con retry
   if (!isLoaded || imageState.loading) {
     const skeletonClasses = `
       ${getResponsiveSize('container')} 
@@ -407,7 +408,7 @@ const GymLogo = ({
   );
 };
 
-// 🚀 VARIANTES ESPECÍFICAS MEJORADAS
+// VARIANTES ESPECÍFICAS MEJORADAS
 export const NavbarLogo = React.memo(() => {
   const [isMobile, setIsMobile] = useState(false);
   
@@ -515,15 +516,116 @@ export const MinimalLogo = React.memo(() => (
 
 export default React.memo(GymLogo);
 
-// 📝 CAMBIOS REALIZADOS PARA OPTIMIZACIÓN MÓVIL:
-// ✅ Tamaños responsivos específicos para móvil
-// ✅ Lazy loading con prioridades (high, normal, low)
-// ✅ Texto truncado automáticamente en móvil para nombres largos  
-// ✅ Variantes específicas para móvil (minimal, compact)
-// ✅ Hooks de resize para detectar cambios de pantalla
-// ✅ Optimizaciones de imagen (loading lazy, decoding async)
-// ✅ Mejores animaciones y transiciones
-// ✅ Accesibilidad mejorada (ARIA labels, keyboard navigation)
-// ✅ Skeleton loading optimizado para móvil
-// ✅ Componentes específicos responsivos (NavbarLogo, HeroLogo, etc.)
-// ✅ Mantiene TODA la funcionalidad original
+/*
+DOCUMENTACIÓN DEL COMPONENTE GymLogo
+
+PROPÓSITO:
+Este componente proporciona un logo flexible y optimizado del gimnasio que puede mostrar
+tanto una imagen personalizada como un icono de respaldo. Incluye sistema de cache,
+reintentos automáticos, múltiples variantes y optimizaciones para móvil.
+
+FUNCIONALIDADES PRINCIPALES:
+- Carga dinámica de logo desde configuración del gimnasio
+- Sistema de cache en sessionStorage para persistencia
+- Reintentos automáticos en caso de fallo de carga
+- Múltiples tamaños y variantes visuales
+- Diseño responsivo optimizado para móvil
+- Fallback automático a icono de mancuernas
+- Lazy loading con prioridades configurables
+- Texto truncado automático en pantallas pequeñas
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+HOOKS REQUERIDOS:
+- useGymConfig (../../hooks/useGymConfig): Obtiene configuración del gimnasio
+
+COMPONENTES IMPORTADOS:
+- Dumbbell (lucide-react): Icono de respaldo
+
+CONFIGURACIÓN UTILIZADA:
+- config.logo.url: URL de la imagen del logo
+- config.logo.alt: Texto alternativo de la imagen
+- config.name: Nombre del gimnasio
+
+ARCHIVOS QUE USAN ESTE COMPONENTE:
+- Layout principal: Navbar y footer
+- Páginas de autenticación: Login, registro
+- Dashboards: Administración, personal, clientes
+- Páginas públicas: Homepage, servicios
+- Componentes de navegación móvil
+
+VARIANTES ESPECIALIZADAS EXPORTADAS:
+- NavbarLogo: Para barra de navegación (responsive)
+- FooterLogo: Para pie de página
+- AuthLogo: Para páginas de autenticación
+- MobileLogo: Específico para móvil
+- DashboardLogo: Para paneles de administración
+- HeroLogo: Para secciones hero principales
+- CompactLogo: Versión muy pequeña
+- MinimalLogo: Versión minimalista
+
+PROPS DEL COMPONENTE BASE:
+- size: Tamaño ('xs', 'sm', 'md', 'lg', 'xl', '2xl')
+- variant: Estilo visual ('professional', 'dark', 'light', 'white', 'gradient', 'minimal', 'compact')
+- showText: Mostrar nombre del gimnasio
+- textSize: Tamaño personalizado del texto
+- className: Clases CSS adicionales
+- onClick: Función de click
+- priority: Prioridad de carga ('high', 'normal', 'low')
+- breakpoint: Punto de quiebre responsivo
+
+CONFIGURACIÓN DE TAMAÑOS:
+Cada tamaño incluye configuración para:
+- Contenedor principal
+- Icono de respaldo
+- Texto
+- Espaciado
+- Versión móvil específica
+
+CONFIGURACIÓN DE VARIANTES:
+- professional: Colores primarios, formal
+- dark: Fondo oscuro para headers oscuros
+- light: Fondo claro con bordes
+- white: Fondo blanco para contraste
+- gradient: Degradado atractivo
+- minimal: Transparente, minimalista
+- compact: Compacto con fondo sutil
+
+SISTEMA DE CACHE:
+- Utiliza sessionStorage para persistir estado de imágenes
+- Evita recargas innecesarias entre navegaciones
+- Incluye timestamp para invalidación
+
+OPTIMIZACIONES DE RENDIMIENTO:
+- Lazy loading con prioridades
+- Memoización de contenido pesado
+- Cache de verificación de imágenes
+- Detección de cambios de visibilidad
+- Reintentos inteligentes
+
+CARACTERÍSTICAS RESPONSIVAS:
+- Tamaños específicos para móvil
+- Texto truncado automático
+- Detección de resize de ventana
+- Adaptación de espaciado
+- Optimización de carga de imágenes
+
+ACCESIBILIDAD:
+- ARIA labels apropiados
+- Navegación por teclado
+- Roles semánticos
+- Texto alternativo
+- Estados de focus visibles
+
+ESTADOS MANEJADOS:
+- Carga inicial con skeleton
+- Error con fallback a icono
+- Carga exitosa con imagen
+- Reintentos automáticos
+- Cache hit/miss
+
+INTEGRACIÓN CON EL SISTEMA:
+Este componente es fundamental para la identidad visual del gimnasio en toda la aplicación,
+proporcionando consistencia de marca y experiencia de usuario optimizada tanto en desktop
+como en dispositivos móviles.
+*/

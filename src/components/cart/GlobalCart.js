@@ -1,9 +1,9 @@
+// Autor: Alexander Echeverria
 // src/components/cart/GlobalCart.js
-// FUNCIÓN: Wrapper global CORREGIDO - Oculta carrito en checkout + sin mensaje guardado
-// ARREGLOS: ✅ No aparece en /checkout ✅ Sin mensaje persistencia ✅ Mantiene funcionalidad
+
 
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom'; // ✅ NUEVO: Para detectar ruta
+import { useLocation } from 'react-router-dom';
 import { ShoppingCart, Plus, Zap, Eye, Bug } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,7 +11,7 @@ import { useApp } from '../../contexts/AppContext';
 import CartSidebar from './CartSidebar';
 
 const GlobalCart = () => {
-  const location = useLocation(); // ✅ NUEVO: Hook para detectar ruta actual
+  const location = useLocation();
   
   const { 
     toggleCart, 
@@ -33,27 +33,27 @@ const GlobalCart = () => {
   const [previousItemCount, setPreviousItemCount] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
 
-  // ✅ NUEVO: Detectar si estamos en página de checkout
+  // NUEVO: Detectar si estamos en página de checkout
   const isCheckoutPage = location.pathname === '/checkout';
 
-  // 🎬 EFECTO: Detectar cuando se agrega un item y animar
+  // EFECTO: Detectar cuando se agrega un item y animar
   useEffect(() => {
     if (itemCount > previousItemCount && previousItemCount >= 0) {
       // Se agregó un item al carrito
       const difference = itemCount - previousItemCount;
       
-      console.log('🛒 Item added to cart - triggering animation');
+      console.log('Item added to cart - triggering animation');
       
       // Animación del icono
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 600);
       
-      // ✅ MEJORADO: Feedback específico para invitados
+      // MEJORADO: Feedback específico para invitados
       if (!isAuthenticated) {
-        setFeedbackText(difference === 1 ? '¡Agregado como invitado!' : `+${difference} productos (invitado)`);
+        setFeedbackText(difference === 1 ? 'Agregado como invitado' : `+${difference} productos (invitado)`);
         showSuccess('Producto agregado al carrito (puedes comprar sin registro)');
       } else {
-        setFeedbackText(difference === 1 ? '¡Agregado!' : `+${difference} productos`);
+        setFeedbackText(difference === 1 ? 'Agregado' : `+${difference} productos`);
         showSuccess('Producto agregado al carrito');
       }
       
@@ -64,11 +64,11 @@ const GlobalCart = () => {
     setPreviousItemCount(itemCount);
   }, [itemCount, previousItemCount, isAuthenticated, showSuccess]);
 
-  // ✅ NUEVO: Efecto para debug en desarrollo
+  // NUEVO: Efecto para debug en desarrollo
   useEffect(() => {
     if (process.env.NODE_ENV === 'development' && !isAuthenticated && itemCount > 0) {
       const interval = setInterval(() => {
-        console.log('🔍 Cart persistence check:', {
+        console.log('Cart persistence check:', {
           itemsInState: itemCount,
           sessionId: sessionInfo?.sessionId,
           hasLocalStorage: !!localStorage.getItem('elite_fitness_cart'),
@@ -80,13 +80,13 @@ const GlobalCart = () => {
     }
   }, [itemCount, isAuthenticated, sessionInfo, isCheckoutPage]);
 
-  // ✅ CRÍTICO: NO RENDERIZAR CARRITO FLOTANTE EN CHECKOUT
+  // CRÍTICO: NO RENDERIZAR CARRITO FLOTANTE EN CHECKOUT
   if (isEmpty || itemCount === 0) {
     return (
       <>
         <CartSidebar />
         
-        {/* ✅ Debug button para desarrollo - Solo si NO estamos en checkout */}
+        {/* Debug button para desarrollo - Solo si NO estamos en checkout */}
         {process.env.NODE_ENV === 'development' && !isCheckoutPage && (
           <div className="fixed bottom-4 left-4 z-50">
             <button
@@ -99,7 +99,7 @@ const GlobalCart = () => {
             
             {showDebug && (
               <div className="absolute bottom-10 left-0 bg-black text-white p-3 rounded-lg text-xs w-72 max-h-48 overflow-y-auto">
-                <div className="font-bold mb-2">🔍 Cart Debug Info</div>
+                <div className="font-bold mb-2">Cart Debug Info</div>
                 <div>Items: {itemCount}</div>
                 <div>Is Authenticated: {isAuthenticated ? 'Yes' : 'No'}</div>
                 <div>Session ID: {sessionInfo?.sessionId || 'None'}</div>
@@ -119,25 +119,25 @@ const GlobalCart = () => {
     );
   }
 
-  // ✅ CRÍTICO: NO MOSTRAR CARRITO FLOTANTE EN CHECKOUT
+  // CRÍTICO: NO MOSTRAR CARRITO FLOTANTE EN CHECKOUT
   if (isCheckoutPage) {
-    console.log('🛒 Hiding cart on checkout page (data preserved)');
+    console.log('Hiding cart on checkout page (data preserved)');
     return <CartSidebar />; // Solo sidebar disponible, no carrito flotante
   }
 
   return (
     <>
-      {/* ✅ CartSidebar - Mantiene toda la funcionalidad */}
+      {/* CartSidebar - Mantiene toda la funcionalidad */}
       <CartSidebar />
       
-      {/* 🛒 CARRITO FLOTANTE - Solo visible FUERA de checkout */}
+      {/* CARRITO FLOTANTE - Solo visible FUERA de checkout */}
       <div className={`fixed z-50 transition-all duration-300 ${
         isMobile 
           ? 'bottom-4 right-4' 
           : 'bottom-6 right-6'
       }`}>
         
-        {/* 💬 FEEDBACK VISUAL - Aparece cuando se agrega algo */}
+        {/* FEEDBACK VISUAL - Aparece cuando se agrega algo */}
         {showFeedback && (
           <div className={`absolute transition-all duration-500 ${
             isMobile ? 'bottom-16 right-0' : 'bottom-20 right-0'
@@ -151,9 +151,7 @@ const GlobalCart = () => {
           </div>
         )}
         
-        {/* ❌ REMOVIDO: Indicador de persistencia - Ya no se muestra */}
-        
-        {/* 🎯 BOTÓN PRINCIPAL DEL CARRITO */}
+        {/* BOTÓN PRINCIPAL DEL CARRITO */}
         <button
           onClick={toggleCart}
           className={`
@@ -173,14 +171,14 @@ const GlobalCart = () => {
           }
         >
           
-          {/* 🛍️ ICONO DEL CARRITO */}
+          {/* ICONO DEL CARRITO */}
           <ShoppingCart className={`
             transition-all duration-300
             ${isMobile ? 'w-6 h-6' : 'w-7 h-7'}
             ${isAnimating ? 'animate-pulse' : ''}
           `} />
           
-          {/* 🔢 CONTADOR DE ITEMS */}
+          {/* CONTADOR DE ITEMS */}
           {itemCount > 0 && (
             <div className={`
               absolute text-white rounded-full font-bold
@@ -194,20 +192,20 @@ const GlobalCart = () => {
             </div>
           )}
           
-          {/* ✨ EFECTO DE PULSO CUANDO ESTÁ VACÍO */}
+          {/* EFECTO DE PULSO CUANDO ESTÁ VACÍO */}
           {isEmpty && (
             <div className={`absolute inset-0 rounded-full opacity-75 animate-pulse ${
               !isAuthenticated ? 'bg-blue-400' : 'bg-primary-400'
             }`}></div>
           )}
           
-          {/* 🌟 RING DE HOVER */}
+          {/* RING DE HOVER */}
           <div className={`absolute inset-0 rounded-full border-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse ${
             !isAuthenticated ? 'border-blue-300' : 'border-primary-300'
           }`}></div>
         </button>
         
-        {/* 💰 PREVIEW DEL TOTAL - Solo en desktop cuando no está vacío */}
+        {/* PREVIEW DEL TOTAL - Solo en desktop cuando no está vacío */}
         {!isMobile && !isEmpty && (
           <div className={`
             absolute bottom-0 right-20 bg-white text-gray-900 px-3 py-2 rounded-lg shadow-lg 
@@ -223,7 +221,7 @@ const GlobalCart = () => {
                 </span>
               </div>
               
-              {/* ✅ Indicador específico para invitados */}
+              {/* Indicador específico para invitados */}
               {!isAuthenticated && (
                 <div className="text-xs text-blue-600 flex items-center">
                   <Eye className="w-3 h-3 mr-1" />
@@ -240,7 +238,7 @@ const GlobalCart = () => {
         )}
       </div>
       
-      {/* 🎉 ANIMACIÓN DE CELEBRACIÓN - Aparece ocasionalmente */}
+      {/* ANIMACIÓN DE CELEBRACIÓN - Aparece ocasionalmente */}
       {isAnimating && itemCount > 0 && (
         <div className="fixed inset-0 pointer-events-none z-40">
           <div className={`absolute transition-all duration-1000 ${
@@ -269,7 +267,7 @@ const GlobalCart = () => {
         </div>
       )}
       
-      {/* ✅ Debug panel para desarrollo - Solo si NO estamos en checkout */}
+      {/* Debug panel para desarrollo - Solo si NO estamos en checkout */}
       {process.env.NODE_ENV === 'development' && (
         <div className="fixed bottom-4 left-4 z-50">
           <button
@@ -282,18 +280,18 @@ const GlobalCart = () => {
           
           {showDebug && (
             <div className="absolute bottom-10 left-0 bg-black text-white p-3 rounded-lg text-xs w-80 max-h-64 overflow-y-auto">
-              <div className="font-bold mb-2">🔍 Cart Debug Info</div>
+              <div className="font-bold mb-2">Cart Debug Info</div>
               
               <div className="space-y-1">
-                <div>📊 Items: {itemCount}</div>
-                <div>👤 Authenticated: {isAuthenticated ? 'Yes' : 'No'}</div>
-                <div>🆔 Session ID: {sessionInfo?.sessionId || 'None'}</div>
-                <div>📍 Current Page: {location.pathname}</div>
-                <div>🛒 Is Checkout: {isCheckoutPage ? 'Yes (Cart Hidden)' : 'No'}</div>
-                <div>💾 LocalStorage Cart: {
+                <div>Items: {itemCount}</div>
+                <div>Authenticated: {isAuthenticated ? 'Yes' : 'No'}</div>
+                <div>Session ID: {sessionInfo?.sessionId || 'None'}</div>
+                <div>Current Page: {location.pathname}</div>
+                <div>Is Checkout: {isCheckoutPage ? 'Yes (Cart Hidden)' : 'No'}</div>
+                <div>LocalStorage Cart: {
                   localStorage.getItem('elite_fitness_cart') ? 'Has data' : 'Empty'
                 }</div>
-                <div>💰 Total: {formatCurrency(total)}</div>
+                <div>Total: {formatCurrency(total)}</div>
               </div>
               
               <div className="mt-3 space-y-1">
@@ -301,14 +299,14 @@ const GlobalCart = () => {
                   onClick={debugGuestCart}
                   className="w-full bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors"
                 >
-                  🔍 Full Debug Console
+                  Full Debug Console
                 </button>
                 
                 <button
                   onClick={() => {
                     const cartData = localStorage.getItem('elite_fitness_cart');
                     const sessionId = localStorage.getItem('elite_fitness_session_id');
-                    console.log('📋 Raw LocalStorage Data:', {
+                    console.log('Raw LocalStorage Data:', {
                       cartData: cartData ? JSON.parse(cartData) : null,
                       sessionId: sessionId,
                       currentRoute: location.pathname,
@@ -317,7 +315,7 @@ const GlobalCart = () => {
                   }}
                   className="w-full bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition-colors"
                 >
-                  📋 Show Raw Data
+                  Show Raw Data
                 </button>
                 
                 <button
@@ -328,7 +326,7 @@ const GlobalCart = () => {
                   }}
                   className="w-full bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors"
                 >
-                  🗑️ Clear & Reload
+                  Clear & Reload
                 </button>
               </div>
             </div>
@@ -341,27 +339,74 @@ const GlobalCart = () => {
 
 export default GlobalCart;
 
-// 📝 CAMBIOS REALIZADOS EN ESTA VERSIÓN:
-// 
-// ✅ OCULTAR CARRITO EN CHECKOUT:
-// - Detecta si estamos en /checkout usando useLocation
-// - Si está en checkout, solo renderiza CartSidebar (sin carrito flotante)
-// - Los datos del carrito se mantienen intactos
-// - Debug info muestra estado de checkout
-// 
-// ✅ MENSAJE DE PERSISTENCIA ELIMINADO:
-// - Removido completamente el indicador de "Guardado/Local"
-// - Ya no aparece el mensaje arriba del carrito
-// - Simplificado el UI del carrito flotante
-// 
-// ✅ FUNCIONALIDAD PRESERVADA:
-// - CartSidebar sigue disponible en todas las páginas
-// - Debug tools solo aparecen fuera de checkout
-// - Animaciones y feedback funcionan igual
-// - Datos del carrito persisten correctamente
-// 
-// ✅ COMPATIBILIDAD TOTAL:
-// - No rompe ninguna funcionalidad existente
-// - El carrito sigue funcionando en todas las demás páginas
-// - Los datos no se pierden al ir a checkout
-// - Se puede volver del checkout con los datos intactos
+/*
+DOCUMENTACIÓN DEL COMPONENTE GlobalCart
+
+PROPÓSITO:
+Este componente implementa un wrapper global para el carrito de compras que maneja la visualización
+del carrito flotante y el sidebar del carrito en toda la aplicación. Incluye lógica especial para
+ocultar el carrito flotante en la página de checkout mientras mantiene los datos persistentes.
+
+FUNCIONALIDADES PRINCIPALES:
+- Carrito flotante con animaciones y feedback visual
+- Contador de productos con indicadores visuales
+- Manejo diferenciado para usuarios autenticados e invitados
+- Ocultación automática del carrito flotante en checkout
+- Animaciones de celebración al agregar productos
+- Sistema de debug para desarrollo
+- Preview de totales en hover (desktop)
+- Persistencia de datos del carrito entre páginas
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+COMPONENTS IMPORTADOS:
+- CartSidebar (./CartSidebar): Componente del sidebar del carrito
+
+CONTEXTS REQUERIDOS:
+- CartContext (../../contexts/CartContext): Estado global del carrito
+- AuthContext (../../contexts/AuthContext): Estado de autenticación
+- AppContext (../../contexts/AppContext): Configuración de la aplicación
+
+DEPENDENCIAS REACT:
+- useLocation de react-router-dom: Para detectar la ruta actual
+
+RUTAS SENSIBLES:
+- /checkout: Página donde se oculta el carrito flotante
+
+COMPORTAMIENTO POR RUTA:
+- Rutas normales: Muestra carrito flotante + sidebar disponible
+- Ruta /checkout: Solo sidebar disponible, carrito flotante oculto
+- Datos del carrito se preservan en todas las rutas
+
+ESTADOS LOCALES MANEJADOS:
+- isAnimating: Control de animaciones al agregar productos
+- showFeedback: Mostrar mensaje de confirmación
+- feedbackText: Texto del mensaje de feedback
+- previousItemCount: Para detectar cambios en cantidad
+- showDebug: Panel de debugging en desarrollo
+
+FUNCIONES DE CALLBACK:
+- toggleCart: Abre/cierra el sidebar del carrito
+- debugGuestCart: Función de debug para desarrollo
+
+ESTILOS Y ANIMACIONES:
+- Tailwind CSS para diseño responsivo
+- Animaciones de bounce, ping y pulse
+- Efectos de hover y transiciones
+- Partículas de celebración al agregar productos
+
+MONEDA:
+- Configurado para mostrar totales en quetzales (Q)
+- Formateo manejado por CartContext
+
+CARACTERÍSTICAS ESPECIALES:
+- Indicadores visuales diferentes para usuarios autenticados vs invitados
+- Colores azules para invitados, primarios para autenticados
+- Sistema de localStorage para persistencia de datos
+- Debugging tools solo en modo desarrollo
+- Responsivo para móvil y desktop
+
+USO EN LA APLICACIÓN:
+Este componente debe estar incluido en el layout principal de la aplicación para
+proporcionar acceso global al carrito desde cualquier página.
+*/

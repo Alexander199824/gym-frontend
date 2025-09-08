@@ -1,6 +1,7 @@
 // src/pages/dashboard/AdminDashboard.js
 // FUNCIÓN: Dashboard FUSIONADO - Interfaz limpia + Sistema de Horarios Flexibles completo
 // MEJORAS: Debug discreto, header simplificado, funcionalidades avanzadas de horarios flexibles
+// 🆕 NUEVA MEJORA: Sin datos monetarios para admin + Moneda en Quetzales
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -27,9 +28,18 @@ import PlansManager from './components/PlansManager';
 import ProductsManager from './components/ProductsManager';
 import MediaUploader from './components/MediaUploader';
 
+// 🆕 FUNCIÓN AUXILIAR para formatear en Quetzales
+const formatQuetzales = (amount) => {
+  if (!amount || isNaN(amount)) return 'Q 0.00';
+  return `Q ${parseFloat(amount).toLocaleString('es-GT', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+};
+
 const AdminDashboard = () => {
   const { user, canManageContent } = useAuth();
-  const { formatCurrency, formatDate, showError, showSuccess, isMobile } = useApp();
+  const { formatDate, showError, showSuccess, isMobile } = useApp();
   
   // 📅 Fecha actual
   const today = new Date().toISOString().split('T')[0];
@@ -92,15 +102,15 @@ const AdminDashboard = () => {
         setMembershipStats({ data: null, isLoading: false, error });
       }
       
-      // Reportes de pagos
-      setPaymentReports({ data: null, isLoading: true, error: null });
-      try {
-        const paymentReportsData = await apiService.getPaymentReports({ period: selectedPeriod });
-        setPaymentReports({ data: paymentReportsData, isLoading: false, error: null });
-      } catch (error) {
-        console.log('⚠️ Payment reports not available:', error.message);
-        setPaymentReports({ data: null, isLoading: false, error });
-      }
+      // 🚫 ELIMINADO: Reportes de pagos (datos monetarios removidos)
+      // setPaymentReports({ data: null, isLoading: true, error: null });
+      // try {
+      //   const paymentReportsData = await apiService.getPaymentReports({ period: selectedPeriod });
+      //   setPaymentReports({ data: paymentReportsData, isLoading: false, error: null });
+      // } catch (error) {
+      //   console.log('⚠️ Payment reports not available:', error.message);
+      //   setPaymentReports({ data: null, isLoading: false, error });
+      // }
       
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error);
@@ -270,20 +280,17 @@ const AdminDashboard = () => {
     }
   }, [activeTab]);
   
-  // 📊 Calcular métricas principales
+  // 📊 Calcular métricas principales (SIN DATOS MONETARIOS)
   const mainMetrics = {
     totalUsers: userStats?.data?.totalActiveUsers || 0,
     activeMemberships: membershipStats?.data?.activeMemberships || 0,
-    monthlyRevenue: paymentReports?.data?.totalIncome || 0,
     expiredCount: expiredMemberships?.data?.total || 0,
     expiringSoonCount: expiringSoon?.data?.total || 0,
     pendingTransfersCount: pendingTransfers?.data?.total || 0,
-    todayPaymentsCount: todayPayments?.data?.payments?.length || 0,
-    todayRevenue: todayPayments?.data?.payments?.reduce((sum, payment) => 
-      sum + parseFloat(payment.amount), 0) || 0
+    todayPaymentsCount: todayPayments?.data?.payments?.length || 0
   };
   
-  // 📦 Calcular métricas de inventario
+  // 📦 Calcular métricas de inventario (CON QUETZALES)
   const inventoryMetrics = {
     totalProducts: inventoryStats?.data?.totalProducts || 0,
     lowStockProducts: inventoryStats?.data?.lowStockProducts || 0,
@@ -355,7 +362,7 @@ const AdminDashboard = () => {
   }, [hasUnsavedChanges]);
   
   // 📱 Estado de carga general
-  const isLoading = userStats.isLoading || membershipStats.isLoading || paymentReports.isLoading;
+  const isLoading = userStats.isLoading || membershipStats.isLoading;
 
   // ================================
   // 🆕 FUNCIONES MEJORADAS PARA SISTEMA DE HORARIOS FLEXIBLES
@@ -691,12 +698,12 @@ const AdminDashboard = () => {
       
       {/* 📊 CONTENIDO SEGÚN TAB ACTIVO */}
       
-      {/* TAB: RESUMEN EJECUTIVO */}
+      {/* TAB: RESUMEN EJECUTIVO - SIN DATOS MONETARIOS */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
           
-          {/* 📊 MÉTRICAS PRINCIPALES EJECUTIVAS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* 📊 MÉTRICAS PRINCIPALES EJECUTIVAS - SIN INGRESOS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             <DashboardCard
               title="Usuarios Activos"
@@ -716,16 +723,6 @@ const AdminDashboard = () => {
               isLoading={membershipStats.isLoading}
               link="/dashboard/memberships"
               subtitle="Total vigentes"
-            />
-            
-            <DashboardCard
-              title="Ingresos Totales"
-              value={formatCurrency(mainMetrics.monthlyRevenue)}
-              icon={DollarSign}
-              color="primary"
-              isLoading={paymentReports.isLoading}
-              link="/dashboard/payments"
-              subtitle="Total del período"
             />
             
             <DashboardCard
@@ -791,7 +788,7 @@ const AdminDashboard = () => {
             </div>
           )}
           
-          {/* 📈 GRÁFICOS Y ANÁLISIS EJECUTIVOS */}
+          {/* 📈 GRÁFICOS Y ANÁLISIS EJECUTIVOS - SIN DATOS MONETARIOS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* 📊 Distribución de usuarios por rol */}
@@ -830,34 +827,45 @@ const AdminDashboard = () => {
               )}
             </div>
             
-            {/* 💳 Métodos de pago */}
+            {/* 📈 Estadísticas de membresías */}
             <div className="bg-white rounded-lg shadow-lg p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Ingresos por Método de Pago
+                Estado de Membresías
               </h3>
               
-              {paymentReports.isLoading ? (
+              {membershipStats.isLoading ? (
                 <LoadingSpinner />
               ) : (
                 <div className="space-y-4">
-                  {paymentReports?.data?.incomeByMethod?.map((method) => (
-                    <div key={method.method} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className={`w-4 h-4 rounded mr-3 ${
-                          method.method === 'cash' ? 'bg-green-500' :
-                          method.method === 'card' ? 'bg-blue-500' : 'bg-purple-500'
-                        }`} />
-                        <span className="text-sm text-gray-600 capitalize">
-                          {method.method === 'cash' ? 'Efectivo' : 
-                           method.method === 'card' ? 'Tarjeta' : 
-                           method.method === 'transfer' ? 'Transferencia' : method.method}
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatCurrency(method.total)}
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 rounded mr-3 bg-green-500" />
+                      <span className="text-sm text-gray-600">Activas</span>
                     </div>
-                  )) || []}
+                    <span className="text-sm font-medium text-gray-900">
+                      {membershipStats?.data?.activeMemberships || 0}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 rounded mr-3 bg-yellow-500" />
+                      <span className="text-sm text-gray-600">Por Vencer</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {membershipStats?.data?.expiringSoon || 0}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-4 h-4 rounded mr-3 bg-red-500" />
+                      <span className="text-sm text-gray-600">Vencidas</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {membershipStats?.data?.expired || 0}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -871,14 +879,6 @@ const AdminDashboard = () => {
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Link
-                to="/dashboard/reports/financial"
-                className="btn-primary text-center py-3"
-              >
-                <PieChart className="w-5 h-5 mx-auto mb-1" />
-                Reporte Financiero
-              </Link>
-              
               <Link
                 to="/dashboard/analytics"
                 className="btn-primary text-center py-3"
@@ -902,17 +902,25 @@ const AdminDashboard = () => {
                 <Download className="w-5 h-5 mx-auto mb-1" />
                 Respaldo
               </Link>
+              
+              <Link
+                to="/dashboard/settings"
+                className="btn-primary text-center py-3"
+              >
+                <Settings className="w-5 h-5 mx-auto mb-1" />
+                Configuración
+              </Link>
             </div>
           </div>
           
         </div>
       )}
       
-      {/* TAB: OPERACIONES DIARIAS */}
+      {/* TAB: OPERACIONES DIARIAS - SIN DATOS MONETARIOS */}
       {activeTab === 'operations' && (
         <div className="space-y-6">
           
-          {/* 📊 MÉTRICAS OPERATIVAS DEL DÍA */}
+          {/* 📊 MÉTRICAS OPERATIVAS DEL DÍA - SIN DINERO */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
             <DashboardCard
@@ -936,9 +944,9 @@ const AdminDashboard = () => {
             />
             
             <DashboardCard
-              title="Pagos"
+              title="Transacciones"
               value={mainMetrics.todayPaymentsCount}
-              icon={DollarSign}
+              icon={Activity}
               color="green"
               isLoading={todayPayments.isLoading}
               link="/dashboard/payments"
@@ -946,7 +954,7 @@ const AdminDashboard = () => {
             />
             
             <DashboardCard
-              title="Ventas"
+              title="Productos Vendidos"
               value={inventoryMetrics.totalSalesToday}
               icon={ShoppingBag}
               color="purple"
@@ -981,11 +989,11 @@ const AdminDashboard = () => {
               />
               
               <QuickActionCard
-                title="Registrar Pago"
-                description="Pago en efectivo"
-                icon={DollarSign}
+                title="Registrar Actividad"
+                description="Actividad del gimnasio"
+                icon={Activity}
                 color="yellow"
-                link="/dashboard/payments/create"
+                link="/dashboard/activities/create"
               />
               
               <QuickActionCard
@@ -1121,7 +1129,7 @@ const AdminDashboard = () => {
         </div>
       )}
       
-      {/* TAB: GESTIÓN DE INVENTARIO Y VENTAS */}
+      {/* TAB: GESTIÓN DE INVENTARIO Y VENTAS - CON QUETZALES */}
       {activeTab === 'inventory' && (
         <div className="space-y-6">
           
@@ -1156,7 +1164,7 @@ const AdminDashboard = () => {
             </div>
           </div>
           
-          {/* 📊 MÉTRICAS DE INVENTARIO */}
+          {/* 📊 MÉTRICAS DE INVENTARIO - CON QUETZALES */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
             <DashboardCard
@@ -1188,9 +1196,10 @@ const AdminDashboard = () => {
               subtitle="Agotados"
             />
             
+            {/* 🆕 VALOR EN QUETZALES */}
             <DashboardCard
               title="Valor Inventario"
-              value={formatCurrency(inventoryMetrics.totalInventoryValue)}
+              value={formatQuetzales(inventoryMetrics.totalInventoryValue)}
               icon={DollarSign}
               color="green"
               isLoading={inventoryStats.isLoading}
@@ -1217,6 +1226,9 @@ const AdminDashboard = () => {
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
                 El sistema completo de inventario y ventas estará disponible próximamente. 
                 Incluirá gestión de stock, ventas en tienda física, control de productos y reportes detallados.
+                <span className="block mt-2 font-medium text-purple-600">
+                  💰 Todos los precios se mostrarán en Quetzales (Q)
+                </span>
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">

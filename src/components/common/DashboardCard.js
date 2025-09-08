@@ -1,7 +1,6 @@
+// Autor: Alexander Echeverria
 // src/components/common/DashboardCard.js
-// UBICACIÓN: /gym-frontend/src/components/common/DashboardCard.js
-// FUNCIÓN: Componente reutilizable para mostrar métricas en el dashboard
-// USADO EN: AdminDashboard, StaffDashboard, ClientDashboard
+
 
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -22,7 +21,7 @@ const DashboardCard = ({
   className = ''
 }) => {
   
-  // 🎨 CONFIGURACIÓN DE COLORES
+  // CONFIGURACIÓN DE COLORES
   const colorConfig = {
     primary: {
       bg: 'bg-primary-50',
@@ -76,7 +75,7 @@ const DashboardCard = ({
   
   const colors = colorConfig[color] || colorConfig.primary;
   
-  // 📊 CONTENIDO DE LA TARJETA
+  // CONTENIDO DE LA TARJETA
   const cardContent = (
     <div className={`
       bg-white rounded-lg shadow-lg p-6 transition-all duration-200
@@ -85,7 +84,7 @@ const DashboardCard = ({
       ${className}
     `}>
       
-      {/* 🔔 INDICADOR DE ALERTA */}
+      {/* INDICADOR DE ALERTA */}
       {alert && (
         <div className="absolute top-2 right-2">
           <div className={`w-3 h-3 rounded-full ${colors.icon} animate-pulse`}></div>
@@ -93,7 +92,7 @@ const DashboardCard = ({
       )}
       
       <div className="flex items-center">
-        {/* 🎯 ICONO */}
+        {/* ICONO */}
         <div className={`
           w-12 h-12 rounded-lg flex items-center justify-center
           ${colors.icon}
@@ -101,7 +100,7 @@ const DashboardCard = ({
           <Icon className="w-6 h-6 text-white" />
         </div>
         
-        {/* 📊 CONTENIDO */}
+        {/* CONTENIDO */}
         <div className="ml-4 flex-1">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-gray-600">
@@ -112,7 +111,7 @@ const DashboardCard = ({
             )}
           </div>
           
-          {/* 🔢 VALOR PRINCIPAL */}
+          {/* VALOR PRINCIPAL */}
           <div className="flex items-center mt-1">
             {isLoading ? (
               <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
@@ -122,7 +121,7 @@ const DashboardCard = ({
               </p>
             )}
             
-            {/* 📈 CAMBIO/TENDENCIA */}
+            {/* CAMBIO/TENDENCIA */}
             {change && !isLoading && (
               <div className={`
                 ml-2 flex items-center text-sm
@@ -138,7 +137,7 @@ const DashboardCard = ({
             )}
           </div>
           
-          {/* 📝 SUBTÍTULO */}
+          {/* SUBTÍTULO */}
           {subtitle && (
             <p className="text-xs text-gray-500 mt-1">
               {subtitle}
@@ -147,7 +146,7 @@ const DashboardCard = ({
         </div>
       </div>
       
-      {/* 📊 BARRA DE PROGRESO (opcional) */}
+      {/* BARRA DE PROGRESO (opcional) */}
       {alert && (
         <div className="mt-4">
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -161,7 +160,7 @@ const DashboardCard = ({
     </div>
   );
   
-  // 🔗 WRAPPER CON LINK O CLICK
+  // WRAPPER CON LINK O CLICK
   if (link) {
     return (
       <Link to={link} className="block">
@@ -181,7 +180,7 @@ const DashboardCard = ({
   return cardContent;
 };
 
-// 📊 VARIANTE: Tarjeta con gráfico pequeño
+// VARIANTE: Tarjeta con gráfico pequeño
 export const DashboardCardWithChart = ({ 
   title, 
   value, 
@@ -201,7 +200,7 @@ export const DashboardCardWithChart = ({
       link={link}
       className="pb-4"
     >
-      {/* 📈 Mini gráfico */}
+      {/* Mini gráfico */}
       <div className="mt-4 h-8">
         <div className="flex items-end justify-between h-full space-x-1">
           {chartData.slice(-7).map((point, index) => (
@@ -217,7 +216,7 @@ export const DashboardCardWithChart = ({
   );
 };
 
-// 📊 VARIANTE: Tarjeta compacta
+// VARIANTE: Tarjeta compacta
 export const CompactDashboardCard = ({ 
   title, 
   value, 
@@ -260,7 +259,7 @@ export const CompactDashboardCard = ({
   );
 };
 
-// 📊 VARIANTE: Tarjeta con estado
+// VARIANTE: Tarjeta con estado
 export const StatusDashboardCard = ({ 
   title, 
   value, 
@@ -335,3 +334,107 @@ export const StatusDashboardCard = ({
 };
 
 export default DashboardCard;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE DashboardCard
+
+PROPÓSITO:
+Este componente proporciona una tarjeta reutilizable y altamente personalizable para mostrar
+métricas, estadísticas y datos clave en los diferentes dashboards de la aplicación. Incluye
+múltiples variantes especializadas para diferentes casos de uso.
+
+FUNCIONALIDADES PRINCIPALES:
+- Tarjeta base con icono, título, valor y opciones de personalización
+- Sistema de colores temáticos configurables
+- Estados de carga con animaciones
+- Indicadores de tendencias (aumento/disminución)
+- Alertas visuales con animaciones
+- Soporte para enlaces y acciones onClick
+- Múltiples variantes especializadas
+
+VARIANTES DISPONIBLES:
+- DashboardCard: Componente base principal
+- DashboardCardWithChart: Tarjeta con mini gráfico integrado
+- CompactDashboardCard: Versión compacta para espacios reducidos
+- StatusDashboardCard: Tarjeta con estados y acciones
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+COMPONENTES IMPORTADOS:
+- LoadingSpinner (./LoadingSpinner): Componente de carga
+- Link (react-router-dom): Para navegación interna
+- Iconos (lucide-react): ExternalLink, TrendingUp, TrendingDown
+
+ARCHIVOS QUE USAN ESTE COMPONENTE:
+- AdminDashboard: Panel de administración con métricas del gimnasio
+- StaffDashboard: Panel del personal con estadísticas de trabajo
+- ClientDashboard: Panel del cliente con métricas personales
+- Reports y páginas de análisis
+
+PROPS DEL COMPONENTE BASE:
+- title: Título de la métrica
+- value: Valor principal a mostrar
+- icon: Componente de icono (Lucide React)
+- color: Tema de color ('primary', 'blue', 'green', etc.)
+- isLoading: Estado de carga
+- subtitle: Texto descriptivo adicional
+- change: Objeto con cambios/tendencias { value, type }
+- link: Ruta para navegación
+- alert: Indicador de alerta
+- onClick: Función de click personalizada
+- className: Clases CSS adicionales
+
+CONFIGURACIÓN DE COLORES:
+Soporta 8 temas de color predefinidos:
+- primary: Colores primarios de la marca
+- blue: Tonos azules
+- green: Tonos verdes (típicamente para éxito/ganancias)
+- yellow: Tonos amarillos (advertencias)
+- orange: Tonos naranjas
+- red: Tonos rojos (errores/alertas críticas)
+- purple: Tonos púrpuras
+- gray: Tonos grises (neutros)
+
+CARACTERÍSTICAS TÉCNICAS:
+- Animaciones CSS con Tailwind
+- Responsive design
+- Estados hover interactivos
+- Barras de progreso animadas para alertas
+- Sistema de iconos flexible
+- Soporte para datos de gráficos (variante WithChart)
+
+CASOS DE USO TÍPICOS:
+- Métricas de membresías activas
+- Ingresos y estadísticas financieras (en quetzales)
+- Asistencia y ocupación del gimnasio
+- Estadísticas de entrenadores y clases
+- Alertas de mantenimiento de equipos
+- KPIs del negocio
+- Progreso personal del cliente
+
+ESTRUCTURA VISUAL:
+- Header con título y enlace opcional
+- Icono temático a la izquierda
+- Valor principal prominente
+- Indicadores de tendencia opcionales
+- Subtítulo descriptivo
+- Barra de progreso para alertas
+
+INTEGRACIÓN CON DASHBOARDS:
+Se utiliza principalmente en:
+- Páginas de resumen ejecutivo
+- Paneles de monitoreo en tiempo real
+- Reportes de rendimiento
+- Interfaces de administración
+- Vistas de cliente personalizado
+
+MONEDA:
+Cuando se muestran valores monetarios, el componente está configurado para
+trabajar con quetzales guatemaltecos (Q) según el contexto de la aplicación.
+
+ACCESIBILIDAD:
+- Colores con suficiente contraste
+- Texto descriptivo en iconos
+- Navegación por teclado soportada
+- Estados visuales claros
+*/

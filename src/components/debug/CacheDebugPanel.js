@@ -1,3 +1,4 @@
+// Autor: Alexander Echeverria
 // src/components/debug/CacheDebugPanel.js
 // FUNCIÓN: Panel de debug para monitorear el rendimiento del cache en desarrollo
 // MUESTRA: Estadísticas en tiempo real, hit rate, peticiones ahorradas
@@ -14,7 +15,7 @@ const CacheDebugPanel = ({ show = true }) => {
   const [stats, setStats] = useState({});
   const { getCacheStats, data, pending, clearCache } = useCache();
 
-  // 📊 Actualizar estadísticas cada segundo
+  // Actualizar estadísticas cada segundo
   useEffect(() => {
     const updateStats = () => {
       const cacheStats = getCacheStats();
@@ -27,7 +28,7 @@ const CacheDebugPanel = ({ show = true }) => {
     return () => clearInterval(interval);
   }, [getCacheStats]);
 
-  // 🎯 Calcular métricas avanzadas
+  // Calcular métricas avanzadas
   const calculateAdvancedMetrics = () => {
     const totalRequests = stats.hits + stats.misses;
     const hitRate = totalRequests > 0 ? (stats.hits / totalRequests * 100) : 0;
@@ -46,7 +47,7 @@ const CacheDebugPanel = ({ show = true }) => {
 
   const metrics = calculateAdvancedMetrics();
 
-  // 📊 Obtener detalles de cada entrada del cache
+  // Obtener detalles de cada entrada del cache
   const getCacheEntries = () => {
     return Object.entries(data).map(([key, entry]) => {
       const age = Date.now() - entry.timestamp;
@@ -75,7 +76,7 @@ const CacheDebugPanel = ({ show = true }) => {
 
   return (
     <div className="fixed bottom-4 left-4 z-50">
-      {/* 🎯 INDICADOR MINIMALISTA */}
+      {/* INDICADOR MINIMALISTA */}
       {!isExpanded && (
         <div
           onClick={() => setIsExpanded(true)}
@@ -95,7 +96,7 @@ const CacheDebugPanel = ({ show = true }) => {
         </div>
       )}
 
-      {/* 📊 PANEL EXPANDIDO */}
+      {/* PANEL EXPANDIDO */}
       {isExpanded && (
         <div className="bg-white border border-gray-300 rounded-lg shadow-xl w-96 max-h-96 overflow-hidden">
           
@@ -247,3 +248,117 @@ const CacheDebugPanel = ({ show = true }) => {
 };
 
 export default CacheDebugPanel;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE CacheDebugPanel
+
+PROPÓSITO:
+Este componente proporciona una herramienta de debugging visual para monitorear
+el rendimiento del sistema de cache en tiempo real durante el desarrollo de la
+aplicación del gimnasio. Permite optimizar el rendimiento y diagnosticar problemas
+de caching de manera eficiente.
+
+FUNCIONALIDADES PRINCIPALES:
+- Monitoreo en tiempo real de estadísticas de cache
+- Indicador compacto con métricas clave (hit rate, peticiones ahorradas)
+- Panel expandible con información detallada
+- Visualización de entradas individuales del cache
+- Métricas de eficiencia y rendimiento
+- Controles para limpiar cache y recargar página
+- Cálculo automático de TTL y edad de entradas
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+CONTEXTS REQUERIDOS:
+- CacheContext (../../contexts/CacheContext): Sistema de cache de la aplicación
+  - getCacheStats(): Obtiene estadísticas del cache
+  - data: Datos almacenados en cache
+  - pending: Peticiones pendientes
+  - clearCache(): Limpia el cache completamente
+
+COMPONENTES IMPORTADOS:
+- Iconos de Lucide React: BarChart3, Activity, Clock, Database, Zap, TrendingUp, RefreshCw, X
+
+UBICACIÓN EN LA APLICACIÓN:
+- Esquina inferior izquierda (fixed bottom-4 left-4)
+- Solo visible en modo desarrollo (NODE_ENV === 'development')
+- Z-index alto para visibilidad sobre otros elementos
+
+MÉTRICAS MONITOREADAS:
+- Hit Rate: Porcentaje de aciertos del cache
+- Peticiones Ahorradas: Número de requests evitados
+- Total de Requests: Suma de hits y misses
+- Cached Items: Número de elementos en memoria
+- Pending Requests: Peticiones en progreso
+- Eficiencia General: Evaluación cualitativa del rendimiento
+
+INFORMACIÓN DE ENTRADAS DE CACHE:
+- Clave de identificación (sin prefijo 'api_')
+- Edad desde la creación
+- TTL (Time To Live) restante
+- Tamaño en KB
+- Estado (válido/expirado)
+
+ESTADOS VISUALES:
+- Indicador compacto: Muestra hit rate y peticiones ahorradas
+- Panel expandido: Información completa y detallada
+- Entradas válidas: Fondo gris claro, borde gris
+- Entradas expiradas: Fondo rojo claro, borde rojo
+
+MÉTRICAS DE EFICIENCIA:
+- Excelente: Hit rate > 70% (verde)
+- Buena: Hit rate 50-70% (amarillo)
+- Baja: Hit rate < 50% (rojo)
+
+CASOS DE USO EN EL GIMNASIO:
+- Optimización de carga de datos de membresías
+- Monitoreo de cache de información de usuarios
+- Análisis de rendimiento de APIs del gimnasio
+- Debugging de problemas de datos obsoletos
+- Optimización de consultas de estadísticas
+- Mejora de experiencia de usuario en dashboards
+
+CARACTERÍSTICAS TÉCNICAS:
+- Actualización automática cada segundo
+- Cálculos de métricas en tiempo real
+- Formateo inteligente de tiempo (segundos/minutos)
+- Cálculo automático de tamaños de datos
+- Detección automática de entradas expiradas
+- Limpieza de memoria y recarga de página
+
+BENEFICIOS PARA DESARROLLO:
+- Identificación rápida de problemas de cache
+- Optimización de estrategias de TTL
+- Monitoreo de uso de memoria
+- Validación de políticas de cache
+- Debugging de datos obsoletos
+- Mejora de rendimiento general
+
+CONTROLES DISPONIBLES:
+- Expandir/colapsar panel principal
+- Limpiar cache completamente
+- Recargar página para reiniciar
+- Cerrar panel expandido
+
+RESTRICCIONES:
+- Solo funciona en entorno de desarrollo
+- Requiere CacheContext activo
+- Depende de estadísticas del cache
+
+INTEGRACIÓN CON EL SISTEMA:
+- Monitorea cache de datos del gimnasio
+- Incluye información de transacciones (quetzales)
+- Supervisa datos de usuarios y membresías
+- Analiza rendimiento de APIs críticas
+
+PERSONALIZACIÓN:
+- Intervalos de actualización configurables
+- Métricas mostradas ajustables
+- Umbrales de eficiencia personalizables
+- Posición y tamaño adaptables
+
+Este componente es esencial para desarrolladores que necesitan optimizar
+el rendimiento del cache en la aplicación del gimnasio, proporcionando
+insights valiosos sobre el comportamiento del sistema de caching y
+facilitando la identificación de oportunidades de mejora.
+*/

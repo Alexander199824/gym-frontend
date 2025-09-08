@@ -1,7 +1,5 @@
-// src/components/dashboard/PaymentChart.js
-// UBICACIÓN: /gym-frontend/src/components/dashboard/PaymentChart.js
-// FUNCIÓN: Gráfico de ingresos diarios usando Chart.js CORREGIDO
-// CAMBIOS: Eliminado uso incorrecto de ChartJS como componente React
+// Autor: Alexander Echeverria
+// Ubicación: /gym-frontend/src/components/dashboard/PaymentChart.js
 
 import React from 'react';
 import {
@@ -17,7 +15,7 @@ import {
   ArcElement
 } from 'chart.js';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { BarChart3, TrendingUp, PieChart } from 'lucide-react'; // ✅ Importar íconos correctos
+import { BarChart3, TrendingUp, PieChart } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 
 // Registrar componentes de Chart.js
@@ -43,7 +41,7 @@ const PaymentChart = ({
 }) => {
   const { formatCurrency } = useApp();
   
-  // 🎨 Configuración de colores
+  // Configuración de colores
   const colors = {
     primary: '#ef4444',
     success: '#22c55e',
@@ -52,7 +50,7 @@ const PaymentChart = ({
     gradient: 'linear-gradient(135deg, #ef4444 0%, #f59e0b 100%)'
   };
   
-  // 📊 Procesar datos para el gráfico
+  // Procesar datos para el gráfico
   const processedData = data.map(item => ({
     date: new Date(item.date).toLocaleDateString('es-ES', { 
       month: 'short', 
@@ -62,7 +60,7 @@ const PaymentChart = ({
     count: parseInt(item.count || 0)
   }));
   
-  // 📈 Configuración del gráfico de líneas
+  // Configuración del gráfico de líneas
   const lineChartData = {
     labels: processedData.map(item => item.date),
     datasets: [
@@ -83,7 +81,7 @@ const PaymentChart = ({
     ]
   };
   
-  // 📊 Configuración del gráfico de barras
+  // Configuración del gráfico de barras
   const barChartData = {
     labels: processedData.map(item => item.date),
     datasets: [
@@ -99,7 +97,7 @@ const PaymentChart = ({
     ]
   };
   
-  // 🍩 Configuración del gráfico de dona (para métodos de pago)
+  // Configuración del gráfico de dona (para métodos de pago)
   const doughnutData = {
     labels: ['Efectivo', 'Tarjeta', 'Transferencia'],
     datasets: [
@@ -116,7 +114,7 @@ const PaymentChart = ({
     ]
   };
   
-  // ⚙️ Opciones comunes del gráfico
+  // Opciones comunes del gráfico
   const commonOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -184,7 +182,7 @@ const PaymentChart = ({
     }
   };
   
-  // ⚙️ Opciones específicas para gráfico de dona
+  // Opciones específicas para gráfico de dona
   const doughnutOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -230,7 +228,7 @@ const PaymentChart = ({
     cutout: '60%'
   };
   
-  // 📊 Renderizar gráfico según tipo
+  // Renderizar gráfico según tipo
   const renderChart = () => {
     switch (type) {
       case 'bar':
@@ -261,7 +259,7 @@ const PaymentChart = ({
     }
   };
   
-  // 🎨 Función para obtener el ícono correcto según el tipo
+  // Función para obtener el ícono correcto según el tipo
   const getChartIcon = () => {
     switch (type) {
       case 'bar':
@@ -274,13 +272,12 @@ const PaymentChart = ({
     }
   };
   
-  // 📊 Mostrar mensaje si no hay datos
+  // Mostrar mensaje si no hay datos
   if (processedData.length === 0 && type !== 'doughnut') {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
         <div className="text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            {/* ✅ CORREGIDO: Usar ícono correcto en lugar de ChartJS */}
             {getChartIcon()}
           </div>
           <p className="text-sm">No hay datos para mostrar</p>
@@ -298,7 +295,7 @@ const PaymentChart = ({
         {renderChart()}
       </div>
       
-      {/* 📈 Estadísticas rápidas */}
+      {/* Estadísticas rápidas */}
       {processedData.length > 0 && (
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
           <div className="bg-gray-50 rounded-lg p-3">
@@ -331,7 +328,7 @@ const PaymentChart = ({
   );
 };
 
-// 📊 Componente de gráfico simple para tarjetas
+// Componente de gráfico simple para tarjetas
 export const MiniPaymentChart = ({ data = [], color = '#ef4444' }) => {
   const processedData = data.slice(-7); // Últimos 7 días
   
@@ -377,3 +374,35 @@ export const MiniPaymentChart = ({ data = [], color = '#ef4444' }) => {
 };
 
 export default PaymentChart;
+
+/*
+FUNCIONALIDAD:
+Este componente se encarga de mostrar gráficos de ingresos y pagos en el dashboard del gimnasio.
+Utiliza Chart.js y react-chartjs-2 para crear visualizaciones interactivas de datos financieros.
+
+CARACTERÍSTICAS:
+- Soporta múltiples tipos de gráficos: líneas, barras y dona
+- Procesa datos de ingresos y los formatea para visualización
+- Incluye configuraciones personalizables (altura, leyenda, animaciones)
+- Muestra estadísticas rápidas (total, promedio, máximo, mínimo)
+- Maneja casos sin datos con mensajes informativos
+- Incluye componente mini gráfico (MiniPaymentChart) para tarjetas
+
+TIPOS DE GRÁFICOS:
+- Line: Muestra tendencias de ingresos a lo largo del tiempo
+- Bar: Visualiza ingresos por períodos específicos 
+- Doughnut: Representa distribución de métodos de pago
+
+CONEXIONES:
+- Importa desde 'react' para funcionalidad del componente
+- Importa Chart.js y react-chartjs-2 para renderizado de gráficos
+- Importa iconos desde 'lucide-react' (BarChart3, TrendingUp, PieChart)
+- Utiliza useApp desde '../../contexts/AppContext' para formateo de moneda
+- Recibe datos de componentes padre que consultan APIs de pagos/ingresos
+- Se integra con el sistema de dashboard para mostrar métricas financieras
+
+PROPÓSITO:
+Proporcionar visualizaciones claras y atractivas de los ingresos del gimnasio, permitiendo
+al personal administrativo analizar tendencias, identificar patrones de pago y tomar
+decisiones informadas sobre la gestión financiera del negocio.
+*/

@@ -1,3 +1,4 @@
+// Autor: Alexander Echeverria
 // src/components/debug/RateLimitDebug.js
 // FUNCIÓN: Componente de debugging para visualizar el rate limiting
 // SOLO PARA DESARROLLO - Muestra estado de peticiones
@@ -147,7 +148,7 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
                 <div className={`text-lg font-bold ${
                   coordinatorStatus.processing ? 'text-blue-600' : 'text-gray-400'
                 }`}>
-                  {coordinatorStatus.processing ? '🟢' : '⏸️'}
+                  {coordinatorStatus.processing ? 'Activo' : 'Pausado'}
                 </div>
                 <div className="text-gray-600">Estado</div>
               </div>
@@ -252,11 +253,11 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
             'bg-green-100 text-green-700'
           }`}>
             {coordinatorStatus.activeRequests > 5 ? (
-              '🔴 Alto tráfico - Posible rate limiting'
+              'Alto tráfico - Posible rate limiting'
             ) : coordinatorStatus.activeRequests > 0 ? (
-              '🟡 Peticiones en progreso'
+              'Peticiones en progreso'
             ) : (
-              '🟢 Sistema estable'
+              'Sistema estable'
             )}
           </div>
         </div>
@@ -271,7 +272,7 @@ export const LogRateLimitStatus = () => {
 
   useEffect(() => {
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-      console.log('🚦 Rate Limit Status:', {
+      console.log('Rate Limit Status:', {
         activeRequests: status.activeRequests,
         queuedRequests: status.queuedRequests,
         processing: status.processing,
@@ -284,3 +285,119 @@ export const LogRateLimitStatus = () => {
 };
 
 export default RateLimitDebug;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE RateLimitDebug
+
+PROPÓSITO:
+Este componente proporciona una herramienta de debugging visual especializada para
+monitorear el sistema de rate limiting y coordinación de peticiones HTTP en tiempo real
+durante el desarrollo de la aplicación del gimnasio. Permite identificar cuellos de
+botella y optimizar el manejo de peticiones.
+
+FUNCIONALIDADES PRINCIPALES:
+- Botón flotante que indica estado del sistema con animaciones
+- Panel expandible con métricas detalladas de rate limiting
+- Interceptación y logging de peticiones relevantes
+- Monitoreo del coordinador de peticiones en tiempo real
+- Visualización del estado del API Service
+- Log cronológico de actividad de peticiones
+- Indicadores visuales de alto tráfico y problemas
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+HOOKS REQUERIDOS:
+- useRequestCoordinatorStatus (../../hooks/useDebounced): Estado del coordinador de peticiones
+  - activeRequests: Peticiones activas en curso
+  - queuedRequests: Peticiones en cola de espera
+  - processing: Estado de procesamiento
+
+SERVICIOS MONITOREADOS:
+- apiService (../../services/apiService): Servicio principal de API
+  - getRateLimiterStatus(): Estado del rate limiter si está disponible
+  - Monitoreo de cola de peticiones y límites globales
+
+COMPONENTES IMPORTADOS:
+- Iconos de Lucide React: Activity, Clock, AlertTriangle, CheckCircle, X
+
+CONFIGURACIÓN DE ACTIVACIÓN:
+- Solo activo cuando REACT_APP_DEBUG_MODE === 'true'
+- Ubicado en esquina inferior derecha como botón flotante
+- Panel expandible de 384px de ancho con altura máxima
+
+MÉTRICAS MONITOREADAS:
+- Peticiones activas: Número de requests en progreso
+- Peticiones en cola: Requests esperando ser procesados
+- Estado del procesador: Activo/pausado
+- Cola del API Service: Backlog de peticiones
+- Peticiones globales: Total acumulado de requests
+
+INTERCEPTACIÓN DE LOGS:
+- console.log: Intercepta logs de API requests y cache hits
+- console.warn: Captura warnings de rate limits y errores 429
+- console.error: Registra errores de API y peticiones fallidas
+- Mantiene historial de últimos 20 eventos
+
+ESTADOS VISUALES:
+- Verde: Sistema estable, sin peticiones activas
+- Amarillo: Peticiones en progreso (1-5 activas)
+- Rojo: Alto tráfico, posible rate limiting (5+ activas)
+- Animaciones: Pulso en botón cuando hay actividad
+
+CASOS DE USO EN EL GIMNASIO:
+- Debugging de carga de datos de membresías
+- Monitoreo de peticiones de autenticación
+- Análisis de consultas de estadísticas del gimnasio
+- Optimización de calls de información de usuarios
+- Detección de problemas en procesamiento de pagos (quetzales)
+- Identificación de cuellos de botella en APIs críticas
+
+CARACTERÍSTICAS TÉCNICAS:
+- Interceptación no invasiva de console methods
+- Actualización automática del estado del API Service
+- Cleanup automático de interceptors
+- Log con timestamps y categorización
+- Truncado inteligente de mensajes largos
+
+CONTROLES DISPONIBLES:
+- Toggle del panel principal
+- Limpiar log de peticiones
+- Refresh completo de la aplicación
+- Cierre del panel expandido
+
+COMPONENTE ADICIONAL:
+- LogRateLimitStatus: Versión simplificada para logging en consola
+- Se ejecuta automáticamente en modo debug
+- Registra estado cada vez que cambia
+
+INTEGRACIÓN CON EL SISTEMA:
+- Monitorea APIs del gimnasio (usuarios, membresías, pagos)
+- Detecta problemas en transacciones financieras
+- Supervisa carga de datos críticos del negocio
+- Analiza rendimiento de autenticación y autorización
+
+BENEFICIOS PARA DESARROLLO:
+- Identificación temprana de problemas de rate limiting
+- Optimización de estrategias de peticiones
+- Debugging de timeouts y errores de red
+- Análisis de patrones de uso de API
+- Mejora de experiencia de usuario
+- Prevención de errores 429 (Too Many Requests)
+
+RESTRICCIONES:
+- Solo funciona en modo desarrollo
+- Requiere flag REACT_APP_DEBUG_MODE
+- Impacto mínimo en rendimiento
+- Interceptors se limpian automáticamente
+
+PERSONALIZACIÓN:
+- Umbrales de alerta configurables
+- Tamaño del log histórico ajustable
+- Intervalos de actualización personalizables
+- Posición del botón flotante adaptable
+
+Este componente es esencial para desarrolladores que necesitan optimizar
+el manejo de peticiones HTTP en la aplicación del gimnasio, proporcionando
+visibilidad completa sobre el comportamiento del rate limiting y facilitando
+la identificación de problemas de rendimiento en tiempo real.
+*/

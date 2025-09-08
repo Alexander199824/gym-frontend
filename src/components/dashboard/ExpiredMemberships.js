@@ -1,6 +1,5 @@
-// src/components/dashboard/ExpiredMemberships.js
-// UBICACIÓN: /gym-frontend/src/components/dashboard/ExpiredMemberships.js
-// FUNCIÓN: Lista de membresías vencidas
+// Autor: Alexander Echeverria
+// Ubicación: /gym-frontend/src/components/dashboard/ExpiredMemberships.js
 
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -11,7 +10,7 @@ const ExpiredMemberships = ({ memberships = [], showActions = false }) => {
     return (
       <div className="text-center py-8 text-gray-500">
         <AlertCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-        <p>¡Excelente! No hay membresías vencidas.</p>
+        <p>Excelente! No hay membresías vencidas.</p>
       </div>
     );
   }
@@ -57,3 +56,28 @@ const ExpiredMemberships = ({ memberships = [], showActions = false }) => {
 };
 
 export default ExpiredMemberships;
+
+/*
+FUNCIONALIDAD:
+Este componente se encarga de mostrar una lista de membresías vencidas en el dashboard del gimnasio.
+Recibe como props un array de membresías y un booleano para mostrar acciones adicionales.
+
+CARACTERÍSTICAS:
+- Muestra mensaje positivo cuando no hay membresías vencidas
+- Lista las membresías vencidas con información del usuario (nombre, apellido)
+- Indica el tipo de membresía (mensual o diario)
+- Muestra la fecha de vencimiento
+- Incluye acciones opcionales para ver detalles y renovar membresía
+
+CONEXIONES:
+- Importa desde 'react' para la funcionalidad del componente
+- Importa 'Link' desde 'react-router-dom' para navegación entre rutas
+- Importa iconos desde 'lucide-react' (AlertCircle, Eye, RefreshCw)
+- Se conecta con rutas del dashboard: /dashboard/memberships/{id} y /dashboard/memberships/{id}/renew
+- Utilizado en componentes padre del dashboard que manejan el estado de las membresías
+- Recibe datos de membresías desde componentes superiores que consultan la API del backend
+
+PROPÓSITO:
+Facilitar la gestión y visualización de membresías vencidas para que el personal del gimnasio 
+pueda identificar rápidamente clientes que necesitan renovar su membresía y tomar acciones correspondientes.
+*/

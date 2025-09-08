@@ -1,6 +1,5 @@
+// Autor: Alexander Echeverria
 // src/components/cart/CartSidebar.js
-// FUNCIÓN: Sidebar del carrito OPTIMIZADO - Diseño compacto que prioriza mostrar productos
-// MEJORAS: ✅ Header compacto ✅ Botones lado a lado ✅ Más espacio para productos ✅ Diseño limpio
 
 import React, { useState } from 'react';
 import { 
@@ -26,13 +25,13 @@ import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 
-// ✅ HELPER: Validar y convertir a número de forma segura
+// HELPER: Validar y convertir a número de forma segura
 const safeNumber = (value, defaultValue = 0) => {
   const num = parseFloat(value);
   return isNaN(num) ? defaultValue : num;
 };
 
-// ✅ HELPER: Validar y convertir a entero de forma segura
+// HELPER: Validar y convertir a entero de forma segura
 const safeInteger = (value, defaultValue = 0) => {
   const num = parseInt(value);
   return isNaN(num) ? defaultValue : num;
@@ -64,38 +63,38 @@ const CartSidebar = () => {
 
   if (!isOpen) return null;
 
-  // ✅ FUNCIÓN: Ir al checkout (para invitados)
+  // FUNCIÓN: Ir al checkout (para invitados)
   const handleGuestCheckout = () => {
     if (isEmpty) {
       showError('Tu carrito está vacío');
       return;
     }
     
-    console.log('🎫 Redirecting to guest checkout...');
+    console.log('Redirecting to guest checkout...');
     closeCart();
     navigate('/checkout');
   };
 
-  // ✅ FUNCIÓN: Ir al login (para usuarios que quieren autenticarse)
+  // FUNCIÓN: Ir al login (para usuarios que quieren autenticarse)
   const handleGoToLogin = () => {
-    console.log('🔐 Redirecting to login...');
+    console.log('Redirecting to login...');
     closeCart();
     navigate('/login', { state: { from: '/store', returnToCart: true } });
   };
 
-  // ✅ FUNCIÓN: Checkout para usuarios autenticados
+  // FUNCIÓN: Checkout para usuarios autenticados
   const handleAuthenticatedCheckout = () => {
     if (isEmpty) {
       showError('Tu carrito está vacío');
       return;
     }
     
-    console.log('👤 Redirecting authenticated user to checkout...');
+    console.log('Redirecting authenticated user to checkout...');
     closeCart();
     navigate('/checkout');
   };
   
-  // ✅ FUNCIÓN: Limpiar carrito con confirmación
+  // FUNCIÓN: Limpiar carrito con confirmación
   const handleClearCart = () => {
     if (window.confirm('¿Estás seguro de que quieres vaciar tu carrito?')) {
       clearCart();
@@ -104,18 +103,18 @@ const CartSidebar = () => {
 
   return (
     <>
-      {/* ✅ Overlay */}
+      {/* Overlay */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 z-[60]"
         onClick={closeCart}
       />
       
-      {/* ✅ Sidebar */}
+      {/* Sidebar */}
       <div className={`fixed top-0 right-0 h-full z-[70] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
         isMobile ? 'w-full' : 'w-96'
       }`}>
         
-        {/* ✅ HEADER COMPACTO */}
+        {/* HEADER COMPACTO */}
         <div className="flex-shrink-0 flex items-center justify-between p-3 border-b border-gray-200 bg-white">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
             <ShoppingCart className="w-4 h-4 mr-2" />
@@ -145,7 +144,7 @@ const CartSidebar = () => {
           </div>
         </div>
         
-        {/* ✅ NOTIFICACIÓN COMPACTA (solo para invitados con productos) */}
+        {/* NOTIFICACIÓN COMPACTA (solo para invitados con productos) */}
         {!isAuthenticated && items.length > 0 && (
           <div className="flex-shrink-0 px-3 py-2 bg-blue-50 border-b border-blue-200 text-center">
             <div className="flex items-center justify-center space-x-1">
@@ -157,10 +156,10 @@ const CartSidebar = () => {
           </div>
         )}
 
-        {/* ✅ CONTENIDO PRINCIPAL - MÁS ESPACIO PARA PRODUCTOS */}
+        {/* CONTENIDO PRINCIPAL - MÁS ESPACIO PARA PRODUCTOS */}
         <div className="flex-1 flex flex-col min-h-0">
           
-          {/* ✅ ÁREA DE ITEMS - PRIORIZADA */}
+          {/* ÁREA DE ITEMS - PRIORIZADA */}
           <div className="flex-1 overflow-y-auto">
             <div className="p-3">
               
@@ -215,12 +214,12 @@ const CartSidebar = () => {
             </div>
           </div>
 
-          {/* ✅ FOOTER COMPACTO */}
+          {/* FOOTER COMPACTO */}
           {!isLoading && !isEmpty && (
             <div className="flex-shrink-0 border-t border-gray-200 bg-white">
               <div className="p-3 space-y-3">
                 
-                {/* Resumen compacto */}
+                {/* Resumen compacto con moneda quetzales */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal:</span>
@@ -247,7 +246,7 @@ const CartSidebar = () => {
                   </div>
                 </div>
 
-                {/* Info rápida */}
+                {/* Información de envío */}
                 <div className="flex items-center justify-between text-xs text-gray-600">
                   <div className="flex items-center">
                     <Truck className="w-3 h-3 mr-1" />
@@ -261,7 +260,7 @@ const CartSidebar = () => {
                   )}
                 </div>
                 
-                {/* ✅ BOTONES OPTIMIZADOS - LADO A LADO */}
+                {/* BOTONES OPTIMIZADOS - LADO A LADO */}
                 <div className="space-y-2">
                   
                   {isAuthenticated ? (
@@ -306,7 +305,7 @@ const CartSidebar = () => {
                       </div>
                       
                       <div className="text-xs text-gray-500 text-center">
-                        💡 Rápido sin registro | 🎯 Sesión = beneficios
+                        Rápido sin registro | Sesión = beneficios
                       </div>
                     </>
                   )}
@@ -329,7 +328,7 @@ const CartSidebar = () => {
   );
 };
 
-// ✅ COMPONENTE OPTIMIZADO: Item del carrito más compacto
+// COMPONENTE OPTIMIZADO: Item del carrito más compacto
 const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   
@@ -341,7 +340,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
     try {
       await onUpdateQuantity(item.cartId || item.id, safeQty);
     } catch (error) {
-      console.error('❌ Error updating quantity:', error);
+      console.error('Error updating quantity:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -353,7 +352,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
     try {
       await onRemove(item.cartId || item.id);
     } catch (error) {
-      console.error('❌ Error removing item:', error);
+      console.error('Error removing item:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -367,7 +366,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
   return (
     <div className={`bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm ${isUpdating ? 'opacity-50' : ''}`}>
       
-      {/* ✅ LAYOUT HORIZONTAL COMPACTO */}
+      {/* LAYOUT HORIZONTAL COMPACTO */}
       <div className="flex items-start space-x-2.5">
         
         {/* Imagen más pequeña */}
@@ -449,27 +448,56 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
 
 export default CartSidebar;
 
-// 📝 OPTIMIZACIONES APLICADAS:
-// 
-// ✅ HEADER MÁS COMPACTO:
-// - Reducido padding de 4 a 3
-// - Iconos más pequeños (4x4)
-// - Estado de conexión integrado en el header
-// 
-// ✅ BOTONES LADO A LADO:
-// - Grid de 2 columnas para invitados
-// - Botones más pequeños (py-2.5)
-// - Texto más compacto (text-xs)
-// - Iconos más pequeños (w-3 h-3)
-// 
-// ✅ MÁS ESPACIO PARA PRODUCTOS:
-// - Padding reducido en contenedores (p-3)
-// - Items más compactos con imágenes 12x12
-// - Controles de cantidad más pequeños (6x6)
-// - Espaciado optimizado (space-y-2)
-// 
-// ✅ DISEÑO GENERAL LIMPIO:
-// - Menos elementos decorativos
-// - Texto más pequeño pero legible
-// - Mejor proporción entre elementos
-// - Prioriza la visualización de productos
+/*
+DOCUMENTACIÓN DEL COMPONENTE CartSidebar
+
+PROPÓSITO:
+Este componente implementa un sidebar deslizable para el carrito de compras con diseño optimizado
+y compacto que prioriza la visualización de productos sobre elementos decorativos.
+
+FUNCIONALIDADES PRINCIPALES:
+- Visualización de productos en el carrito con diseño compacto
+- Controles de cantidad y eliminación de productos
+- Cálculo de totales con moneda en quetzales (Q)
+- Manejo de usuarios autenticados e invitados
+- Información de envío y promociones
+- Estados de carga y sincronización
+- Diseño responsivo para móvil y escritorio
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+CONTEXTS REQUERIDOS:
+- CartContext (../../contexts/CartContext): Manejo del estado del carrito, productos, totales
+- AuthContext (../../contexts/AuthContext): Estado de autenticación del usuario
+- AppContext (../../contexts/AppContext): Configuración global de la aplicación
+
+DEPENDENCIAS DE NAVEGACIÓN:
+- useNavigate de react-router-dom: Para redirecciones a checkout y login
+
+RUTAS CONECTADAS:
+- /checkout: Página de finalización de compra
+- /login: Página de autenticación
+- /store: Página principal de la tienda
+
+COMPONENTES RELACIONADOS:
+- Layout principal que incluye este sidebar
+- Componentes de producto que agregan items al carrito
+- Páginas de checkout y login que reciben la información del carrito
+
+ESTILOS:
+- Utiliza Tailwind CSS para estilos responsivos
+- Iconos de Lucide React para interfaz
+- Diseño optimizado para mostrar máximo contenido de productos
+
+MONEDA:
+- Configurado para usar quetzales guatemaltecos (Q)
+- Formateo de precios manejado por CartContext
+- Cálculos de envío gratis por compras superiores a Q200
+
+ESTADOS MANEJADOS:
+- Carga de productos
+- Actualización de cantidades
+- Sincronización con servidor
+- Errores de conexión
+- Estados de checkout
+*/

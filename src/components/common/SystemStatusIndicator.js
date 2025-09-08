@@ -1,3 +1,4 @@
+// Autor: Alexander Echeverria
 // src/components/common/SystemStatusIndicator.js
 // FUNCIÓN: Indicador simple circular del estado del sistema (similar a ConnectionIndicator)
 // UBICACIÓN: Esquina inferior derecha, solo para admins
@@ -21,7 +22,7 @@ const SystemStatusIndicator = ({ show = true }) => {
   // Solo mostrar para admins
   const shouldShow = show && user?.role === 'admin';
 
-  // 🔄 Verificar estado del sistema
+  // Verificar estado del sistema
   const checkSystemStatus = async () => {
     if (!shouldShow) return;
     
@@ -55,7 +56,7 @@ const SystemStatusIndicator = ({ show = true }) => {
       }
       
     } catch (error) {
-      console.log('⚠️ System status check failed:', error.message);
+      console.log('System status check failed:', error.message);
       setSystemStatus('error');
       setSystemInfo(prev => ({
         ...prev,
@@ -65,7 +66,7 @@ const SystemStatusIndicator = ({ show = true }) => {
     }
   };
 
-  // ⏰ Verificar cada 30 segundos
+  // Verificar cada 30 segundos
   useEffect(() => {
     if (!shouldShow) return;
 
@@ -78,7 +79,7 @@ const SystemStatusIndicator = ({ show = true }) => {
     return () => clearInterval(interval);
   }, [shouldShow]);
 
-  // 🎨 Configuración visual según estado
+  // Configuración visual según estado
   const getStatusConfig = () => {
     switch (systemStatus) {
       case 'operational':
@@ -119,7 +120,7 @@ const SystemStatusIndicator = ({ show = true }) => {
 
   return (
     <div className="fixed bottom-4 left-4 z-40">
-      {/* 🟢 CÍRCULO INDICADOR SIMPLE */}
+      {/* CÍRCULO INDICADOR SIMPLE */}
       <div
         className="relative cursor-pointer"
         onClick={() => setShowDetails(!showDetails)}
@@ -130,7 +131,7 @@ const SystemStatusIndicator = ({ show = true }) => {
         } hover:scale-125`} />
       </div>
 
-      {/* 📋 PANEL DE DETALLES DEL SISTEMA */}
+      {/* PANEL DE DETALLES DEL SISTEMA */}
       {showDetails && (
         <>
           {/* Overlay para cerrar */}
@@ -237,3 +238,114 @@ const SystemStatusIndicator = ({ show = true }) => {
 };
 
 export default SystemStatusIndicator;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE SystemStatusIndicator
+
+PROPÓSITO:
+Este componente proporciona un indicador visual del estado general del sistema del gimnasio,
+visible exclusivamente para administradores. Permite monitorear métricas clave y el
+funcionamiento general de la aplicación desde cualquier página.
+
+FUNCIONALIDADES PRINCIPALES:
+- Indicador circular de estado del sistema (operativo/parcial/error)
+- Panel expandible con métricas del sistema
+- Verificación automática cada 30 segundos
+- Acceso restringido solo para administradores
+- Información en tiempo real de usuarios y membresías
+- Estado de salud del backend
+- Logging de actividad del sistema
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+CONTEXTS REQUERIDOS:
+- AuthContext (../../contexts/AuthContext): Verificación de rol de administrador
+
+SERVICIOS UTILIZADOS:
+- apiService (../../services/apiService): Comunicación con backend
+  - getUserStats(): Estadísticas de usuarios
+  - getSystemHealth(): Estado de salud del sistema
+  - getMembershipStats(): Estadísticas de membresías
+
+UBICACIÓN EN LA APLICACIÓN:
+- Esquina inferior izquierda (fixed bottom-4 left-4)
+- Z-index alto para visibilidad sobre otros elementos
+- Solo visible para usuarios con role === 'admin'
+
+ESTADOS DEL SISTEMA MONITOREADOS:
+- operational: Todo funcionando correctamente (verde)
+- partial: Algunos servicios funcionando (amarillo)
+- error: Problemas críticos detectados (rojo)
+- checking: Verificando estado (azul, pulsante)
+
+MÉTRICAS MONITOREADAS:
+- Usuarios totales en el sistema
+- Usuarios activos
+- Membresías activas
+- Estado de salud del backend
+- Tiempo de actividad del sistema
+- Timestamp de última verificación
+
+VERIFICACIONES AUTOMÁTICAS:
+- Comprobación inicial al cargar
+- Verificaciones periódicas cada 30 segundos
+- Manejo de errores de conexión
+- Actualización manual disponible
+
+INFORMACIÓN MOSTRADA EN EL PANEL:
+- Estado general del sistema
+- Métricas de usuarios y membresías
+- Información del administrador actual
+- Hora de última verificación
+- Controles de actualización manual
+
+CASOS DE USO:
+- Monitoreo continuo del sistema por administradores
+- Detección temprana de problemas de conectividad
+- Supervisión de métricas clave del gimnasio
+- Validación de funcionamiento de servicios críticos
+- Control de estado durante mantenimientos
+
+CARACTERÍSTICAS TÉCNICAS:
+- Componente funcional con hooks de React
+- Polling automático con cleanup apropiado
+- Manejo de estados asíncronos
+- Interfaz expandible/colapsable
+- Animaciones CSS para estados activos
+- Responsive design para diferentes pantallas
+
+SEGURIDAD:
+- Acceso restringido por rol de usuario
+- Verificación de autenticación antes de mostrar
+- Datos sensibles solo visibles para administradores
+- Logging de errores sin exposición de información crítica
+
+INTEGRACIÓN CON EL SISTEMA DEL GIMNASIO:
+- Conexión directa con APIs de estadísticas
+- Monitoreo de membresías (incluyendo transacciones en quetzales)
+- Supervisión de base de usuarios
+- Estado de servicios críticos del negocio
+
+BENEFICIOS PARA ADMINISTRADORES:
+- Visión general instantánea del sistema
+- Detección proactiva de problemas
+- Métricas de negocio en tiempo real
+- Herramienta de diagnóstico rápido
+- Interfaz no intrusiva
+
+DIFERENCIAS CON ConnectionIndicator:
+- Específico para administradores vs general para desarrollo
+- Enfoque en métricas de negocio vs diagnóstico técnico
+- Ubicación izquierda vs derecha
+- Información operativa vs información de debugging
+
+PERSONALIZACIÓN:
+- Colores de estado configurables
+- Intervalos de verificación ajustables
+- Métricas mostradas personalizables
+- Posición y tamaño adaptables
+
+Este componente es esencial para administradores del gimnasio que necesitan
+supervisar el estado general del sistema y las métricas clave del negocio
+desde cualquier parte de la aplicación de manera discreta y eficiente.
+*/

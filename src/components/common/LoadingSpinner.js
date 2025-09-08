@@ -1,10 +1,11 @@
+// Autor: Alexander Echeverria
 // src/components/common/LoadingSpinner.js
 // FUNCIÓN: Componente de loading spinner COMPLETO Y CORREGIDO
 // MANTIENE: Funcionalidad existente + compatibilidad con ProfileManager
 
 import React from 'react';
 import { Dumbbell, Loader } from 'lucide-react';
-import useGymConfig from '../../hooks/useGymConfig'; // ✅ IMPORTACIÓN CORRECTA
+import useGymConfig from '../../hooks/useGymConfig';
 
 const LoadingSpinner = ({ 
   fullScreen = false, 
@@ -12,12 +13,12 @@ const LoadingSpinner = ({
   size = 'md',
   showLogo = true,
   className = '',
-  // 🆕 NUEVAS PROPS para compatibilidad con ProfileManager
+  // NUEVAS PROPS para compatibilidad con ProfileManager
   color = 'primary'
 }) => {
-  const { config } = useGymConfig(); // ✅ CORRECTO: destructuring del hook default
+  const { config } = useGymConfig();
 
-  // 📏 Configuración de tamaños
+  // Configuración de tamaños
   const sizeConfig = {
     sm: { spinner: 'w-8 h-8', logo: 'w-6 h-6', text: 'text-sm' },
     md: { spinner: 'w-12 h-12', logo: 'w-8 h-8', text: 'text-base' },
@@ -25,7 +26,7 @@ const LoadingSpinner = ({
     xl: { spinner: 'w-24 h-24', logo: 'w-16 w-16', text: 'text-xl' }
   };
 
-  // 🎨 Configuración de colores
+  // Configuración de colores
   const colorConfig = {
     primary: 'border-primary-600',
     blue: 'border-blue-600',
@@ -82,7 +83,7 @@ const LoadingSpinner = ({
   return <LoadingContent />;
 };
 
-// 🔄 ButtonSpinner para botones
+// ButtonSpinner para botones
 export const ButtonSpinner = ({ size = 'sm', className = '', color = 'white' }) => {
   const spinnerSizes = {
     sm: 'w-4 h-4',
@@ -106,7 +107,7 @@ export const ButtonSpinner = ({ size = 'sm', className = '', color = 'white' }) 
   );
 };
 
-// 🆕 NUEVO: SimpleSpinner para casos simples (compatibilidad con ProfileManager)
+//  SimpleSpinner para casos simples (compatibilidad con ProfileManager)
 export const SimpleSpinner = ({ 
   size = 'medium', 
   color = 'primary',
@@ -157,7 +158,7 @@ export const CardLoader = ({ message = 'Cargando...', size = 'md' }) => (
   </div>
 );
 
-// 🆕 NUEVO: ProfileLoader específico para el ProfileManager
+// NUEVO: ProfileLoader específico para el ProfileManager
 export const ProfileLoader = ({ message = 'Cargando información del perfil...' }) => (
   <div className="flex items-center justify-center min-h-96">
     <LoadingSpinner 
@@ -171,3 +172,122 @@ export const ProfileLoader = ({ message = 'Cargando información del perfil...' 
 );
 
 export default LoadingSpinner;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE LoadingSpinner
+
+PROPÓSITO:
+Este componente proporciona una colección completa de spinners de carga personalizables
+para diferentes contextos dentro de la aplicación del gimnasio. Incluye variantes 
+especializadas para botones, perfiles, pantalla completa y elementos inline.
+
+FUNCIONALIDADES PRINCIPALES:
+- Spinner principal con logo del gimnasio integrado
+- Múltiples tamaños y colores configurables
+- Variantes especializadas para diferentes casos de uso
+- Compatibilidad con ProfileManager y otros componentes
+- Animaciones suaves y profesionales
+- Mensajes de carga personalizables
+- Integración con configuración del gimnasio
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+HOOKS REQUERIDOS:
+- useGymConfig (../../hooks/useGymConfig): Obtiene configuración del gimnasio
+
+COMPONENTES IMPORTADOS:
+- Dumbbell, Loader (lucide-react): Iconos para spinner y logo
+
+ARCHIVOS QUE USAN ESTE COMPONENTE:
+- ProfileManager: Para carga de información de perfil
+- Dashboard components: Estados de carga de datos
+- Formularios: Durante envío de información
+- Páginas de autenticación: Proceso de login/registro
+- Carrito de compras: Procesamiento de transacciones
+- API calls: Estados de carga de datos del backend
+- Navegación: Transiciones entre páginas
+
+COMPONENTES EXPORTADOS:
+
+COMPONENTE PRINCIPAL:
+- LoadingSpinner: Spinner base con todas las opciones
+
+VARIANTES ESPECIALIZADAS:
+- ButtonSpinner: Para botones durante acciones
+- SimpleSpinner: Versión simplificada para casos básicos
+- FullScreenLoader: Cubre toda la pantalla
+- InlineLoader: Para elementos en línea
+- CardLoader: Para tarjetas/contenedores
+- ProfileLoader: Específico para ProfileManager
+
+PROPS DEL COMPONENTE PRINCIPAL:
+- fullScreen: Boolean para modo pantalla completa
+- message: Texto de carga personalizable
+- size: Tamaño ('sm', 'md', 'lg', 'xl')
+- showLogo: Mostrar logo del gimnasio en el centro
+- className: Clases CSS adicionales
+- color: Color del spinner ('primary', 'blue', 'green', etc.)
+
+CONFIGURACIÓN DE TAMAÑOS:
+- sm: 8x8px spinner, 6x6px logo, texto pequeño
+- md: 12x12px spinner, 8x8px logo, texto base
+- lg: 16x16px spinner, 12x12px logo, texto grande
+- xl: 24x24px spinner, 16x16px logo, texto XL
+
+CONFIGURACIÓN DE COLORES:
+Soporta múltiples temas de color:
+- primary: Color principal del gimnasio
+- blue, green, red, yellow, purple, indigo: Colores específicos
+
+CASOS DE USO ESPECÍFICOS:
+- Carga de datos del dashboard
+- Procesamiento de pagos en quetzales
+- Autenticación de usuarios
+- Carga de información de membresías
+- Subida de archivos de perfil
+- Sincronización con backend
+- Navegación entre secciones
+
+CARACTERÍSTICAS TÉCNICAS:
+- Animaciones CSS optimizadas
+- Backdrop blur para spinner de pantalla completa
+- Z-index apropiado para modales
+- Responsive design
+- Integración con sistema de diseño de la aplicación
+
+INTEGRACIÓN CON GYMCONFIG:
+- Muestra nombre del gimnasio cuando está disponible
+- Se adapta a la configuración específica del gimnasio
+- Mantiene consistencia visual con la marca
+
+ACCESIBILIDAD:
+- Roles ARIA apropiados
+- Indicadores visuales claros de carga
+- Texto descriptivo para lectores de pantalla
+- Contraste adecuado en todos los temas
+
+PERFORMANCE:
+- Componentes memoizados donde es apropiado
+- Animaciones optimizadas para rendimiento
+- Carga condicional de elementos
+- Minimal re-renders
+
+USO TÍPICO EN LA APLICACIÓN:
+```javascript
+// Carga básica
+<LoadingSpinner message="Cargando membresías..." />
+
+// Pantalla completa
+<FullScreenLoader message="Procesando pago..." />
+
+// En botón
+<ButtonSpinner size="sm" color="white" />
+
+// Para perfil
+<ProfileLoader message="Actualizando información..." />
+```
+
+Este componente es esencial para proporcionar feedback visual consistente durante
+operaciones asíncronas en toda la aplicación del gimnasio, mejorando la experiencia
+del usuario y manteniendo la identidad visual de la marca.
+*/

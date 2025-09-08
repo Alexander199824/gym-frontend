@@ -1,3 +1,4 @@
+// Autor: Alexander Echeverria
 // src/components/common/ErrorBoundary.js
 // FUNCIÓN: Componente para manejar errores de React
 
@@ -101,3 +102,114 @@ class ErrorBoundary extends React.Component {
 }
 
 export default ErrorBoundary;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE ErrorBoundary
+
+PROPÓSITO:
+Este componente implementa un Error Boundary de React que captura errores de JavaScript
+en cualquier lugar del árbol de componentes hijo, registra esos errores y muestra
+una interfaz de usuario de respaldo en lugar de que se bloquee toda la aplicación.
+
+FUNCIONALIDADES PRINCIPALES:
+- Captura errores de React en componentes hijos
+- Muestra interfaz de usuario de respaldo amigable
+- Registra errores en consola para debugging
+- Opciones de recuperación para el usuario
+- Información técnica detallada en modo desarrollo
+- Prevención de crashes completos de la aplicación
+
+MÉTODOS DEL CICLO DE VIDA:
+- getDerivedStateFromError(): Actualiza el state cuando ocurre un error
+- componentDidCatch(): Captura el error y su información para logging
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+COMPONENTES IMPORTADOS:
+- Iconos de Lucide React: AlertTriangle, RefreshCw, Home
+
+ARCHIVOS QUE USAN ESTE COMPONENTE:
+- App.js: Envuelve toda la aplicación para captura global de errores
+- Layout principal: Protege rutas y componentes principales
+- Páginas críticas: Dashboard, checkout, autenticación
+
+ESTRUCTURA DE LA APLICACIÓN:
+```
+<ErrorBoundary>
+  <App>
+    <Router>
+      <Routes>
+        <!-- Toda la aplicación protegida -->
+      </Routes>
+    </Router>
+  </App>
+</ErrorBoundary>
+```
+
+ESTADOS MANEJADOS:
+- hasError: Boolean que indica si ocurrió un error
+- error: Objeto del error capturado
+- errorInfo: Información adicional del error (stack trace)
+
+INTERFAZ DE USUARIO:
+- Icono de alerta prominente
+- Mensaje amigable en español
+- Botón para recargar la página
+- Botón para volver al inicio
+- Panel expandible con información técnica (solo desarrollo)
+
+CASOS DE USO:
+- Errores de renderizado en componentes
+- Errores de JavaScript no manejados
+- Problemas de estado inconsistente
+- Fallos en la carga de datos
+- Errores de red o API
+- Problemas de compatibilidad del navegador
+
+BENEFICIOS:
+- Mejora la experiencia del usuario ante errores
+- Previene pantallas blancas o crashes
+- Facilita el debugging en desarrollo
+- Proporciona opciones de recuperación
+- Mantiene la aplicación funcional parcialmente
+
+LIMITACIONES:
+- No captura errores en event handlers
+- No captura errores en código asíncrono
+- No captura errores durante el renderizado del servidor
+- No captura errores en el propio error boundary
+
+CONFIGURACIÓN POR ENTORNO:
+- Desarrollo: Muestra información técnica detallada
+- Producción: Solo muestra interfaz amigable sin detalles técnicos
+
+ESTRATEGIAS DE RECUPERACIÓN:
+- Reload completo de la página
+- Navegación al inicio de la aplicación
+- Preservación del estado cuando es posible
+
+LOGGING Y MONITOREO:
+- Errores registrados en console.error
+- Stack traces completos disponibles
+- Información de componentes afectados
+- Facilita integración con servicios de monitoreo
+
+ESTILOS Y DISEÑO:
+- Diseño centrado y responsive
+- Colores de alerta (rojo) para urgencia
+- Botones prominentes para acciones
+- Tipografía clara y legible
+- Compatible con el sistema de diseño de la aplicación
+
+INTEGRACIÓN CON EL SISTEMA:
+- Protege componentes críticos como:
+  - Sistema de carrito de compras
+  - Procesamiento de pagos
+  - Dashboards de usuarios
+  - Formularios importantes
+  - Navegación principal
+
+Este componente es esencial para mantener la estabilidad y profesionalismo
+de la aplicación del gimnasio, asegurando que los errores no interrumpan
+completamente la experiencia del usuario.
+*/
