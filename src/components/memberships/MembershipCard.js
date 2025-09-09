@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipCard.js
-// FUNCIÓN: Componente para mostrar información de membresías
+// FUNCIÓN: Componente para mostrar información de membresías - COMPLETAMENTE EN ESPAÑOL
 // USADO EN: ClientDashboard, páginas de membresías
 
 import React from 'react';
@@ -17,7 +17,8 @@ import {
   Edit,
   Trash2,
   User,
-  Bird
+  // Cambio: Usar icono más apropiado para quetzales
+  Banknote
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 
@@ -43,7 +44,7 @@ const MembershipCard = ({
   
   const daysUntilExpiry = getDaysUntilExpiry(membership.endDate);
   
-  // Estado de la membresía
+  // Estado de la membresía - COMPLETAMENTE EN ESPAÑOL
   const getStatusConfig = () => {
     switch (membership.status) {
       case 'active':
@@ -111,9 +112,27 @@ const MembershipCard = ({
           border: 'border-gray-200',
           icon: XCircle
         };
+      case 'pending':
+        return {
+          label: 'Pendiente',
+          color: 'blue',
+          bg: 'bg-blue-50',
+          text: 'text-blue-700',
+          border: 'border-blue-200',
+          icon: Clock
+        };
+      case 'pending_payment':
+        return {
+          label: 'Pendiente de pago',
+          color: 'yellow',
+          bg: 'bg-yellow-50',
+          text: 'text-yellow-700',
+          border: 'border-yellow-200',
+          icon: AlertCircle
+        };
       default:
         return {
-          label: 'Desconocido',
+          label: 'Estado desconocido',
           color: 'gray',
           bg: 'bg-gray-50',
           text: 'text-gray-700',
@@ -138,6 +157,26 @@ const MembershipCard = ({
   };
   
   const progress = calculateProgress();
+  
+  // Función para obtener tipo de membresía en español
+  const getMembershipTypeName = () => {
+    if (membership.plan) {
+      return membership.plan.name;
+    }
+    
+    switch (membership.type) {
+      case 'monthly':
+        return 'Membresía Mensual';
+      case 'daily':
+        return 'Pase Diario';
+      case 'weekly':
+        return 'Membresía Semanal';
+      case 'annual':
+        return 'Membresía Anual';
+      default:
+        return 'Membresía';
+    }
+  };
 
   return (
     <div className={`
@@ -146,7 +185,7 @@ const MembershipCard = ({
       ${className}
     `}>
       
-      {/* ENCABEZADO */}
+      {/* ENCABEZADO MEJORADO */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <div className={`
@@ -158,10 +197,10 @@ const MembershipCard = ({
           
           <div className="ml-3">
             <h3 className="text-lg font-semibold text-gray-900">
-              Membresía {membership.type === 'monthly' ? 'Mensual' : 'Diaria'}
+              {getMembershipTypeName()}
             </h3>
             <p className="text-sm text-gray-600">
-              ID: {membership.id.slice(-8)}
+              ID: {membership.id.slice(-8).toUpperCase()}
             </p>
           </div>
         </div>
@@ -192,12 +231,12 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* INFORMACIÓN DE FECHAS */}
+      {/* INFORMACIÓN DE FECHAS - TEXTOS EN ESPAÑOL */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <div className="flex items-center text-sm text-gray-600 mb-1">
             <Calendar className="w-4 h-4 mr-2" />
-            Inicio
+            Fecha de inicio
           </div>
           <p className="text-sm font-medium text-gray-900">
             {formatDate(membership.startDate)}
@@ -207,7 +246,7 @@ const MembershipCard = ({
         <div>
           <div className="flex items-center text-sm text-gray-600 mb-1">
             <Clock className="w-4 h-4 mr-2" />
-            Vencimiento
+            Fecha de vencimiento
           </div>
           <p className="text-sm font-medium text-gray-900">
             {formatDate(membership.endDate)}
@@ -215,24 +254,25 @@ const MembershipCard = ({
         </div>
       </div>
       
-      {/* PRECIO EN QUETZALES */}
+      {/* PRECIO EN QUETZALES - ICONO MEJORADO */}
       <div className="mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <Bird className="w-4 h-4 text-green-600 mr-2" />
-            <span className="text-sm text-gray-600">Precio:</span>
+            <Banknote className="w-4 h-4 text-green-600 mr-2" />
+            <span className="text-sm text-gray-600">Precio pagado:</span>
           </div>
-          <span className="text-lg font-bold text-gray-900">
-            {formatCurrency(membership.price)}
+          <span className="text-lg font-bold text-green-600 flex items-center">
+            <span className="mr-1">Q</span>
+            {membership.price ? membership.price.toFixed(2) : formatCurrency(membership.amount || 0)}
           </span>
         </div>
       </div>
       
-      {/* PROGRESO */}
+      {/* PROGRESO - MEJORADO */}
       {membership.status === 'active' && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600">Progreso:</span>
+            <span className="text-sm text-gray-600">Progreso de la membresía:</span>
             <span className="text-sm font-medium text-gray-900">
               {Math.round(progress)}%
             </span>
@@ -251,16 +291,17 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* TIEMPO RESTANTE */}
+      {/* TIEMPO RESTANTE - MEJORADO */}
       {membership.status === 'active' && (
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+        <div className="mb-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border">
           <div className="text-center">
             {daysUntilExpiry < 0 ? (
               <div className="text-red-600">
-                <p className="text-sm font-medium">¡Membresía vencida!</p>
-                <p className="text-xs">
+                <p className="text-lg font-bold">¡Membresía vencida!</p>
+                <p className="text-sm">
                   Venció hace {Math.abs(daysUntilExpiry)} día{Math.abs(daysUntilExpiry) !== 1 ? 's' : ''}
                 </p>
+                <p className="text-xs mt-1">Renueva para continuar usando el gimnasio</p>
               </div>
             ) : (
               <div className={
@@ -268,12 +309,17 @@ const MembershipCard = ({
                 daysUntilExpiry <= 7 ? 'text-yellow-600' :
                 'text-green-600'
               }>
-                <p className="text-lg font-bold">
+                <p className="text-2xl font-bold">
                   {daysUntilExpiry} día{daysUntilExpiry !== 1 ? 's' : ''}
                 </p>
-                <p className="text-xs">
+                <p className="text-sm">
                   restante{daysUntilExpiry !== 1 ? 's' : ''}
                 </p>
+                {daysUntilExpiry <= 7 && (
+                  <p className="text-xs mt-1">
+                    {daysUntilExpiry <= 3 ? '⚠️ Renueva pronto' : '📅 Considera renovar'}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -282,11 +328,33 @@ const MembershipCard = ({
       
       {/* RENOVACIÓN AUTOMÁTICA */}
       {membership.autoRenew && (
-        <div className="mb-4 p-2 bg-blue-50 rounded-lg">
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center">
             <RefreshCw className="w-4 h-4 text-blue-600 mr-2" />
-            <span className="text-sm text-blue-700">
+            <span className="text-sm text-blue-700 font-medium">
               Renovación automática activada
+            </span>
+          </div>
+          <p className="text-xs text-blue-600 mt-1">
+            Se renovará automáticamente el {formatDate(membership.endDate)}
+          </p>
+        </div>
+      )}
+      
+      {/* MÉTODO DE PAGO - ESPAÑOL */}
+      {membership.paymentMethod && (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">Método de pago:</span>
+            <span className="text-sm font-medium text-gray-900">
+              {membership.paymentMethod === 'card' && 'Tarjeta'}
+              {membership.paymentMethod === 'cash' && 'Efectivo'}
+              {membership.paymentMethod === 'transfer' && 'Transferencia'}
+              {membership.paymentMethod === 'bank_transfer' && 'Transferencia Bancaria'}
+              {membership.paymentMethod === 'credit_card' && 'Tarjeta de Crédito'}
+              {membership.paymentMethod === 'debit_card' && 'Tarjeta de Débito'}
+              {!['card', 'cash', 'transfer', 'bank_transfer', 'credit_card', 'debit_card'].includes(membership.paymentMethod) 
+                && (membership.paymentMethod || 'No especificado')}
             </span>
           </div>
         </div>
@@ -301,7 +369,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* ACCIONES */}
+      {/* ACCIONES - TEXTOS EN ESPAÑOL */}
       {showActions && (
         <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
           
@@ -315,13 +383,13 @@ const MembershipCard = ({
           </Link>
           
           {/* Renovar */}
-          {(membership.status === 'active' || membership.status === 'expired') && (
+          {(membership.status === 'active' || membership.status === 'expired') && onRenew && (
             <button
               onClick={onRenew}
               className="btn-success btn-sm flex items-center"
             >
               <RefreshCw className="w-4 h-4 mr-1" />
-              Renovar
+              Renovar membresía
             </button>
           )}
           
@@ -332,7 +400,7 @@ const MembershipCard = ({
               className="btn-secondary btn-sm flex items-center"
             >
               <Edit className="w-4 h-4 mr-1" />
-              Editar
+              Editar información
             </button>
           )}
           
@@ -343,7 +411,7 @@ const MembershipCard = ({
               className="btn-danger btn-sm flex items-center"
             >
               <XCircle className="w-4 h-4 mr-1" />
-              Cancelar
+              Cancelar membresía
             </button>
           )}
         </div>
@@ -353,7 +421,7 @@ const MembershipCard = ({
   );
 };
 
-// VARIANTE: Tarjeta compacta
+// VARIANTE: Tarjeta compacta - MEJORADA
 export const CompactMembershipCard = ({ 
   membership, 
   onClick = null,
@@ -370,43 +438,71 @@ export const CompactMembershipCard = ({
     return 'text-green-500';
   };
   
+  const getStatusText = () => {
+    if (membership.status !== 'active') {
+      switch (membership.status) {
+        case 'expired': return 'Vencida';
+        case 'suspended': return 'Suspendida';
+        case 'cancelled': return 'Cancelada';
+        case 'pending': return 'Pendiente';
+        default: return membership.status;
+      }
+    }
+    if (daysUntilExpiry < 0) return 'Vencida';
+    if (daysUntilExpiry <= 3) return 'Por vencer';
+    return 'Activa';
+  };
+  
+  const getMembershipTypeName = () => {
+    if (membership.plan) return membership.plan.name;
+    
+    switch (membership.type) {
+      case 'monthly': return 'Mensual';
+      case 'daily': return 'Diario';
+      case 'weekly': return 'Semanal';
+      case 'annual': return 'Anual';
+      default: return 'Membresía';
+    }
+  };
+  
   return (
     <div 
       className={`
         bg-white rounded-lg shadow border p-4 transition-all duration-200
-        ${onClick ? 'hover:shadow-lg cursor-pointer' : ''}
+        ${onClick ? 'hover:shadow-lg cursor-pointer hover:border-primary-300' : ''}
       `}
       onClick={onClick}
     >
       <div className="flex items-center justify-between">
         <div>
           {showUser && membership.user && (
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-gray-900 mb-1">
               {membership.user.firstName} {membership.user.lastName}
             </p>
           )}
-          <p className="text-sm text-gray-600">
-            {membership.type === 'monthly' ? 'Mensual' : 'Diaria'}
+          <p className="text-sm font-semibold text-gray-800">
+            {getMembershipTypeName()}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-600">
             Vence: {formatDate(membership.endDate)}
           </p>
         </div>
         
         <div className="text-right">
           <div className="flex items-center justify-end mb-1">
-            <Bird className="w-3 h-3 text-green-600 mr-1" />
+            <Banknote className="w-3 h-3 text-green-600 mr-1" />
             <p className="text-sm font-medium text-gray-900">
-              {formatCurrency(membership.price)}
+              Q{membership.price ? membership.price.toFixed(2) : formatCurrency(membership.amount || 0)}
             </p>
           </div>
           <p className={`text-xs font-medium ${getStatusColor()}`}>
-            {membership.status === 'active' ? 
-              (daysUntilExpiry < 0 ? 'Vencida' : 
-               daysUntilExpiry <= 3 ? 'Por vencer' : 
-               'Activa') : 
-              membership.status}
+            {getStatusText()}
           </p>
+          {membership.status === 'active' && daysUntilExpiry > 0 && (
+            <p className="text-xs text-gray-500">
+              {daysUntilExpiry} día{daysUntilExpiry !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -414,7 +510,6 @@ export const CompactMembershipCard = ({
 };
 
 export default MembershipCard;
-
 /*
 DOCUMENTACIÓN DEL COMPONENTE MembershipCard
 

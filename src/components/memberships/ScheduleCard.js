@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/ScheduleCard.js
-// FUNCIÓN: Componente para mostrar y editar horarios de membresías
+// FUNCIÓN: Componente para mostrar y editar horarios de membresías - ESPAÑOL PERFECCIONADO
 // USADO EN: ClientDashboard, páginas de membresías
 
 import React, { useState } from 'react';
@@ -13,7 +13,10 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle,
-  Bird
+  // Agregado para consistencia con iconos de quetzales
+  Banknote,
+  Target,
+  TrendingUp
 } from 'lucide-react';
 
 const ScheduleCard = ({ 
@@ -27,7 +30,7 @@ const ScheduleCard = ({
   const [editedSchedule, setEditedSchedule] = useState(schedule);
   const [newTimeSlot, setNewTimeSlot] = useState({ day: '', startTime: '', endTime: '' });
   
-  // DÍAS DE LA SEMANA
+  // DÍAS DE LA SEMANA EN ESPAÑOL
   const daysOfWeek = {
     monday: 'Lunes',
     tuesday: 'Martes',
@@ -38,7 +41,7 @@ const ScheduleCard = ({
     sunday: 'Domingo'
   };
   
-  // HORARIOS PREDEFINIDOS
+  // HORARIOS PREDEFINIDOS (6 AM - 10 PM)
   const timeSlots = [
     '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
     '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
@@ -116,21 +119,53 @@ const ScheduleCard = ({
     return totalHours;
   };
   
+  // Obtener recomendaciones basadas en horarios
+  const getScheduleRecommendations = () => {
+    const totalHours = getTotalWeeklyHours();
+    const activeDays = Object.values(editedSchedule).filter(slots => 
+      Array.isArray(slots) && slots.length > 0
+    ).length;
+    
+    const recommendations = [];
+    
+    if (totalHours < 2) {
+      recommendations.push("Considera aumentar tu tiempo de entrenamiento para mejores resultados");
+    } else if (totalHours > 10) {
+      recommendations.push("Excelente dedicación. Recuerda incluir días de descanso");
+    }
+    
+    if (activeDays < 3) {
+      recommendations.push("Intenta entrenar al menos 3 días por semana para mantener constancia");
+    }
+    
+    return recommendations;
+  };
+  
   const totalHours = getTotalWeeklyHours();
   const hasSchedule = Object.values(editedSchedule).some(slots => 
     Array.isArray(slots) && slots.length > 0
   );
+  const activeDays = Object.values(editedSchedule).filter(slots => 
+    Array.isArray(slots) && slots.length > 0
+  ).length;
 
   return (
     <div className={`bg-white rounded-lg shadow-lg p-6 ${className}`}>
       
-      {/* ENCABEZADO */}
-      <div className="flex items-center justify-between mb-4">
+      {/* ENCABEZADO MEJORADO */}
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
-          <Calendar className="w-5 h-5 text-primary-600 mr-2" />
-          <h3 className="text-lg font-medium text-gray-900">
-            Horarios Preferidos
-          </h3>
+          <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-primary-600" />
+          </div>
+          <div className="ml-3">
+            <h3 className="text-xl font-semibold text-gray-900">
+              Horarios de Entrenamiento
+            </h3>
+            <p className="text-sm text-gray-600">
+              Configura tus horarios preferidos para entrenar
+            </p>
+          </div>
         </div>
         
         {editable && (
@@ -139,50 +174,66 @@ const ScheduleCard = ({
               <>
                 <button
                   onClick={handleCancel}
-                  className="btn-secondary btn-sm"
+                  className="btn-secondary btn-sm flex items-center"
                   disabled={isLoading}
                 >
+                  <X className="w-4 h-4 mr-1" />
                   Cancelar
                 </button>
                 <button
                   onClick={handleSave}
-                  className="btn-primary btn-sm"
+                  className="btn-primary btn-sm flex items-center"
                   disabled={isLoading}
                 >
                   <Save className="w-4 h-4 mr-1" />
-                  Guardar
+                  {isLoading ? 'Guardando...' : 'Guardar cambios'}
                 </button>
               </>
             ) : (
               <button
                 onClick={() => setIsEditing(true)}
-                className="btn-secondary btn-sm"
+                className="btn-secondary btn-sm flex items-center"
               >
                 <Edit2 className="w-4 h-4 mr-1" />
-                Editar
+                Editar horarios
               </button>
             )}
           </div>
         )}
       </div>
       
-      {/* RESUMEN */}
+      {/* RESUMEN ESTADÍSTICO MEJORADO */}
       {hasSchedule && (
-        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Clock className="w-4 h-4 text-blue-600 mr-2" />
-              <span className="text-sm font-medium text-blue-900">
-                {totalHours.toFixed(1)} horas semanales
-              </span>
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-blue-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-900">Horas Semanales</p>
+                <p className="text-2xl font-bold text-blue-700">{totalHours.toFixed(1)}</p>
+              </div>
+              <Clock className="w-8 h-8 text-blue-600" />
             </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 text-green-600 mr-1" />
-              <span className="text-sm text-green-700">
-                {Object.values(editedSchedule).filter(slots => 
-                  Array.isArray(slots) && slots.length > 0
-                ).length} días configurados
-              </span>
+          </div>
+          
+          <div className="bg-green-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-900">Días Activos</p>
+                <p className="text-2xl font-bold text-green-700">{activeDays}</p>
+              </div>
+              <Target className="w-8 h-8 text-green-600" />
+            </div>
+          </div>
+          
+          <div className="bg-purple-50 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-900">Promedio Diario</p>
+                <p className="text-2xl font-bold text-purple-700">
+                  {activeDays > 0 ? (totalHours / activeDays).toFixed(1) : '0.0'}h
+                </p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-purple-600" />
             </div>
           </div>
         </div>
@@ -194,18 +245,24 @@ const ScheduleCard = ({
           const daySchedule = editedSchedule[dayKey] || [];
           
           return (
-            <div key={dayKey} className="border border-gray-200 rounded-lg p-4">
+            <div key={dayKey} className="border border-gray-200 rounded-lg p-4 hover:border-primary-200 transition-colors">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium text-gray-900">
-                  {dayName}
-                </h4>
+                <div className="flex items-center">
+                  <h4 className="text-lg font-semibold text-gray-900">{dayName}</h4>
+                  {daySchedule.length > 0 && (
+                    <span className="ml-3 bg-primary-100 text-primary-700 px-2 py-1 rounded-full text-xs font-medium">
+                      {daySchedule.length} sesión{daySchedule.length !== 1 ? 'es' : ''}
+                    </span>
+                  )}
+                </div>
                 
                 {isEditing && (
                   <button
                     onClick={() => addTimeSlot(dayKey)}
-                    className="btn-ghost btn-sm text-primary-600"
+                    className="btn-ghost btn-sm text-primary-600 hover:bg-primary-50"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-4 h-4 mr-1" />
+                    Agregar horario
                   </button>
                 )}
               </div>
@@ -213,9 +270,19 @@ const ScheduleCard = ({
               {/* HORARIOS DEL DÍA */}
               <div className="space-y-2">
                 {daySchedule.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">
-                    Sin horarios configurados
-                  </p>
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500 italic">
+                      No tienes entrenamientos programados para este día
+                    </p>
+                    {isEditing && (
+                      <button
+                        onClick={() => addTimeSlot(dayKey)}
+                        className="mt-2 text-sm text-primary-600 hover:text-primary-700"
+                      >
+                        + Agregar primer horario
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   daySchedule.map((timeSlot, index) => (
                     <TimeSlotItem
@@ -237,44 +304,97 @@ const ScheduleCard = ({
         })}
       </div>
       
-      {/* SUGERENCIAS */}
+      {/* RECOMENDACIONES PERSONALIZADAS */}
+      {hasSchedule && !isEditing && (
+        <div className="mt-6">
+          {getScheduleRecommendations().map((recommendation, index) => (
+            <div key={index} className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start">
+                <AlertCircle className="w-5 h-5 text-amber-600 mr-2 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-amber-800">{recommendation}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* CONSEJOS Y SUGERENCIAS MEJORADOS */}
       {isEditing && (
-        <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+        <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
           <div className="flex items-start">
-            <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
+            <AlertCircle className="w-6 h-6 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
             <div>
-              <h4 className="text-sm font-medium text-yellow-800">
-                Consejos para configurar tus horarios:
+              <h4 className="text-lg font-semibold text-blue-900 mb-3">
+                💡 Consejos para optimizar tus horarios:
               </h4>
-              <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                <li>• Elige horarios que puedas mantener constantemente</li>
-                <li>• Evita las horas pico (7-9 AM y 6-8 PM) si prefieres menos gente</li>
-                <li>• Configura al menos 3 días a la semana para mejores resultados</li>
-                <li>• Puedes cambiar tus horarios cuando lo necesites</li>
+              <ul className="text-sm text-blue-800 space-y-2">
+                <li className="flex items-start">
+                  <span className="text-blue-600 mr-2">•</span>
+                  <span><strong>Constancia:</strong> Elige horarios que puedas mantener a largo plazo</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-600 mr-2">•</span>
+                  <span><strong>Horarios pico:</strong> Evita 7-9 AM y 6-8 PM si prefieres menos personas</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-600 mr-2">•</span>
+                  <span><strong>Frecuencia mínima:</strong> Entrena al menos 3 días por semana para ver resultados</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-600 mr-2">•</span>
+                  <span><strong>Descanso:</strong> Incluye días de recuperación entre entrenamientos intensos</span>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-blue-600 mr-2">•</span>
+                  <span><strong>Flexibilidad:</strong> Puedes modificar estos horarios cuando lo necesites</span>
+                </li>
               </ul>
             </div>
           </div>
         </div>
       )}
       
-      {/* ESTADO VACÍO */}
+      {/* ESTADO VACÍO MEJORADO */}
       {!hasSchedule && !isEditing && (
-        <div className="text-center py-8">
-          <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No tienes horarios configurados
+        <div className="text-center py-12">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            ¡Configura tus horarios de entrenamiento!
           </h3>
-          <p className="text-gray-600 mb-4">
-            Configura tus horarios preferidos para una mejor experiencia
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            Define tus horarios preferidos para entrenar y mantén una rutina constante. 
+            Te ayudará a alcanzar tus objetivos fitness más rápido.
           </p>
           {editable && (
             <button
               onClick={() => setIsEditing(true)}
-              className="btn-primary"
+              className="btn-primary text-lg px-8 py-3"
             >
-              Configurar horarios
+              <Plus className="w-5 h-5 mr-2" />
+              Configurar mis horarios
             </button>
           )}
+          
+          {/* Beneficios de configurar horarios */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
+            <div className="p-4 bg-green-50 rounded-lg">
+              <CheckCircle className="w-8 h-8 text-green-600 mb-2" />
+              <h4 className="font-semibold text-green-900">Mejor Constancia</h4>
+              <p className="text-sm text-green-700">Mantén una rutina regular y efectiva</p>
+            </div>
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <Target className="w-8 h-8 text-blue-600 mb-2" />
+              <h4 className="font-semibold text-blue-900">Objetivos Claros</h4>
+              <p className="text-sm text-blue-700">Planifica para alcanzar tus metas</p>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <TrendingUp className="w-8 h-8 text-purple-600 mb-2" />
+              <h4 className="font-semibold text-purple-900">Progreso Visible</h4>
+              <p className="text-sm text-purple-700">Monitorea tu compromiso semanal</p>
+            </div>
+          </div>
         </div>
       )}
       
@@ -282,7 +402,7 @@ const ScheduleCard = ({
   );
 };
 
-// COMPONENTE: Item de horario individual
+// COMPONENTE: Item de horario individual - MEJORADO
 const TimeSlotItem = ({ 
   timeSlot, 
   isEditing, 
@@ -315,45 +435,63 @@ const TimeSlotItem = ({
     setIsEditingSlot(false);
   };
   
+  // Calcular duración del entrenamiento
+  const getDuration = () => {
+    const start = parseFloat(editedStart.replace(':', '.'));
+    const end = parseFloat(editedEnd.replace(':', '.'));
+    return end - start;
+  };
+  
   const isValidTimeSlot = editedStart && editedEnd && editedStart < editedEnd;
+  const duration = getDuration();
   
   return (
-    <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
       {isEditingSlot ? (
-        <div className="flex items-center space-x-2 flex-1">
-          <select
-            value={editedStart}
-            onChange={(e) => setEditedStart(e.target.value)}
-            className="form-input py-1 px-2 text-sm"
-          >
-            {timeSlots.map(time => (
-              <option key={time} value={time}>{time}</option>
-            ))}
-          </select>
+        <div className="flex items-center space-x-3 flex-1">
+          <div className="flex items-center space-x-2">
+            <select
+              value={editedStart}
+              onChange={(e) => setEditedStart(e.target.value)}
+              className="form-input py-2 px-3 text-sm rounded-md border-gray-300"
+            >
+              {timeSlots.map(time => (
+                <option key={time} value={time}>{time}</option>
+              ))}
+            </select>
+            
+            <span className="text-gray-500 font-medium">—</span>
+            
+            <select
+              value={editedEnd}
+              onChange={(e) => setEditedEnd(e.target.value)}
+              className="form-input py-2 px-3 text-sm rounded-md border-gray-300"
+            >
+              {timeSlots.map(time => (
+                <option key={time} value={time}>{time}</option>
+              ))}
+            </select>
+          </div>
           
-          <span className="text-gray-500">-</span>
-          
-          <select
-            value={editedEnd}
-            onChange={(e) => setEditedEnd(e.target.value)}
-            className="form-input py-1 px-2 text-sm"
-          >
-            {timeSlots.map(time => (
-              <option key={time} value={time}>{time}</option>
-            ))}
-          </select>
+          {isValidTimeSlot && (
+            <span className="text-xs text-gray-600 bg-gray-200 px-2 py-1 rounded">
+              {duration.toFixed(1)}h
+            </span>
+          )}
           
           <div className="flex items-center space-x-1">
             <button
               onClick={handleSaveSlot}
               disabled={!isValidTimeSlot}
-              className="btn-success btn-sm p-1"
+              className="btn-success btn-sm p-2 disabled:opacity-50"
+              title="Guardar cambios"
             >
               <CheckCircle className="w-4 h-4" />
             </button>
             <button
               onClick={handleCancelSlot}
-              className="btn-secondary btn-sm p-1"
+              className="btn-secondary btn-sm p-2"
+              title="Cancelar cambios"
             >
               <X className="w-4 h-4" />
             </button>
@@ -361,24 +499,31 @@ const TimeSlotItem = ({
         </div>
       ) : (
         <>
-          <div className="flex items-center">
-            <Clock className="w-4 h-4 text-gray-500 mr-2" />
-            <span className="text-sm font-medium text-gray-900">
-              {startTime} - {endTime}
-            </span>
+          <div className="flex items-center space-x-3">
+            <Clock className="w-4 h-4 text-primary-600" />
+            <div>
+              <span className="text-sm font-semibold text-gray-900">
+                {startTime} — {endTime}
+              </span>
+              <span className="ml-2 text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                {(parseFloat(endTime.replace(':', '.')) - parseFloat(startTime.replace(':', '.'))).toFixed(1)} horas
+              </span>
+            </div>
           </div>
           
           {isEditing && (
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => setIsEditingSlot(true)}
-                className="text-blue-600 hover:text-blue-500 p-1"
+                className="text-blue-600 hover:text-blue-500 p-2 hover:bg-blue-50 rounded"
+                title="Editar horario"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
               <button
                 onClick={onRemove}
-                className="text-red-600 hover:text-red-500 p-1"
+                className="text-red-600 hover:text-red-500 p-2 hover:bg-red-50 rounded"
+                title="Eliminar horario"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -390,7 +535,7 @@ const TimeSlotItem = ({
   );
 };
 
-// VARIANTE: Horario compacto
+// VARIANTE: Horario compacto - MEJORADO
 export const CompactScheduleCard = ({ 
   schedule = {}, 
   className = '' 
@@ -405,14 +550,31 @@ export const CompactScheduleCard = ({
     sunday: 'D'
   };
   
+  const activeDays = Object.values(schedule).filter(slots => 
+    Array.isArray(slots) && slots.length > 0
+  ).length;
+  
+  const totalHours = Object.values(schedule).reduce((total, slots) => {
+    if (!Array.isArray(slots)) return total;
+    return total + slots.reduce((dayTotal, slot) => {
+      const [start, end] = slot.split('-');
+      if (start && end) {
+        const startHour = parseFloat(start.replace(':', '.'));
+        const endHour = parseFloat(end.replace(':', '.'));
+        return dayTotal + (endHour - startHour);
+      }
+      return dayTotal;
+    }, 0);
+  }, 0);
+  
   return (
-    <div className={`bg-white rounded-lg shadow p-4 ${className}`}>
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-medium text-gray-900">Horarios</h4>
-        <Clock className="w-4 h-4 text-gray-500" />
+    <div className={`bg-white rounded-lg shadow border p-4 hover:shadow-md transition-shadow ${className}`}>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-sm font-semibold text-gray-900">Horarios de Entrenamiento</h4>
+        <Clock className="w-4 h-4 text-primary-600" />
       </div>
       
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1 mb-4">
         {Object.entries(daysOfWeek).map(([dayKey, dayLetter]) => {
           const hasSchedule = schedule[dayKey] && schedule[dayKey].length > 0;
           
@@ -420,12 +582,18 @@ export const CompactScheduleCard = ({
             <div
               key={dayKey}
               className={`
-                w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium
+                w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold
                 ${hasSchedule 
-                  ? 'bg-primary-100 text-primary-700' 
+                  ? 'bg-primary-100 text-primary-700 ring-2 ring-primary-200' 
                   : 'bg-gray-100 text-gray-500'
                 }
               `}
+              title={`${dayKey === 'monday' ? 'Lunes' : 
+                     dayKey === 'tuesday' ? 'Martes' :
+                     dayKey === 'wednesday' ? 'Miércoles' :
+                     dayKey === 'thursday' ? 'Jueves' :
+                     dayKey === 'friday' ? 'Viernes' :
+                     dayKey === 'saturday' ? 'Sábado' : 'Domingo'}${hasSchedule ? ' - Configurado' : ' - Sin configurar'}`}
             >
               {dayLetter}
             </div>
@@ -433,10 +601,15 @@ export const CompactScheduleCard = ({
         })}
       </div>
       
-      <div className="mt-3 text-xs text-gray-600">
-        {Object.values(schedule).filter(slots => 
-          Array.isArray(slots) && slots.length > 0
-        ).length} días configurados
+      <div className="space-y-1 text-xs text-gray-600">
+        <div className="flex justify-between">
+          <span>Días activos:</span>
+          <span className="font-medium text-gray-900">{activeDays}/7</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Horas semanales:</span>
+          <span className="font-medium text-gray-900">{totalHours.toFixed(1)}h</span>
+        </div>
       </div>
     </div>
   );

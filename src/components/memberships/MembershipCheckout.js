@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipCheckout.js
-// ACTUALIZADO: Para funcionar como el test exitoso del backend
+// ACTUALIZADO: Completamente en español con UX simplificada
 // MÉTODOS DE PAGO: Tarjeta (inmediato), Transferencia (validación manual), Efectivo (en gimnasio)
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -16,7 +16,6 @@ import {
   Loader2,
   Shield,
   Calendar,
-  Bird,
   Clock,
   FileText,
   AlertTriangle,
@@ -26,9 +25,10 @@ import {
   Phone,
   Mail,
   MapPin,
-  DollarSign,
   Eye,
-  EyeOff
+  EyeOff,
+  // Cambiado: Usar icono más apropiado para quetzales
+  Banknote
 } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -43,6 +43,29 @@ import {
   useStripe, 
   useElements 
 } from '@stripe/react-stripe-js';
+
+// NUEVO: Utilidades para español
+const DIAS_ESPANOL = {
+  'Monday': 'Lunes',
+  'Tuesday': 'Martes', 
+  'Wednesday': 'Miércoles',
+  'Thursday': 'Jueves',
+  'Friday': 'Viernes',
+  'Saturday': 'Sábado',
+  'Sunday': 'Domingo',
+  // También manejar versiones cortas
+  'Mon': 'Lun',
+  'Tue': 'Mar',
+  'Wed': 'Mié', 
+  'Thu': 'Jue',
+  'Fri': 'Vie',
+  'Sat': 'Sáb',
+  'Sun': 'Dom'
+};
+
+const traducirDia = (dia) => {
+  return DIAS_ESPANOL[dia] || dia;
+};
 
 const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   const { user, isAuthenticated } = useAuth();
@@ -91,7 +114,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
           console.log('Stripe habilitado para producción');
         } else {
           console.warn('Stripe no habilitado');
-          showInfo('Stripe no disponible. Usa transferencia o efectivo.');
+          showInfo('Pagos con tarjeta no disponibles. Usa transferencia o efectivo.');
         }
         
         stripeInitialized.current = true;
@@ -213,7 +236,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* HEADER */}
+      {/* HEADER MEJORADO */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -227,44 +250,77 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
             
             <h1 className="text-xl font-semibold text-gray-900">
               {step === 1 && 'Confirmar Membresía'}
-              {step === 2 && 'Seleccionar Horarios'}
-              {step === 3 && 'Método de Pago'}
-              {step === 4 && 'Membresía Adquirida'}
+              {step === 2 && 'Elegir Horarios'}
+              {step === 3 && 'Forma de Pago'}
+              {step === 4 && '¡Listo!'}
             </h1>
             
             <div className="flex items-center space-x-2">
               <Lock className="w-4 h-4 text-green-500" />
-              <span className="text-sm text-gray-600">Pago Seguro</span>
+              <span className="text-sm text-gray-600">Compra Segura</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* BARRA DE PROGRESO */}
+      {/* BARRA DE PROGRESO MEJORADA */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-4">
             <div className="flex items-center space-x-4">
-              {[1, 2, 3, 4].map((stepNumber) => (
-                <React.Fragment key={stepNumber}>
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors ${
-                    step >= stepNumber 
-                      ? 'bg-primary-600 border-primary-600 text-white' 
-                      : 'border-gray-300 text-gray-400'
-                  }`}>
-                    {step > stepNumber ? (
-                      <CheckCircle className="w-5 h-5" />
-                    ) : (
-                      <span className="text-sm font-medium">{stepNumber}</span>
-                    )}
-                  </div>
-                  {stepNumber < 4 && (
-                    <div className={`w-12 h-0.5 transition-colors ${
-                      step > stepNumber ? 'bg-primary-600' : 'bg-gray-300'
-                    }`} />
-                  )}
-                </React.Fragment>
-              ))}
+              {/* Paso 1 */}
+              <div className="flex flex-col items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                  step >= 1 
+                    ? 'bg-primary-600 border-primary-600 text-white' 
+                    : 'border-gray-300 text-gray-400'
+                }`}>
+                  {step > 1 ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">1</span>}
+                </div>
+                <span className="text-xs text-gray-600 mt-1">Confirmar</span>
+              </div>
+              
+              <div className={`w-12 h-0.5 transition-colors ${step > 1 ? 'bg-primary-600' : 'bg-gray-300'}`} />
+              
+              {/* Paso 2 */}
+              <div className="flex flex-col items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                  step >= 2 
+                    ? 'bg-primary-600 border-primary-600 text-white' 
+                    : 'border-gray-300 text-gray-400'
+                }`}>
+                  {step > 2 ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">2</span>}
+                </div>
+                <span className="text-xs text-gray-600 mt-1">Horarios</span>
+              </div>
+              
+              <div className={`w-12 h-0.5 transition-colors ${step > 2 ? 'bg-primary-600' : 'bg-gray-300'}`} />
+              
+              {/* Paso 3 */}
+              <div className="flex flex-col items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                  step >= 3 
+                    ? 'bg-primary-600 border-primary-600 text-white' 
+                    : 'border-gray-300 text-gray-400'
+                }`}>
+                  {step > 3 ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">3</span>}
+                </div>
+                <span className="text-xs text-gray-600 mt-1">Pagar</span>
+              </div>
+              
+              <div className={`w-12 h-0.5 transition-colors ${step > 3 ? 'bg-primary-600' : 'bg-gray-300'}`} />
+              
+              {/* Paso 4 */}
+              <div className="flex flex-col items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                  step >= 4 
+                    ? 'bg-primary-600 border-primary-600 text-white' 
+                    : 'border-gray-300 text-gray-400'
+                }`}>
+                  {step >= 4 ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">4</span>}
+                </div>
+                <span className="text-xs text-gray-600 mt-1">¡Listo!</span>
+              </div>
             </div>
           </div>
         </div>
@@ -349,7 +405,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   );
 };
 
-// COMPONENTE: Paso 1 - Información de la membresía
+// COMPONENTE: Paso 1 - Información de la membresía (MEJORADO)
 const MembershipInfoStep = ({ plan, user, onContinue }) => {
   
   return (
@@ -422,8 +478,8 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
             <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
             <div className="text-right">
               <div className="flex items-center text-2xl font-bold text-primary-600">
-                <Bird className="w-6 h-6 mr-1" />
-                Q{plan.price}
+                <span className="mr-1">Q</span>
+                {plan.price}
               </div>
               <div className="text-sm text-gray-600">
                 por {plan.durationType}
@@ -469,7 +525,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• La membresía se activará después del pago y validación</li>
               <li>• Recibirás un correo de confirmación con todos los detalles</li>
-              <li>• En el siguiente paso podrás seleccionar tus horarios preferidos</li>
+              <li>• En el siguiente paso podrás elegir tus horarios preferidos</li>
               <li>• Los pagos con tarjeta se procesan de inmediato</li>
               <li>• Transferencias y efectivo requieren validación manual</li>
             </ul>
@@ -480,7 +536,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
   );
 };
 
-// COMPONENTE: Paso 2 - Selección de horarios
+// COMPONENTE: Paso 2 - Selección de horarios (MEJORADO Y SIMPLIFICADO)
 const ScheduleSelectionStep = ({ 
   plan, 
   planInfo, 
@@ -517,41 +573,49 @@ const ScheduleSelectionStep = ({
   return (
     <div className="space-y-6">
       
-      {/* INFORMACIÓN DEL PLAN */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      {/* INFORMACIÓN CLARA DEL PASO */}
+      <div className="bg-gradient-to-r from-primary-50 to-blue-50 border border-primary-200 rounded-lg p-6">
         <div className="flex items-center mb-4">
-          <Calendar className="w-5 h-5 text-primary-600 mr-2" />
-          <h2 className="text-lg font-semibold text-gray-900">
-            Selecciona tus horarios
+          <Calendar className="w-6 h-6 text-primary-600 mr-3" />
+          <h2 className="text-xl font-semibold text-gray-900">
+            Elige tus horarios de entrenamiento
           </h2>
         </div>
+        
+        <p className="text-gray-700 mb-4">
+          Selecciona los días y horarios en los que planeas entrenar. Puedes cambiarlos después en tu perfil.
+        </p>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="font-medium text-blue-800">Días permitidos:</span>
-              <div className="text-blue-700">{planInfo.allowedDays?.join(', ') || 'Todos'}</div>
-            </div>
-            <div>
-              <span className="font-medium text-blue-800">Max por día:</span>
-              <div className="text-blue-700">{planInfo.maxSlotsPerDay || 'Sin límite'}</div>
-            </div>
-            <div>
-              <span className="font-medium text-blue-800">Max por semana:</span>
-              <div className="text-blue-700">{planInfo.maxReservationsPerWeek || 'Sin límite'}</div>
-            </div>
-            <div>
-              <span className="font-medium text-blue-800">Seleccionados:</span>
-              <div className={`font-semibold ${
-                selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999) ? 'text-red-600' : 'text-green-600'
-              }`}>
-                {selectedSlotsCount}/{planInfo.maxReservationsPerWeek || '∞'}
-              </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-white rounded-lg p-4">
+          <div>
+            <span className="font-semibold text-gray-800">Días disponibles:</span>
+            <div className="text-gray-600">{planInfo.allowedDays?.join(', ') || 'Todos'}</div>
+          </div>
+          <div>
+            <span className="font-semibold text-gray-800">Máximo por día:</span>
+            <div className="text-gray-600">{planInfo.maxSlotsPerDay || 'Sin límite'}</div>
+          </div>
+          <div>
+            <span className="font-semibold text-gray-800">Máximo por semana:</span>
+            <div className="text-gray-600">{planInfo.maxReservationsPerWeek || 'Sin límite'}</div>
+          </div>
+          <div>
+            <span className="font-semibold text-gray-800">Has seleccionado:</span>
+            <div className={`font-bold text-lg ${
+              selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999) ? 'text-red-600' : 'text-green-600'
+            }`}>
+              {selectedSlotsCount}/{planInfo.maxReservationsPerWeek || '∞'}
             </div>
           </div>
         </div>
+      </div>
 
-        {/* GRID DE DÍAS Y HORARIOS */}
+      {/* GRID DE DÍAS Y HORARIOS MEJORADO */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">
+          Selecciona tus horarios por día
+        </h3>
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {Object.entries(availableSchedules).map(([day, dayData]) => (
             <ScheduleDayCard
@@ -567,36 +631,53 @@ const ScheduleSelectionStep = ({
           ))}
         </div>
 
-        {/* VALIDACIÓN Y CONTINUAR */}
-        <div className="mt-6 flex items-center justify-between">
-          <div className="flex items-center">
-            {scheduleVerified ? (
-              <div className="flex items-center text-green-600">
-                <CheckCircle className="w-5 h-5 mr-2" />
-                <span className="text-sm font-medium">Horarios verificados</span>
-              </div>
-            ) : (
-              <div className="flex items-center text-orange-600">
-                <Clock className="w-5 h-5 mr-2" />
-                <span className="text-sm">Pendiente de verificación</span>
-              </div>
-            )}
-          </div>
+        {/* VALIDACIÓN Y BOTÓN MEJORADO */}
+        <div className="mt-8 bg-gray-50 rounded-lg p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              {scheduleVerified ? (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  <span className="font-medium">Horarios confirmados</span>
+                </div>
+              ) : selectedSlotsCount > 0 ? (
+                <div className="flex items-center text-orange-600">
+                  <Clock className="w-5 h-5 mr-2" />
+                  <span>Listo para continuar</span>
+                </div>
+              ) : (
+                <div className="flex items-center text-gray-600">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  <span>Selecciona al menos un horario</span>
+                </div>
+              )}
+            </div>
 
-          <button
-            onClick={onContinue}
-            disabled={selectedSlotsCount === 0 || selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999)}
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Continuar al pago
-          </button>
+            <button
+              onClick={onContinue}
+              disabled={selectedSlotsCount === 0 || selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999)}
+              className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                selectedSlotsCount === 0 || selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999)
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg'
+              }`}
+            >
+              Continuar al pago
+            </button>
+          </div>
+          
+          {selectedSlotsCount > 0 && (
+            <div className="mt-4 text-sm text-gray-600">
+              ✓ Has seleccionado {selectedSlotsCount} horario{selectedSlotsCount !== 1 ? 's' : ''} de entrenamiento
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-// COMPONENTE: Card para cada día de la semana
+// COMPONENTE: Card para cada día de la semana (MEJORADO)
 const ScheduleDayCard = ({ 
   day, 
   dayData, 
@@ -627,20 +708,27 @@ const ScheduleDayCard = ({
     }
   };
 
+  // NUEVO: Traducir nombre del día
+  const dayNameSpanish = traducirDia(dayData.dayName);
+
   if (!dayData.isOpen || dayData.slots.length === 0) {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h3 className="font-medium text-gray-400 mb-2">{dayData.dayName}</h3>
+        <h3 className="font-medium text-gray-400 mb-2">{dayNameSpanish}</h3>
         <p className="text-sm text-gray-400">Cerrado</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <h3 className="font-medium text-gray-900 mb-3 flex items-center justify-between">
-        {dayData.dayName}
-        <span className="text-xs text-gray-500">
+    <div className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-primary-200 transition-colors">
+      <h3 className="font-semibold text-gray-900 mb-3 flex items-center justify-between">
+        <span className="text-lg">{dayNameSpanish}</span>
+        <span className={`text-sm px-2 py-1 rounded-full ${
+          selectedSlots.length > 0 
+            ? 'bg-primary-100 text-primary-700'
+            : 'bg-gray-100 text-gray-500'
+        }`}>
           {selectedSlots.length}/{maxSlotsPerDay || '∞'}
         </span>
       </h3>
@@ -656,21 +744,32 @@ const ScheduleDayCard = ({
               key={slot.id}
               onClick={() => handleSlotToggle(slot.id)}
               disabled={!slot.canReserve && !isSelected}
-              className={`w-full p-3 rounded-lg text-left transition-colors ${
+              className={`w-full p-3 rounded-lg text-left transition-all ${
                 isSelected
-                  ? 'bg-primary-100 border-2 border-primary-500 text-primary-800'
+                  ? 'bg-primary-100 border-2 border-primary-500 text-primary-800 shadow-md'
                   : canSelect
-                  ? 'bg-gray-50 border border-gray-300 hover:bg-gray-100 text-gray-700'
+                  ? 'bg-gray-50 border border-gray-300 hover:bg-primary-50 hover:border-primary-300 text-gray-700'
                   : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-medium">{slot.label}</span>
-                <span className="text-xs">
+                <div className="flex items-center">
+                  <div className={`w-3 h-3 rounded-full mr-3 ${
+                    isSelected 
+                      ? 'bg-primary-600' 
+                      : canSelect 
+                      ? 'bg-gray-300' 
+                      : 'bg-gray-200'
+                  }`} />
+                  <span className="font-medium">{slot.label}</span>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded ${
+                  slot.available > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
                   {slot.available}/{slot.capacity}
                 </span>
               </div>
-              <div className="text-xs mt-1 opacity-75">
+              <div className="text-sm mt-1 ml-6 opacity-75">
                 {slot.openTime} - {slot.closeTime}
               </div>
             </button>
@@ -681,7 +780,7 @@ const ScheduleDayCard = ({
   );
 };
 
-// COMPONENTE: Paso 3 - Métodos de pago actualizados
+// COMPONENTE: Paso 3 - Métodos de pago (MEJORADO - ICONOS CORREGIDOS)
 const MembershipPaymentStep = ({ 
   plan, 
   selectedSchedule,
@@ -873,11 +972,11 @@ const MembershipPaymentStep = ({
   return (
     <div className="space-y-6">
       
-      {/* SELECCIÓN DE MÉTODO DE PAGO ACTUALIZADA */}
+      {/* SELECCIÓN DE MÉTODO DE PAGO MEJORADA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex items-center mb-4">
-          <CreditCard className="w-5 h-5 text-primary-600 mr-2" />
-          <h2 className="text-lg font-semibold text-gray-900">Método de pago</h2>
+        <div className="flex items-center mb-6">
+          <CreditCard className="w-6 h-6 text-primary-600 mr-3" />
+          <h2 className="text-xl font-semibold text-gray-900">¿Cómo quieres pagar?</h2>
         </div>
 
         <div className="space-y-4">
@@ -886,23 +985,25 @@ const MembershipPaymentStep = ({
           {stripePromise && (
             <button
               onClick={() => setPaymentMethod('card')}
-              className={`w-full p-4 border rounded-lg text-left transition-colors ${
+              className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
                 paymentMethod === 'card'
-                  ? 'border-primary-500 bg-primary-50'
+                  ? 'border-primary-500 bg-primary-50 shadow-sm'
                   : 'border-gray-300 hover:border-gray-400'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <CreditCard className="w-5 h-5 text-gray-600 mr-3" />
+                  <CreditCard className="w-6 h-6 text-gray-600 mr-4" />
                   <div>
-                    <div className="font-medium">Tarjeta de crédito/débito</div>
+                    <div className="font-semibold text-lg">Tarjeta de crédito/débito</div>
                     <div className="text-sm text-gray-600">Confirmación inmediata • Visa, Mastercard</div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Shield className="w-4 h-4 text-green-500" />
-                  <span className="text-xs text-green-600">Inmediato</span>
+                <div className="flex items-center space-x-2">
+                  <Shield className="w-5 h-5 text-green-500" />
+                  <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
+                    Inmediato
+                  </span>
                 </div>
               </div>
             </button>
@@ -911,57 +1012,61 @@ const MembershipPaymentStep = ({
           {/* Opción: Transferencia bancaria */}
           <button
             onClick={() => setPaymentMethod('transfer')}
-            className={`w-full p-4 border rounded-lg text-left transition-colors ${
+            className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
               paymentMethod === 'transfer'
-                ? 'border-primary-500 bg-primary-50'
+                ? 'border-primary-500 bg-primary-50 shadow-sm'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Upload className="w-5 h-5 text-gray-600 mr-3" />
+                <Upload className="w-6 h-6 text-gray-600 mr-4" />
                 <div>
-                  <div className="font-medium">Transferencia bancaria</div>
+                  <div className="font-semibold text-lg">Transferencia bancaria</div>
                   <div className="text-sm text-gray-600">Sube tu comprobante • Validación manual</div>
                 </div>
               </div>
-              <div className="flex items-center space-x-1">
-                <Clock className="w-4 h-4 text-blue-500" />
-                <span className="text-xs text-blue-600">1-2 días</span>
+              <div className="flex items-center space-x-2">
+                <Clock className="w-5 h-5 text-blue-500" />
+                <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                  1-2 días
+                </span>
               </div>
             </div>
           </button>
 
-          {/* Opción: Efectivo en gimnasio */}
+          {/* Opción: Efectivo en gimnasio - ICONO CORREGIDO */}
           <button
             onClick={() => setPaymentMethod('cash')}
-            className={`w-full p-4 border rounded-lg text-left transition-colors ${
+            className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
               paymentMethod === 'cash'
-                ? 'border-primary-500 bg-primary-50'
+                ? 'border-primary-500 bg-primary-50 shadow-sm'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <DollarSign className="w-5 h-5 text-gray-600 mr-3" />
+                <Banknote className="w-6 h-6 text-gray-600 mr-4" />
                 <div>
-                  <div className="font-medium">Efectivo en el gimnasio</div>
+                  <div className="font-semibold text-lg">Efectivo en el gimnasio</div>
                   <div className="text-sm text-gray-600">Paga al visitar • Confirmación manual</div>
                 </div>
               </div>
-              <div className="flex items-center space-x-1">
-                <MapPin className="w-4 h-4 text-purple-500" />
-                <span className="text-xs text-purple-600">En sucursal</span>
+              <div className="flex items-center space-x-2">
+                <MapPin className="w-5 h-5 text-purple-500" />
+                <span className="text-sm font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded">
+                  En sucursal
+                </span>
               </div>
             </div>
           </button>
         </div>
       </div>
 
-      {/* FORMULARIO DE TARJETA (SIN DATOS DE PRUEBA) */}
+      {/* FORMULARIO DE TARJETA */}
       {paymentMethod === 'card' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-md font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Información de la tarjeta
           </h3>
 
@@ -970,7 +1075,7 @@ const MembershipPaymentStep = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Datos de la tarjeta
               </label>
-              <div className="p-3 border border-gray-300 rounded-lg">
+              <div className="p-4 border-2 border-gray-300 rounded-lg focus-within:border-primary-500">
                 <CardElement
                   options={{
                     style: {
@@ -989,7 +1094,10 @@ const MembershipPaymentStep = ({
                 />
               </div>
               {cardError && (
-                <p className="text-red-500 text-sm mt-1">{cardError}</p>
+                <p className="text-red-500 text-sm mt-2 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  {cardError}
+                </p>
               )}
             </div>
 
@@ -997,9 +1105,9 @@ const MembershipPaymentStep = ({
               <div className="flex items-start">
                 <Shield className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
                 <div className="text-sm">
-                  <p className="text-green-800 font-medium mb-1">Pago seguro y encriptado</p>
+                  <p className="text-green-800 font-medium mb-1">Pago 100% seguro</p>
                   <p className="text-green-700">
-                    Tu información de pago está protegida con encriptación de nivel bancario.
+                    Tu información está protegida con encriptación de nivel bancario.
                   </p>
                 </div>
               </div>
@@ -1011,22 +1119,22 @@ const MembershipPaymentStep = ({
       {/* FORMULARIO DE TRANSFERENCIA */}
       {paymentMethod === 'transfer' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-md font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Transferencia bancaria
           </h3>
 
           {/* Datos bancarios */}
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-            <h4 className="font-medium text-gray-900 mb-3">
+          <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-5 mb-6">
+            <h4 className="font-semibold text-gray-900 mb-4">
               Datos para transferencia:
             </h4>
-            <div className="space-y-2 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div><strong>Banco:</strong> Banco Industrial</div>
               <div><strong>Cuenta:</strong> 123-456789-0</div>
               <div><strong>Nombre:</strong> Elite Fitness Club S.A.</div>
               <div><strong>Tipo:</strong> Cuenta Monetaria</div>
-              <div className="text-primary-600 font-semibold flex items-center">
-                <Bird className="w-4 h-4 mr-1" />
+              <div className="md:col-span-2 text-primary-600 font-bold text-lg flex items-center">
+                <span className="mr-1">Q</span>
                 <strong>Monto exacto:</strong> Q{plan.price.toFixed(2)}
               </div>
             </div>
@@ -1037,7 +1145,7 @@ const MembershipPaymentStep = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Comprobante de transferencia (opcional)
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-primary-300 transition-colors">
               <div className="text-center">
                 <Upload className="w-8 h-8 text-gray-400 mx-auto mb-4" />
                 <label className="cursor-pointer">
@@ -1076,11 +1184,11 @@ const MembershipPaymentStep = ({
           </div>
 
           {/* Instrucciones */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
             <div className="flex items-start">
               <AlertTriangle className="w-5 h-5 text-yellow-500 mr-2 mt-0.5" />
               <div className="text-sm">
-                <p className="text-yellow-800 font-medium mb-1">Proceso de validación</p>
+                <p className="text-yellow-800 font-medium mb-2">Proceso de validación</p>
                 <ul className="text-yellow-700 space-y-1">
                   <li>1. Realiza la transferencia con el monto exacto</li>
                   <li>2. Sube tu comprobante (opcional pero recomendado)</li>
@@ -1096,25 +1204,25 @@ const MembershipPaymentStep = ({
       {/* INFORMACIÓN DE EFECTIVO */}
       {paymentMethod === 'cash' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-md font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Pago en efectivo
           </h3>
 
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
-            <h4 className="font-medium text-purple-900 mb-3">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-5 mb-6">
+            <h4 className="font-semibold text-purple-900 mb-4">
               Información del pago:
             </h4>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-3 text-sm">
               <div className="flex items-center">
-                <MapPin className="w-4 h-4 text-purple-500 mr-2" />
+                <MapPin className="w-5 h-5 text-purple-500 mr-3" />
                 <span><strong>Ubicación:</strong> Elite Fitness Club - Recepción</span>
               </div>
               <div className="flex items-center">
-                <Clock className="w-4 h-4 text-purple-500 mr-2" />
+                <Clock className="w-5 h-5 text-purple-500 mr-3" />
                 <span><strong>Horario:</strong> Lunes a Domingo 6:00 AM - 10:00 PM</span>
               </div>
               <div className="flex items-center">
-                <DollarSign className="w-4 h-4 text-purple-500 mr-2" />
+                <Banknote className="w-5 h-5 text-purple-500 mr-3" />
                 <span><strong>Monto exacto:</strong> Q{plan.price.toFixed(2)}</span>
               </div>
             </div>
@@ -1124,7 +1232,7 @@ const MembershipPaymentStep = ({
             <div className="flex items-start">
               <AlertCircle className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
               <div className="text-sm">
-                <p className="text-blue-800 font-medium mb-1">¿Cómo funciona?</p>
+                <p className="text-blue-800 font-medium mb-2">¿Cómo funciona?</p>
                 <ul className="text-blue-700 space-y-1">
                   <li>1. Confirma tu membresía ahora</li>
                   <li>2. Visita el gimnasio y paga en efectivo</li>
@@ -1137,16 +1245,16 @@ const MembershipPaymentStep = ({
         </div>
       )}
 
-      {/* BOTÓN DE PAGAR ACTUALIZADO */}
+      {/* BOTÓN DE PAGAR MEJORADO */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <button
           onClick={handlePayment}
           disabled={isProcessing || uploadingProof || (paymentMethod === 'card' && (!stripe || !elements))}
-          className="w-full bg-primary-600 text-white py-4 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+          className="w-full bg-primary-600 text-white py-4 rounded-xl text-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center justify-center space-x-3"
         >
           {isProcessing || uploadingProof ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin" />
               <span>
                 {uploadingProof ? 'Subiendo comprobante...' : 'Procesando...'}
               </span>
@@ -1172,7 +1280,7 @@ const MembershipPaymentStep = ({
   );
 };
 
-// COMPONENTE: Resumen de la membresía actualizado
+// COMPONENTE: Resumen de la membresía (ICONOS CORREGIDOS)
 const MembershipSummary = ({ 
   plan, 
   selectedSchedule,
@@ -1245,28 +1353,28 @@ const MembershipSummary = ({
         </div>
       )}
 
-      {/* Detalles del precio */}
+      {/* Detalles del precio - ICONOS CORREGIDOS */}
       <div className="space-y-3 mb-6">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Plan {plan.name}:</span>
-          <span>{formatCurrency(plan.price)}</span>
+          <span>Q{plan.price.toFixed(2)}</span>
         </div>
         
         {plan.originalPrice && plan.originalPrice > plan.price && (
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Descuento:</span>
             <span className="text-green-600">
-              -{formatCurrency(plan.originalPrice - plan.price)}
+              -Q{(plan.originalPrice - plan.price).toFixed(2)}
             </span>
           </div>
         )}
         
         <div className="border-t pt-3">
-          <div className="flex justify-between font-bold text-lg">
+          <div className="flex justify-between font-bold text-xl">
             <span>Total:</span>
             <span className="text-primary-600 flex items-center">
-              <Bird className="w-4 h-4 mr-1" />
-              {formatCurrency(plan.price)}
+              <span className="mr-1">Q</span>
+              {plan.price.toFixed(2)}
             </span>
           </div>
         </div>
@@ -1289,7 +1397,7 @@ const MembershipSummary = ({
           disabled={isProcessing}
           className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors"
         >
-          Seleccionar horarios
+          Elegir horarios
         </button>
       )}
 
@@ -1319,7 +1427,7 @@ const MembershipSummary = ({
   );
 };
 
-// COMPONENTE: Paso 4 - Confirmación actualizada
+// COMPONENTE: Paso 4 - Confirmación (ICONOS CORREGIDOS)
 const MembershipConfirmationStep = ({ membership, user, onBack }) => {
   
   return (
@@ -1380,8 +1488,8 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
             <div className="flex justify-between">
               <span className="text-gray-600">Monto:</span>
               <span className="font-bold text-xl text-green-600 flex items-center">
-                <Bird className="w-5 h-5 mr-1" />
-                Q{membership?.plan?.price || membership?.amount || '0.00'}
+                <span className="mr-1">Q</span>
+                {membership?.plan?.price || membership?.amount || '0.00'}
               </span>
             </div>
             
@@ -1485,7 +1593,7 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
                 </div>
                 
                 <div className="flex items-center text-sm">
-                  <DollarSign className="w-4 h-4 text-purple-500 mr-2" />
+                  <Banknote className="w-4 h-4 text-purple-500 mr-2" />
                   <span>Monto: Q{membership?.plan?.price || '0.00'} en efectivo</span>
                 </div>
               </>
@@ -1532,7 +1640,6 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
 };
 
 export default MembershipCheckout;
-
 /*
 === ACTUALIZACIONES PARA PRODUCCIÓN ===
 
