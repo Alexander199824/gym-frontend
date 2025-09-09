@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipCheckout.js
-// ACTUALIZADO: Selección manual de horarios completamente en español - VERSIÓN COMPLETA
-// MEJORAS: Botón más visible, sin auto-selección, instrucciones claras, español perfecto
+// VERSIÓN COMPLETA: Días en español + diseño optimizado + todas las funcionalidades
+// DESDE CERO - SIN PERDER NINGUNA FUNCIONALIDAD
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -44,10 +44,21 @@ import {
   useElements 
 } from '@stripe/react-stripe-js';
 
-// MEJORADO: Traducción completa de días al español
+// ========================================
+// FUNCIONES DE TRADUCCIÓN DE DÍAS
+// ========================================
+
+// Diccionario de traducción basado en el modelo GymHours.js
 const DIAS_ESPANOL = {
+  'monday': 'Lunes',
+  'tuesday': 'Martes',
+  'wednesday': 'Miércoles',
+  'thursday': 'Jueves',
+  'friday': 'Viernes',
+  'saturday': 'Sábado',
+  'sunday': 'Domingo',
   'Monday': 'Lunes',
-  'Tuesday': 'Martes', 
+  'Tuesday': 'Martes',
   'Wednesday': 'Miércoles',
   'Thursday': 'Jueves',
   'Friday': 'Viernes',
@@ -55,35 +66,63 @@ const DIAS_ESPANOL = {
   'Sunday': 'Domingo',
   'Mon': 'Lun',
   'Tue': 'Mar',
-  'Wed': 'Mié', 
+  'Wed': 'Mié',
   'Thu': 'Jue',
   'Fri': 'Vie',
   'Sat': 'Sáb',
-  'Sun': 'Dom',
-  'monday': 'Lunes',
-  'tuesday': 'Martes',
-  'wednesday': 'Miércoles',
-  'thursday': 'Jueves',
-  'friday': 'Viernes',
-  'saturday': 'Sábado',
-  'sunday': 'Domingo'
+  'Sun': 'Dom'
 };
 
+// Función principal de traducción
 const traducirDia = (dia) => {
+  if (!dia) return dia;
   return DIAS_ESPANOL[dia] || dia;
 };
 
-// MEJORADO: Función para traducir nombres de días en objetos de horarios
+// Función para traducir arrays de días
+const traducirListaDias = (diasArray) => {
+  if (!diasArray || !Array.isArray(diasArray)) {
+    return 'Todos los días';
+  }
+  
+  return diasArray.map(dia => {
+    switch(dia.toLowerCase()) {
+      case 'monday': return 'Lunes';
+      case 'tuesday': return 'Martes';
+      case 'wednesday': return 'Miércoles';
+      case 'thursday': return 'Jueves';
+      case 'friday': return 'Viernes';
+      case 'saturday': return 'Sábado';
+      case 'sunday': return 'Domingo';
+      default: return traducirDia(dia);
+    }
+  }).join(', ');
+};
+
+// Función para traducir objetos de horarios
 const traducirHorariosAEspanol = (scheduleData) => {
   if (!scheduleData) return {};
   
   const translated = {};
   Object.keys(scheduleData).forEach(day => {
     const dayData = scheduleData[day];
-    if (dayData && dayData.dayName) {
+    if (dayData) {
+      let dayNameSpanish;
+      
+      switch(day.toLowerCase()) {
+        case 'monday': dayNameSpanish = 'Lunes'; break;
+        case 'tuesday': dayNameSpanish = 'Martes'; break;
+        case 'wednesday': dayNameSpanish = 'Miércoles'; break;
+        case 'thursday': dayNameSpanish = 'Jueves'; break;
+        case 'friday': dayNameSpanish = 'Viernes'; break;
+        case 'saturday': dayNameSpanish = 'Sábado'; break;
+        case 'sunday': dayNameSpanish = 'Domingo'; break;
+        default: dayNameSpanish = traducirDia(dayData.dayName || day);
+      }
+      
       translated[day] = {
         ...dayData,
-        dayName: traducirDia(dayData.dayName)
+        dayName: dayNameSpanish
       };
     } else {
       translated[day] = dayData;
@@ -91,6 +130,23 @@ const traducirHorariosAEspanol = (scheduleData) => {
   });
   return translated;
 };
+
+// ========================================
+// FUNCIONES DE FORMATEO DE PRECIOS
+// ========================================
+
+const formatPrice = (price) => {
+  const numPrice = parseFloat(price) || 0;
+  return numPrice.toFixed(2);
+};
+
+const formatPriceWithSymbol = (price) => {
+  return `Q${formatPrice(price)}`;
+};
+
+// ========================================
+// COMPONENTE PRINCIPAL
+// ========================================
 
 const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   const { user, isAuthenticated } = useAuth();
@@ -104,7 +160,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   
   // Estados del flujo
   const [availableSchedules, setAvailableSchedules] = useState(null);
-  const [selectedSchedule, setSelectedSchedule] = useState({}); // CAMBIADO: Inicia vacío
+  const [selectedSchedule, setSelectedSchedule] = useState({});
   const [planInfo, setPlanInfo] = useState(null);
   const [scheduleVerified, setScheduleVerified] = useState(false);
   
@@ -113,7 +169,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   
   const stripeInitialized = useRef(false);
   
-  // EFECTO: Verificar autenticación
+  // Verificar autenticación
   useEffect(() => {
     if (!isAuthenticated) {
       showError('Debes iniciar sesión para adquirir una membresía');
@@ -121,23 +177,19 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   }, [isAuthenticated, onBack, showError]);
   
-  // EFECTO: Inicializar Stripe
+  // Inicializar Stripe
   useEffect(() => {
     const initializeStripe = async () => {
       if (stripeInitialized.current) return;
       
       try {
-        console.log('Verificando Stripe...');
-        
         const stripeConfig = await membershipService.checkStripeConfig();
         
         if (stripeConfig?.enabled) {
           const publishableKey = stripeConfig.publishableKey;
           const stripe = await loadStripe(publishableKey);
           setStripePromise(Promise.resolve(stripe));
-          console.log('Stripe habilitado para producción');
         } else {
-          console.warn('Stripe no habilitado');
           showInfo('Pagos con tarjeta no disponibles. Usa transferencia o efectivo.');
         }
         
@@ -152,32 +204,26 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     initializeStripe();
   }, [showError, showInfo]);
   
-  // EFECTO: Cargar horarios cuando llega al step 2
+  // Cargar horarios cuando llega al step 2
   useEffect(() => {
     if (step === 2 && selectedPlan && !availableSchedules) {
       loadScheduleOptions();
     }
   }, [step, selectedPlan, availableSchedules]);
   
-  // FUNCIÓN MEJORADA: Cargar opciones de horarios SIN auto-selección
+  // Cargar opciones de horarios SIN auto-selección
   const loadScheduleOptions = async () => {
     try {
       setIsProcessing(true);
-      console.log(`Cargando horarios para plan ${selectedPlan.id}...`);
       
       const scheduleData = await membershipService.getScheduleOptions(selectedPlan.id);
       
-      // MEJORADO: Traducir nombres de días al español
+      // Traducir nombres de días al español
       const translatedSchedules = traducirHorariosAEspanol(scheduleData.availableOptions);
       
       setAvailableSchedules(translatedSchedules);
       setPlanInfo(scheduleData.plan);
-      
-      // ELIMINADO: Ya no auto-selecciona horarios
-      // NUEVO: Mantener selección vacía para que usuario elija manualmente
       setSelectedSchedule({});
-      
-      console.log('Horarios cargados exitosamente - Esperando selección del usuario');
       
     } catch (error) {
       console.error('Error cargando horarios:', error);
@@ -187,11 +233,10 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   };
   
-  // FUNCIÓN: Verificar disponibilidad de horarios
+  // Verificar disponibilidad de horarios
   const verifyScheduleAvailability = async () => {
     try {
       setIsProcessing(true);
-      console.log('Verificando disponibilidad...');
       
       const verification = await membershipService.checkScheduleAvailability(
         selectedPlan.id, 
@@ -204,12 +249,9 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
         return true;
       } else {
         showError('Algunos horarios ya no están disponibles');
-        
-        // Mostrar conflictos
         verification.conflicts.forEach(conflict => {
           showError(`${conflict.day}: ${conflict.error}`);
         });
-        
         return false;
       }
       
@@ -222,10 +264,9 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   };
   
-  // FUNCIÓN: Continuar al siguiente paso
+  // Continuar al siguiente paso
   const handleContinue = async () => {
     if (step === 2) {
-      // Verificar horarios antes de continuar al pago
       const verified = await verifyScheduleAvailability();
       if (!verified) return;
     }
@@ -235,7 +276,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   };
   
-  // FUNCIÓN: Volver al paso anterior
+  // Volver al paso anterior
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
@@ -244,13 +285,13 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   };
   
-  // FUNCIÓN: Manejar cambio de horario
+  // Manejar cambio de horario
   const handleScheduleChange = (day, slotIds) => {
     setSelectedSchedule(prev => ({
       ...prev,
       [day]: slotIds
     }));
-    setScheduleVerified(false); // Requiere nueva verificación
+    setScheduleVerified(false);
   };
   
   if (!selectedPlan || !isAuthenticated) {
@@ -260,7 +301,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* HEADER MEJORADO */}
+      {/* HEADER */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -287,64 +328,33 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
         </div>
       </div>
 
-      {/* BARRA DE PROGRESO MEJORADA */}
+      {/* BARRA DE PROGRESO */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-4">
             <div className="flex items-center space-x-4">
-              {/* Paso 1 */}
-              <div className="flex flex-col items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                  step >= 1 
-                    ? 'bg-primary-600 border-primary-600 text-white' 
-                    : 'border-gray-300 text-gray-400'
-                }`}>
-                  {step > 1 ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">1</span>}
-                </div>
-                <span className="text-xs text-gray-600 mt-1">Confirmar</span>
-              </div>
-              
-              <div className={`w-12 h-0.5 transition-colors ${step > 1 ? 'bg-primary-600' : 'bg-gray-300'}`} />
-              
-              {/* Paso 2 */}
-              <div className="flex flex-col items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                  step >= 2 
-                    ? 'bg-primary-600 border-primary-600 text-white' 
-                    : 'border-gray-300 text-gray-400'
-                }`}>
-                  {step > 2 ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">2</span>}
-                </div>
-                <span className="text-xs text-gray-600 mt-1">Horarios</span>
-              </div>
-              
-              <div className={`w-12 h-0.5 transition-colors ${step > 2 ? 'bg-primary-600' : 'bg-gray-300'}`} />
-              
-              {/* Paso 3 */}
-              <div className="flex flex-col items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                  step >= 3 
-                    ? 'bg-primary-600 border-primary-600 text-white' 
-                    : 'border-gray-300 text-gray-400'
-                }`}>
-                  {step > 3 ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">3</span>}
-                </div>
-                <span className="text-xs text-gray-600 mt-1">Pagar</span>
-              </div>
-              
-              <div className={`w-12 h-0.5 transition-colors ${step > 3 ? 'bg-primary-600' : 'bg-gray-300'}`} />
-              
-              {/* Paso 4 */}
-              <div className="flex flex-col items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                  step >= 4 
-                    ? 'bg-primary-600 border-primary-600 text-white' 
-                    : 'border-gray-300 text-gray-400'
-                }`}>
-                  {step >= 4 ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">4</span>}
-                </div>
-                <span className="text-xs text-gray-600 mt-1">¡Listo!</span>
-              </div>
+              {[1, 2, 3, 4].map((stepNum) => (
+                <React.Fragment key={stepNum}>
+                  <div className="flex flex-col items-center">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                      step >= stepNum 
+                        ? 'bg-primary-600 border-primary-600 text-white' 
+                        : 'border-gray-300 text-gray-400'
+                    }`}>
+                      {step > stepNum ? <CheckCircle className="w-5 h-5" /> : <span className="font-semibold">{stepNum}</span>}
+                    </div>
+                    <span className="text-xs text-gray-600 mt-1">
+                      {stepNum === 1 && 'Confirmar'}
+                      {stepNum === 2 && 'Horarios'}
+                      {stepNum === 3 && 'Pagar'}
+                      {stepNum === 4 && '¡Listo!'}
+                    </span>
+                  </div>
+                  {stepNum < 4 && (
+                    <div className={`w-12 h-0.5 transition-colors ${step > stepNum ? 'bg-primary-600' : 'bg-gray-300'}`} />
+                  )}
+                </React.Fragment>
+              ))}
             </div>
           </div>
         </div>
@@ -354,17 +364,14 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {step === 4 ? (
-          // Paso 4: Confirmación
           <MembershipConfirmationStep
             membership={completedMembership}
             user={user}
             onBack={onBack}
           />
         ) : (
-          // Pasos 1, 2 y 3: Layout con resumen lateral
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* CONTENIDO PRINCIPAL */}
             <div className="lg:col-span-2">
               {step === 1 && (
                 <MembershipInfoStep
@@ -409,7 +416,6 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
               )}
             </div>
 
-            {/* RESUMEN DE LA MEMBRESÍA MEJORADO */}
             <div className="lg:col-span-1">
               <MembershipSummaryImproved
                 plan={selectedPlan}
@@ -429,7 +435,10 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   );
 };
 
-// COMPONENTE: Paso 1 - Información de la membresía MEJORADO
+// ========================================
+// PASO 1: INFORMACIÓN DE LA MEMBRESÍA
+// ========================================
+
 const MembershipInfoStep = ({ plan, user, onContinue }) => {
   
   return (
@@ -488,7 +497,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
         </div>
       </div>
 
-      {/* DETALLES DE LA MEMBRESÍA SELECCIONADA */}
+      {/* DETALLES DE LA MEMBRESÍA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Crown className="w-5 h-5 text-primary-600 mr-2" />
@@ -503,14 +512,14 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
             <div className="text-right">
               <div className="flex items-center text-2xl font-bold text-primary-600">
                 <span className="mr-1">Q</span>
-                {plan.price}
+                {formatPrice(plan.price)}
               </div>
               <div className="text-sm text-gray-600">
                 por {plan.durationType}
               </div>
-              {plan.originalPrice && plan.originalPrice > plan.price && (
+              {plan.originalPrice && parseFloat(plan.originalPrice) > parseFloat(plan.price) && (
                 <div className="text-sm text-green-600 font-medium">
-                  Ahorro: Q{plan.originalPrice - plan.price}
+                  Ahorro: Q{formatPrice((parseFloat(plan.originalPrice) || 0) - (parseFloat(plan.price) || 0))}
                 </div>
               )}
             </div>
@@ -557,7 +566,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
         </div>
       </div>
 
-      {/* BOTÓN MEJORADO PARA CONTINUAR A HORARIOS */}
+      {/* BOTÓN PARA CONTINUAR A HORARIOS */}
       <div className="bg-gradient-to-r from-primary-600 to-blue-600 rounded-xl p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
@@ -579,7 +588,10 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
   );
 };
 
-// COMPONENTE: Paso 2 - Selección de horarios COMPLETAMENTE MEJORADO
+// ========================================
+// PASO 2: SELECCIÓN DE HORARIOS
+// ========================================
+
 const ScheduleSelectionStep = ({ 
   plan, 
   planInfo, 
@@ -616,71 +628,88 @@ const ScheduleSelectionStep = ({
   return (
     <div className="space-y-6">
       
-      {/* INSTRUCCIONES CLARAS PARA EL USUARIO */}
-      <div className="bg-gradient-to-r from-primary-50 to-blue-50 border-2 border-primary-200 rounded-xl p-8">
-        <div className="text-center mb-6">
-          <Calendar className="w-12 h-12 text-primary-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-3">
-            ¡Selecciona tus horarios de entrenamiento!
-          </h2>
-          <p className="text-lg text-gray-700 mb-4">
-            Elige los días y horarios cuando planeas venir al gimnasio
-          </p>
-          
-          {/* CONTADOR PROMINENTE */}
-          <div className="bg-white rounded-lg p-4 inline-block">
-            <div className="text-3xl font-bold text-primary-600">
-              {selectedSlotsCount}
-              <span className="text-lg text-gray-600">/{planInfo.maxReservationsPerWeek || '∞'}</span>
+      {/* INSTRUCCIONES COMPACTAS */}
+      <div className="bg-gradient-to-r from-primary-50 to-blue-50 border-2 border-primary-200 rounded-lg p-4">
+        
+        {/* HEADER COMPACTO */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div className="flex items-center">
+            <Calendar className="w-6 h-6 text-primary-600 mr-2" />
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">
+                ¡Selecciona tus horarios de entrenamiento!
+              </h2>
+              <p className="text-sm text-gray-600">
+                Elige cuándo quieres entrenar
+              </p>
             </div>
-            <div className="text-sm text-gray-600">horarios seleccionados</div>
+          </div>
+          
+          {/* CONTADOR INLINE */}
+          <div className="bg-white rounded-lg px-4 py-2 border border-primary-200 flex-shrink-0">
+            <div className="text-2xl font-bold text-primary-600 text-center">
+              {selectedSlotsCount}
+              <span className="text-sm text-gray-600">/{planInfo.maxReservationsPerWeek || '∞'}</span>
+            </div>
+            <div className="text-xs text-gray-600 text-center">seleccionados</div>
           </div>
         </div>
 
-        {/* INFORMACIÓN DEL PLAN */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-white rounded-lg p-4">
-          <div className="text-center">
-            <div className="font-semibold text-gray-800">Días disponibles</div>
-            <div className="text-primary-600">{planInfo.allowedDays?.join(', ') || 'Todos los días'}</div>
+        {/* INFO COMPACTA EN UNA LÍNEA */}
+        <div className="flex flex-wrap items-center gap-4 text-sm bg-white rounded-lg p-3">
+          <div className="flex items-center">
+            <span className="font-medium text-gray-700 mr-1">Días:</span>
+            <span className="text-primary-600 font-medium">
+              {traducirListaDias(planInfo.allowedDays)}
+            </span>
           </div>
-          <div className="text-center">
-            <div className="font-semibold text-gray-800">Máximo por día</div>
-            <div className="text-primary-600">{planInfo.maxSlotsPerDay || 'Sin límite'}</div>
+          
+          <div className="w-px h-4 bg-gray-300"></div>
+          
+          <div className="flex items-center">
+            <span className="font-medium text-gray-700 mr-1">Max/día:</span>
+            <span className="text-primary-600 font-medium">{planInfo.maxSlotsPerDay || '∞'}</span>
           </div>
-          <div className="text-center">
-            <div className="font-semibold text-gray-800">Máximo semanal</div>
-            <div className="text-primary-600">{planInfo.maxReservationsPerWeek || 'Sin límite'}</div>
+          
+          <div className="w-px h-4 bg-gray-300"></div>
+          
+          <div className="flex items-center">
+            <span className="font-medium text-gray-700 mr-1">Max semanal:</span>
+            <span className="text-primary-600 font-medium">{planInfo.maxReservationsPerWeek || '∞'}</span>
           </div>
-          <div className="text-center">
-            <div className="font-semibold text-gray-800">Seleccionados</div>
-            <div className={`font-bold text-xl ${
+          
+          <div className="w-px h-4 bg-gray-300"></div>
+          
+          <div className="flex items-center">
+            <span className={`font-bold text-lg ${
               selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999) ? 'text-red-600' : 'text-green-600'
             }`}>
-              {selectedSlotsCount}
-            </div>
+              ✓ {selectedSlotsCount}
+            </span>
           </div>
         </div>
 
-        {/* MENSAJE DE INSTRUCCIÓN */}
+        {/* MENSAJE DE INSTRUCCIÓN COMPACTO */}
         {selectedSlotsCount === 0 && (
-          <div className="mt-4 p-4 bg-yellow-100 border border-yellow-300 rounded-lg">
+          <div className="mt-3 p-2 bg-yellow-100 border border-yellow-300 rounded-lg">
             <div className="flex items-center">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-              <span className="text-yellow-800 font-medium">
-                👆 Selecciona al menos un horario para continuar
+              <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
+              <span className="text-yellow-800 text-sm">
+                👆 Haz clic en los horarios que prefieres para continuar
               </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* GRID DE DÍAS Y HORARIOS MEJORADO */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-6 text-center">
+      {/* GRID SÚPER COMPACTO HORIZONTAL */}
+      <div className="bg-white rounded-lg shadow-sm p-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
           Haz clic en los horarios que prefieres
         </h3>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* MÁXIMA COMPACTACIÓN: Grid responsivo optimizado */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {Object.entries(availableSchedules).map(([day, dayData]) => (
             <ScheduleDayCardImproved
               key={day}
@@ -742,7 +771,7 @@ const ScheduleSelectionStep = ({
   );
 };
 
-// COMPONENTE: Card para cada día MEJORADO CON NOMBRES EN ESPAÑOL
+// COMPONENTE: Card SÚPER COMPACTA
 const ScheduleDayCardImproved = ({ 
   day, 
   dayData, 
@@ -757,50 +786,59 @@ const ScheduleDayCardImproved = ({
     const isSelected = selectedSlots.includes(slotId);
     
     if (isSelected) {
-      // Deseleccionar
       onSelectionChange(selectedSlots.filter(id => id !== slotId));
     } else {
-      // Verificar límites antes de seleccionar
       if (selectedSlots.length >= (maxSlotsPerDay || 999)) {
-        return; // Límite por día alcanzado
+        return;
       }
       if (totalSelected >= (maxTotal || 999)) {
-        return; // Límite total alcanzado
+        return;
       }
-      
-      // Seleccionar
       onSelectionChange([...selectedSlots, slotId]);
     }
   };
 
-  // MEJORADO: Asegurar que el nombre del día esté en español
-  const dayNameSpanish = dayData.dayName || traducirDia(day);
+  // TRADUCCIÓN GARANTIZADA basada en el modelo de BD
+  const dayNameSpanish = (() => {
+    switch(day.toLowerCase()) {
+      case 'monday': return 'Lunes';
+      case 'tuesday': return 'Martes';
+      case 'wednesday': return 'Miércoles';
+      case 'thursday': return 'Jueves';
+      case 'friday': return 'Viernes';
+      case 'saturday': return 'Sábado';
+      case 'sunday': return 'Domingo';
+      default: return traducirDia(dayData.dayName || day);
+    }
+  })();
 
   if (!dayData.isOpen || dayData.slots.length === 0) {
     return (
-      <div className="bg-gray-100 border-2 border-gray-200 rounded-xl p-6">
-        <h3 className="font-bold text-xl text-gray-400 mb-2 text-center">
-          {dayNameSpanish}
-        </h3>
-        <p className="text-sm text-gray-400 text-center">Cerrado</p>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 min-h-[100px] flex flex-col items-center justify-center">
+        <h3 className="font-semibold text-gray-400 text-sm">{dayNameSpanish}</h3>
+        <p className="text-xs text-gray-400 mt-1">Cerrado</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-primary-300 transition-all hover:shadow-lg">
-      <h3 className="font-bold text-xl text-gray-900 mb-4 text-center flex items-center justify-between">
-        <span>{dayNameSpanish}</span>
-        <span className={`text-lg px-4 py-2 rounded-full ${
+    <div className="bg-white border border-gray-200 rounded-lg p-3 hover:border-primary-300 transition-all hover:shadow-sm">
+      {/* HEADER ULTRA COMPACTO */}
+      <div className="flex items-center justify-between mb-2 pb-1 border-b border-gray-100">
+        <h3 className="font-bold text-sm text-gray-900">
+          {dayNameSpanish}
+        </h3>
+        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
           selectedSlots.length > 0 
-            ? 'bg-primary-100 text-primary-700 border-2 border-primary-200'
+            ? 'bg-primary-100 text-primary-700'
             : 'bg-gray-100 text-gray-500'
         }`}>
           {selectedSlots.length}/{maxSlotsPerDay || '∞'}
         </span>
-      </h3>
+      </div>
       
-      <div className="space-y-3">
+      {/* HORARIOS ULTRA COMPACTOS */}
+      <div className="space-y-1">
         {dayData.slots.map((slot) => {
           const isSelected = selectedSlots.includes(slot.id);
           const canSelect = slot.canReserve && 
@@ -811,38 +849,38 @@ const ScheduleDayCardImproved = ({
               key={slot.id}
               onClick={() => handleSlotToggle(slot.id)}
               disabled={!slot.canReserve && !isSelected}
-              className={`w-full p-4 rounded-xl text-left transition-all transform hover:scale-102 ${
+              className={`w-full p-2 rounded text-left transition-all text-xs ${
                 isSelected
-                  ? 'bg-gradient-to-r from-primary-100 to-blue-100 border-3 border-primary-500 text-primary-800 shadow-lg'
+                  ? 'bg-primary-100 border border-primary-400 text-primary-800'
                   : canSelect
-                  ? 'bg-gray-50 border-2 border-gray-300 hover:bg-primary-50 hover:border-primary-400 text-gray-700 hover:shadow-md'
-                  : 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                  ? 'bg-gray-50 border border-gray-200 hover:bg-primary-50 hover:border-primary-300 text-gray-700'
+                  : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className={`w-6 h-6 rounded-full mr-4 flex items-center justify-center ${
+                  <div className={`w-3 h-3 rounded-full mr-2 flex items-center justify-center ${
                     isSelected 
                       ? 'bg-primary-600 text-white' 
                       : canSelect 
-                      ? 'bg-gray-300 text-gray-600' 
-                      : 'bg-gray-200 text-gray-400'
+                      ? 'bg-gray-300' 
+                      : 'bg-gray-200'
                   }`}>
-                    {isSelected && <Check className="w-4 h-4" />}
+                    {isSelected && <Check className="w-2 h-2" />}
                   </div>
                   <div>
-                    <div className="font-bold text-lg">{slot.label}</div>
-                    <div className="text-sm opacity-75">
-                      {slot.openTime} - {slot.closeTime}
+                    <div className="font-semibold">{slot.label}</div>
+                    <div className="opacity-75 text-xs">
+                      {slot.openTime}-{slot.closeTime}
                     </div>
                   </div>
                 </div>
-                <div className={`text-xs px-3 py-2 rounded-full font-semibold ${
+                <div className={`text-xs px-1 py-0.5 rounded ${
                   slot.available > 0 
-                    ? 'bg-green-100 text-green-700 border border-green-300' 
-                    : 'bg-red-100 text-red-700 border border-red-300'
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-red-100 text-red-700'
                 }`}>
-                  {slot.available}/{slot.capacity} espacios
+                  {slot.available}/{slot.capacity}
                 </div>
               </div>
             </button>
@@ -853,7 +891,10 @@ const ScheduleDayCardImproved = ({
   );
 };
 
-// COMPONENTE: Resumen de membresía MEJORADO
+// ========================================
+// RESUMEN DE MEMBRESÍA MEJORADO
+// ========================================
+
 const MembershipSummaryImproved = ({ 
   plan, 
   selectedSchedule,
@@ -904,7 +945,7 @@ const MembershipSummaryImproved = ({
         )}
       </div>
 
-      {/* Resumen de horarios MEJORADO */}
+      {/* Resumen de horarios */}
       {step >= 2 && (
         <div className="border border-gray-200 rounded-lg p-4 mb-6">
           <h4 className="font-medium text-gray-900 mb-3 flex items-center">
@@ -948,14 +989,14 @@ const MembershipSummaryImproved = ({
       <div className="space-y-3 mb-6">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Plan {plan.name}:</span>
-          <span>Q{plan.price.toFixed(2)}</span>
+          <span>Q{formatPrice(plan.price)}</span>
         </div>
         
-        {plan.originalPrice && plan.originalPrice > plan.price && (
+        {plan.originalPrice && parseFloat(plan.originalPrice) > parseFloat(plan.price) && (
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Descuento:</span>
             <span className="text-green-600">
-              -Q{(plan.originalPrice - plan.price).toFixed(2)}
+              -Q{formatPrice((parseFloat(plan.originalPrice) || 0) - (parseFloat(plan.price) || 0))}
             </span>
           </div>
         )}
@@ -965,7 +1006,7 @@ const MembershipSummaryImproved = ({
             <span>Total:</span>
             <span className="text-primary-600 flex items-center">
               <span className="mr-1">Q</span>
-              {plan.price.toFixed(2)}
+              {formatPrice(plan.price)}
             </span>
           </div>
         </div>
@@ -981,7 +1022,7 @@ const MembershipSummaryImproved = ({
         </div>
       </div>
 
-      {/* Botón de continuar MEJORADO */}
+      {/* Botón de continuar */}
       {step === 1 && onContinue && (
         <button
           onClick={onContinue}
@@ -1019,7 +1060,10 @@ const MembershipSummaryImproved = ({
   );
 };
 
-// COMPONENTE: Paso 3 - Métodos de pago (COMPLETO)
+// ========================================
+// PASO 3: MÉTODOS DE PAGO
+// ========================================
+
 const MembershipPaymentStep = ({ 
   plan, 
   selectedSchedule,
@@ -1038,7 +1082,7 @@ const MembershipPaymentStep = ({
   const [transferProof, setTransferProof] = useState(null);
   const [uploadingProof, setUploadingProof] = useState(false);
   
-  // FUNCIÓN: Procesar pago con Stripe (PRODUCCIÓN)
+  // Procesar pago con Stripe
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -1049,9 +1093,6 @@ const MembershipPaymentStep = ({
       setIsProcessing(true);
       setCardError('');
 
-      console.log('Iniciando pago con tarjeta...');
-
-      // 1. Crear Payment Intent
       const paymentIntentData = await membershipService.createMembershipPaymentIntent(
         plan.id, 
         selectedSchedule, 
@@ -1059,9 +1100,8 @@ const MembershipPaymentStep = ({
       );
 
       const { clientSecret } = paymentIntentData;
-
-      // 2. Confirmar con Stripe
       const cardElement = elements.getElement(CardElement);
+      
       const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardElement,
@@ -1080,9 +1120,6 @@ const MembershipPaymentStep = ({
       }
 
       if (paymentIntent.status === 'succeeded') {
-        console.log('Pago confirmado con Stripe');
-        
-        // 3. Comprar membresía en backend
         const purchaseResult = await membershipService.purchaseMembership(
           plan.id,
           selectedSchedule,
@@ -1090,8 +1127,6 @@ const MembershipPaymentStep = ({
           `Pago con tarjeta - Payment Intent: ${paymentIntent.id}`
         );
 
-        console.log('Membresía creada exitosamente');
-        
         const membership = {
           ...purchaseResult.membership,
           payment: purchaseResult.payment,
@@ -1101,7 +1136,6 @@ const MembershipPaymentStep = ({
         };
 
         onSuccess(membership);
-
       } else {
         throw new Error('El pago no se completó correctamente');
       }
@@ -1114,12 +1148,10 @@ const MembershipPaymentStep = ({
     }
   };
 
-  // FUNCIÓN: Crear pago por transferencia
+  // Crear pago por transferencia
   const handleTransferPayment = async () => {
     try {
       setIsProcessing(true);
-
-      console.log('Creando pago por transferencia...');
 
       const purchaseResult = await membershipService.purchaseMembership(
         plan.id,
@@ -1130,13 +1162,11 @@ const MembershipPaymentStep = ({
 
       const paymentId = purchaseResult.payment.id;
 
-      // Subir comprobante si se proporcionó
       if (transferProof) {
         setUploadingProof(true);
         
         try {
           await membershipService.uploadTransferProof(paymentId, transferProof);
-          console.log('Comprobante subido exitosamente');
         } catch (uploadError) {
           console.warn('Error subiendo comprobante:', uploadError.message);
         }
@@ -1165,12 +1195,10 @@ const MembershipPaymentStep = ({
     }
   };
 
-  // FUNCIÓN: Crear pago en efectivo
+  // Crear pago en efectivo
   const handleCashPayment = async () => {
     try {
       setIsProcessing(true);
-
-      console.log('Registrando pago en efectivo...');
 
       const purchaseResult = await membershipService.purchaseMembership(
         plan.id,
@@ -1211,7 +1239,7 @@ const MembershipPaymentStep = ({
   return (
     <div className="space-y-6">
       
-      {/* SELECCIÓN DE MÉTODO DE PAGO MEJORADA */}
+      {/* SELECCIÓN DE MÉTODO DE PAGO */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-6">
           <CreditCard className="w-6 h-6 text-primary-600 mr-3" />
@@ -1220,7 +1248,7 @@ const MembershipPaymentStep = ({
 
         <div className="space-y-4">
           
-          {/* Opción: Tarjeta de crédito/débito */}
+          {/* Tarjeta de crédito/débito */}
           {stripePromise && (
             <button
               onClick={() => setPaymentMethod('card')}
@@ -1248,7 +1276,7 @@ const MembershipPaymentStep = ({
             </button>
           )}
 
-          {/* Opción: Transferencia bancaria */}
+          {/* Transferencia bancaria */}
           <button
             onClick={() => setPaymentMethod('transfer')}
             className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
@@ -1274,7 +1302,7 @@ const MembershipPaymentStep = ({
             </div>
           </button>
 
-          {/* Opción: Efectivo en gimnasio */}
+          {/* Efectivo en gimnasio */}
           <button
             onClick={() => setPaymentMethod('cash')}
             className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
@@ -1362,7 +1390,6 @@ const MembershipPaymentStep = ({
             Transferencia bancaria
           </h3>
 
-          {/* Datos bancarios */}
           <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-5 mb-6">
             <h4 className="font-semibold text-gray-900 mb-4">
               Datos para transferencia:
@@ -1374,12 +1401,11 @@ const MembershipPaymentStep = ({
               <div><strong>Tipo:</strong> Cuenta Monetaria</div>
               <div className="md:col-span-2 text-primary-600 font-bold text-lg flex items-center">
                 <span className="mr-1">Q</span>
-                <strong>Monto exacto:</strong> Q{plan.price.toFixed(2)}
+                <strong>Monto exacto:</strong> Q{formatPrice(plan.price)}
               </div>
             </div>
           </div>
 
-          {/* Upload de comprobante */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Comprobante de transferencia (opcional)
@@ -1422,7 +1448,6 @@ const MembershipPaymentStep = ({
             </div>
           </div>
 
-          {/* Instrucciones */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-6">
             <div className="flex items-start">
               <AlertTriangle className="w-5 h-5 text-yellow-500 mr-2 mt-0.5" />
@@ -1462,7 +1487,7 @@ const MembershipPaymentStep = ({
               </div>
               <div className="flex items-center">
                 <Banknote className="w-5 h-5 text-purple-500 mr-3" />
-                <span><strong>Monto exacto:</strong> Q{plan.price.toFixed(2)}</span>
+                <span><strong>Monto exacto:</strong> Q{formatPrice(plan.price)}</span>
               </div>
             </div>
           </div>
@@ -1484,7 +1509,7 @@ const MembershipPaymentStep = ({
         </div>
       )}
 
-      {/* BOTÓN DE PAGAR MEJORADO */}
+      {/* BOTÓN DE PAGAR */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <button
           onClick={handlePayment}
@@ -1502,7 +1527,7 @@ const MembershipPaymentStep = ({
             <>
               <Lock className="w-5 h-5" />
               <span>
-                {paymentMethod === 'card' && `Pagar Q${plan.price.toFixed(2)} con tarjeta`}
+                {paymentMethod === 'card' && `Pagar Q${formatPrice(plan.price)} con tarjeta`}
                 {paymentMethod === 'transfer' && 'Confirmar transferencia'}
                 {paymentMethod === 'cash' && 'Confirmar pago en efectivo'}
               </span>
@@ -1519,13 +1544,16 @@ const MembershipPaymentStep = ({
   );
 };
 
-// COMPONENTE: Paso 4 - Confirmación (COMPLETO)
+// ========================================
+// PASO 4: CONFIRMACIÓN
+// ========================================
+
 const MembershipConfirmationStep = ({ membership, user, onBack }) => {
   
   return (
     <div className="space-y-8">
       
-      {/* BANNER DE ÉXITO ACTUALIZADO */}
+      {/* BANNER DE ÉXITO */}
       <div className={`text-white rounded-2xl p-8 text-center shadow-xl ${
         membership?.paymentMethod === 'card' 
           ? 'bg-gradient-to-r from-green-500 to-green-600'
@@ -1561,10 +1589,9 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
         </div>
       </div>
 
-      {/* DETALLES ACTUALIZADOS */}
+      {/* DETALLES */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* Información de la membresía */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
             <Crown className="w-6 h-6 text-primary-600 mr-2" />
@@ -1581,7 +1608,7 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
               <span className="text-gray-600">Monto:</span>
               <span className="font-bold text-xl text-green-600 flex items-center">
                 <span className="mr-1">Q</span>
-                {membership?.plan?.price || membership?.amount || '0.00'}
+                {formatPrice(membership?.plan?.price || membership?.amount || 0)}
               </span>
             </div>
             
@@ -1615,7 +1642,6 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
               </span>
             </div>
 
-            {/* Mostrar horarios si están disponibles */}
             {membership?.schedule && Object.keys(membership.schedule).length > 0 && (
               <div className="border-t pt-3">
                 <span className="text-gray-600">Horarios programados:</span>
@@ -1628,7 +1654,6 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
           </div>
         </div>
 
-        {/* Información de próximos pasos */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
             <Mail className="w-6 h-6 text-blue-600 mr-2" />
@@ -1686,7 +1711,7 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
                 
                 <div className="flex items-center text-sm">
                   <Banknote className="w-4 h-4 text-purple-500 mr-2" />
-                  <span>Monto: Q{membership?.plan?.price || '0.00'} en efectivo</span>
+                  <span>Monto: Q{formatPrice(membership?.plan?.price || 0)} en efectivo</span>
                 </div>
               </>
             )}
