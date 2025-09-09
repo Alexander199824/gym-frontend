@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipCheckout.js
-// VERSIÓN COMPLETA: Días en español + diseño optimizado + todas las funcionalidades
-// DESDE CERO - SIN PERDER NINGUNA FUNCIONALIDAD
+// VERSIÓN COMPLETA: Diseño escalable para muchos horarios + 1 slot por día
+// DISEÑO INTUITIVO TIPO TIMELINE PARA 20+ HORARIOS POR DÍA
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -28,7 +28,15 @@ import {
   Eye,
   EyeOff,
   Banknote,
-  ChevronRight
+  ChevronRight,
+  Users,
+  Timer,
+  Zap,
+  Star,
+  ChevronDown,
+  ChevronUp,
+  Filter,
+  Search
 } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -142,6 +150,32 @@ const formatPrice = (price) => {
 
 const formatPriceWithSymbol = (price) => {
   return `Q${formatPrice(price)}`;
+};
+
+// ========================================
+// FUNCIONES AUXILIARES PARA HORARIOS
+// ========================================
+
+// Función para agrupar horarios por franja
+const agruparHorariosPorFranja = (slots) => {
+  const franjas = {
+    morning: { label: '🌅 Mañana', slots: [], range: '6:00 - 12:00' },
+    afternoon: { label: '☀️ Tarde', slots: [], range: '12:00 - 18:00' },
+    evening: { label: '🌙 Noche', slots: [], range: '18:00 - 22:00' }
+  };
+
+  slots.forEach(slot => {
+    const hour = parseInt(slot.openTime.split(':')[0]);
+    if (hour < 12) {
+      franjas.morning.slots.push(slot);
+    } else if (hour < 18) {
+      franjas.afternoon.slots.push(slot);
+    } else {
+      franjas.evening.slots.push(slot);
+    }
+  });
+
+  return franjas;
 };
 
 // ========================================
@@ -285,11 +319,11 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   };
   
-  // Manejar cambio de horario
-  const handleScheduleChange = (day, slotIds) => {
+  // Manejar cambio de horario (MÁXIMO 1 POR DÍA)
+  const handleScheduleChange = (day, slotId) => {
     setSelectedSchedule(prev => ({
       ...prev,
-      [day]: slotIds
+      [day]: slotId ? [slotId] : []
     }));
     setScheduleVerified(false);
   };
@@ -303,7 +337,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
       
       {/* HEADER */}
       <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <button
               onClick={handleBack}
@@ -330,7 +364,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
 
       {/* BARRA DE PROGRESO */}
       <div className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-4">
             <div className="flex items-center space-x-4">
               {[1, 2, 3, 4].map((stepNum) => (
@@ -361,7 +395,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
       </div>
 
       {/* CONTENIDO PRINCIPAL */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {step === 4 ? (
           <MembershipConfirmationStep
@@ -382,7 +416,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
               )}
 
               {step === 2 && (
-                <ScheduleSelectionStep
+                <ScheduleSelectionStepScalable
                   plan={selectedPlan}
                   planInfo={planInfo}
                   availableSchedules={availableSchedules}
@@ -589,10 +623,10 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
 };
 
 // ========================================
-// PASO 2: SELECCIÓN DE HORARIOS
+// PASO 2: SELECCIÓN DE HORARIOS ESCALABLE
 // ========================================
 
-const ScheduleSelectionStep = ({ 
+const ScheduleSelectionStepScalable = ({ 
   plan, 
   planInfo, 
   availableSchedules, 
@@ -605,162 +639,141 @@ const ScheduleSelectionStep = ({
   
   if (isProcessing) {
     return (
-      <div className="text-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
-        <p className="text-gray-600">Cargando horarios disponibles...</p>
+      <div className="text-center py-16">
+        <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-6" />
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Cargando horarios disponibles...</h3>
+        <p className="text-gray-600">Estamos preparando las mejores opciones para ti</p>
       </div>
     );
   }
 
   if (!availableSchedules || !planInfo) {
     return (
-      <div className="text-center py-12">
-        <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-        <p className="text-gray-600">Error cargando horarios disponibles</p>
+      <div className="text-center py-16">
+        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-6" />
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Error cargando horarios</h3>
+        <p className="text-gray-600">No pudimos cargar los horarios disponibles</p>
       </div>
     );
   }
 
-  const selectedSlotsCount = Object.values(selectedSchedule).reduce(
-    (sum, slots) => sum + (slots?.length || 0), 0
-  );
+  const selectedDaysCount = Object.values(selectedSchedule).filter(slots => slots && slots.length > 0).length;
+  const maxWeeklySlots = planInfo.maxReservationsPerWeek || 999;
 
   return (
     <div className="space-y-6">
       
-      {/* INSTRUCCIONES COMPACTAS */}
-      <div className="bg-gradient-to-r from-primary-50 to-blue-50 border-2 border-primary-200 rounded-lg p-4">
-        
-        {/* HEADER COMPACTO */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div className="flex items-center">
-            <Calendar className="w-6 h-6 text-primary-600 mr-2" />
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">
-                ¡Selecciona tus horarios de entrenamiento!
-              </h2>
-              <p className="text-sm text-gray-600">
-                Elige cuándo quieres entrenar
-              </p>
+      {/* HEADER COMPACTO */}
+      <div className="bg-gradient-to-br from-primary-50 to-blue-50 border-2 border-primary-200 rounded-xl p-6">
+        <div className="text-center mb-4">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-600 rounded-full mb-3">
+            <Calendar className="w-6 h-6 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Elige tus horarios de entrenamiento
+          </h2>
+          <p className="text-gray-600">
+            Selecciona <strong>1 horario por día</strong> para crear tu rutina perfecta
+          </p>
+        </div>
+
+        {/* CONTADOR Y REGLAS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+            <div className="text-3xl font-bold text-primary-600 mb-1">
+              {selectedDaysCount}
             </div>
+            <div className="text-sm text-gray-600">días seleccionados</div>
           </div>
           
-          {/* CONTADOR INLINE */}
-          <div className="bg-white rounded-lg px-4 py-2 border border-primary-200 flex-shrink-0">
-            <div className="text-2xl font-bold text-primary-600 text-center">
-              {selectedSlotsCount}
-              <span className="text-sm text-gray-600">/{planInfo.maxReservationsPerWeek || '∞'}</span>
+          <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+            <div className="text-3xl font-bold text-blue-600 mb-1">1</div>
+            <div className="text-sm text-gray-600">slot máximo por día</div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+            <div className="text-3xl font-bold text-green-600 mb-1">
+              {maxWeeklySlots === 999 ? '∞' : maxWeeklySlots}
             </div>
-            <div className="text-xs text-gray-600 text-center">seleccionados</div>
+            <div className="text-sm text-gray-600">límite semanal</div>
           </div>
         </div>
 
-        {/* INFO COMPACTA EN UNA LÍNEA */}
-        <div className="flex flex-wrap items-center gap-4 text-sm bg-white rounded-lg p-3">
-          <div className="flex items-center">
-            <span className="font-medium text-gray-700 mr-1">Días:</span>
-            <span className="text-primary-600 font-medium">
-              {traducirListaDias(planInfo.allowedDays)}
-            </span>
-          </div>
-          
-          <div className="w-px h-4 bg-gray-300"></div>
-          
-          <div className="flex items-center">
-            <span className="font-medium text-gray-700 mr-1">Max/día:</span>
-            <span className="text-primary-600 font-medium">{planInfo.maxSlotsPerDay || '∞'}</span>
-          </div>
-          
-          <div className="w-px h-4 bg-gray-300"></div>
-          
-          <div className="flex items-center">
-            <span className="font-medium text-gray-700 mr-1">Max semanal:</span>
-            <span className="text-primary-600 font-medium">{planInfo.maxReservationsPerWeek || '∞'}</span>
-          </div>
-          
-          <div className="w-px h-4 bg-gray-300"></div>
-          
-          <div className="flex items-center">
-            <span className={`font-bold text-lg ${
-              selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999) ? 'text-red-600' : 'text-green-600'
-            }`}>
-              ✓ {selectedSlotsCount}
-            </span>
-          </div>
-        </div>
-
-        {/* MENSAJE DE INSTRUCCIÓN COMPACTO */}
-        {selectedSlotsCount === 0 && (
-          <div className="mt-3 p-2 bg-yellow-100 border border-yellow-300 rounded-lg">
-            <div className="flex items-center">
-              <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
-              <span className="text-yellow-800 text-sm">
-                👆 Haz clic en los horarios que prefieres para continuar
+        {selectedDaysCount === 0 && (
+          <div className="mt-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3">
+            <div className="flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+              <span className="text-yellow-800 font-medium">
+                👇 Selecciona tus horarios favoritos para continuar
               </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* GRID SÚPER COMPACTO HORIZONTAL */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-          Haz clic en los horarios que prefieres
-        </h3>
-        
-        {/* MÁXIMA COMPACTACIÓN: Grid responsivo optimizado */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      {/* GRID DE DÍAS CON DISEÑO ESCALABLE */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="space-y-6">
           {Object.entries(availableSchedules).map(([day, dayData]) => (
-            <ScheduleDayCardImproved
+            <ScheduleDayRowScalable
               key={day}
               day={day}
               dayData={dayData}
-              selectedSlots={selectedSchedule[day] || []}
-              onSelectionChange={(slotIds) => onScheduleChange(day, slotIds)}
-              maxSlotsPerDay={planInfo.maxSlotsPerDay}
-              totalSelected={selectedSlotsCount}
-              maxTotal={planInfo.maxReservationsPerWeek}
+              selectedSlot={selectedSchedule[day]?.[0] || null}
+              onSlotSelect={(slotId) => onScheduleChange(day, slotId)}
+              totalSelected={selectedDaysCount}
+              maxTotal={maxWeeklySlots}
             />
           ))}
         </div>
 
-        {/* BOTÓN SÚPER COMPACTO */}
-        <div className="mt-4 pt-3 border-t">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            {/* ESTADO COMPACTO */}
-            <div className="flex items-center text-sm">
+        {/* BOTÓN DE CONTINUAR */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            
+            {/* ESTADO */}
+            <div className="flex items-center">
               {scheduleVerified ? (
                 <>
-                  <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                  <span className="text-green-700 font-medium">¡Horarios confirmados!</span>
+                  <CheckCircle className="w-6 h-6 mr-3 text-green-600" />
+                  <div>
+                    <div className="font-semibold text-green-700">¡Horarios confirmados!</div>
+                    <div className="text-sm text-green-600">Listos para el pago</div>
+                  </div>
                 </>
-              ) : selectedSlotsCount > 0 ? (
+              ) : selectedDaysCount > 0 ? (
                 <>
-                  <Clock className="w-4 h-4 mr-2 text-blue-600" />
-                  <span className="text-blue-700 font-medium">{selectedSlotsCount} horarios listos</span>
+                  <Clock className="w-6 h-6 mr-3 text-blue-600" />
+                  <div>
+                    <div className="font-semibold text-blue-700">{selectedDaysCount} días programados</div>
+                    <div className="text-sm text-blue-600">Listos para verificar</div>
+                  </div>
                 </>
               ) : (
                 <>
-                  <AlertCircle className="w-4 h-4 mr-2 text-gray-500" />
-                  <span className="text-gray-600">Selecciona horarios</span>
+                  <AlertCircle className="w-6 h-6 mr-3 text-gray-500" />
+                  <div>
+                    <div className="font-semibold text-gray-700">Selecciona tus horarios</div>
+                    <div className="text-sm text-gray-600">Al menos un día para continuar</div>
+                  </div>
                 </>
               )}
             </div>
 
-            {/* BOTÓN COMPACTO */}
+            {/* BOTÓN */}
             <button
               onClick={onContinue}
-              disabled={selectedSlotsCount === 0 || selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999)}
-              className={`px-6 py-2 rounded-lg font-medium transition-all text-sm ${
-                selectedSlotsCount === 0 || selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999)
+              disabled={selectedDaysCount === 0 || selectedDaysCount > maxWeeklySlots}
+              className={`px-8 py-3 rounded-xl font-bold transition-all ${
+                selectedDaysCount === 0 || selectedDaysCount > maxWeeklySlots
                   ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg'
+                  : 'bg-primary-600 text-white hover:bg-primary-700 shadow-lg hover:shadow-xl'
               }`}
             >
-              {selectedSlotsCount === 0 
-                ? 'Selecciona primero' 
-                : selectedSlotsCount > (planInfo.maxReservationsPerWeek || 999)
-                ? `Máximo ${planInfo.maxReservationsPerWeek}`
+              {selectedDaysCount === 0 
+                ? 'Selecciona horarios primero' 
+                : selectedDaysCount > maxWeeklySlots
+                ? `Máximo ${maxWeeklySlots} días`
                 : `Continuar al pago →`
               }
             </button>
@@ -771,34 +784,22 @@ const ScheduleSelectionStep = ({
   );
 };
 
-// COMPONENTE: Card SÚPER COMPACTA
-const ScheduleDayCardImproved = ({ 
+// ========================================
+// COMPONENTE: Fila de Día Escalable
+// ========================================
+
+const ScheduleDayRowScalable = ({ 
   day, 
   dayData, 
-  selectedSlots, 
-  onSelectionChange, 
-  maxSlotsPerDay,
+  selectedSlot, 
+  onSlotSelect, 
   totalSelected,
   maxTotal
 }) => {
-  
-  const handleSlotToggle = (slotId) => {
-    const isSelected = selectedSlots.includes(slotId);
-    
-    if (isSelected) {
-      onSelectionChange(selectedSlots.filter(id => id !== slotId));
-    } else {
-      if (selectedSlots.length >= (maxSlotsPerDay || 999)) {
-        return;
-      }
-      if (totalSelected >= (maxTotal || 999)) {
-        return;
-      }
-      onSelectionChange([...selectedSlots, slotId]);
-    }
-  };
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [filterFranja, setFilterFranja] = useState('all');
 
-  // TRADUCCIÓN GARANTIZADA basada en el modelo de BD
+  // TRADUCCIÓN GARANTIZADA
   const dayNameSpanish = (() => {
     switch(day.toLowerCase()) {
       case 'monday': return 'Lunes';
@@ -814,78 +815,169 @@ const ScheduleDayCardImproved = ({
 
   if (!dayData.isOpen || dayData.slots.length === 0) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 min-h-[100px] flex flex-col items-center justify-center">
-        <h3 className="font-semibold text-gray-400 text-sm">{dayNameSpanish}</h3>
-        <p className="text-xs text-gray-400 mt-1">Cerrado</p>
+      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Calendar className="w-5 h-5 text-gray-400 mr-3" />
+            <h3 className="font-semibold text-gray-400">{dayNameSpanish}</h3>
+          </div>
+          <span className="text-sm text-gray-400 bg-gray-200 px-3 py-1 rounded-full">
+            Cerrado
+          </span>
+        </div>
       </div>
     );
   }
 
+  // Agrupar horarios por franjas
+  const franjas = agruparHorariosPorFranja(dayData.slots);
+  
+  // Filtrar slots según la franja seleccionada
+  const slotsToShow = filterFranja === 'all' 
+    ? dayData.slots 
+    : franjas[filterFranja]?.slots || [];
+
+  // Mostrar solo los primeros 6 si no está expandido
+  const displaySlots = isExpanded ? slotsToShow : slotsToShow.slice(0, 6);
+  const hasMoreSlots = slotsToShow.length > 6;
+
+  const handleSlotClick = (slotId) => {
+    if (selectedSlot === slotId) {
+      // Deseleccionar
+      onSlotSelect(null);
+    } else {
+      // Seleccionar (máximo 1 por día)
+      if (totalSelected >= maxTotal && !selectedSlot) {
+        return; // No puede seleccionar más
+      }
+      onSlotSelect(slotId);
+    }
+  };
+
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 hover:border-primary-300 transition-all hover:shadow-sm">
-      {/* HEADER ULTRA COMPACTO */}
-      <div className="flex items-center justify-between mb-2 pb-1 border-b border-gray-100">
-        <h3 className="font-bold text-sm text-gray-900">
-          {dayNameSpanish}
-        </h3>
-        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-          selectedSlots.length > 0 
-            ? 'bg-primary-100 text-primary-700'
-            : 'bg-gray-100 text-gray-500'
-        }`}>
-          {selectedSlots.length}/{maxSlotsPerDay || '∞'}
-        </span>
-      </div>
+    <div className="border border-gray-200 rounded-lg">
       
-      {/* HORARIOS ULTRA COMPACTOS */}
-      <div className="space-y-1">
-        {dayData.slots.map((slot) => {
-          const isSelected = selectedSlots.includes(slot.id);
-          const canSelect = slot.canReserve && 
-            (!isSelected && selectedSlots.length < (maxSlotsPerDay || 999) && totalSelected < (maxTotal || 999));
+      {/* HEADER DEL DÍA */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <Calendar className="w-5 h-5 text-primary-600 mr-3" />
+            <div>
+              <h3 className="font-bold text-lg text-gray-900">{dayNameSpanish}</h3>
+              <p className="text-sm text-gray-600">{dayData.slots.length} horarios disponibles</p>
+            </div>
+          </div>
           
-          return (
-            <button
-              key={slot.id}
-              onClick={() => handleSlotToggle(slot.id)}
-              disabled={!slot.canReserve && !isSelected}
-              className={`w-full p-2 rounded text-left transition-all text-xs ${
-                isSelected
-                  ? 'bg-primary-100 border border-primary-400 text-primary-800'
-                  : canSelect
-                  ? 'bg-gray-50 border border-gray-200 hover:bg-primary-50 hover:border-primary-300 text-gray-700'
-                  : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-2 flex items-center justify-center ${
-                    isSelected 
-                      ? 'bg-primary-600 text-white' 
-                      : canSelect 
-                      ? 'bg-gray-300' 
-                      : 'bg-gray-200'
-                  }`}>
-                    {isSelected && <Check className="w-2 h-2" />}
-                  </div>
-                  <div>
-                    <div className="font-semibold">{slot.label}</div>
-                    <div className="opacity-75 text-xs">
-                      {slot.openTime}-{slot.closeTime}
-                    </div>
-                  </div>
+          {/* ESTADO DE SELECCIÓN */}
+          <div className="flex items-center space-x-3">
+            {selectedSlot ? (
+              <div className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm font-medium">
+                ✓ Seleccionado
+              </div>
+            ) : (
+              <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
+                Sin seleccionar
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* FILTROS POR FRANJA */}
+        {dayData.slots.length > 6 && (
+          <div className="flex items-center space-x-2 mt-3">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <div className="flex space-x-1">
+              <button
+                onClick={() => setFilterFranja('all')}
+                className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                  filterFranja === 'all'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                }`}
+              >
+                Todos
+              </button>
+              {Object.entries(franjas).map(([key, franja]) => (
+                franja.slots.length > 0 && (
+                  <button
+                    key={key}
+                    onClick={() => setFilterFranja(key)}
+                    className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                      filterFranja === key
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                    }`}
+                  >
+                    {franja.label.split(' ')[1]} ({franja.slots.length})
+                  </button>
+                )
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* GRID DE HORARIOS COMPACTO */}
+      <div className="p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+          {displaySlots.map((slot) => {
+            const isSelected = selectedSlot === slot.id;
+            const canSelect = slot.canReserve && (totalSelected < maxTotal || isSelected);
+            
+            return (
+              <button
+                key={slot.id}
+                onClick={() => handleSlotClick(slot.id)}
+                disabled={!slot.canReserve && !isSelected}
+                className={`p-3 rounded-lg text-center transition-all border-2 text-sm ${
+                  isSelected
+                    ? 'bg-primary-600 border-primary-600 text-white shadow-lg transform scale-105'
+                    : canSelect
+                    ? 'bg-white border-gray-200 hover:border-primary-300 hover:bg-primary-50 text-gray-700 shadow-sm hover:shadow-md'
+                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                }`}
+              >
+                <div className="font-bold">{slot.label}</div>
+                <div className="text-xs opacity-90 mt-1">
+                  {slot.openTime}-{slot.closeTime}
                 </div>
-                <div className={`text-xs px-1 py-0.5 rounded ${
-                  slot.available > 0 
-                    ? 'bg-green-100 text-green-700' 
+                <div className={`text-xs mt-1 px-2 py-0.5 rounded-full ${
+                  isSelected
+                    ? 'bg-white bg-opacity-20 text-white'
+                    : slot.available > 5
+                    ? 'bg-green-100 text-green-700'
+                    : slot.available > 0
+                    ? 'bg-yellow-100 text-yellow-700'
                     : 'bg-red-100 text-red-700'
                 }`}>
                   {slot.available}/{slot.capacity}
                 </div>
-              </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* BOTÓN MOSTRAR MÁS */}
+        {hasMoreSlots && (
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+            >
+              {isExpanded ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-2" />
+                  Mostrar menos
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4 mr-2" />
+                  Ver {slotsToShow.length - 6} horarios más
+                </>
+              )}
             </button>
-          );
-        })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -956,7 +1048,7 @@ const MembershipSummaryImproved = ({
             )}
           </h4>
           
-          {totalSlots === 0 ? (
+          {scheduledDays === 0 ? (
             <div className="text-center py-4">
               <p className="text-sm text-gray-500 italic">
                 Aún no has seleccionado horarios
@@ -972,8 +1064,8 @@ const MembershipSummaryImproved = ({
                 <span className="font-semibold text-primary-600">{scheduledDays}</span>
               </div>
               <div className="flex justify-between">
-                <span>Horarios totales:</span>
-                <span className="font-semibold text-primary-600">{totalSlots}</span>
+                <span>Límite:</span>
+                <span className="font-semibold text-primary-600">1 por día</span>
               </div>
               {!scheduleVerified && step >= 2 && (
                 <div className="text-orange-600 text-xs bg-orange-50 p-2 rounded">
@@ -1048,7 +1140,7 @@ const MembershipSummaryImproved = ({
         
         <div className="flex items-center">
           <Calendar className="w-4 h-4 mr-2 text-blue-500" />
-          <span>Horarios personalizados</span>
+          <span>1 horario por día</span>
         </div>
         
         <div className="flex items-center">
@@ -1646,8 +1738,7 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
               <div className="border-t pt-3">
                 <span className="text-gray-600">Horarios programados:</span>
                 <div className="mt-2 text-sm">
-                  {Object.keys(membership.schedule).length} días • 
-                  {Object.values(membership.schedule).reduce((sum, slots) => sum + (slots?.length || 0), 0)} slots
+                  {Object.keys(membership.schedule).length} días configurados
                 </div>
               </div>
             )}
@@ -1757,6 +1848,7 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
 };
 
 export default MembershipCheckout;
+
 /*
 === ACTUALIZACIONES PARA PRODUCCIÓN ===
 
