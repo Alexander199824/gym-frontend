@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipCard.js
-// FUNCIÓN: Componente para mostrar información de membresías - COMPLETAMENTE EN ESPAÑOL
+// FUNCIÓN: Componente para mostrar información de membresías - ARREGLADO PARA PRECIOS
 // USADO EN: ClientDashboard, páginas de membresías
 
 import React from 'react';
@@ -17,10 +17,20 @@ import {
   Edit,
   Trash2,
   User,
-  // Cambio: Usar icono más apropiado para quetzales
   Banknote
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+
+// FUNCIÓN HELPER: Convertir precio a número y formatear de forma segura
+const formatPrice = (price) => {
+  const numPrice = parseFloat(price) || 0;
+  return numPrice.toFixed(2);
+};
+
+// FUNCIÓN HELPER: Formatear precio con símbolo
+const formatPriceWithSymbol = (price) => {
+  return `Q${formatPrice(price)}`;
+};
 
 const MembershipCard = ({ 
   membership, 
@@ -254,7 +264,7 @@ const MembershipCard = ({
         </div>
       </div>
       
-      {/* PRECIO EN QUETZALES - ICONO MEJORADO */}
+      {/* PRECIO EN QUETZALES - MANEJO SEGURO DE PRECIOS */}
       <div className="mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
@@ -263,7 +273,7 @@ const MembershipCard = ({
           </div>
           <span className="text-lg font-bold text-green-600 flex items-center">
             <span className="mr-1">Q</span>
-            {membership.price ? membership.price.toFixed(2) : formatCurrency(membership.amount || 0)}
+            {membership.price ? formatPrice(membership.price) : formatCurrency(membership.amount || 0)}
           </span>
         </div>
       </div>
@@ -421,7 +431,7 @@ const MembershipCard = ({
   );
 };
 
-// VARIANTE: Tarjeta compacta - MEJORADA
+// VARIANTE: Tarjeta compacta - PRECIOS ARREGLADOS
 export const CompactMembershipCard = ({ 
   membership, 
   onClick = null,
@@ -492,7 +502,7 @@ export const CompactMembershipCard = ({
           <div className="flex items-center justify-end mb-1">
             <Banknote className="w-3 h-3 text-green-600 mr-1" />
             <p className="text-sm font-medium text-gray-900">
-              Q{membership.price ? membership.price.toFixed(2) : formatCurrency(membership.amount || 0)}
+              Q{membership.price ? formatPrice(membership.price) : formatCurrency(membership.amount || 0)}
             </p>
           </div>
           <p className={`text-xs font-medium ${getStatusColor()}`}>
