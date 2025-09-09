@@ -1,7 +1,8 @@
-// Autor: Alexander Echeverria
-// src/services/membershipService.js
 
-
+/*
+Autor: Alexander Echeverria
+src/services/membershipService.js
+*/
 
 import apiService from './apiService';
 
