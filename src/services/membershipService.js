@@ -1,7 +1,7 @@
-// src/services/membershipService.js
 // Autor: Alexander Echeverria
-// Archivo: src/services/membershipService.js
-// ACTUALIZADO: Para funcionar como el test exitoso del backend
+// src/services/membershipService.js
+
+
 
 import apiService from './apiService';
 
@@ -454,6 +454,7 @@ CARACTERÍSTICAS PRODUCCIÓN:
 - Validación de disponibilidad en tiempo real
 - Soporte completo para horarios/schedules
 */
+
 /*
 === COMENTARIOS FINALES ===
 
