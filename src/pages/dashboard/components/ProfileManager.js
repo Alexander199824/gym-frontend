@@ -1,6 +1,6 @@
-// src/pages/dashboard/components/ProfileManager.js
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/ProfileManager.js
 // FUNCIÓN: Gestión completa del perfil con VALIDACIONES MEJORADAS y cambios individuales permitidos
-// CORREGIDO: Validaciones menos restrictivas, permite guardar cambios individuales, mantiene funcionalidades
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -13,24 +13,24 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
 import apiService from '../../../services/apiService';
 
-// ✅ IMPORTACIÓN CORRECTA: Usar ProfileLoader del LoadingSpinner existente
+// IMPORTACIÓN CORRECTA: Usar ProfileLoader del LoadingSpinner existente
 import { ProfileLoader, ButtonSpinner } from '../../../components/common/LoadingSpinner';
 
 const ProfileManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, updateUser, hasPermission } = useAuth();
   const { showSuccess, showError, formatDate, isMobile } = useApp();
   
-  // 📊 Estados principales
+  // Estados principales
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
-  // 📸 Estados para imagen de perfil
+  // Estados para imagen de perfil
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   
-  // 👤 Estados de información personal - ESTRUCTURA CORRECTA DEL README
+  // Estados de información personal - ESTRUCTURA CORRECTA DEL README
   const [personalInfo, setPersonalInfo] = useState({
     firstName: '',
     lastName: '',
@@ -51,15 +51,15 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     role: ''
   });
   
-  // 👤 Estados originales para comparar cambios
+  // Estados originales para comparar cambios
   const [originalPersonalInfo, setOriginalPersonalInfo] = useState({});
   
-  // ⚠️ Estados de validación - MEJORADOS PARA SER MENOS RESTRICTIVOS
+  // Estados de validación - MEJORADOS PARA SER MENOS RESTRICTIVOS
   const [validationErrors, setValidationErrors] = useState({});
   const [validationWarnings, setValidationWarnings] = useState({});
   const [isUnderAge, setIsUnderAge] = useState(false);
   
-  // 🔐 Estados de seguridad
+  // Estados de seguridad
   const [securityInfo, setSecurityInfo] = useState({
     currentPassword: '',
     newPassword: '',
@@ -69,7 +69,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     securityQuestions: []
   });
   
-  // 🔔 Estados de preferencias
+  // Estados de preferencias
   const [preferences, setPreferences] = useState({
     emailNotifications: true,
     smsNotifications: false,
@@ -85,7 +85,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   });
   
-  // 📊 Estados de estadísticas del usuario
+  // Estados de estadísticas del usuario
   const [userStats, setUserStats] = useState({
     memberSince: null,
     totalVisits: 0,
@@ -96,7 +96,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     achievements: []
   });
   
-  // 🔗 Pestañas del perfil
+  // Pestañas del perfil
   const profileTabs = [
     {
       id: 'personal',
@@ -124,7 +124,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   ];
   
-  // ✅ MEJORADAS: FUNCIONES DE VALIDACIÓN MENOS RESTRICTIVAS
+  // MEJORADAS: FUNCIONES DE VALIDACIÓN MENOS RESTRICTIVAS
   
   // Validar nombres - SOLO errores críticos
   const validateName = (name, fieldName = 'campo') => {
@@ -140,7 +140,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       return `${fieldName} no puede exceder 50 caracteres`;
     }
     
-    // ✅ MEJORADO: Solo caracteres completamente inválidos generan error
+    // MEJORADO: Solo caracteres completamente inválidos generan error
     const nameRegex = /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'.]+$/;
     if (!nameRegex.test(name)) {
       return `${fieldName} contiene caracteres no válidos`;
@@ -153,13 +153,13 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
   const validatePhone = (phone) => {
     if (!phone || !phone.trim()) return null; // Opcional
     
-    // ✅ MEJORADO: Más formatos permitidos
+    // MEJORADO: Más formatos permitidos
     const phoneRegex = /^[\d\s\-\(\)\+\.]+$/;
     if (!phoneRegex.test(phone)) {
       return 'Formato de teléfono no válido';
     }
     
-    // ✅ MEJORADO: Menos restrictivo en longitud
+    // MEJORADO: Menos restrictivo en longitud
     const digitsOnly = phone.replace(/\D/g, '');
     if (digitsOnly.length < 7) {
       return 'Teléfono debe tener al menos 7 dígitos';
@@ -174,7 +174,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       return 'Email es obligatorio';
     }
     
-    // ✅ MEJORADO: Validación básica más permisiva
+    // MEJORADO: Validación básica más permisiva
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return 'Formato de email no válido';
@@ -217,7 +217,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     return null;
   };
   
-  // ✅ NUEVA FUNCIÓN: Validar solo campos críticos para guardar
+  // NUEVA FUNCIÓN: Validar solo campos críticos para guardar
   const validateCriticalFieldsOnly = () => {
     const errors = {};
     
@@ -261,7 +261,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     return errors;
   };
   
-  // ✅ NUEVA FUNCIÓN: Verificar si hay cambios reales
+  // NUEVA FUNCIÓN: Verificar si hay cambios reales
   const hasRealChanges = () => {
     if (!originalPersonalInfo) return false;
     
@@ -273,7 +273,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       const current = personalInfo[field] || '';
       
       if (original.trim() !== current.trim()) {
-        console.log(`📝 Campo cambiado: ${field}`, { original, current });
+        console.log(`Campo cambiado: ${field}`, { original, current });
         return true;
       }
     }
@@ -288,7 +288,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       const current = currentEmergency[field] || '';
       
       if (original.trim() !== current.trim()) {
-        console.log(`📝 Contacto emergencia cambiado: ${field}`, { original, current });
+        console.log(`Contacto emergencia cambiado: ${field}`, { original, current });
         return true;
       }
     }
@@ -296,20 +296,20 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     return false;
   };
   
-  // 🔄 CARGAR DATOS DEL PERFIL - MANTIENE FUNCIONALIDAD EXISTENTE
+  // CARGAR DATOS DEL PERFIL - MANTIENE FUNCIONALIDAD EXISTENTE
   const loadProfileData = async () => {
     try {
       setLoading(true);
-      console.log('📊 Loading profile data from backend...');
+      console.log('Cargando datos del perfil desde backend...');
       
       const response = await apiService.getProfile();
-      console.log('✅ Profile data received:', response);
+      console.log('Datos del perfil recibidos:', response);
       
       // Estructura según README: response.data.user
       const userData = response.data?.user || response.user || response.data || response;
       
       if (userData) {
-        console.log('👤 User data structure:', userData);
+        console.log('Estructura de datos del usuario:', userData);
         
         // Mapear datos personales según estructura del README
         const mappedPersonalInfo = {
@@ -333,7 +333,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         };
         
         setPersonalInfo(mappedPersonalInfo);
-        setOriginalPersonalInfo(JSON.parse(JSON.stringify(mappedPersonalInfo))); // ✅ NUEVO: Guardar estado original
+        setOriginalPersonalInfo(JSON.parse(JSON.stringify(mappedPersonalInfo))); // NUEVO: Guardar estado original
         
         // Verificar si es menor de edad
         const age = calculateAge(mappedPersonalInfo.dateOfBirth);
@@ -366,7 +366,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
           achievements: userData.stats?.achievements || []
         });
         
-        console.log('✅ Profile data mapped successfully');
+        console.log('Datos del perfil mapeados exitosamente');
         
         // Actualizar el contexto de usuario si es necesario
         if (updateUser) {
@@ -376,18 +376,18 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
           });
         }
         
-        // ✅ NUEVO: Limpiar errores y cambios al cargar
+        // NUEVO: Limpiar errores y cambios al cargar
         setValidationErrors({});
         setValidationWarnings({});
         setHasUnsavedChanges(false);
         
       } else {
-        console.warn('⚠️ No user data found in response');
+        console.warn('No se encontraron datos de usuario en la respuesta');
         showError('No se pudo cargar la información del perfil');
       }
       
     } catch (error) {
-      console.error('❌ Error loading profile data:', error);
+      console.error('Error al cargar datos del perfil:', error);
       
       if (error.response?.status === 401) {
         showError('Sesión expirada. Redirigiendo...');
@@ -401,13 +401,13 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ✅ MEJORADO: GUARDAR INFORMACIÓN PERSONAL - MÁS PERMISIVO
+  // MEJORADO: GUARDAR INFORMACIÓN PERSONAL - MÁS PERMISIVO
   const savePersonalInfo = async () => {
     try {
       setSaving(true);
-      console.log('💾 Saving personal info...');
+      console.log('Guardando información personal...');
       
-      // ✅ MEJORADO: Solo validar campos críticos
+      // MEJORADO: Solo validar campos críticos
       const criticalErrors = validateCriticalFieldsOnly();
       
       if (Object.keys(criticalErrors).length > 0) {
@@ -416,13 +416,13 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         return;
       }
       
-      // ✅ NUEVO: Verificar si hay cambios reales
+      // NUEVO: Verificar si hay cambios reales
       if (!hasRealChanges()) {
         showError('No hay cambios para guardar');
         return;
       }
       
-      // ✅ MEJORADO: Preparar solo campos que cambiaron
+      // MEJORADO: Preparar solo campos que cambiaron
       const dataToSend = {};
       
       // Solo enviar campos que cambiaron
@@ -477,9 +477,9 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         };
       }
       
-      console.log('📤 Data to send (only changed fields):', dataToSend);
+      console.log('Datos a enviar (solo campos cambiados):', dataToSend);
       
-      // ✅ NUEVO: Verificar que hay datos para enviar
+      // NUEVO: Verificar que hay datos para enviar
       if (Object.keys(dataToSend).length === 0) {
         showError('No hay cambios para guardar');
         return;
@@ -488,11 +488,11 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       // Usar updateProfile que usa PATCH como dice el README
       const response = await apiService.updateProfile(dataToSend);
       
-      console.log('✅ Profile updated successfully:', response);
+      console.log('Perfil actualizado exitosamente:', response);
       
       showSuccess(`Información actualizada: ${Object.keys(dataToSend).join(', ')}`);
       
-      // ✅ NUEVO: Actualizar estado original con los nuevos datos
+      // NUEVO: Actualizar estado original con los nuevos datos
       const updatedInfo = { ...personalInfo };
       setOriginalPersonalInfo(JSON.parse(JSON.stringify(updatedInfo)));
       
@@ -516,7 +516,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error saving personal info:', error);
+      console.error('Error al guardar información personal:', error);
       
       if (error.response?.status === 422) {
         const errors = error.response.data?.errors || {};
@@ -531,7 +531,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 🔐 CAMBIAR CONTRASEÑA - MANTIENE FUNCIONALIDAD EXISTENTE
+  // CAMBIAR CONTRASEÑA - MANTIENE FUNCIONALIDAD EXISTENTE
   const changePassword = async () => {
     try {
       setSaving(true);
@@ -559,7 +559,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         return;
       }
       
-      console.log('🔐 Changing password...');
+      console.log('Cambiando contraseña...');
       
       await apiService.changePassword({
         currentPassword: securityInfo.currentPassword,
@@ -577,7 +577,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       }));
       
     } catch (error) {
-      console.error('❌ Error changing password:', error);
+      console.error('Error al cambiar contraseña:', error);
       
       if (error.response?.status === 401) {
         showError('Contraseña actual incorrecta');
@@ -590,11 +590,11 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📸 SUBIR IMAGEN DE PERFIL - MANTIENE FUNCIONALIDAD EXISTENTE
+  // SUBIR IMAGEN DE PERFIL - MANTIENE FUNCIONALIDAD EXISTENTE
   const uploadProfileImage = async (file) => {
     try {
       setUploadingImage(true);
-      console.log('📸 Uploading profile image...');
+      console.log('Subiendo imagen de perfil...');
       
       const formData = new FormData();
       formData.append('image', file);
@@ -602,7 +602,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       // Usar uploadProfileImage que usa la ruta exacta del README
       const response = await apiService.uploadProfileImage(formData);
       
-      console.log('✅ Image uploaded successfully:', response);
+      console.log('Imagen subida exitosamente:', response);
       
       // Estructura según README: response.data.profileImage
       const imageUrl = response.data?.profileImage || response.profileImage;
@@ -613,7 +613,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
           profileImage: imageUrl
         }));
         
-        // ✅ NUEVO: Actualizar también el estado original
+        // NUEVO: Actualizar también el estado original
         setOriginalPersonalInfo(prev => ({
           ...prev,
           profileImage: imageUrl
@@ -630,12 +630,12 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         showSuccess('Imagen de perfil actualizada exitosamente');
         setImagePreview(null);
       } else {
-        console.warn('⚠️ No image URL received from server');
+        console.warn('No se recibió la URL de la imagen del servidor');
         showError('No se recibió la URL de la imagen');
       }
       
     } catch (error) {
-      console.error('❌ Error uploading profile image:', error);
+      console.error('Error al subir imagen de perfil:', error);
       
       if (error.response?.status === 413) {
         showError('La imagen es demasiado grande. Máximo 5MB');
@@ -649,7 +649,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📸 Manejar selección de imagen - MANTIENE FUNCIONALIDAD EXISTENTE
+  // Manejar selección de imagen - MANTIENE FUNCIONALIDAD EXISTENTE
   const handleImageSelect = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -678,11 +678,11 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     uploadProfileImage(file);
   };
   
-  // 💾 GUARDAR PREFERENCIAS - MANTIENE FUNCIONALIDAD EXISTENTE
+  // GUARDAR PREFERENCIAS - MANTIENE FUNCIONALIDAD EXISTENTE
   const savePreferences = async () => {
     try {
       setSaving(true);
-      console.log('💾 Saving preferences...');
+      console.log('Guardando preferencias...');
       
       await apiService.updatePreferences(preferences);
       
@@ -694,32 +694,32 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error saving preferences:', error);
+      console.error('Error al guardar preferencias:', error);
       showError('Error al guardar preferencias: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }
   };
   
-  // ⏰ Cargar datos al montar - MANTIENE FUNCIONALIDAD EXISTENTE
+  // Cargar datos al montar - MANTIENE FUNCIONALIDAD EXISTENTE
   useEffect(() => {
     if (currentUser) {
       loadProfileData();
     }
   }, [currentUser]);
   
-  // 🔔 Notificar cambios sin guardar - MANTIENE FUNCIONALIDAD EXISTENTE
+  // Notificar cambios sin guardar - MANTIENE FUNCIONALIDAD EXISTENTE
   useEffect(() => {
     if (onUnsavedChanges) {
       onUnsavedChanges(hasUnsavedChanges);
     }
   }, [hasUnsavedChanges, onUnsavedChanges]);
   
-  // ✅ MEJORADO: Manejar cambio de información personal CON VALIDACIÓN MENOS RESTRICTIVA
+  // MEJORADO: Manejar cambio de información personal CON VALIDACIÓN MENOS RESTRICTIVA
   const handlePersonalInfoChange = (field, value) => {
     let filteredValue = value;
     
-    // 🚫 FILTRADO PREVENTIVO: Bloquear caracteres no permitidos solo casos extremos
+    // FILTRADO PREVENTIVO: Bloquear caracteres no permitidos solo casos extremos
     if (field === 'firstName' || field === 'lastName') {
       // Solo permitir letras, espacios, acentos, guiones y apostrofes
       filteredValue = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s\-'.]/g, '');
@@ -733,7 +733,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       [field]: filteredValue
     }));
     
-    // ✅ NUEVO: Verificar cambios reales para habilitar botón
+    // NUEVO: Verificar cambios reales para habilitar botón
     const tempInfo = { ...personalInfo, [field]: filteredValue };
     const hasChanges = Object.keys(tempInfo).some(key => {
       if (key === 'emergencyContact') return false; // Se maneja por separado
@@ -742,7 +742,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     
     setHasUnsavedChanges(hasChanges);
     
-    // ✅ MEJORADO: Validación en tiempo real SOLO para errores críticos
+    // MEJORADO: Validación en tiempo real SOLO para errores críticos
     let error = null;
     let warning = null;
     
@@ -768,7 +768,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       setIsUnderAge(age !== null && age < 13);
     }
     
-    // ✅ MEJORADO: Solo mostrar errores críticos, warnings como información
+    // MEJORADO: Solo mostrar errores críticos, warnings como información
     setValidationErrors(prev => {
       const newErrors = { ...prev };
       if (error) {
@@ -790,11 +790,11 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     });
   };
   
-  // ✅ MEJORADO: Manejar cambio de contacto de emergencia
+  // MEJORADO: Manejar cambio de contacto de emergencia
   const handleEmergencyContactChange = (field, value) => {
     let filteredValue = value;
     
-    // 🚫 FILTRADO PREVENTIVO: Bloquear caracteres no permitidos
+    // FILTRADO PREVENTIVO: Bloquear caracteres no permitidos
     if (field === 'name') {
       // Solo permitir letras, espacios, acentos y guiones
       filteredValue = value.replace(/[^A-Za-zÀ-ÿ\u00f1\u00d1\s\-'.]/g, '');
@@ -811,7 +811,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
       }
     }));
     
-    // ✅ NUEVO: Verificar cambios en contacto de emergencia
+    // NUEVO: Verificar cambios en contacto de emergencia
     const originalEmergency = originalPersonalInfo.emergencyContact || {};
     const newEmergency = { ...personalInfo.emergencyContact, [field]: filteredValue };
     
@@ -826,7 +826,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     
     setHasUnsavedChanges(emergencyChanged || hasOtherChanges);
     
-    // ✅ MEJORADO: Validación menos restrictiva
+    // MEJORADO: Validación menos restrictiva
     let error = null;
     let warning = null;
     
@@ -868,7 +868,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     });
   };
   
-  // 📝 Manejar cambio de preferencias - MANTIENE FUNCIONALIDAD EXISTENTE
+  // Manejar cambio de preferencias - MANTIENE FUNCIONALIDAD EXISTENTE
   const handlePreferenceChange = (field, value) => {
     setPreferences(prev => ({
       ...prev,
@@ -877,7 +877,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     setHasUnsavedChanges(true);
   };
   
-  // 📝 Manejar cambio de privacidad - MANTIENE FUNCIONALIDAD EXISTENTE
+  // Manejar cambio de privacidad - MANTIENE FUNCIONALIDAD EXISTENTE
   const handlePrivacyChange = (field, value) => {
     setPreferences(prev => ({
       ...prev,
@@ -889,7 +889,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
     setHasUnsavedChanges(true);
   };
 
-  // ✅ MOSTRAR LOADING USANDO ProfileLoader
+  // MOSTRAR LOADING USANDO ProfileLoader
   if (loading) {
     return <ProfileLoader message="Cargando información del perfil..." />;
   }
@@ -897,7 +897,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -935,7 +935,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📸 HEADER DE PERFIL CON IMAGEN */}
+      {/* HEADER DE PERFIL CON IMAGEN */}
       <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-6 text-white">
         <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
           
@@ -988,7 +988,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
             
             {isUnderAge && (
               <div className="mt-2 bg-red-500/20 text-red-100 px-3 py-1 rounded-full text-xs inline-block">
-                ⚠️ Cuenta con restricciones por edad
+                Cuenta con restricciones por edad
               </div>
             )}
           </div>
@@ -996,7 +996,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 🔗 NAVEGACIÓN DE TABS */}
+      {/* NAVEGACIÓN DE TABS */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8 px-6 overflow-x-auto">
@@ -1024,7 +1024,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
           </nav>
         </div>
         
-        {/* 📋 CONTENIDO SEGÚN TAB ACTIVO */}
+        {/* CONTENIDO SEGÚN TAB ACTIVO */}
         <div className="p-6">
           
           {/* TAB: INFORMACIÓN PERSONAL */}
@@ -1048,7 +1048,7 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
                 </button>
               </div>
               
-              {/* ✅ NUEVO: Indicador de cambios */}
+              {/* NUEVO: Indicador de cambios */}
               {hasRealChanges() && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <div className="flex items-center">
@@ -1646,3 +1646,69 @@ const ProfileManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default ProfileManager;
+
+/**
+ * COMENTARIOS FINALES DEL COMPONENTE
+ * 
+ * PROPÓSITO:
+ * Este componente maneja la gestión completa del perfil de usuario en el sistema del gimnasio.
+ * Permite a los usuarios actualizar su información personal, configurar la seguridad de su cuenta,
+ * establecer preferencias y visualizar sus estadísticas de uso del gimnasio.
+ * 
+ * FUNCIONALIDADES PRINCIPALES:
+ * - Gestión completa de información personal (nombre, teléfono, dirección, biografía)
+ * - Subida y actualización de imagen de perfil con validación de formato y tamaño
+ * - Gestión de contacto de emergencia con validaciones de campos
+ * - Cambio de contraseña con validaciones de seguridad robustas
+ * - Configuración de preferencias de notificaciones (email, SMS, push)
+ * - Configuración de idioma y zona horaria
+ * - Configuración de privacidad para visibilidad de datos
+ * - Visualización de estadísticas de uso y logros del gimnasio
+ * - Sistema de validación mejorado y menos restrictivo
+ * - Detección inteligente de cambios para evitar guardados innecesarios
+ * - Interfaz por pestañas responsive para escritorio y móvil
+ * 
+ * CONEXIONES CON OTROS ARCHIVOS:
+ * - AuthContext: Para obtener información del usuario actual y actualizar contexto
+ * - AppContext: Para mostrar notificaciones y manejar formateo de fechas
+ * - apiService: Para comunicación con backend (getProfile, updateProfile, changePassword, etc.)
+ * - LoadingSpinner: Para componentes de loading (ProfileLoader, ButtonSpinner)
+ * - Lucide React: Para iconografía completa del sistema
+ * 
+ * DATOS QUE MUESTRA AL USUARIO:
+ * - Información personal completa con imagen de perfil
+ * - Datos de contacto y dirección
+ * - Información de contacto de emergencia
+ * - Estado de configuraciones de seguridad y privacidad
+ * - Preferencias de notificaciones y idioma
+ * - Estadísticas de uso del gimnasio (visitas, rachas, entrenamientos)
+ * - Fecha de membresía y logros obtenidos
+ * - Edad calculada automáticamente desde fecha de nacimiento
+ * 
+ * VALIDACIONES IMPLEMENTADAS:
+ * - Validación de nombres con caracteres permitidos (letras, acentos, espacios, guiones)
+ * - Validación de teléfonos con formato flexible pero mínimo 7 dígitos
+ * - Validación de email con formato básico
+ * - Validación de fecha de nacimiento con límites de edad (13-120 años)
+ * - Validación de contraseñas con complejidad mínima requerida
+ * - Filtrado preventivo de caracteres no válidos en tiempo real
+ * - Sistema de warnings vs errores críticos para mejor UX
+ * 
+ * CARACTERÍSTICAS ESPECIALES:
+ * - Detección automática de menores de 13 años con restricciones aplicadas
+ * - Solo envío de campos modificados al backend para optimizar rendimiento
+ * - Comparación inteligente entre estado original y actual
+ * - Validación de imágenes de perfil (formato, tamaño máximo 5MB)
+ * - Interfaz adaptativa según permisos del usuario
+ * - Sistema de pestañas con navegación fluida
+ * - Indicadores visuales de cambios sin guardar
+ * - Feedback inmediato en validaciones de formularios
+ * 
+ * SEGURIDAD:
+ * - Email no editable (solo por administrador)
+ * - Validación de contraseña actual antes de cambios
+ * - Restricciones especiales para menores de edad
+ * - Filtrado preventivo de caracteres maliciosos
+ * - Validaciones tanto en frontend como backend
+ * - Manejo seguro de subida de archivos
+ */

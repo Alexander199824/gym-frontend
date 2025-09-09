@@ -1,7 +1,6 @@
+// Autor: Alexander Echeverria
 // src/components/layout/MobileMenu.js
-// UBICACIÓN: /gym-frontend/src/components/layout/MobileMenu.js
-// FUNCIÓN: Menú móvil ✅ SIN TIMEOUT ERRORS ✅ Con tienda para todos ✅ Optimizado para rendimiento
-// MEJORAS: Renders optimizados, memoización, funciones estables
+// FUNCIÓN: Menú móvil optimizado para rendimiento sin errores de timeout
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -35,13 +34,13 @@ const MobileMenu = React.memo(({ onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // 📱 Estados locales - ✅ OPTIMIZADOS
+  // Estados locales optimizados
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [recentPages, setRecentPages] = useState([]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  // ✅ MEMOIZAR datos del usuario para evitar re-renders
+  // Memoizar datos del usuario para evitar re-renders
   const userStats = useMemo(() => {
     if (!user) return {
       name: 'Usuario',
@@ -63,11 +62,11 @@ const MobileMenu = React.memo(({ onClose }) => {
     };
   }, [user]);
   
-  // ✅ FUNCIÓN MEMOIZADA: Verificar rutas activas
+  // Función memoizada: Verificar rutas activas
   const isActiveRoute = useCallback((path) => location.pathname === path, [location.pathname]);
   const isActiveSection = useCallback((paths) => paths.some(path => location.pathname.startsWith(path)), [location.pathname]);
   
-  // ✅ FUNCIÓN MEMOIZADA: Obtener ruta del dashboard
+  // Función memoizada: Obtener ruta del dashboard
   const getDashboardPath = useCallback(() => {
     switch (user?.role) {
       case 'admin':
@@ -81,12 +80,12 @@ const MobileMenu = React.memo(({ onClose }) => {
     }
   }, [user?.role]);
   
-  // ✅ MEMOIZAR elementos del menú para evitar re-renders
+  // Memoizar elementos del menú para evitar re-renders
   const menuItems = useMemo(() => {
     const baseItems = [
       {
         id: 'dashboard',
-        label: 'Dashboard',
+        label: 'Panel Principal',
         icon: Home,
         path: getDashboardPath(),
         show: true,
@@ -95,7 +94,7 @@ const MobileMenu = React.memo(({ onClose }) => {
       }
     ];
     
-    // 👥 Usuarios
+    // Usuarios
     if (hasPermission('view_users')) {
       baseItems.push({
         id: 'users',
@@ -108,7 +107,7 @@ const MobileMenu = React.memo(({ onClose }) => {
       });
     }
     
-    // 🎫 Membresías
+    // Membresías
     if (hasPermission('view_memberships')) {
       baseItems.push({
         id: 'memberships',
@@ -121,7 +120,7 @@ const MobileMenu = React.memo(({ onClose }) => {
       });
     }
     
-    // 💰 Pagos
+    // Pagos
     if (hasPermission('view_payments')) {
       baseItems.push({
         id: 'payments',
@@ -134,7 +133,7 @@ const MobileMenu = React.memo(({ onClose }) => {
       });
     }
     
-    // 🛍️ TIENDA - ✅ DISPONIBLE PARA TODOS LOS USUARIOS
+    // Tienda - Disponible para todos los usuarios
     baseItems.push({
       id: 'store',
       label: 'Tienda',
@@ -145,7 +144,7 @@ const MobileMenu = React.memo(({ onClose }) => {
       color: 'text-pink-600'
     });
     
-    // 📊 Reportes
+    // Reportes
     if (hasPermission('view_reports')) {
       baseItems.push({
         id: 'reports',
@@ -158,23 +157,21 @@ const MobileMenu = React.memo(({ onClose }) => {
       });
     }
     
-    // ⚙️ Configuración
-    if (hasPermission('manage_system_settings')) {
-      baseItems.push({
-        id: 'settings',
-        label: 'Configuración',
-        icon: Settings,
-        path: '/dashboard/settings',
-        show: true,
-        badge: null,
-        color: 'text-gray-600'
-      });
-    }
+    // Configuración Personal
+    baseItems.push({
+      id: 'personal_settings',
+      label: 'Configuración Personal',
+      icon: Settings,
+      path: '/dashboard/profile/settings',
+      show: true,
+      badge: null,
+      color: 'text-gray-600'
+    });
     
     return baseItems.filter(item => item.show);
   }, [hasPermission, user?.role, getDashboardPath]);
   
-  // ✅ MEMOIZAR elementos filtrados
+  // Memoizar elementos filtrados
   const filteredMenuItems = useMemo(() => {
     if (!searchTerm) return menuItems;
     return menuItems.filter(item => 
@@ -182,7 +179,7 @@ const MobileMenu = React.memo(({ onClose }) => {
     );
   }, [menuItems, searchTerm]);
   
-  // ✅ MEMOIZAR accesos rápidos según el rol
+  // Memoizar accesos rápidos según el rol
   const quickActions = useMemo(() => {
     const actions = [];
     const userRole = user?.role;
@@ -210,7 +207,7 @@ const MobileMenu = React.memo(({ onClose }) => {
     return actions;
   }, [user?.role]);
   
-  // ✅ FUNCIÓN MEMOIZADA: Manejar navegación
+  // Función memoizada: Manejar navegación
   const handleNavigation = useCallback((path, label) => {
     // Guardar en páginas recientes
     setRecentPages(prev => {
@@ -221,7 +218,7 @@ const MobileMenu = React.memo(({ onClose }) => {
     onClose();
   }, [onClose]);
   
-  // ✅ FUNCIÓN MEMOIZADA: Logout mejorado
+  // Función memoizada: Logout mejorado
   const handleLogout = useCallback(async () => {
     if (isLoggingOut) return;
     
@@ -230,25 +227,25 @@ const MobileMenu = React.memo(({ onClose }) => {
         setIsLoggingOut(true);
         onClose();
         
-        // ✅ Limpiar datos locales antes del logout
+        // Limpiar datos locales antes del logout
         try {
           localStorage.removeItem('elite_fitness_cart');
           localStorage.removeItem('elite_fitness_session_id');
           localStorage.removeItem('elite_fitness_wishlist');
         } catch (error) {
-          console.warn('⚠️ Error limpiando datos locales:', error);
+          console.warn('Error limpiando datos locales:', error);
         }
         
         await logout();
         
-        // ✅ Forzar redirección después del logout
+        // Forzar redirección después del logout
         setTimeout(() => {
           window.location.href = '/login';
         }, 100);
         
       } catch (error) {
-        console.error('❌ Mobile logout error:', error);
-        // ✅ Fallback robusto
+        console.error('Error de logout móvil:', error);
+        // Fallback robusto
         localStorage.clear();
         window.location.href = '/login';
       } finally {
@@ -257,17 +254,17 @@ const MobileMenu = React.memo(({ onClose }) => {
     }
   }, [isLoggingOut, onClose, logout]);
   
-  // ✅ FUNCIÓN MEMOIZADA: Toggle búsqueda
+  // Función memoizada: Toggle búsqueda
   const toggleSearch = useCallback(() => {
     setShowSearch(prev => !prev);
   }, []);
   
-  // ✅ FUNCIÓN MEMOIZADA: Limpiar búsqueda
+  // Función memoizada: Limpiar búsqueda
   const clearSearch = useCallback(() => {
     setSearchTerm('');
   }, []);
   
-  // ✅ Effect para foco de búsqueda - OPTIMIZADO
+  // Effect para foco de búsqueda - optimizado
   useEffect(() => {
     if (showSearch) {
       const searchInput = document.getElementById('mobile-search');
@@ -282,12 +279,12 @@ const MobileMenu = React.memo(({ onClose }) => {
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden">
       
-      {/* 🔝 HEADER MEJORADO */}
+      {/* Header del menú */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50">
         <div className="flex items-center space-x-3">
           <GymLogo size="sm" variant="professional" showText={false} priority="high" />
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Menu</h2>
+            <h2 className="text-lg font-bold text-gray-900">Menú</h2>
             <p className="text-xs text-gray-500">{userStats.role}</p>
           </div>
         </div>
@@ -315,7 +312,7 @@ const MobileMenu = React.memo(({ onClose }) => {
         </div>
       </div>
       
-      {/* 🔍 BARRA DE BÚSQUEDA EXPANDIBLE */}
+      {/* Barra de búsqueda expandible */}
       {showSearch && (
         <div className="p-4 border-b border-gray-200 bg-gray-50">
           <div className="relative">
@@ -341,7 +338,7 @@ const MobileMenu = React.memo(({ onClose }) => {
         </div>
       )}
       
-      {/* 👤 INFORMACIÓN DEL USUARIO MEJORADA */}
+      {/* Información del usuario */}
       <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
         <div className="flex items-center space-x-3">
           <div className="relative">
@@ -358,7 +355,7 @@ const MobileMenu = React.memo(({ onClose }) => {
                 </span>
               </div>
             )}
-            {/* Status indicator */}
+            {/* Indicador de estado */}
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
           </div>
           
@@ -376,7 +373,7 @@ const MobileMenu = React.memo(({ onClose }) => {
         </div>
       </div>
       
-      {/* 🚀 ACCESOS RÁPIDOS */}
+      {/* Accesos rápidos */}
       {quickActions.length > 0 && (
         <div className="p-4 border-b border-gray-200">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
@@ -400,7 +397,7 @@ const MobileMenu = React.memo(({ onClose }) => {
         </div>
       )}
       
-      {/* 📋 NAVEGACIÓN PRINCIPAL */}
+      {/* Navegación principal */}
       <nav className="flex-1 overflow-y-auto p-4">
         <div className="space-y-1">
           {filteredMenuItems.map((item) => (
@@ -430,7 +427,7 @@ const MobileMenu = React.memo(({ onClose }) => {
           ))}
         </div>
         
-        {/* 📊 Páginas recientes */}
+        {/* Páginas recientes */}
         {recentPages.length > 0 && !searchTerm && (
           <div className="mt-6 pt-4 border-t border-gray-200">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
@@ -452,7 +449,7 @@ const MobileMenu = React.memo(({ onClose }) => {
           </div>
         )}
         
-        {/* 🔍 Sin resultados de búsqueda */}
+        {/* Sin resultados de búsqueda */}
         {searchTerm && filteredMenuItems.length === 0 && (
           <div className="text-center py-8">
             <Search className="w-8 h-8 text-gray-400 mx-auto mb-3" />
@@ -463,7 +460,7 @@ const MobileMenu = React.memo(({ onClose }) => {
         )}
       </nav>
       
-      {/* 🔗 ENLACES ADICIONALES Y ACCIONES */}
+      {/* Enlaces adicionales y acciones */}
       <div className="p-4 border-t border-gray-200 bg-gray-50 space-y-2">
         
         {/* Mi Perfil */}
@@ -502,7 +499,7 @@ const MobileMenu = React.memo(({ onClose }) => {
           <span>Contacto</span>
         </button>
         
-        {/* Cerrar Sesión - ✅ MEJORADO */}
+        {/* Cerrar Sesión */}
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}
@@ -533,14 +530,188 @@ MobileMenu.displayName = 'MobileMenu';
 
 export default MobileMenu;
 
-// 📝 CORRECCIONES APLICADAS PARA EVITAR TIMEOUT:
-// ✅ Componente memoizado con React.memo
-// ✅ Todas las funciones memoizadas con useCallback
-// ✅ Todos los datos memoizados with useMemo
-// ✅ Estados estables que no causan re-renders infinitos
-// ✅ useEffect optimizado con cleanup
-// ✅ Botones con type="button" para evitar form submissions
-// ✅ Navegación optimizada sin dependencias circulares
-// ✅ Búsqueda optimizada sin renders excesivos
-// ✅ Logout robusto sin problemas de estado
-// ✅ TIENDA DISPONIBLE PARA TODOS LOS USUARIOS
+/*
+DOCUMENTACIÓN DEL COMPONENTE MobileMenu
+
+PROPÓSITO:
+Este componente implementa el menú de navegación móvil deslizable para la aplicación del gimnasio,
+optimizado para dispositivos móviles con navegación por gestos, búsqueda integrada y accesos
+rápidos contextuales según el rol del usuario. Incluye optimizaciones de rendimiento para
+evitar errores de timeout y re-renders innecesarios.
+
+FUNCIONALIDADES PRINCIPALES:
+- Menú deslizable responsive desde el lado izquierdo
+- Sistema de búsqueda integrado en tiempo real
+- Navegación contextual basada en roles de usuario
+- Accesos rápidos personalizados por tipo de usuario
+- Historial de páginas visitadas recientemente
+- Avatar personalizable con indicador de estado
+- Logout seguro con confirmación y limpieza de datos
+- Optimizaciones de rendimiento con React.memo y hooks memoizados
+
+ARCHIVOS Y CONEXIONES:
+
+CONTEXTS REQUERIDOS:
+- ../../contexts/AuthContext: Autenticación, datos del usuario, permisos y función de logout
+
+HOOKS DE REACT ROUTER:
+- react-router-dom (Link): Enlaces de navegación interna
+- react-router-dom (useLocation): Detectar ruta activa para resaltado
+- react-router-dom (useNavigate): Navegación programática
+
+COMPONENTES IMPORTADOS:
+- ../common/GymLogo: Logo oficial del gimnasio con variantes de tamaño
+
+ICONOS DE LUCIDE REACT:
+- X: Botón cerrar menú y limpiar búsqueda
+- Home: Panel principal/dashboard
+- Users: Gestión de usuarios
+- CreditCard: Membresías del gimnasio
+- DollarSign: Pagos y transacciones en quetzales
+- BarChart3: Reportes y análisis
+- Settings: Configuración personal del usuario
+- LogOut: Cerrar sesión
+- User: Perfil personal
+- Calendar: Clases y citas
+- Search: Búsqueda en menú
+- ChevronRight: Indicador de navegación
+- Bell: Notificaciones
+- ShoppingCart: Tienda de productos
+- Package: Inventario
+- Star: Progreso del usuario
+- TrendingUp: Estadísticas
+- Clock: Horarios y páginas recientes
+- HelpCircle: Ayuda y soporte
+- Phone: Contacto
+
+ESTADOS MANEJADOS LOCALMENTE:
+- searchTerm: Término de búsqueda actual en el menú
+- showSearch: Control de visibilidad de barra de búsqueda
+- recentPages: Historial de páginas visitadas recientemente (máximo 3)
+- isLoggingOut: Control del proceso de cierre de sesión
+
+QUE SE MUESTRA AL USUARIO:
+
+ESTRUCTURA VISUAL DEL MENÚ:
+- Menú deslizable de ancho completo desde el lado izquierdo
+- Header con logo del gimnasio, título "Menú" y rol del usuario
+- Botones de búsqueda y cerrar en la esquina superior derecha
+- Barra de búsqueda expandible con placeholder "Buscar en el menú..."
+- Sección de información del usuario con avatar y estado
+- Grid de accesos rápidos (3 columnas) según rol
+- Lista de navegación principal con iconos y badges
+- Historial de páginas recientes (cuando aplique)
+- Footer con enlaces adicionales y logout
+
+HEADER DEL MENÚ:
+- Logo pequeño del gimnasio en variante profesional
+- Título "Menú" con rol del usuario debajo
+- Botón de búsqueda que activa/desactiva la barra
+- Botón X para cerrar el menú completo
+- Fondo con gradiente sutil de primary a secondary
+
+INFORMACIÓN DEL USUARIO:
+- Avatar circular de 48px con imagen de perfil o iniciales generadas
+- Indicador verde de estado "En línea" en esquina del avatar
+- Nombre completo del usuario (truncado si es muy largo)
+- Rol del usuario (Administrador/Personal/Cliente)
+- Estado "En línea" en color primary
+- Fondo con gradiente gris sutil
+
+ACCESOS RÁPIDOS POR ROL:
+- **Administrador**: Estadísticas, Notificaciones, Inventario
+- **Personal**: Horarios, Clientes, Citas
+- **Cliente**: Mis Clases, Progreso, Tienda
+- Grid de 3 columnas con iconos grandes y etiquetas
+- Fondos grises con hover effects
+
+NAVEGACIÓN PRINCIPAL:
+- Panel Principal: Enlace al dashboard correspondiente según rol
+- Usuarios: Gestión de usuarios (con permisos)
+- Membresías: Gestión de membresías del gimnasio (con permisos)
+- Pagos: Transacciones y pagos en quetzales (con permisos)
+- Tienda: Acceso universal con badges contextuales
+- Reportes: Análisis y reportes (con permisos)
+- Configuración Personal: Preferencias del usuario
+- Indicador visual de ruta activa con borde izquierdo azul
+- Badges rojos para notificaciones o estados especiales
+
+HISTORIAL RECIENTE:
+- Máximo 3 páginas visitadas recientemente
+- Icono de reloj con nombre de la página
+- Solo visible cuando hay historial y no hay búsqueda activa
+- Ordenado por timestamp de visita
+
+BÚSQUEDA INTEGRADA:
+- Barra expandible con icono de lupa
+- Búsqueda en tiempo real por nombre de elementos del menú
+- Botón X para limpiar término de búsqueda
+- Mensaje "No se encontraron resultados" cuando no hay coincidencias
+- Focus automático al expandir la búsqueda
+
+FOOTER CON ENLACES ADICIONALES:
+- Mi Perfil: Enlace al perfil personal del usuario
+- Ayuda y Soporte: Acceso a documentación y soporte
+- Contacto: Información de contacto del gimnasio
+- Cerrar Sesión: Botón rojo con confirmación obligatoria
+- Spinner animado durante proceso de logout
+
+TIENDA UNIVERSAL:
+- Accesible para todos los roles de usuario sin excepción
+- Badge contextual: "Comprar" para clientes, "Gestionar" para admin, "Ver" para personal
+- Icono de carrito de compras en color rosa
+- Enlace directo a la tienda de productos del gimnasio
+
+ROLES Y PERMISOS SOPORTADOS:
+- **Administrador**: Acceso completo a gestión, reportes y configuración
+- **Personal/Colaborador**: Acceso a gestión de clientes y operaciones
+- **Cliente**: Acceso a funciones personales y tienda
+
+INTERACCIONES DISPONIBLES:
+- Tap en cualquier elemento de navegación navega y cierra menú
+- Tap en búsqueda despliega/oculta barra de búsqueda
+- Tap en X cierra menú completamente
+- Búsqueda filtra elementos en tiempo real
+- Confirmación obligatoria antes de logout
+- Swipe para cerrar menú (gestionado por componente padre)
+
+OPTIMIZACIONES DE RENDIMIENTO:
+- Componente completamente memoizado con React.memo
+- Funciones de navegación memoizadas con useCallback
+- Datos de usuario y menú memoizados con useMemo
+- Elementos filtrados memoizados para búsqueda eficiente
+- Event listeners optimizados con cleanup automático
+- Estados estables que previenen re-renders infinitos
+
+CARACTERÍSTICAS DE ACCESIBILIDAD:
+- Todos los botones tienen type="button" explícito
+- Alt tags apropiados en imágenes de avatar
+- Focus automático en campo de búsqueda
+- Navegación clara con indicadores visuales
+- Contraste adecuado en todos los elementos
+
+GESTIÓN DE MEMORIA:
+- Cleanup automático de timeouts y event listeners
+- Prevención de memory leaks con useCallback y useMemo
+- Estados locales mínimos necesarios
+- Referencias optimizadas con cleanup
+
+INTEGRACIÓN CON EL SISTEMA DEL GIMNASIO:
+- Navegación específica para entidades del gimnasio
+- Roles contextuales para gestión de permisos
+- Enlaces a pagos en quetzales guatemaltecos
+- Acceso a inventario y productos del gimnasio
+- Gestión de membresías y clientes
+- Reportes financieros y operativos
+
+SEGURIDAD Y LOGOUT:
+- Confirmación obligatoria antes de cerrar sesión
+- Limpieza automática de localStorage y sessionStorage
+- Fallback robusto en caso de errores de logout
+- Redirección forzada después de cierre exitoso
+- Prevención de clicks múltiples durante logout
+
+Este componente es esencial para la experiencia móvil en la aplicación del gimnasio,
+proporcionando navegación completa, búsqueda eficiente y accesos rápidos optimizados
+según el tipo de usuario, todo con rendimiento optimizado para dispositivos móviles.
+*/

@@ -1,6 +1,6 @@
+// Autor: Alexander Echeverria
 // src/hooks/useBackendDebug.js
 // FUNCIÓN: Hook para debug completo del backend y estado de carga
-// MUESTRA: Información detallada de TODAS las peticiones y respuestas
 
 import { useState, useEffect, useRef } from 'react';
 import apiService from '../services/apiService';
@@ -40,7 +40,7 @@ const useBackendDebug = () => {
     const startTime = Date.now();
     
     try {
-      console.log(`🔍 Testing endpoint: ${endpoint.name} (${endpoint.url})`);
+      console.log(`Probando endpoint: ${endpoint.name} (${endpoint.url})`);
       
       // Hacer petición según el tipo
       let response;
@@ -71,7 +71,7 @@ const useBackendDebug = () => {
         Object.keys(response.data).length > 0
       ));
       
-      console.log(`✅ ${endpoint.name} SUCCESS:`, {
+      console.log(`${endpoint.name} EXITOSO:`, {
         responseTime: `${responseTime}ms`,
         hasData,
         dataType: Array.isArray(response?.data) ? 'Array' : typeof response?.data,
@@ -80,16 +80,16 @@ const useBackendDebug = () => {
       
       // Log específico según el tipo de endpoint
       if (endpoint.name === 'config' && response?.data) {
-        console.log('🏢 CONFIG DETAILS:', {
-          name: response.data.name || '❌ Missing',
-          logo: response.data.logo?.url ? '✅ Present' : '❌ Missing',
-          contact: response.data.contact ? '✅ Present' : '❌ Missing',
-          social: response.data.social ? `✅ ${Object.keys(response.data.social).length} platforms` : '❌ Missing'
+        console.log('DETALLES DE CONFIGURACIÓN:', {
+          name: response.data.name || 'Faltante',
+          logo: response.data.logo?.url ? 'Presente' : 'Faltante',
+          contact: response.data.contact ? 'Presente' : 'Faltante',
+          social: response.data.social ? `${Object.keys(response.data.social).length} plataformas` : 'Faltante'
         });
       }
       
       if (endpoint.name === 'stats' && response?.data) {
-        console.log('📊 STATS DETAILS:', {
+        console.log('DETALLES DE ESTADÍSTICAS:', {
           members: response.data.members || 0,
           trainers: response.data.trainers || 0,
           experience: response.data.experience || 0,
@@ -98,7 +98,7 @@ const useBackendDebug = () => {
       }
       
       if (endpoint.name === 'services' && Array.isArray(response?.data)) {
-        console.log('🏋️ SERVICES DETAILS:', {
+        console.log('DETALLES DE SERVICIOS:', {
           total: response.data.length,
           active: response.data.filter(s => s.active !== false).length,
           services: response.data.map(s => ({ title: s.title, active: s.active !== false }))
@@ -118,32 +118,32 @@ const useBackendDebug = () => {
     } catch (error) {
       const responseTime = Date.now() - startTime;
       
-      console.log(`❌ ${endpoint.name} FAILED:`, {
+      console.log(`${endpoint.name} FALLÓ:`, {
         error: error.message,
         status: error.response?.status,
         responseTime: `${responseTime}ms`
       });
       
       // Análisis específico del error
-      let errorAnalysis = 'Unknown error';
-      let suggestion = 'Check backend configuration';
+      let errorAnalysis = 'Error desconocido';
+      let suggestion = 'Verificar configuración del backend';
       
       if (error.response?.status === 404) {
-        errorAnalysis = 'Endpoint not implemented';
-        suggestion = `Implement ${endpoint.url} in backend`;
+        errorAnalysis = 'Endpoint no implementado';
+        suggestion = `Implementar ${endpoint.url} en el backend`;
       } else if (error.response?.status === 500) {
-        errorAnalysis = 'Backend internal error';
-        suggestion = 'Check backend logs for details';
+        errorAnalysis = 'Error interno del backend';
+        suggestion = 'Revisar logs del backend para detalles';
       } else if (error.code === 'ERR_NETWORK') {
-        errorAnalysis = 'Cannot connect to backend';
-        suggestion = 'Start backend server';
+        errorAnalysis = 'No se puede conectar al backend';
+        suggestion = 'Iniciar servidor del backend';
       } else if (error.code === 'ECONNABORTED') {
-        errorAnalysis = 'Request timeout';
-        suggestion = 'Backend is taking too long to respond';
+        errorAnalysis = 'Timeout de petición';
+        suggestion = 'El backend está tardando demasiado en responder';
       }
       
-      console.log(`💡 ${endpoint.name} ANALYSIS: ${errorAnalysis}`);
-      console.log(`🔧 ${endpoint.name} SUGGESTION: ${suggestion}`);
+      console.log(`${endpoint.name} ANÁLISIS: ${errorAnalysis}`);
+      console.log(`${endpoint.name} SUGERENCIA: ${suggestion}`);
       
       return {
         name: endpoint.name,
@@ -162,7 +162,7 @@ const useBackendDebug = () => {
   const checkAllEndpoints = async () => {
     if (!isMountedRef.current) return;
     
-    console.group('🔌 COMPLETE BACKEND CHECK - Starting...');
+    console.group('VERIFICACIÓN COMPLETA DEL BACKEND - Iniciando...');
     
     setDebugInfo(prev => ({ ...prev, isChecking: true }));
     
@@ -192,7 +192,7 @@ const useBackendDebug = () => {
         }
       }
       
-      // Small delay between requests to avoid overwhelming
+      // Pequeña pausa entre peticiones para no sobrecargar
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     
@@ -206,7 +206,7 @@ const useBackendDebug = () => {
     
     const percentage = Math.round((workingCount / endpointsToCheck.length) * 100);
     
-    console.log('📊 BACKEND CHECK SUMMARY:', {
+    console.log('RESUMEN DE VERIFICACIÓN DEL BACKEND:', {
       total: endpointsToCheck.length,
       working: workingCount,
       failed: failedCount,
@@ -216,11 +216,11 @@ const useBackendDebug = () => {
     });
     
     if (errors.length > 0) {
-      console.log('❌ ERRORS FOUND:');
+      console.log('ERRORES ENCONTRADOS:');
       errors.forEach(err => {
         console.log(`  - ${err.endpoint}: ${err.error}`);
         if (err.critical) {
-          console.log(`    ⚠️ CRITICAL: ${err.suggestion}`);
+          console.log(`    CRÍTICO: ${err.suggestion}`);
         }
       });
     }
@@ -248,11 +248,11 @@ const useBackendDebug = () => {
   const checkSpecificEndpoint = async (endpointName) => {
     const endpoint = endpointsToCheck.find(ep => ep.name === endpointName);
     if (!endpoint) {
-      console.error(`Endpoint ${endpointName} not found in list`);
+      console.error(`Endpoint ${endpointName} no encontrado en la lista`);
       return null;
     }
     
-    console.log(`🎯 Manual check for ${endpointName}...`);
+    console.log(`Verificación manual para ${endpointName}...`);
     const result = await checkEndpoint(endpoint);
     
     // Actualizar solo ese endpoint en el estado
@@ -296,7 +296,7 @@ const useBackendDebug = () => {
 
   // Efecto para verificación inicial
   useEffect(() => {
-    console.log('🚀 Backend Debug Hook initialized');
+    console.log('Hook de Debug del Backend inicializado');
     
     // Verificación inicial inmediata
     checkAllEndpoints();
@@ -304,7 +304,7 @@ const useBackendDebug = () => {
     // Verificación periódica cada 2 minutos
     intervalRef.current = setInterval(() => {
       if (isMountedRef.current) {
-        console.log('🔄 Periodic backend check...');
+        console.log('Verificación periódica del backend...');
         checkAllEndpoints();
       }
     }, 120000); // 2 minutos
@@ -314,7 +314,7 @@ const useBackendDebug = () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      console.log('🧹 Backend Debug Hook cleanup');
+      console.log('Limpieza del Hook de Debug del Backend');
     };
   }, []);
 
@@ -338,19 +338,19 @@ const useBackendDebug = () => {
     
     // Agregar recomendaciones
     if (debugInfo.backendStatus === 'disconnected') {
-      report.recommendations.push('🚨 Critical: Start backend server immediately');
+      report.recommendations.push('CRÍTICO: Iniciar servidor del backend inmediatamente');
     }
     
     const failingEndpoints = getFailingEndpoints();
     failingEndpoints.forEach(ep => {
       if (ep.critical) {
-        report.recommendations.push(`⚠️ Critical: ${ep.suggestion}`);
+        report.recommendations.push(`CRÍTICO: ${ep.suggestion}`);
       } else {
-        report.recommendations.push(`💡 Optional: ${ep.suggestion}`);
+        report.recommendations.push(`OPCIONAL: ${ep.suggestion}`);
       }
     });
     
-    console.log('📋 BACKEND REPORT:', report);
+    console.log('REPORTE DEL BACKEND:', report);
     
     return report;
   };
@@ -389,3 +389,183 @@ const useBackendDebug = () => {
 };
 
 export default useBackendDebug;
+
+/*
+DOCUMENTACIÓN DEL HOOK useBackendDebug
+
+PROPÓSITO:
+Este hook personalizado proporciona capacidades completas de debugging y monitoreo para el backend
+de la aplicación del gimnasio, verificando automáticamente la conectividad, funcionamiento y estado
+de todos los endpoints críticos del sistema. Está diseñado específicamente para desarrolladores
+y administradores técnicos que necesitan diagnosticar problemas de conectividad y rendimiento.
+
+FUNCIONALIDADES PRINCIPALES:
+- Verificación automática de todos los endpoints del backend
+- Monitoreo continuo con actualizaciones periódicas cada 2 minutos
+- Análisis detallado de respuestas y errores de cada endpoint
+- Generación de reportes completos de estado del sistema
+- Clasificación de endpoints por criticidad (críticos vs opcionales)
+- Logging detallado en consola para debugging avanzado
+- Métricas de tiempo de respuesta y disponibilidad
+- Sugerencias automáticas para resolución de problemas
+
+ARCHIVOS Y CONEXIONES:
+
+SERVICIOS UTILIZADOS:
+- ../services/apiService: Servicio principal de comunicación con backend
+  * healthCheck(): Verificación de salud general del servidor
+  * getGymConfig(): Configuración básica del gimnasio
+  * getGymStats(): Estadísticas del gimnasio
+  * getGymServices(): Servicios ofrecidos
+  * getTestimonials(): Testimonios de clientes
+  * getFeaturedProducts(): Productos destacados de la tienda
+  * getMembershipPlans(): Planes de membresía en quetzales
+  * get(): Método genérico para otros endpoints
+
+DEPENDENCIAS DE REACT:
+- useState: Gestión del estado de debugging
+- useEffect: Verificación inicial y limpieza
+- useRef: Referencias para interval y estado de montaje
+
+QUE MUESTRA AL DESARROLLADOR:
+
+INFORMACIÓN EN CONSOLA DEL NAVEGADOR:
+El hook proporciona logging detallado en la consola del navegador para debugging:
+
+**Verificación de Endpoints Individuales**:
+- "Probando endpoint: [nombre] ([URL])" - Inicio de verificación
+- "[nombre] EXITOSO:" con detalles de tiempo de respuesta, datos y tipo
+- "[nombre] FALLÓ:" con información específica del error
+- "ANÁLISIS: [descripción del problema]" - Diagnóstico automático
+- "SUGERENCIA: [solución recomendada]" - Pasos para resolver
+
+**Detalles Específicos por Endpoint**:
+- **Configuración**: Nombre del gimnasio, logo, contacto, redes sociales
+- **Estadísticas**: Miembros, entrenadores, experiencia, satisfacción
+- **Servicios**: Total de servicios, servicios activos, lista detallada
+- **Productos**: Inventario de tienda, productos destacados
+- **Planes**: Membresías disponibles con precios en quetzales
+
+**Resumen General del Backend**:
+- Total de endpoints verificados
+- Endpoints funcionando correctamente
+- Endpoints con fallos
+- Porcentaje de disponibilidad general
+- Estado global: 'connected', 'partial', 'disconnected'
+- Número de errores críticos detectados
+
+**Lista de Errores Encontrados**:
+- Endpoint específico con problema
+- Descripción del error técnico
+- Clasificación de criticidad (CRÍTICO vs opcional)
+- Sugerencia específica para resolución
+
+ESTADOS DEL BACKEND MOSTRADOS:
+
+**Estado 'connected' (Conectado)**:
+- Todos los endpoints críticos funcionando
+- Backend completamente operativo
+- Datos del gimnasio disponibles
+- Sistema listo para producción
+
+**Estado 'partial' (Parcial)**:
+- Endpoints críticos funcionando
+- Algunos endpoints opcionales con problemas
+- Funcionalidad básica disponible
+- Algunas características pueden estar limitadas
+
+**Estado 'disconnected' (Desconectado)**:
+- Uno o más endpoints críticos fallando
+- Backend no completamente funcional
+- Problemas graves de conectividad
+- Requiere atención inmediata
+
+ENDPOINTS VERIFICADOS:
+
+**Endpoints Críticos** (deben funcionar para operación básica):
+- **health**: Estado de salud del servidor backend
+- **config**: Configuración básica del gimnasio (nombre, logo, contacto)
+
+**Endpoints Opcionales** (mejoran funcionalidad pero no son críticos):
+- **stats**: Estadísticas del gimnasio (miembros, entrenadores)
+- **services**: Servicios ofrecidos (clases, entrenamientos)
+- **testimonials**: Testimonios y reseñas de clientes
+- **products**: Productos destacados de la tienda
+- **plans**: Planes de membresía con precios en quetzales
+
+MÉTRICAS DE RENDIMIENTO:
+- **Tiempo de respuesta**: Milisegundos para cada endpoint
+- **Disponibilidad**: Porcentaje de endpoints funcionando
+- **Datos válidos**: Verificación de que los endpoints retornan información
+- **Frecuencia de errores**: Tracking de fallos por endpoint
+- **Tiempo de última verificación**: Timestamp de último chequeo
+
+ANÁLISIS DE ERRORES AUTOMÁTICO:
+
+**Error 404 - No Encontrado**:
+- Análisis: "Endpoint no implementado"
+- Sugerencia: "Implementar [URL] en el backend"
+
+**Error 500 - Error Interno**:
+- Análisis: "Error interno del backend"
+- Sugerencia: "Revisar logs del backend para detalles"
+
+**ERR_NETWORK - Sin Conexión**:
+- Análisis: "No se puede conectar al backend"
+- Sugerencia: "Iniciar servidor del backend"
+
+**ECONNABORTED - Timeout**:
+- Análisis: "Timeout de petición"
+- Sugerencia: "El backend está tardando demasiado en responder"
+
+REPORTES GENERADOS:
+- **Timestamp**: Fecha y hora del reporte
+- **Resumen**: Estadísticas generales de conectividad
+- **Estado global**: connected/partial/disconnected
+- **Detalles por endpoint**: Estado, tiempo de respuesta, datos disponibles
+- **Recomendaciones**: Lista priorizada de acciones a tomar
+
+VERIFICACIONES AUTOMÁTICAS:
+- **Inicial**: Al cargar la aplicación
+- **Periódicas**: Cada 2 minutos en background
+- **Manuales**: Funciones para verificar endpoints específicos
+- **Al demanda**: Generación de reportes cuando se necesite
+
+CASOS DE USO PARA DESARROLLADORES:
+
+**Durante Desarrollo**:
+- Verificar que todos los endpoints estén implementados
+- Monitorear rendimiento durante pruebas
+- Detectar problemas de conectividad tempranamente
+- Validar datos retornados por cada endpoint
+
+**En Producción**:
+- Monitoreo continuo de salud del sistema
+- Alertas tempranas de problemas de backend
+- Diagnóstico rápido de fallos de conectividad
+- Información para soporte técnico
+
+**Para Administradores**:
+- Estado general del sistema del gimnasio
+- Verificación de datos críticos (configuración, planes de membresía)
+- Monitoreo de disponibilidad de servicios
+- Reportes para toma de decisiones técnicas
+
+INTEGRACIÓN CON EL GIMNASIO:
+- Verificación específica de datos del gimnasio guatemalteco
+- Validación de planes de membresía en quetzales
+- Monitoreo de inventario de productos de la tienda
+- Estado de servicios específicos del fitness
+- Conectividad con sistemas de gestión del gimnasio
+
+OPTIMIZACIONES TÉCNICAS:
+- Cache de resultados para evitar verificaciones excesivas
+- Intervalos inteligentes de verificación
+- Cleanup automático de recursos
+- Logging condicional solo en desarrollo
+- Análisis eficiente de respuestas
+
+Este hook es fundamental para mantener la confiabilidad y rendimiento del sistema
+del gimnasio, proporcionando visibilidad completa del estado del backend y
+herramientas de diagnóstico para resolver problemas rápidamente.
+*/

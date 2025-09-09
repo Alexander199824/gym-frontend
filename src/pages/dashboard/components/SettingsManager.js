@@ -1,6 +1,5 @@
-// src/pages/dashboard/components/SettingsManager.js
-// FUNCIÓN: Configuración completa del sistema - Usuarios, seguridad, notificaciones, backup
-// CONECTA CON: Backend API /api/admin/*
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/SettingsManager.js
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -17,13 +16,13 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
   const { showSuccess, showError, formatDate, isMobile } = useApp();
   
-  // 📊 Estados principales
+  // Estados principales
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState('general');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
-  // ⚙️ Estados de configuración
+  // Estados de configuración
   const [systemConfig, setSystemConfig] = useState({
     general: {
       siteName: '',
@@ -94,7 +93,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
     }
   });
   
-  // 🔧 Secciones de configuración
+  // Secciones de configuración
   const configSections = [
     {
       id: 'general',
@@ -122,7 +121,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
     },
     {
       id: 'backup',
-      title: 'Backup y Datos',
+      title: 'Respaldo y Datos',
       description: 'Respaldos y gestión de datos',
       icon: Database,
       color: 'text-purple-600',
@@ -138,7 +137,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
     }
   ];
   
-  // 🔄 CARGAR CONFIGURACIÓN
+  // CARGAR CONFIGURACIÓN
   const loadSystemConfig = async () => {
     try {
       setLoading(true);
@@ -155,16 +154,16 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error loading system config:', error);
+      console.error('Error al cargar configuración del sistema:', error);
       
       // Usar configuración por defecto si falla
-      console.log('⚠️ Using default system configuration');
+      console.log('Usando configuración predeterminada del sistema');
     } finally {
       setLoading(false);
     }
   };
   
-  // 💾 GUARDAR CONFIGURACIÓN
+  // GUARDAR CONFIGURACIÓN
   const saveSystemConfig = async (section = null) => {
     try {
       setSaving(true);
@@ -187,26 +186,26 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error saving system config:', error);
+      console.error('Error al guardar configuración del sistema:', error);
       showError('Error al guardar configuración');
     } finally {
       setSaving(false);
     }
   };
   
-  // 🔄 Cargar datos al montar
+  // Cargar datos al montar
   useEffect(() => {
     loadSystemConfig();
   }, []);
   
-  // 🔔 Notificar cambios sin guardar
+  // Notificar cambios sin guardar
   useEffect(() => {
     if (onUnsavedChanges) {
       onUnsavedChanges(hasUnsavedChanges);
     }
   }, [hasUnsavedChanges, onUnsavedChanges]);
   
-  // 📝 Manejar cambio de configuración
+  // Manejar cambio de configuración
   const handleConfigChange = (section, field, value) => {
     setSystemConfig(prev => ({
       ...prev,
@@ -218,7 +217,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
     setHasUnsavedChanges(true);
   };
   
-  // 📝 Manejar cambio de configuración anidada
+  // Manejar cambio de configuración anidada
   const handleNestedConfigChange = (section, subsection, field, value) => {
     setSystemConfig(prev => ({
       ...prev,
@@ -233,7 +232,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
     setHasUnsavedChanges(true);
   };
   
-  // 🔐 Probar conexión de email
+  // Probar conexión de email
   const testEmailConnection = async () => {
     try {
       const response = await apiService.post('/admin/test-email', {
@@ -247,12 +246,12 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error testing email:', error);
+      console.error('Error al probar email:', error);
       showError('Error al probar conexión de email');
     }
   };
   
-  // 💳 Probar conexión de Stripe
+  // Probar conexión de Stripe
   const testStripeConnection = async () => {
     try {
       const response = await apiService.post('/admin/test-stripe', {
@@ -266,18 +265,18 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error testing Stripe:', error);
+      console.error('Error al probar Stripe:', error);
       showError('Error al probar conexión de Stripe');
     }
   };
   
-  // 🗄️ Crear backup manual
+  // Crear backup manual
   const createManualBackup = async () => {
     try {
       const response = await apiService.post('/admin/create-backup');
       
       if (response.success) {
-        showSuccess('Backup creado exitosamente');
+        showSuccess('Respaldo creado exitosamente');
         // Actualizar fecha del último backup
         setSystemConfig(prev => ({
           ...prev,
@@ -287,16 +286,16 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
           }
         }));
       } else {
-        showError('Error al crear backup');
+        showError('Error al crear respaldo');
       }
       
     } catch (error) {
-      console.error('❌ Error creating backup:', error);
-      showError('Error al crear backup');
+      console.error('Error al crear respaldo:', error);
+      showError('Error al crear respaldo');
     }
   };
   
-  // 📤 Exportar configuración
+  // Exportar configuración
   const exportConfig = async () => {
     try {
       const dataStr = JSON.stringify(systemConfig, null, 2);
@@ -314,12 +313,12 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
       showSuccess('Configuración exportada exitosamente');
       
     } catch (error) {
-      console.error('❌ Error exporting config:', error);
+      console.error('Error al exportar configuración:', error);
       showError('Error al exportar configuración');
     }
   };
   
-  // 📥 Importar configuración
+  // Importar configuración
   const importConfig = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -335,7 +334,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
         setHasUnsavedChanges(true);
         showSuccess('Configuración importada exitosamente');
       } catch (error) {
-        console.error('❌ Error importing config:', error);
+        console.error('Error al importar configuración:', error);
         showError('Error al importar configuración');
       }
     };
@@ -345,7 +344,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* ENCABEZADO */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -353,7 +352,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
             Configuración del Sistema
           </h3>
           <p className="text-gray-600 mt-1">
-            Administra la configuración general, seguridad y integraciones
+            Administra la configuración general, seguridad e integraciones
           </p>
         </div>
         
@@ -410,7 +409,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 🔗 NAVEGACIÓN DE SECCIONES */}
+      {/* NAVEGACIÓN DE SECCIONES */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {configSections.map((section) => {
@@ -442,7 +441,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📋 CONTENIDO DE CONFIGURACIÓN */}
+      {/* CONTENIDO DE CONFIGURACIÓN */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         
         {loading ? (
@@ -497,8 +496,8 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="America/Guatemala">Guatemala (GMT-6)</option>
-                      <option value="America/Mexico_City">Mexico City (GMT-6)</option>
-                      <option value="America/New_York">New York (GMT-5)</option>
+                      <option value="America/Mexico_City">Ciudad de México (GMT-6)</option>
+                      <option value="America/New_York">Nueva York (GMT-5)</option>
                       <option value="UTC">UTC (GMT+0)</option>
                     </select>
                   </div>
@@ -513,7 +512,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="es">Español</option>
-                      <option value="en">English</option>
+                      <option value="en">Inglés</option>
                     </select>
                   </div>
                   
@@ -527,7 +526,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="GTQ">Quetzal (GTQ)</option>
-                      <option value="USD">Dólar (USD)</option>
+                      <option value="USD">Dólar Estadounidense (USD)</option>
                       <option value="MXN">Peso Mexicano (MXN)</option>
                     </select>
                   </div>
@@ -603,7 +602,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Máximos Intentos de Login
+                      Máximos Intentos de Inicio de Sesión
                     </label>
                     <input
                       type="number"
@@ -712,7 +711,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                           onChange={(e) => handleConfigChange('notifications', 'emailNotifications', e.target.checked)}
                           className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
-                        <span className="ml-2 text-sm text-gray-700">Notificaciones por email</span>
+                        <span className="ml-2 text-sm text-gray-700">Notificaciones por correo electrónico</span>
                       </label>
                       
                       <label className="inline-flex items-center">
@@ -822,14 +821,14 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
               <div className="p-6 space-y-6">
                 
                 <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-medium text-gray-900">Backup y Gestión de Datos</h4>
+                  <h4 className="text-lg font-medium text-gray-900">Respaldo y Gestión de Datos</h4>
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={createManualBackup}
                       className="btn-secondary btn-sm"
                     >
                       <Database className="w-4 h-4 mr-2" />
-                      Crear Backup
+                      Crear Respaldo
                     </button>
                     <button
                       onClick={() => saveSystemConfig('backup')}
@@ -850,7 +849,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Frecuencia de Backup Automático
+                      Frecuencia de Respaldo Automático
                     </label>
                     <select
                       value={systemConfig.backup.backupFrequency}
@@ -865,7 +864,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Retención de Backups (días)
+                      Retención de Respaldos (días)
                     </label>
                     <input
                       type="number"
@@ -885,7 +884,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                         onChange={(e) => handleConfigChange('backup', 'autoBackup', e.target.checked)}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
-                      <span className="ml-2 text-sm text-gray-700">Habilitar backup automático</span>
+                      <span className="ml-2 text-sm text-gray-700">Habilitar respaldo automático</span>
                     </label>
                     
                     <label className="inline-flex items-center">
@@ -904,7 +903,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                       <div className="flex items-center">
                         <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
                         <span className="text-sm text-green-800">
-                          Último backup: {formatDate(systemConfig.backup.lastBackup, 'dd/MM/yyyy HH:mm')}
+                          Último respaldo: {formatDate(systemConfig.backup.lastBackup, 'dd/MM/yyyy HH:mm')}
                         </span>
                       </div>
                     </div>
@@ -991,7 +990,7 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
                 {/* Email */}
                 <div className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h5 className="text-md font-medium text-gray-900">Configuración de Email</h5>
+                    <h5 className="text-md font-medium text-gray-900">Configuración de Correo Electrónico</h5>
                     <button
                       onClick={testEmailConnection}
                       className="btn-secondary btn-sm"
@@ -1067,3 +1066,113 @@ const SettingsManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default SettingsManager;
+
+/*
+ * COMPONENTE: SettingsManager
+ * AUTOR: Alexander Echeverria
+ * 
+ * PROPÓSITO:
+ * Este componente gestiona la configuración completa del sistema de administración del gimnasio.
+ * Permite a los administradores configurar todos los aspectos operativos, de seguridad, 
+ * notificaciones, respaldos e integraciones con servicios externos del sistema.
+ * 
+ * FUNCIONALIDADES PARA EL USUARIO:
+ * 
+ * CONFIGURACIÓN GENERAL:
+ * - Configurar nombre y descripción del sitio web del gimnasio
+ * - Establecer zona horaria (Guatemala, México, Nueva York, UTC)
+ * - Seleccionar idioma del sistema (Español, Inglés)
+ * - Configurar moneda (Quetzal GTQ como principal, USD, MXN como alternativas)
+ * - Activar/desactivar modo mantenimiento para la página web
+ * - Formato de fechas personalizable
+ * 
+ * CONFIGURACIÓN DE SEGURIDAD:
+ * - Establecer tiempo de expiración de sesión (5-480 minutos)
+ * - Configurar máximo número de intentos de inicio de sesión (3-10 intentos)
+ * - Definir tamaño máximo de archivos subidos (1-100 MB)
+ * - Especificar tipos de archivos permitidos (jpg, png, pdf, etc.)
+ * - Habilitar/deshabilitar requisitos de contraseñas seguras
+ * - Configurar autenticación de dos factores
+ * - Gestionar lista blanca de direcciones IP autorizadas
+ * 
+ * CONFIGURACIÓN DE NOTIFICACIONES:
+ * - Activar notificaciones por correo electrónico, SMS y push
+ * - Configurar alertas de vencimiento de membresías:
+ *   * Días de anticipación para alertas (1-30 días)
+ *   * Frecuencia de recordatorios (diario, cada 3 días, semanal)
+ * - Establecer recordatorios de pago:
+ *   * Días antes del vencimiento (1-10 días)
+ *   * Activación/desactivación de recordatorios automáticos
+ * - Configurar alertas del sistema para administradores
+ * 
+ * GESTIÓN DE RESPALDOS:
+ * - Crear respaldos manuales con un clic
+ * - Configurar respaldos automáticos (diario, semanal, mensual)
+ * - Establecer tiempo de retención de respaldos (7-365 días)
+ * - Incluir/excluir archivos multimedia en respaldos
+ * - Ver fecha y hora del último respaldo realizado
+ * - Configurar ubicación de almacenamiento de respaldos
+ * 
+ * INTEGRACIONES EXTERNAS:
+ * - Configuración de Stripe para procesamiento de pagos:
+ *   * Claves públicas y secretas de Stripe
+ *   * Probar conexión con la API de Stripe
+ *   * Activar/desactivar integración de pagos
+ * - Configuración de correo electrónico SMTP:
+ *   * Servidor SMTP (Gmail, Outlook, servidores personalizados)
+ *   * Puerto SMTP (587, 465, 25)
+ *   * Credenciales de autenticación
+ *   * Probar conexión de correo electrónico
+ * - Configuración futura de WhatsApp Business API
+ * 
+ * GESTIÓN DE CONFIGURACIONES:
+ * - Exportar configuración completa en formato JSON
+ * - Importar configuración desde archivo JSON
+ * - Guardar cambios por sección o guardado completo
+ * - Indicadores visuales de cambios sin guardar
+ * - Recargar configuración desde el servidor
+ * 
+ * CONEXIONES Y DEPENDENCIAS:
+ * 
+ * CONTEXTOS:
+ * - AuthContext: Para verificar permisos de administrador y autenticación
+ * - AppContext: Para notificaciones, formateo de fechas y utilidades del sistema
+ * 
+ * SERVICIOS API:
+ * - apiService: Servicio principal para comunicación con el backend
+ * 
+ * ENDPOINTS CONECTADOS:
+ * - /api/admin/system-config (GET): Obtiene configuración actual del sistema
+ * - /api/admin/system-config (POST): Guarda configuración actualizada
+ * - /api/admin/test-email (POST): Prueba configuración de correo electrónico
+ * - /api/admin/test-stripe (POST): Prueba conexión con Stripe
+ * - /api/admin/create-backup (POST): Crea respaldo manual del sistema
+ * 
+ * PERMISOS REQUERIDOS:
+ * - manage_general_settings: Acceso a configuración general
+ * - manage_security_settings: Acceso a configuración de seguridad
+ * - manage_notification_settings: Acceso a configuración de notificaciones
+ * - manage_backup_settings: Acceso a gestión de respaldos
+ * - manage_integration_settings: Acceso a configuración de integraciones
+ * 
+ * ESTRUCTURA DE DATOS:
+ * - Configuración organizada en 5 secciones principales
+ * - Validación de datos antes del guardado
+ * - Manejo de errores con mensajes descriptivos
+ * - Estado local para prevenir pérdida de cambios
+ * 
+ * IMPACTO EN EL SISTEMA:
+ * - La configuración general afecta la apariencia y comportamiento de la página web
+ * - La configuración de seguridad protege el acceso y los datos del sistema
+ * - Las notificaciones mantienen informados a usuarios y administradores
+ * - Los respaldos protegen la información crítica del negocio
+ * - Las integraciones amplían las capacidades del sistema con servicios externos
+ * 
+ * TECNOLOGÍAS:
+ * - React con Hooks (useState, useEffect) para manejo de estado
+ * - Lucide React para iconografía moderna y consistente
+ * - Tailwind CSS para estilos responsivos y profesionales
+ * - JavaScript ES6+ para lógica compleja de componente
+ * - JSON para importación/exportación de configuraciones
+ * - Blob API para generación de archivos de descarga
+ */

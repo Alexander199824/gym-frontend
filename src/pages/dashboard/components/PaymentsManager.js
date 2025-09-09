@@ -1,4 +1,5 @@
-// src/pages/dashboard/components/PaymentsManager.js
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/PaymentsManager.js
 // FUNCIÓN: Gestión completa de pagos - Crear, validar, reportes, transferencias
 // CONECTA CON: Backend API /api/payments/*
 
@@ -8,7 +9,7 @@ import {
   CreditCard, Banknote, Building, Smartphone, Upload, Download,
   RefreshCw, Calendar, User, FileText, CheckCircle, XCircle,
   TrendingUp, PieChart, BarChart3, Calculator, Bell, Settings,
-  ImageIcon, Loader, MoreHorizontal, CircleDollarSign
+  ImageIcon, Loader, MoreHorizontal
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -18,13 +19,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
   const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
   
-  // 📊 Estados principales
+  // Estados principales
   const [payments, setPayments] = useState([]);
   const [paymentStats, setPaymentStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // 🔍 Estados de filtros y búsqueda
+  // Estados de filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPaymentType, setSelectedPaymentType] = useState('all');
   const [selectedMethod, setSelectedMethod] = useState('all');
@@ -36,16 +37,16 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const [sortBy, setSortBy] = useState('paymentDate');
   const [sortOrder, setSortOrder] = useState('desc');
   
-  // 📄 Estados de paginación
+  // Estados de paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [paymentsPerPage] = useState(isMobile ? 10 : 20);
   const [totalPayments, setTotalPayments] = useState(0);
   
-  // 💳 Estados para transferencias pendientes
+  // Estados para transferencias pendientes
   const [pendingTransfers, setPendingTransfers] = useState([]);
   const [showTransfersModal, setShowTransfersModal] = useState(false);
   
-  // 🆕 Estados para crear/editar pago
+  // Estados para crear/editar pago
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentFormData, setPaymentFormData] = useState({
@@ -64,7 +65,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   });
   
-  // 💰 Tipos de pago disponibles
+  // Tipos de pago disponibles
   const paymentTypes = [
     { value: 'membership', label: 'Membresía', color: 'bg-purple-100 text-purple-800', icon: CreditCard },
     { value: 'daily', label: 'Pago Diario', color: 'bg-blue-100 text-blue-800', icon: Calendar },
@@ -74,7 +75,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'other', label: 'Otro', color: 'bg-gray-100 text-gray-800', icon: MoreHorizontal }
   ];
   
-  // 💳 Métodos de pago disponibles
+  // Métodos de pago disponibles
   const paymentMethods = [
     { value: 'cash', label: 'Efectivo', color: 'bg-green-100 text-green-800', icon: Banknote },
     { value: 'card', label: 'Tarjeta', color: 'bg-blue-100 text-blue-800', icon: CreditCard },
@@ -82,7 +83,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'mobile', label: 'Pago Móvil', color: 'bg-orange-100 text-orange-800', icon: Smartphone }
   ];
   
-  // 📊 Estados de pago
+  // Estados de pago
   const paymentStatuses = [
     { value: 'completed', label: 'Completado', color: 'bg-green-100 text-green-800', icon: CheckCircle },
     { value: 'pending', label: 'Pendiente', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
@@ -90,7 +91,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'cancelled', label: 'Cancelado', color: 'bg-gray-100 text-gray-800', icon: X }
   ];
   
-  // 🔄 CARGAR DATOS
+  // CARGAR DATOS
   const loadPayments = async () => {
     try {
       setLoading(true);
@@ -108,7 +109,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         sortOrder
       };
       
-      console.log('🔄 Cargando pagos con parámetros:', params);
+      console.log('Cargando pagos con parámetros:', params);
       
       const response = await apiService.get('/payments', { params });
       const paymentData = response.data || response;
@@ -120,13 +121,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         setPayments(paymentData);
         setTotalPayments(paymentData.length);
       } else {
-        console.warn('⚠️ Formato de datos de pagos inesperado:', paymentData);
+        console.warn('Formato de datos de pagos inesperado:', paymentData);
         setPayments([]);
         setTotalPayments(0);
       }
       
     } catch (error) {
-      console.error('❌ Error al cargar pagos:', error);
+      console.error('Error al cargar pagos:', error);
       showError('Error al cargar pagos');
       setPayments([]);
       setTotalPayments(0);
@@ -135,17 +136,17 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📊 CARGAR ESTADÍSTICAS
+  // CARGAR ESTADÍSTICAS
   const loadPaymentStats = async () => {
     try {
       const stats = await apiService.getPaymentReports({
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       });
-      console.log('📊 Estadísticas de pagos cargadas:', stats);
+      console.log('Estadísticas de pagos cargadas:', stats);
       setPaymentStats(stats);
     } catch (error) {
-      console.error('❌ Error al cargar estadísticas de pagos:', error);
+      console.error('Error al cargar estadísticas de pagos:', error);
       setPaymentStats({
         totalIncome: 0,
         totalPayments: 0,
@@ -155,19 +156,19 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 💳 CARGAR TRANSFERENCIAS PENDIENTES
+  // CARGAR TRANSFERENCIAS PENDIENTES
   const loadPendingTransfers = async () => {
     try {
       const response = await apiService.getPendingTransfers();
       const transfersData = response.data || response;
       setPendingTransfers(Array.isArray(transfersData) ? transfersData : transfersData.transfers || []);
     } catch (error) {
-      console.error('❌ Error al cargar transferencias pendientes:', error);
+      console.error('Error al cargar transferencias pendientes:', error);
       setPendingTransfers([]);
     }
   };
   
-  // ⏰ Cargar datos al montar y cuando cambien filtros
+  // Cargar datos al montar y cuando cambien filtros
   useEffect(() => {
     loadPayments();
   }, [currentPage, searchTerm, selectedPaymentType, selectedMethod, selectedStatus, dateRange, sortBy, sortOrder]);
@@ -177,7 +178,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     loadPendingTransfers();
   }, [dateRange]);
   
-  // 🔍 FILTRAR PAGOS (para datos locales)
+  // FILTRAR PAGOS (para datos locales)
   const filteredPayments = payments.filter(payment => {
     const searchText = `${payment.user?.firstName || ''} ${payment.user?.lastName || ''} ${payment.user?.email || ''}`.toLowerCase();
     const matchesSearch = !searchTerm || 
@@ -191,7 +192,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     return matchesSearch && matchesType && matchesMethod && matchesStatus;
   });
   
-  // 📊 FUNCIONES DE PAGO
+  // FUNCIONES DE PAGO
   
   // Crear pago
   const handleCreatePayment = async () => {
@@ -253,7 +254,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error al guardar pago:', error);
+      console.error('Error al guardar pago:', error);
       const errorMsg = error.response?.data?.message || 'Error al guardar pago';
       showError(errorMsg);
     } finally {
@@ -275,7 +276,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       await loadPendingTransfers();
       
     } catch (error) {
-      console.error('❌ Error al validar transferencia:', error);
+      console.error('Error al validar transferencia:', error);
       showError('Error al validar transferencia');
     }
   };
@@ -298,7 +299,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       await loadPendingTransfers();
       
     } catch (error) {
-      console.error('❌ Error al subir comprobante:', error);
+      console.error('Error al subir comprobante:', error);
       showError('Error al subir comprobante');
     }
   };
@@ -350,28 +351,28 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     setShowPaymentModal(true);
   };
   
-  // 📊 Obtener información del tipo de pago
+  // Obtener información del tipo de pago
   const getTypeInfo = (type) => {
     return paymentTypes.find(t => t.value === type) || paymentTypes[0];
   };
   
-  // 📊 Obtener información del método de pago
+  // Obtener información del método de pago
   const getMethodInfo = (method) => {
     return paymentMethods.find(m => m.value === method) || paymentMethods[0];
   };
   
-  // 📊 Obtener información del estado
+  // Obtener información del estado
   const getStatusInfo = (status) => {
     return paymentStatuses.find(s => s.value === status) || paymentStatuses[0];
   };
   
-  // 📄 Cálculo de paginación
+  // Cálculo de paginación
   const totalPages = Math.max(1, Math.ceil(totalPayments / paymentsPerPage));
 
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -419,7 +420,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📊 ESTADÍSTICAS RÁPIDAS */}
+      {/* ESTADÍSTICAS RÁPIDAS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center">
@@ -470,7 +471,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 🔍 FILTROS Y BÚSQUEDA */}
+      {/* FILTROS Y BÚSQUEDA */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           
@@ -547,7 +548,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📋 TABLA DE PAGOS */}
+      {/* TABLA DE PAGOS */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         
         {loading ? (
@@ -687,7 +688,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             {/* Ver detalles */}
                             <button
                               onClick={() => {
-                                // TODO: Implementar modal de detalles
                                 console.log('Ver detalles del pago:', payment);
                               }}
                               className="text-blue-600 hover:text-blue-800"
@@ -793,7 +793,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               })}
             </div>
             
-            {/* 📄 PAGINACIÓN */}
+            {/* PAGINACIÓN */}
             {totalPages > 1 && (
               <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
                 <div className="flex items-center justify-between">
@@ -831,7 +831,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* 🆕 MODAL PARA CREAR/EDITAR PAGO */}
+      {/* MODAL PARA CREAR/EDITAR PAGO */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -1080,7 +1080,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 💳 MODAL DE TRANSFERENCIAS PENDIENTES */}
+      {/* MODAL DE TRANSFERENCIAS PENDIENTES */}
       {showTransfersModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
@@ -1176,3 +1176,47 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default PaymentsManager;
+
+/**
+ * COMENTARIOS FINALES DEL COMPONENTE
+ * 
+ * PROPÓSITO:
+ * Este componente maneja el sistema completo de pagos del gimnasio.
+ * Permite registrar, validar, filtrar y gestionar todos los tipos de pagos en quetzales guatemaltecos.
+ * 
+ * FUNCIONALIDADES PRINCIPALES:
+ * - Registro de pagos para membresías, servicios, productos y pagos diarios
+ * - Soporte para pagos de usuarios registrados y clientes anónimos
+ * - Múltiples métodos de pago (efectivo, tarjeta, transferencia, pago móvil)
+ * - Validación de transferencias bancarias con comprobantes
+ * - Filtros avanzados por tipo, método, estado y rango de fechas
+ * - Estadísticas financieras en tiempo real
+ * - Alertas de transferencias pendientes de validación
+ * - Vista responsiva para escritorio y móvil
+ * - Paginación para manejo eficiente de grandes volúmenes de datos
+ * 
+ * CONEXIONES CON OTROS ARCHIVOS:
+ * - AuthContext: Para verificar permisos del usuario actual
+ * - AppContext: Para mostrar notificaciones y formatear datos en quetzales
+ * - apiService: Para comunicación con el backend (/api/payments/*)
+ * - Lucide React: Para iconografía del sistema
+ * 
+ * DATOS QUE MUESTRA AL USUARIO:
+ * - Lista completa de pagos con información detallada del cliente
+ * - Montos en quetzales guatemaltecos (GTQ)
+ * - Estados de pago (completado, pendiente, fallido, cancelado)
+ * - Tipos de pago (membresía, diario, múltiple, producto, servicio)
+ * - Métodos de pago utilizados
+ * - Estadísticas de ingresos totales y promedios
+ * - Alertas de transferencias que requieren validación manual
+ * 
+ * PERMISOS REQUERIDOS:
+ * - create_payments: Para registrar nuevos pagos
+ * - validate_transfers: Para aprobar o rechazar transferencias bancarias
+ * 
+ * CASOS DE USO ESPECIALES:
+ * - Pagos anónimos para clientes no registrados
+ * - Pagos múltiples para varios días consecutivos
+ * - Subida y validación de comprobantes de transferencia
+ * - Cálculo automático de estadísticas financieras
+ */

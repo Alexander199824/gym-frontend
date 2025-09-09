@@ -1,11 +1,11 @@
 // src/services/apiService.js
 // FUNCIÓN: Servicio API COMPLETO - INTEGRADO con Sistema de Horarios Flexibles
-// ✅ MANTIENE: TODO lo existente + Sistema completo de horarios flexibles
+// MANTIENE: TODO lo existente + Sistema completo de horarios flexibles
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-// 🔧 CONFIGURACIÓN DE AXIOS - MANTIENE TODA LA CONFIGURACIÓN EXISTENTE
+// CONFIGURACIÓN DE AXIOS - MANTIENE TODA LA CONFIGURACIÓN EXISTENTE
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
   timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 15000,
@@ -15,7 +15,7 @@ const api = axios.create({
   }
 });
 
-// 🔐 INTERCEPTOR DE PETICIONES - MANTIENE TODA LA FUNCIONALIDAD EXISTENTE
+//  INTERCEPTOR DE PETICIONES - MANTIENE TODA LA FUNCIONALIDAD EXISTENTE
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
@@ -27,25 +27,25 @@ api.interceptors.request.use(
     // 🔍 LOGS DETALLADOS - Mostrar TODA petición en desarrollo
     if (process.env.NODE_ENV === 'development') {
       const url = config.url.startsWith('/') ? config.url : `/${config.url}`;
-      console.log(`🚀 API REQUEST: ${config.method?.toUpperCase()} ${config.baseURL}${url}`);
+      console.log(`API REQUEST: ${config.method?.toUpperCase()} ${config.baseURL}${url}`);
       
       if (config.data) {
-        console.log('📤 Request Data:', config.data);
+        console.log(' Request Data:', config.data);
       }
       if (config.params) {
-        console.log('📋 Request Params:', config.params);
+        console.log(' Request Params:', config.params);
       }
     }
     
     return config;
   },
   (error) => {
-    console.error('❌ Request interceptor error:', error);
+    console.error(' Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
-// 📨 INTERCEPTOR DE RESPUESTAS - MANTIENE TODA LA FUNCIONALIDAD EXISTENTE + ANÁLISIS MEJORADO
+// 📨NTERCEPTOR DE RESPUESTAS - MANTIENE TODA LA FUNCIONALIDAD EXISTENTE + ANÁLISIS MEJORADO
 api.interceptors.response.use(
   (response) => {
     // 🔍 LOGS SÚPER DETALLADOS - Mostrar TODO lo que devuelve el backend

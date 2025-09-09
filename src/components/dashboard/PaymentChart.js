@@ -52,7 +52,7 @@ const PaymentChart = ({
   
   // Procesar datos para el gráfico
   const processedData = data.map(item => ({
-    date: new Date(item.date).toLocaleDateString('es-ES', { 
+    date: new Date(item.date).toLocaleDateString('es-GT', { 
       month: 'short', 
       day: 'numeric' 
     }),
@@ -65,7 +65,7 @@ const PaymentChart = ({
     labels: processedData.map(item => item.date),
     datasets: [
       {
-        label: 'Ingresos',
+        label: 'Ingresos en Quetzales',
         data: processedData.map(item => item.amount),
         borderColor: colors.primary,
         backgroundColor: colors.primary + '20',
@@ -86,7 +86,7 @@ const PaymentChart = ({
     labels: processedData.map(item => item.date),
     datasets: [
       {
-        label: 'Ingresos',
+        label: 'Ingresos en Quetzales',
         data: processedData.map(item => item.amount),
         backgroundColor: colors.primary,
         borderColor: colors.primary,
@@ -379,6 +379,7 @@ export default PaymentChart;
 FUNCIONALIDAD:
 Este componente se encarga de mostrar gráficos de ingresos y pagos en el dashboard del gimnasio.
 Utiliza Chart.js y react-chartjs-2 para crear visualizaciones interactivas de datos financieros.
+Maneja el formateo de moneda en quetzales guatemaltecos y fechas en formato local.
 
 CARACTERÍSTICAS:
 - Soporta múltiples tipos de gráficos: líneas, barras y dona
@@ -386,23 +387,38 @@ CARACTERÍSTICAS:
 - Incluye configuraciones personalizables (altura, leyenda, animaciones)
 - Muestra estadísticas rápidas (total, promedio, máximo, mínimo)
 - Maneja casos sin datos con mensajes informativos
-- Incluye componente mini gráfico (MiniPaymentChart) para tarjetas
+- Incluye componente mini gráfico (MiniPaymentChart) para tarjetas del dashboard
+- Formatea fechas en español guatemalteco
+- Muestra todos los valores monetarios en quetzales
 
-TIPOS DE GRÁFICOS:
-- Line: Muestra tendencias de ingresos a lo largo del tiempo
-- Bar: Visualiza ingresos por períodos específicos 
-- Doughnut: Representa distribución de métodos de pago
+TIPOS DE GRÁFICOS DISPONIBLES:
+- Line (líneas): Muestra tendencias de ingresos a lo largo del tiempo
+- Bar (barras): Visualiza ingresos por períodos específicos comparativamente
+- Doughnut (dona): Representa distribución porcentual de métodos de pago
 
-CONEXIONES:
+CONEXIONES CON OTROS ARCHIVOS:
 - Importa desde 'react' para funcionalidad del componente
 - Importa Chart.js y react-chartjs-2 para renderizado de gráficos
 - Importa iconos desde 'lucide-react' (BarChart3, TrendingUp, PieChart)
-- Utiliza useApp desde '../../contexts/AppContext' para formateo de moneda
-- Recibe datos de componentes padre que consultan APIs de pagos/ingresos
-- Se integra con el sistema de dashboard para mostrar métricas financieras
+- Utiliza useApp desde '../../contexts/AppContext' para formateo de moneda en quetzales
+- Recibe datos de componentes padre que consultan APIs de pagos e ingresos del backend
+- Se integra con el sistema de dashboard principal para mostrar métricas financieras
+- Conecta con rutas de la aplicación que manejan datos de transacciones y pagos
+
+LO QUE VE EL USUARIO:
+- Gráficos interactivos con datos de ingresos en tiempo real
+- Tooltips informativos al pasar el mouse sobre los puntos de datos
+- Leyendas explicativas para cada serie de datos
+- Estadísticas resumidas: Total, Promedio, Máximo y Mínimo en quetzales
+- Fechas formateadas en español (ej: "15 ene", "20 feb")
+- Mensajes informativos cuando no hay datos: "No hay datos para mostrar"
+- Gráficos de dona con porcentajes de métodos de pago (Efectivo, Tarjeta, Transferencia)
+- Mini gráficos en tarjetas del dashboard mostrando tendencias de los últimos 7 días
+- Colores diferenciados: rojo para datos principales, verde para efectivo, azul para tarjetas
 
 PROPÓSITO:
-Proporcionar visualizaciones claras y atractivas de los ingresos del gimnasio, permitiendo
-al personal administrativo analizar tendencias, identificar patrones de pago y tomar
-decisiones informadas sobre la gestión financiera del negocio.
+Proporcionar visualizaciones claras y atractivas de los ingresos del gimnasio en quetzales guatemaltecos,
+permitiendo al personal administrativo analizar tendencias financieras, identificar patrones de pago,
+comparar períodos de tiempo y tomar decisiones informadas sobre la gestión financiera del negocio.
+Facilita el seguimiento del rendimiento económico y la identificación de oportunidades de mejora.
 */

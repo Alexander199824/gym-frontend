@@ -1,6 +1,5 @@
-// src/pages/dashboard/StaffDashboard.js
-// FUNCIÓN: Dashboard para personal/colaboradores CORREGIDO
-// CAMBIOS: Tamaños uniformes, redirecciones correctas, ingresos filtrados por colaborador
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/StaffDashboard.js
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -8,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { 
   Users, 
   CreditCard, 
-  DollarSign, 
+  Coins, 
   Clock, 
   UserPlus,
   Plus,
@@ -22,18 +21,27 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// 📊 Componentes
+// Componentes
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+
+// Función auxiliar para formatear en Quetzales
+const formatQuetzales = (amount) => {
+  if (!amount || isNaN(amount)) return 'Q 0.00';
+  return `Q ${parseFloat(amount).toLocaleString('es-GT', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+};
 
 const StaffDashboard = () => {
   const { user } = useAuth();
-  const { formatCurrency, formatDate, showError } = useApp();
+  const { formatDate, showError } = useApp();
   const navigate = useNavigate();
   
-  // 📅 Fecha actual
+  // Fecha actual
   const today = new Date().toISOString().split('T')[0];
   
-  // 📊 QUERIES PARA DATOS DEL STAFF
+  // Queries para datos del staff
   
   // Membresías vencidas (prioridad alta)
   const { data: expiredMemberships, isLoading: expiredLoading } = useQuery({
@@ -51,13 +59,13 @@ const StaffDashboard = () => {
     onError: (error) => showError('Error al cargar membresías próximas a vencer')
   });
   
-  // 💰 PAGOS DEL DÍA FILTRADOS POR COLABORADOR ACTUAL
+  // Pagos del día filtrados por colaborador actual
   const { data: todayPayments, isLoading: paymentsLoading } = useQuery({
     queryKey: ['todayPayments', user?.id],
     queryFn: () => apiService.getPayments({ 
       startDate: today,
       endDate: today,
-      createdBy: user?.id // 🆕 Filtrar por colaborador actual
+      createdBy: user?.id // Filtrar por colaborador actual
     }),
     staleTime: 1 * 60 * 1000, // 1 minuto
     onError: (error) => showError('Error al cargar pagos del día')
@@ -75,17 +83,17 @@ const StaffDashboard = () => {
     onError: (error) => showError('Error al cargar usuarios recientes')
   });
   
-  // 📊 Calcular métricas del día - SOLO DEL COLABORADOR ACTUAL
+  // Calcular métricas del día - solo del colaborador actual
   const todayMetrics = {
     expiredCount: expiredMemberships?.data?.total || 0,
     expiringSoonCount: expiringSoon?.data?.total || 0,
     todayPaymentsCount: todayPayments?.data?.payments?.length || 0,
-    // 🔒 IMPORTANTE: Solo ingresos registrados por este colaborador
+    // Importante: Solo ingresos registrados por este colaborador
     todayRevenue: todayPayments?.data?.payments?.reduce((sum, payment) => 
       sum + parseFloat(payment.amount), 0) || 0
   };
 
-  // 🔗 FUNCIONES DE NAVEGACIÓN CORREGIDAS
+  // Funciones de navegación
   const handleCreateUser = () => {
     navigate('/dashboard/users?action=create');
   };
@@ -105,7 +113,7 @@ const StaffDashboard = () => {
   return (
     <div className="space-y-6">
       
-      {/* 🏠 HEADER DEL DASHBOARD */}
+      {/* Header del dashboard */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -118,15 +126,15 @@ const StaffDashboard = () => {
         
         <div className="flex items-center mt-4 sm:mt-0">
           <div className="text-sm text-gray-500">
-            📅 {formatDate(new Date(), 'dd/MM/yyyy')}
+            {formatDate(new Date(), 'dd/MM/yyyy')}
           </div>
         </div>
       </div>
       
-      {/* 📊 MÉTRICAS DIARIAS - TAMAÑOS UNIFORMES */}
+      {/* Métricas diarias con tamaños uniformes */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* ⚠️ Membresías vencidas */}
+        {/* Membresías vencidas */}
         <DashboardCard
           title="Vencidas Hoy"
           value={todayMetrics.expiredCount}
@@ -137,7 +145,7 @@ const StaffDashboard = () => {
           alert={todayMetrics.expiredCount > 0}
         />
         
-        {/* ⏰ Vencen pronto */}
+        {/* Vencen pronto */}
         <DashboardCard
           title="Vencen esta semana"
           value={todayMetrics.expiringSoonCount}
@@ -148,18 +156,18 @@ const StaffDashboard = () => {
           alert={todayMetrics.expiringSoonCount > 0}
         />
         
-        {/* 💰 Pagos del día - SOLO LOS REGISTRADOS POR EL COLABORADOR */}
+        {/* Pagos del día - solo los registrados por el colaborador */}
         <DashboardCard
           title="Mis Pagos Hoy"
           value={todayMetrics.todayPaymentsCount}
-          icon={DollarSign}
+          icon={Coins}
           color="green"
           isLoading={paymentsLoading}
           onClick={() => navigate('/dashboard/payments?filter=today&createdBy=me')}
-          subtitle={`${formatCurrency(todayMetrics.todayRevenue)} registrados por ti`}
+          subtitle={`${formatQuetzales(todayMetrics.todayRevenue)} registrados por ti`}
         />
         
-        {/* 👥 Usuarios (Clientes) */}
+        {/* Usuarios (Clientes) */}
         <DashboardCard
           title="Clientes"
           value={recentUsers?.data?.pagination?.total || 0}
@@ -171,7 +179,7 @@ const StaffDashboard = () => {
         
       </div>
       
-      {/* 🎯 ACCIONES RÁPIDAS - TAMAÑOS UNIFORMES Y REDIRECCIONES CORREGIDAS */}
+      {/* Acciones rápidas con tamaños uniformes y redirecciones corregidas */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Acciones Rápidas
@@ -197,7 +205,7 @@ const StaffDashboard = () => {
           <QuickActionCard
             title="Registrar Pago"
             description="Pago en efectivo"
-            icon={DollarSign}
+            icon={Coins}
             color="yellow"
             onClick={handleCreatePayment}
           />
@@ -212,10 +220,10 @@ const StaffDashboard = () => {
         </div>
       </div>
       
-      {/* 📋 CONTENIDO PRINCIPAL */}
+      {/* Contenido principal */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* 🚨 MEMBRESÍAS VENCIDAS */}
+        {/* Membresías vencidas */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
@@ -240,7 +248,7 @@ const StaffDashboard = () => {
           )}
         </div>
         
-        {/* 💰 MIS PAGOS RECIENTES */}
+        {/* Mis pagos recientes */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
@@ -265,7 +273,7 @@ const StaffDashboard = () => {
         
       </div>
       
-      {/* ⏰ PRÓXIMAS A VENCER */}
+      {/* Próximas a vencer */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-medium text-gray-900">
@@ -287,7 +295,7 @@ const StaffDashboard = () => {
         )}
       </div>
       
-      {/* 📈 RESUMEN PERSONAL DEL COLABORADOR */}
+      {/* Resumen personal del colaborador */}
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           Mi Resumen del Día
@@ -296,7 +304,7 @@ const StaffDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(todayMetrics.todayRevenue)}
+              {formatQuetzales(todayMetrics.todayRevenue)}
             </div>
             <div className="text-sm text-gray-600">Ingresos registrados por ti hoy</div>
           </div>
@@ -321,7 +329,7 @@ const StaffDashboard = () => {
   );
 };
 
-// 📊 COMPONENTE: Dashboard Card UNIFORME
+// Componente: Dashboard Card uniforme
 const DashboardCard = ({ title, value, icon: Icon, color, isLoading, onClick, alert, subtitle }) => {
   const colors = {
     red: 'bg-red-50 border-red-200 text-red-800',
@@ -373,7 +381,7 @@ const DashboardCard = ({ title, value, icon: Icon, color, isLoading, onClick, al
   );
 };
 
-// 🎯 COMPONENTE: Quick Action Card UNIFORME
+// Componente: Quick Action Card uniforme
 const QuickActionCard = ({ title, description, icon: Icon, color, onClick }) => {
   const colors = {
     blue: 'bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-800',
@@ -411,7 +419,7 @@ const QuickActionCard = ({ title, description, icon: Icon, color, onClick }) => 
   );
 };
 
-// 📋 COMPONENTE: Lista de membresías vencidas MEJORADA
+// Componente: Lista de membresías vencidas
 const ExpiredMembershipsList = ({ memberships, onRenew, onView }) => {
   if (memberships.length === 0) {
     return (
@@ -456,12 +464,12 @@ const ExpiredMembershipsList = ({ memberships, onRenew, onView }) => {
   );
 };
 
-// 💰 COMPONENTE: Lista de pagos recientes MEJORADA
+// Componente: Lista de pagos recientes con Quetzales
 const RecentPaymentsList = ({ payments }) => {
   if (payments.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        <DollarSign className="w-8 h-8 mx-auto mb-2" />
+        <Coins className="w-8 h-8 mx-auto mb-2" />
         <p>No has registrado pagos hoy.</p>
       </div>
     );
@@ -484,7 +492,7 @@ const RecentPaymentsList = ({ payments }) => {
           </div>
           <div className="text-right">
             <p className="text-sm font-medium text-green-600">
-              ${payment.amount}
+              Q{payment.amount}
             </p>
             <p className="text-xs text-gray-500">
               {new Date(payment.paymentDate).toLocaleTimeString()}
@@ -496,7 +504,7 @@ const RecentPaymentsList = ({ payments }) => {
   );
 };
 
-// ⏰ COMPONENTE: Lista de próximas a vencer MEJORADA
+// Componente: Lista de próximas a vencer
 const ExpiringSoonList = ({ memberships, onRenew, onView }) => {
   if (memberships.length === 0) {
     return (
@@ -584,3 +592,46 @@ const ExpiringSoonList = ({ memberships, onRenew, onView }) => {
 };
 
 export default StaffDashboard;
+
+/*
+EXPLICACIÓN DEL ARCHIVO:
+
+Este archivo define el componente StaffDashboard, que es el panel de trabajo específico 
+para el personal y colaboradores del gimnasio. Proporciona una interfaz operativa 
+enfocada en las tareas diarias del personal de atención al cliente.
+
+FUNCIONALIDADES PRINCIPALES:
+- Dashboard operativo con métricas específicas del colaborador (membresías vencidas, próximas a vencer, pagos procesados)
+- Sistema de seguimiento de pagos filtrado por colaborador para accountability individual
+- Gestión de membresías vencidas y próximas a vencer con acciones rápidas de renovación
+- Panel de acciones rápidas para tareas comunes (registrar cliente, crear membresía, procesar pago)
+- Lista detallada de clientes que requieren atención inmediata
+- Resumen personal del rendimiento diario del colaborador
+- Interfaz optimizada para flujo de trabajo operativo
+
+CONEXIONES CON OTROS ARCHIVOS:
+- useAuth (../../contexts/AuthContext): Información del colaborador autenticado
+- useApp (../../contexts/AppContext): Funciones globales como formateo de fechas y notificaciones
+- apiService (../../services/apiService): Comunicación con el backend para datos operativos
+- @tanstack/react-query: Gestión de estado y cache para consultas de API frecuentes
+- LoadingSpinner: Componente reutilizable para estados de carga
+- React Router: Para navegación entre diferentes módulos del sistema
+
+CARACTERÍSTICAS ESPECIALES:
+- Formateo automático de pagos en Quetzales guatemaltecos
+- Filtrado de datos por colaborador específico para evitar confusión de responsabilidades
+- Sistema de alertas visuales para membresías críticas (vencidas y próximas a vencer)
+- Navegación inteligente hacia formularios específicos con parámetros preconfigurados
+- Actualización automática de métricas cada pocos minutos para datos en tiempo real
+- Diseño responsivo optimizado para estaciones de trabajo del personal
+- Tarjetas de acción rápida para flujo de trabajo eficiente
+
+PROPÓSITO:
+Servir como centro de control operativo para el personal del gimnasio, permitiendo
+gestionar eficientemente las tareas diarias como registro de nuevos clientes,
+procesamiento de pagos, renovación de membresías y seguimiento de clientes que
+requieren atención. El dashboard está diseñado para maximizar la productividad
+del personal mientras mantiene un control granular de las actividades individuales
+de cada colaborador, especialmente importante para el manejo de pagos en Quetzales
+y el seguimiento de responsabilidades en el contexto guatemalteco.
+*/

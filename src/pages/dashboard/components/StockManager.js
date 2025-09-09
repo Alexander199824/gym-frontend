@@ -1,11 +1,10 @@
-// src/pages/dashboard/components/StockManager.js
-// FUNCIÓN: Gestor completo de operaciones de stock
-// INCLUYE: Agregar, reducir stock, ventas en tienda física, historial
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/StockManager.js
 
 import React, { useState } from 'react';
 import {
   Plus, Minus, Save, X, Package, ShoppingCart, Truck, 
-  AlertTriangle, Info, Calculator, DollarSign, Calendar,
+  AlertTriangle, Info, Calculator, Coins, Calendar,
   User, Receipt, BarChart3, TrendingUp, TrendingDown,
   Check, Clock, RefreshCw
 } from 'lucide-react';
@@ -13,7 +12,7 @@ import {
 const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) => {
   const [activeTab, setActiveTab] = useState('operation');
   
-  // 📋 Tipos de operaciones
+  // Tipos de operaciones
   const operationTypes = [
     {
       id: 'add',
@@ -52,7 +51,7 @@ const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) =
     }
   ];
   
-  // 📋 Razones predefinidas por tipo
+  // Razones predefinidas por tipo
   const predefinedReasons = {
     add: [
       'Compra de mercadería',
@@ -89,14 +88,14 @@ const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) =
     ]
   };
   
-  // 🔗 Tabs del gestor
+  // Tabs del gestor
   const managerTabs = [
     { id: 'operation', label: 'Operación', icon: Package },
     { id: 'calculation', label: 'Cálculos', icon: Calculator },
     { id: 'summary', label: 'Resumen', icon: BarChart3 }
   ];
   
-  // 📊 Calcular valores
+  // Calcular valores
   const currentType = operationTypes.find(type => type.id === stockOperation.type);
   const newStockLevel = stockOperation.type === 'add' 
     ? product.stock + stockOperation.quantity
@@ -109,7 +108,7 @@ const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) =
   const totalCost = stockOperation.quantity * (product.cost || 0);
   const totalProfit = totalValue - totalCost;
   
-  // ⚠️ Verificar alertas
+  // Verificar alertas
   const getStockAlert = () => {
     if (newStockLevel < 0) {
       return { type: 'error', message: 'No hay suficiente stock disponible' };
@@ -128,7 +127,7 @@ const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) =
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* ENCABEZADO */}
       <div className="flex items-center justify-between">
         <div>
           <h4 className="text-lg font-semibold text-gray-900">
@@ -159,7 +158,7 @@ const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) =
         </div>
       </div>
       
-      {/* 🔗 NAVEGACIÓN */}
+      {/* NAVEGACIÓN */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           {managerTabs.map((tab) => (
@@ -179,7 +178,7 @@ const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) =
         </nav>
       </div>
       
-      {/* 📋 CONTENIDO */}
+      {/* CONTENIDO */}
       <div className="space-y-6">
         
         {/* TAB: Operación */}
@@ -437,7 +436,12 @@ const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) =
             {/* Cálculos monetarios */}
             {(stockOperation.type === 'sale' || stockOperation.type === 'subtract') && product.price > 0 && (
               <div className="bg-blue-50 rounded-lg p-4">
-                <h6 className="font-medium text-gray-900 mb-4">Cálculos Monetarios</h6>
+                <h6 className="font-medium text-gray-900 mb-4 flex items-center">
+                  <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm mr-2">
+                    Q
+                  </div>
+                  Cálculos Monetarios
+                </h6>
                 
                 <div className="space-y-3">
                   <div className="flex justify-between">
@@ -637,3 +641,141 @@ const StockManager = ({ stockOperation, onChange, onSave, onCancel, product }) =
 };
 
 export default StockManager;
+
+/*
+ * COMPONENTE: StockManager
+ * AUTOR: Alexander Echeverria
+ * 
+ * PROPÓSITO:
+ * Este componente gestiona todas las operaciones de inventario y stock del gimnasio.
+ * Permite realizar diferentes tipos de movimientos de stock con validaciones, cálculos
+ * automáticos y seguimiento detallado de todas las operaciones realizadas.
+ * 
+ * FUNCIONALIDADES PARA EL USUARIO:
+ * 
+ * TIPOS DE OPERACIONES DE STOCK:
+ * - Agregar Stock: Para aumentar inventario por compras, devoluciones o reposiciones
+ * - Reducir Stock: Para disminuir inventario por ventas, muestras o transferencias  
+ * - Venta en Tienda: Para registrar ventas físicas directas con cálculo de ingresos
+ * - Ajuste de Inventario: Para correcciones manuales y regularizaciones
+ * - Producto Dañado: Para registrar pérdidas por daños, vencimientos o robos
+ * 
+ * INTERFAZ DE TRES PESTAÑAS:
+ * 
+ * PESTAÑA OPERACIÓN:
+ * - Visualización del stock actual con niveles mínimo y máximo
+ * - Barra visual del nivel de stock con códigos de color (verde/amarillo/rojo)
+ * - Selección del tipo de operación con iconos y descripciones
+ * - Control de cantidad con botones +/- y campos numéricos
+ * - Botones de cantidad rápida (1, 5, 10, 25, 50 unidades)
+ * - Lista de razones predefinidas por cada tipo de operación
+ * - Campo de texto libre para razones personalizadas
+ * - Alertas automáticas de validación (stock insuficiente, niveles críticos)
+ * 
+ * PESTAÑA CÁLCULOS:
+ * - Visualización del cambio de stock (antes/operación/después)
+ * - Cálculos monetarios automáticos para ventas:
+ *   * Precio por unidad en Quetzales (Q)
+ *   * Valor total de la operación
+ *   * Costo total (si está disponible)
+ *   * Ganancia calculada (precio - costo)
+ * - Proyección del nivel de stock resultante
+ * - Porcentaje de capacidad utilizada después de la operación
+ * - Barra visual del nuevo nivel de stock
+ * - Advertencias automáticas de stock bajo
+ * 
+ * PESTAÑA RESUMEN:
+ * - Resumen completo de la operación antes de confirmar
+ * - Información del producto (nombre, SKU)
+ * - Detalles de la operación (tipo, cantidad, stock resultante)
+ * - Razón de la operación claramente mostrada
+ * - Valor monetario destacado para ventas
+ * - Validación final con indicadores visuales
+ * - Estado de la operación (lista/incompleta)
+ * 
+ * VALIDACIONES Y SEGURIDAD:
+ * - Verificación de stock suficiente antes de operaciones de reducción
+ * - Validación de cantidades positivas y numéricas
+ * - Obligatoriedad de especificar razón para cada operación
+ * - Alertas visuales para operaciones que excedan límites
+ * - Confirmación requerida antes de ejecutar operación
+ * - Prevención de operaciones inválidas con botones deshabilitados
+ * 
+ * RAZONES PREDEFINIDAS POR OPERACIÓN:
+ * 
+ * AGREGAR STOCK:
+ * - Compra de mercadería
+ * - Reposición de stock
+ * - Devolución de cliente
+ * - Transferencia entre sucursales
+ * - Ajuste por inventario físico
+ * 
+ * REDUCIR STOCK:
+ * - Venta en línea
+ * - Producto de muestra
+ * - Obsequio promocional
+ * - Transferencia a otra sucursal
+ * - Uso interno
+ * 
+ * VENTA EN TIENDA:
+ * - Venta en tienda física
+ * - Venta al mostrador
+ * - Venta de empleado
+ * - Venta promocional
+ * 
+ * AJUSTE DE INVENTARIO:
+ * - Corrección por conteo físico
+ * - Error en sistema
+ * - Ajuste por diferencia
+ * - Regularización de inventario
+ * 
+ * PRODUCTO DAÑADO:
+ * - Producto vencido
+ * - Daño en transporte
+ * - Daño por manipulación
+ * - Defecto de fábrica
+ * - Pérdida o robo
+ * 
+ * CONEXIONES Y DEPENDENCIAS:
+ * 
+ * PROPIEDADES RECIBIDAS:
+ * - stockOperation: Objeto con los datos de la operación actual
+ * - onChange: Función para actualizar datos de la operación
+ * - onSave: Función para confirmar y guardar la operación
+ * - onCancel: Función para cancelar la operación
+ * - product: Objeto con información completa del producto
+ * 
+ * ESTRUCTURA DE DATOS:
+ * - product: { name, sku, stock, minStock, maxStock, price, cost }
+ * - stockOperation: { type, quantity, reason }
+ * - Cálculos automáticos: newStockLevel, totalValue, totalCost, totalProfit
+ * 
+ * COMUNICACIÓN CON COMPONENTE PADRE:
+ * - Notifica cambios en tiempo real através de onChange
+ * - Confirma operación através de onSave con validaciones completas
+ * - Permite cancelación segura através de onCancel
+ * - Recibe datos actualizados del producto desde el componente padre
+ * 
+ * TECNOLOGÍAS:
+ * - React con Hooks (useState) para manejo de estado local
+ * - Lucide React para iconografía moderna y consistente
+ * - Tailwind CSS para estilos responsivos y utilities-first
+ * - JavaScript ES6+ para cálculos y validaciones
+ * - Conditional rendering para mostrar secciones relevantes
+ * 
+ * EXPERIENCIA DE USUARIO:
+ * - Navegación intuitiva con pestañas organizadas por función
+ * - Feedback visual inmediato con colores y alertas
+ * - Validación en tiempo real para prevenir errores
+ * - Cálculos automáticos para transparencia en operaciones
+ * - Razones predefinidas para agilizar el proceso
+ * - Confirmación clara antes de ejecutar cambios permanentes
+ * 
+ * IMPACTO EN EL NEGOCIO:
+ * - Control preciso del inventario con trazabilidad completa
+ * - Prevención de ventas con stock insuficiente
+ * - Seguimiento de costos y ganancias por operación
+ * - Historial detallado para auditorías y análisis
+ * - Optimización de niveles de stock con alertas automáticas
+ * - Gestión eficiente de operaciones diarias del gimnasio
+ */

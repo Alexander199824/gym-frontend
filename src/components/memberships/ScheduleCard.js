@@ -1,5 +1,5 @@
+// Autor: Alexander Echeverria
 // src/components/memberships/ScheduleCard.js
-// UBICACIÓN: /gym-frontend/src/components/memberships/ScheduleCard.js
 // FUNCIÓN: Componente para mostrar y editar horarios de membresías
 // USADO EN: ClientDashboard, páginas de membresías
 
@@ -12,7 +12,8 @@ import {
   Save, 
   Calendar,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Bird
 } from 'lucide-react';
 
 const ScheduleCard = ({ 
@@ -26,7 +27,7 @@ const ScheduleCard = ({
   const [editedSchedule, setEditedSchedule] = useState(schedule);
   const [newTimeSlot, setNewTimeSlot] = useState({ day: '', startTime: '', endTime: '' });
   
-  // 📅 DÍAS DE LA SEMANA
+  // DÍAS DE LA SEMANA
   const daysOfWeek = {
     monday: 'Lunes',
     tuesday: 'Martes',
@@ -37,7 +38,7 @@ const ScheduleCard = ({
     sunday: 'Domingo'
   };
   
-  // 🕐 HORARIOS PREDEFINIDOS
+  // HORARIOS PREDEFINIDOS
   const timeSlots = [
     '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
     '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
@@ -46,7 +47,7 @@ const ScheduleCard = ({
     '22:00'
   ];
   
-  // 🔄 Manejar cambios en el horario
+  // Manejar cambios en el horario
   const handleScheduleChange = (day, timeSlots) => {
     setEditedSchedule(prev => ({
       ...prev,
@@ -54,7 +55,7 @@ const ScheduleCard = ({
     }));
   };
   
-  // ➕ Agregar nuevo horario
+  // Agregar nuevo horario
   const addTimeSlot = (day) => {
     const currentSlots = editedSchedule[day] || [];
     const newSlot = '09:00-10:00'; // Horario por defecto
@@ -64,14 +65,14 @@ const ScheduleCard = ({
     }
   };
   
-  // 🗑️ Eliminar horario
+  // Eliminar horario
   const removeTimeSlot = (day, timeSlot) => {
     const currentSlots = editedSchedule[day] || [];
     const updatedSlots = currentSlots.filter(slot => slot !== timeSlot);
     handleScheduleChange(day, updatedSlots);
   };
   
-  // 💾 Guardar cambios
+  // Guardar cambios
   const handleSave = async () => {
     if (onScheduleUpdate) {
       try {
@@ -83,19 +84,19 @@ const ScheduleCard = ({
     }
   };
   
-  // ❌ Cancelar edición
+  // Cancelar edición
   const handleCancel = () => {
     setEditedSchedule(schedule);
     setIsEditing(false);
   };
   
-  // 🎯 Validar horario
+  // Validar horario
   const validateTimeSlot = (timeSlot) => {
     const [start, end] = timeSlot.split('-');
     return start && end && start < end;
   };
   
-  // 📊 Contar total de horas semanales
+  // Contar total de horas semanales
   const getTotalWeeklyHours = () => {
     let totalHours = 0;
     
@@ -123,7 +124,7 @@ const ScheduleCard = ({
   return (
     <div className={`bg-white rounded-lg shadow-lg p-6 ${className}`}>
       
-      {/* 📊 HEADER */}
+      {/* ENCABEZADO */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <Calendar className="w-5 h-5 text-primary-600 mr-2" />
@@ -165,7 +166,7 @@ const ScheduleCard = ({
         )}
       </div>
       
-      {/* 📈 RESUMEN */}
+      {/* RESUMEN */}
       {hasSchedule && (
         <div className="mb-4 p-3 bg-blue-50 rounded-lg">
           <div className="flex items-center justify-between">
@@ -187,7 +188,7 @@ const ScheduleCard = ({
         </div>
       )}
       
-      {/* 📅 HORARIOS POR DÍA */}
+      {/* HORARIOS POR DÍA */}
       <div className="space-y-4">
         {Object.entries(daysOfWeek).map(([dayKey, dayName]) => {
           const daySchedule = editedSchedule[dayKey] || [];
@@ -209,7 +210,7 @@ const ScheduleCard = ({
                 )}
               </div>
               
-              {/* 🕐 HORARIOS DEL DÍA */}
+              {/* HORARIOS DEL DÍA */}
               <div className="space-y-2">
                 {daySchedule.length === 0 ? (
                   <p className="text-sm text-gray-500 italic">
@@ -236,7 +237,7 @@ const ScheduleCard = ({
         })}
       </div>
       
-      {/* 💡 SUGERENCIAS */}
+      {/* SUGERENCIAS */}
       {isEditing && (
         <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
           <div className="flex items-start">
@@ -256,7 +257,7 @@ const ScheduleCard = ({
         </div>
       )}
       
-      {/* 📊 ESTADO VACÍO */}
+      {/* ESTADO VACÍO */}
       {!hasSchedule && !isEditing && (
         <div className="text-center py-8">
           <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -281,7 +282,7 @@ const ScheduleCard = ({
   );
 };
 
-// 🕐 COMPONENTE: Item de horario individual (✅ CORREGIDO)
+// COMPONENTE: Item de horario individual
 const TimeSlotItem = ({ 
   timeSlot, 
   isEditing, 
@@ -293,7 +294,7 @@ const TimeSlotItem = ({
   const [editedStart, setEditedStart] = useState(startTime);
   const [editedEnd, setEditedEnd] = useState(endTime);
   
-  // ✅ CORRECCIÓN: Definir timeSlots dentro del componente
+  // Definir timeSlots dentro del componente
   const timeSlots = [
     '06:00', '06:30', '07:00', '07:30', '08:00', '08:30', '09:00', '09:30',
     '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
@@ -389,7 +390,7 @@ const TimeSlotItem = ({
   );
 };
 
-// 📊 VARIANTE: Horario compacto
+// VARIANTE: Horario compacto
 export const CompactScheduleCard = ({ 
   schedule = {}, 
   className = '' 
@@ -442,3 +443,142 @@ export const CompactScheduleCard = ({
 };
 
 export default ScheduleCard;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE ScheduleCard
+
+PROPÓSITO:
+Este componente proporciona una interfaz completa para la gestión de horarios preferidos
+de los miembros del gimnasio. Permite visualizar, editar y configurar los horarios de
+entrenamiento de manera intuitiva, facilitando la planificación de rutinas y optimizando
+el uso de las instalaciones del gimnasio.
+
+FUNCIONALIDADES PRINCIPALES:
+- Visualización de horarios por día de la semana
+- Modo de edición completo con validaciones
+- Cálculo automático de horas semanales totales
+- Gestión de múltiples franjas horarias por día
+- Validación de conflictos de horarios
+- Sugerencias y consejos para optimizar horarios
+- Variante compacta para vistas reducidas
+- Estado vacío con llamada a la acción
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+CONTEXTOS UTILIZADOS:
+- No requiere contextos específicos, es un componente independiente
+- Se integra con sistemas de gestión de usuarios y membresías
+- Compatible con APIs de actualización de preferencias
+
+COMPONENTES RELACIONADOS:
+- ClientDashboard: Panel principal donde se muestra la información de horarios
+- MembershipCard: Complementa la información de membresías con horarios
+- Páginas de membresías: Formularios de configuración de usuario
+
+COMPONENTES IMPORTADOS:
+- Iconos de Lucide React: Clock, Plus, X, Edit2, Save, Calendar, AlertCircle, 
+  CheckCircle, Bird
+
+QUE MUESTRA AL USUARIO:
+
+VISTA PRINCIPAL:
+- Encabezado "Horarios Preferidos" con icono de calendario
+- Botón "Editar" cuando el componente es editable
+- Resumen con estadísticas:
+  - Total de horas semanales calculadas automáticamente
+  - Número de días configurados con checkmark verde
+- Sección por cada día de la semana (Lunes a Domingo):
+  - Nombre del día como encabezado
+  - Lista de horarios configurados o mensaje "Sin horarios configurados"
+  - Botón "+" para agregar horarios (modo edición)
+- Consejos y sugerencias en modo edición:
+  - "Elige horarios que puedas mantener constantemente"
+  - "Evita las horas pico (7-9 AM y 6-8 PM) si prefieres menos gente"
+  - "Configura al menos 3 días a la semana para mejores resultados"
+  - "Puedes cambiar tus horarios cuando lo necesites"
+
+MODO EDICIÓN:
+- Botones "Cancelar" y "Guardar" en el encabezado
+- Selectors de hora de inicio y fin para cada franja horaria
+- Botones de edición (lápiz) y eliminación (X) para cada horario
+- Validación en tiempo real de horarios válidos
+- Panel de sugerencias amarillo con consejos útiles
+
+ESTADO VACÍO:
+- Icono de reloj grande en gris
+- Título "No tienes horarios configurados"
+- Mensaje explicativo sobre beneficios de configurar horarios
+- Botón "Configurar horarios" para comenzar
+
+VARIANTE COMPACTA (CompactScheduleCard):
+- Título "Horarios" con icono de reloj
+- Grid de 7 círculos representando días de la semana (L M X J V S D)
+- Círculos coloreados para días con horarios configurados
+- Contador "X días configurados"
+
+GESTIÓN DE HORARIOS:
+- Horarios predefinidos desde 06:00 hasta 22:00 en intervalos de 30 minutos
+- Formato de horario: "HH:MM - HH:MM" (ejemplo: "09:00 - 10:00")
+- Validación automática que hora de inicio sea menor que hora de fin
+- Prevención de horarios duplicados para el mismo día
+- Cálculo automático de duración de cada sesión
+
+CASOS DE USO EN EL GIMNASIO:
+- Planificación de rutinas de entrenamiento personales
+- Optimización del uso de equipos y espacios
+- Evitar horas pico según preferencias del usuario
+- Facilitar reservas de clases grupales
+- Mejorar la experiencia del usuario con horarios consistentes
+- Análisis de patrones de uso del gimnasio
+- Planificación de mantenimiento en horarios de menor afluencia
+
+VALIDACIONES IMPLEMENTADAS:
+- Hora de inicio debe ser anterior a hora de fin
+- No permite horarios duplicados en el mismo día
+- Validación de formato de tiempo correcto
+- Prevención de guardado con horarios inválidos
+- Feedback visual inmediato en caso de errores
+
+CARACTERÍSTICAS TÉCNICAS:
+- Estado local para manejo de ediciones temporales
+- Funciones de callback para persistencia de datos
+- Validaciones en tiempo real sin afectar rendimiento
+- Manejo de estados de carga durante guardado
+- Responsive design para dispositivos móviles
+- Accessibility con roles y labels apropiados
+
+BENEFICIOS PARA EL USUARIO:
+- Planificación eficiente de tiempo de entrenamiento
+- Visualización clara de compromiso semanal
+- Flexibilidad para ajustar horarios según necesidades
+- Consejos para optimizar rutina de ejercicios
+- Interfaz intuitiva y fácil de usar
+- Feedback inmediato sobre cambios realizados
+
+INTEGRACIÓN CON SISTEMA DEL GIMNASIO:
+- Datos de horarios pueden usarse para análisis de ocupación
+- Integración con sistema de reservas de clases
+- Optimización de horarios de staff según demanda
+- Análisis de patrones para mejores ofertas de servicios
+- Planificación de mantenimiento de equipos
+- Estadísticas de uso para toma de decisiones
+
+PERSONALIZACIÓN:
+- Horarios adaptables según tipo de membresía
+- Configuración específica por ubicación del gimnasio
+- Integración con preferencias de entrenador personal
+- Adaptación a horarios especiales y feriados
+- Configuración de alertas y recordatorios
+
+ESTADOS VISUALES:
+- Días configurados: Círculos azules con letra del día
+- Días sin configurar: Círculos grises
+- Modo edición: Botones de acción visibles
+- Validación exitosa: Checkmarks verdes
+- Errores: Bordes rojos y mensajes de advertencia
+
+Este componente es fundamental para la experiencia del usuario en el gimnasio,
+facilitando la organización personal y contribuyendo a la optimización general
+de las instalaciones mediante una mejor distribución de la demanda a lo largo
+de la semana.
+*/

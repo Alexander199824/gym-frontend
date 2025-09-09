@@ -1,6 +1,9 @@
 // src/pages/store/StorePage.js
-// FUNCIÓN: Página de tienda MEJORADA - Integración robusta con carrito persistente para invitados
-// MEJORAS: ✅ Persistencia garantizada ✅ Feedback mejorado ✅ Recovery automático ✅ Debug integrado
+// Autor: Alexander Echeverria
+// Archivo: src/pages/store/StorePage.js
+
+// FUNCION: Página de tienda MEJORADA - Integración robusta con carrito persistente para invitados
+// MEJORAS: Persistencia garantizada, Feedback mejorado, Recovery automático, Debug integrado
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
@@ -38,7 +41,7 @@ const StorePage = () => {
   const { showSuccess, showError, showInfo } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // 📱 Estados para datos del backend - MANTIENE TODA LA FUNCIONALIDAD
+  // Estados para datos del backend - MANTIENE TODA LA FUNCIONALIDAD
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
@@ -46,7 +49,7 @@ const StorePage = () => {
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState(null);
   
-  // 📱 Estados para filtros y UI - MANTIENE TODA LA FUNCIONALIDAD
+  // Estados para filtros y UI - MANTIENE TODA LA FUNCIONALIDAD
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,21 +61,21 @@ const StorePage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(20);
   
-  // ✅ NUEVOS ESTADOS: Para seguimiento de persistencia
+  // NUEVOS ESTADOS: Para seguimiento de persistencia
   const [persistenceStatus, setPersistenceStatus] = useState('checking');
   const [showPersistenceAlert, setShowPersistenceAlert] = useState(false);
   
-  // 🔍 EFECTO: Cargar datos iniciales - MANTIENE TODA LA FUNCIONALIDAD
+  // EFECTO: Cargar datos iniciales - MANTIENE TODA LA FUNCIONALIDAD
   useEffect(() => {
     loadInitialData();
   }, []);
   
-  // 🔍 EFECTO: Recargar productos cuando cambien los filtros - MANTIENE TODA LA FUNCIONALIDAD
+  // EFECTO: Recargar productos cuando cambien los filtros - MANTIENE TODA LA FUNCIONALIDAD
   useEffect(() => {
     loadProducts();
   }, [selectedCategory, selectedBrand, searchQuery, sortBy, sortOrder, priceRange, currentPage]);
   
-  // ✅ NUEVO EFECTO: Verificar persistencia del carrito para invitados
+  // NUEVO EFECTO: Verificar persistencia del carrito para invitados
   useEffect(() => {
     if (!isAuthenticated) {
       checkCartPersistence();
@@ -84,7 +87,7 @@ const StorePage = () => {
     }
   }, [isAuthenticated]);
   
-  // ✅ NUEVA FUNCIÓN: Verificar persistencia del carrito
+  // NUEVA FUNCION: Verificar persistencia del carrito
   const checkCartPersistence = () => {
     try {
       const hasCartData = !!localStorage.getItem('elite_fitness_cart');
@@ -103,7 +106,7 @@ const StorePage = () => {
         setPersistenceStatus('authenticated');
       }
       
-      console.log('🔍 Cart persistence check:', {
+      console.log('Verificación de persistencia del carrito:', {
         hasCartData,
         hasSessionId,
         sessionIdInContext,
@@ -111,24 +114,24 @@ const StorePage = () => {
       });
       
     } catch (error) {
-      console.error('❌ Error checking cart persistence:', error);
+      console.error('Error verificando persistencia del carrito:', error);
       setPersistenceStatus('error');
     }
   };
   
-  // 📥 FUNCIÓN: Cargar datos iniciales - MANTIENE TODA LA FUNCIONALIDAD
+  // FUNCION: Cargar datos iniciales - MANTIENE TODA LA FUNCIONALIDAD
   const loadInitialData = async () => {
     try {
-      console.log('🛍️ Loading initial store data...');
+      console.log('Cargando datos iniciales de la tienda...');
       
       // Cargar categorías y marcas en paralelo
       const [categoriesResult, brandsResult] = await Promise.all([
         apiService.get('/store/categories').catch(err => {
-          console.warn('⚠️ Categories endpoint not available:', err.message);
+          console.warn('Endpoint de categorías no disponible:', err.message);
           return { data: { categories: [] } };
         }),
         apiService.get('/store/brands').catch(err => {
-          console.warn('⚠️ Brands endpoint not available:', err.message);
+          console.warn('Endpoint de marcas no disponible:', err.message);
           return { data: { brands: [] } };
         })
       ]);
@@ -140,10 +143,10 @@ const StorePage = () => {
           ...categoriesResult.data.categories
         ];
         setCategories(categoriesWithAll);
-        console.log('✅ Categories loaded:', categoriesWithAll.length);
+        console.log('Categorías cargadas:', categoriesWithAll.length);
       } else {
         setCategories([{ id: 'all', name: 'Todos los productos' }]);
-        console.log('📋 No categories available from backend');
+        console.log('No hay categorías disponibles desde el backend');
       }
       
       // Procesar marcas
@@ -153,25 +156,25 @@ const StorePage = () => {
           ...brandsResult.data.brands
         ];
         setBrands(brandsWithAll);
-        console.log('✅ Brands loaded:', brandsWithAll.length);
+        console.log('Marcas cargadas:', brandsWithAll.length);
       } else {
         setBrands([{ id: 'all', name: 'Todas las marcas' }]);
-        console.log('📋 No brands available from backend');
+        console.log('No hay marcas disponibles desde el backend');
       }
       
     } catch (error) {
-      console.error('❌ Error loading initial data:', error);
+      console.error('Error cargando datos iniciales:', error);
       showError('Error al cargar datos de la tienda');
     }
   };
   
-  // 📦 FUNCIÓN: Cargar productos del backend - MANTIENE TODA LA FUNCIONALIDAD
+  // FUNCION: Cargar productos del backend - MANTIENE TODA LA FUNCIONALIDAD
   const loadProducts = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('🛍️ Loading products from backend...');
+      console.log('Cargando productos desde el backend...');
       
       // Construir parámetros de la petición según README
       const params = {
@@ -205,35 +208,35 @@ const StorePage = () => {
       // Solo productos activos y en stock
       params.featured = false; // Queremos todos los productos, no solo destacados
       
-      console.log('📤 Request params:', params);
+      console.log('Parámetros de petición:', params);
       
       // Llamar al backend usando la ruta del README
       const response = await apiService.get('/store/products', { params });
       
-      console.log('📦 Products response:', response);
+      console.log('Respuesta de productos:', response);
       
       // Procesar respuesta según estructura del README
       if (response?.data?.products) {
         setProducts(response.data.products);
         setPagination(response.data.pagination);
-        console.log('✅ Products loaded successfully:', {
+        console.log('Productos cargados exitosamente:', {
           count: response.data.products.length,
-          total: response.data.pagination?.total || 'unknown',
+          total: response.data.pagination?.total || 'desconocido',
           page: response.data.pagination?.page || currentPage
         });
       } else if (response?.data && Array.isArray(response.data)) {
         // Fallback si la respuesta es directamente un array
         setProducts(response.data);
         setPagination(null);
-        console.log('✅ Products loaded (array format):', response.data.length);
+        console.log('Productos cargados (formato array):', response.data.length);
       } else {
-        console.warn('⚠️ No products found or unexpected format');
+        console.warn('No se encontraron productos o formato inesperado');
         setProducts([]);
         setPagination(null);
       }
       
     } catch (error) {
-      console.error('❌ Error loading products:', error);
+      console.error('Error cargando productos:', error);
       setError('Error al cargar productos. Verifica que el backend esté funcionando.');
       setProducts([]);
       setPagination(null);
@@ -250,25 +253,25 @@ const StorePage = () => {
     }
   };
   
-  // 🔄 FUNCIÓN: Recargar productos - MANTIENE TODA LA FUNCIONALIDAD
+  // FUNCION: Recargar productos - MANTIENE TODA LA FUNCIONALIDAD
   const reloadProducts = () => {
     setCurrentPage(1);
     loadProducts();
   };
   
-  // ✅ FUNCIÓN MEJORADA: Agregar producto al carrito - CON PERSISTENCIA GARANTIZADA
+  // FUNCION MEJORADA: Agregar producto al carrito - CON PERSISTENCIA GARANTIZADA
   const handleAddToCart = async (product, selectedOptions = {}) => {
     try {
-      console.log('🛒 Adding product to cart with persistence check:', { 
+      console.log('Agregando producto al carrito con verificación de persistencia:', { 
         product: product.name, 
         options: selectedOptions,
         isAuthenticated,
-        userInfo: user ? `${user.firstName} ${user.lastName}` : 'Guest',
+        userInfo: user ? `${user.firstName} ${user.lastName}` : 'Invitado',
         sessionId: sessionInfo?.sessionId,
         persistenceStatus
       });
       
-      // ✅ NUEVO: Verificar persistencia antes de agregar
+      // NUEVO: Verificar persistencia antes de agregar
       if (!isAuthenticated) {
         checkCartPersistence();
         
@@ -282,7 +285,7 @@ const StorePage = () => {
       // Agregar al carrito usando la API correcta del CartContext
       await addItem(product, selectedOptions);
       
-      // ✅ MEJORADO: Mensaje específico según el estado
+      // MEJORADO: Mensaje específico según el estado
       let message;
       if (isAuthenticated) {
         message = `${product.name} agregado al carrito`;
@@ -294,14 +297,14 @@ const StorePage = () => {
       
       showSuccess(message);
       
-      // ✅ NUEVO: Verificar persistencia después de agregar
+      // NUEVO: Verificar persistencia después de agregar
       if (!isAuthenticated) {
         setTimeout(() => {
           checkCartPersistence();
         }, 500);
       }
       
-      console.log('✅ Product added to cart successfully:', {
+      console.log('Producto agregado al carrito exitosamente:', {
         productName: product.name,
         userType: isAuthenticated ? 'authenticated' : 'guest',
         quantity: selectedOptions.quantity || 1,
@@ -309,26 +312,26 @@ const StorePage = () => {
       });
       
     } catch (error) {
-      console.error('❌ Error adding to cart:', error);
+      console.error('Error agregando al carrito:', error);
       showError('Error al agregar producto al carrito');
       
-      // ✅ NUEVO: Sugerir debug si hay problemas persistentes
+      // NUEVO: Sugerir debug si hay problemas persistentes
       if (!isAuthenticated && process.env.NODE_ENV === 'development') {
         setTimeout(() => {
-          console.log('🔧 Suggest debugging cart persistence...');
+          console.log('Sugerir debug de persistencia del carrito...');
           debugGuestCart();
         }, 1000);
       }
     }
   };
   
-  // 🎯 FUNCIÓN: Cambiar página - MANTIENE TODA LA FUNCIONALIDAD
+  // FUNCION: Cambiar página - MANTIENE TODA LA FUNCIONALIDAD
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
-  // 🧹 FUNCIÓN: Limpiar filtros - MANTIENE TODA LA FUNCIONALIDAD
+  // FUNCION: Limpiar filtros - MANTIENE TODA LA FUNCIONALIDAD
   const clearFilters = () => {
     setSelectedCategory('all');
     setSelectedBrand('all');
@@ -340,7 +343,7 @@ const StorePage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* ✅ NUEVA ALERTA: Estado de persistencia del carrito */}
+      {/* NUEVA ALERTA: Estado de persistencia del carrito */}
       {!isAuthenticated && showPersistenceAlert && (
         <div className="fixed top-4 right-4 z-50 max-w-sm">
           <div className={`p-4 rounded-lg shadow-lg border ${
@@ -381,7 +384,7 @@ const StorePage = () => {
         </div>
       )}
       
-      {/* 🔝 HEADER DE LA TIENDA - MEJORADO CON INDICADOR DE PERSISTENCIA */}
+      {/* HEADER DE LA TIENDA - MEJORADO CON INDICADOR DE PERSISTENCIA */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -399,7 +402,7 @@ const StorePage = () => {
               <div className="h-6 w-px bg-gray-300"></div>
               
               <h1 className="text-2xl font-bold text-gray-900">
-                🛍️ Tienda Elite Fitness
+                Tienda Elite Fitness
               </h1>
               
               {isAuthenticated && user && (
@@ -408,14 +411,14 @@ const StorePage = () => {
                 </span>
               )}
               
-              {/* ✅ MEJORADO: Indicador de estado para invitados */}
+              {/* MEJORADO: Indicador de estado para invitados */}
               {!isAuthenticated && (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
                     Compra como invitado
                   </span>
                   
-                  {/* ✅ NUEVO: Indicador de persistencia */}
+                  {/* NUEVO: Indicador de persistencia */}
                   <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded ${
                     persistenceStatus === 'active' 
                       ? 'bg-green-50 text-green-600'
@@ -455,7 +458,7 @@ const StorePage = () => {
                 <span>Garantía incluida</span>
               </div>
               
-              {/* ✅ DEBUG: Solo en desarrollo */}
+              {/* DEBUG: Solo en desarrollo */}
               {process.env.NODE_ENV === 'development' && !isAuthenticated && (
                 <button
                   onClick={debugGuestCart}
@@ -471,10 +474,10 @@ const StorePage = () => {
         </div>
       </div>
       
-      {/* 📱 CONTENIDO PRINCIPAL - MANTIENE TODA LA FUNCIONALIDAD */}
+      {/* CONTENIDO PRINCIPAL - MANTIENE TODA LA FUNCIONALIDAD */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* 🔍 BARRA DE BÚSQUEDA Y FILTROS - MANTIENE TODA LA FUNCIONALIDAD */}
+        {/* BARRA DE BUSQUEDA Y FILTROS - MANTIENE TODA LA FUNCIONALIDAD */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
             
@@ -525,7 +528,7 @@ const StorePage = () => {
         
         <div className="flex gap-8">
           
-          {/* 📋 SIDEBAR DE FILTROS - MANTIENE TODA LA FUNCIONALIDAD */}
+          {/* SIDEBAR DE FILTROS - MANTIENE TODA LA FUNCIONALIDAD */}
           <div className={`w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white rounded-lg shadow-sm p-6">
               
@@ -626,7 +629,7 @@ const StorePage = () => {
             </div>
           </div>
           
-          {/* 📦 CONTENIDO PRINCIPAL - MANTIENE TODA LA FUNCIONALIDAD */}
+          {/* CONTENIDO PRINCIPAL - MANTIENE TODA LA FUNCIONALIDAD */}
           <div className="flex-1">
             
             {/* Estado de carga */}
@@ -671,14 +674,14 @@ const StorePage = () => {
                     )}
                   </p>
                   
-                  {/* ✅ NUEVO: Indicador de persistencia en resultados */}
+                  {/* NUEVO: Indicador de persistencia en resultados */}
                   {!isAuthenticated && products.length > 0 && (
                     <div className={`text-xs px-2 py-1 rounded ${
                       persistenceStatus === 'active' 
                         ? 'bg-green-50 text-green-600'
                         : 'bg-yellow-50 text-yellow-600'
                     }`}>
-                      {persistenceStatus === 'active' ? '✅ Carrito se guarda automáticamente' : '⚠️ Persistencia parcial'}
+                      {persistenceStatus === 'active' ? 'Carrito se guarda automáticamente' : 'Persistencia parcial'}
                     </div>
                   )}
                 </div>
@@ -695,9 +698,9 @@ const StorePage = () => {
                         key={product.id} 
                         product={product} 
                         viewMode={viewMode}
-                        onAddToCart={handleAddToCart}  // ✅ Función mejorada
+                        onAddToCart={handleAddToCart}  // Función mejorada
                         isAuthenticated={isAuthenticated}
-                        persistenceStatus={persistenceStatus} // ✅ NUEVO: Estado de persistencia
+                        persistenceStatus={persistenceStatus} // NUEVO: Estado de persistencia
                       />
                     ))}
                   </div>
@@ -770,7 +773,7 @@ const StorePage = () => {
   );
 };
 
-// ✅ COMPONENTE MEJORADO: Tarjeta de producto - CON INDICADOR DE PERSISTENCIA
+// COMPONENTE MEJORADO: Tarjeta de producto - CON INDICADOR DE PERSISTENCIA
 const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persistenceStatus }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [quantity, setQuantity] = useState(1);
@@ -791,7 +794,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
   const inStock = product.inStock !== false && (product.stockQuantity || 0) > 0;
   const lowStock = inStock && (product.stockQuantity || 0) <= 5;
   
-  // ✅ FUNCIÓN MEJORADA: handleAddToCart con mejor feedback
+  // FUNCION MEJORADA: handleAddToCart con mejor feedback
   const handleAddToCart = async () => {
     if (!inStock || addingToCart) return;
     
@@ -804,7 +807,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
         quantity  // quantity va EN las options, no separado
       };
       
-      console.log('🛒 ProductCard: Adding to cart with persistence awareness:', {
+      console.log('ProductCard: Agregando al carrito con conocimiento de persistencia:', {
         product: product.name,
         options,
         isAuthenticated,
@@ -818,10 +821,10 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
       setSelectedOptions({});
       setQuantity(1);
       
-      console.log('✅ ProductCard: Item added successfully');
+      console.log('ProductCard: Item agregado exitosamente');
       
     } catch (error) {
-      console.error('❌ ProductCard: Error adding to cart:', error);
+      console.error('ProductCard: Error agregando al carrito:', error);
     } finally {
       setAddingToCart(false);
     }
@@ -1067,7 +1070,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
           </p>
         )}
         
-        {/* ✅ MEJORADO: Indicador específico para invitados */}
+        {/* MEJORADO: Indicador específico para invitados */}
         {!isAuthenticated && (
           <div className={`mb-4 text-xs p-2 rounded ${
             persistenceStatus === 'active' 
@@ -1075,8 +1078,8 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
               : 'text-blue-700 bg-blue-50 border border-blue-200'
           }`}>
             {persistenceStatus === 'active' 
-              ? '✅ Se guardará automáticamente en tu carrito'
-              : '💡 Puedes comprar sin registrarte'
+              ? 'Se guardará automáticamente en tu carrito'
+              : 'Puedes comprar sin registrarte'
             }
           </div>
         )}
@@ -1112,28 +1115,82 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
 
 export default StorePage;
 
-// 📝 CAMBIOS REALIZADOS EN ESTA VERSIÓN:
-// 
-// ✅ FUNCIÓN handleAddToCart CORREGIDA:
-// - Ahora usa await addItem(product, options) en lugar de addItem(productData)
-// - Options incluye quantity correctamente
-// - Logs detallados para debug
-// - Manejo de errores mejorado
-// 
-// ✅ INDICADORES PARA INVITADOS:
-// - "Compra como invitado" en el header
-// - "💡 Puedes comprar sin registrarte" en ProductCard
-// - Texto del botón cambia para invitados: "Agregar (como invitado)"
-// 
-// ✅ MANTENIDA TODA LA FUNCIONALIDAD EXISTENTE:
-// - Todos los filtros funcionan igual
-// - Todas las funciones de carga mantienen su lógica
-// - Todos los efectos y estados permanecen iguales
-// - Layout y diseño sin cambios
-// - Paginación y búsqueda igual
-// 
-// ✅ COMPATIBILIDAD COMPLETA:
-// - Funciona para usuarios autenticados (igual que antes)
-// - Ahora también funciona para invitados
-// - API correcta del CartContext: addItem(product, options)
-// - Logs detallados para debug de ambos casos
+/*
+=== COMENTARIOS FINALES ===
+
+PROPOSITO DEL ARCHIVO:
+Esta página StorePage es una tienda completa e-commerce integrada con funcionalidades avanzadas
+para tanto usuarios autenticados como invitados. Incluye un sistema robusto de persistencia
+del carrito, filtros dinámicos, búsqueda, paginación y manejo de productos con variantes.
+
+FUNCIONALIDAD PRINCIPAL:
+- Tienda completa con carrito persistente para invitados y usuarios registrados
+- Sistema de filtros avanzados (categorías, marcas, precio, búsqueda)
+- Visualización en grid y lista con paginación
+- Manejo de productos con variantes (colores, tallas, sabores)
+- Indicadores de stock y descuentos
+- Sistema de persistencia inteligente con verificación continua
+- Debug integrado para desarrollo
+- Feedback visual mejorado según estado del usuario
+
+ARCHIVOS A LOS QUE SE CONECTA:
+- ../../contexts/CartContext: Contexto del carrito con funciones addItem, sessionInfo, debugGuestCart
+- ../../contexts/AuthContext: Contexto de autenticación para verificar usuario actual
+- ../../contexts/AppContext: Contexto de aplicación para notificaciones (showSuccess, showError)
+- ../../services/apiService: Servicio para peticiones HTTP al backend
+- react-router-dom: Para navegación y manejo de parámetros de URL
+- lucide-react: Biblioteca de iconos para elementos visuales
+
+ENDPOINTS DEL BACKEND UTILIZADOS:
+- GET /store/categories: Obtiene categorías de productos
+- GET /store/brands: Obtiene marcas disponibles
+- GET /store/products: Obtiene productos con filtros y paginación
+
+ESTRUCTURA DE PRODUCTOS SOPORTADA:
+- Información básica: name, description, price, originalPrice
+- Imágenes: array con isPrimary y imageUrl
+- Variantes: colors, sizes, flavors
+- Stock: stockQuantity, inStock
+- Calificaciones: rating, reviews
+- Estados: isFeatured, brand
+
+FUNCIONALIDADES PARA INVITADOS:
+- Carrito persistente usando localStorage
+- Verificación continua de persistencia
+- Indicadores visuales de estado de guardado
+- Mensajes específicos para compra sin registro
+- Sistema de recuperación automática de errores
+
+FUNCIONALIDADES PARA USUARIOS AUTENTICADOS:
+- Carrito sincronizado con cuenta de usuario
+- Persistencia en el servidor
+- Experiencia personalizada con nombre del usuario
+- Integración completa con sistema de autenticación
+
+SISTEMA DE FILTROS:
+- Categorías dinámicas cargadas desde backend
+- Marcas disponibles según productos
+- Rango de precios personalizable
+- Búsqueda por texto libre
+- Ordenamiento por nombre, precio, calificación
+- Limpieza de filtros con un click
+
+PERSISTENCIA DEL CARRITO:
+- Para invitados: localStorage + sessionId único
+- Para usuarios: backend + sincronización
+- Verificación continua cada 10 segundos
+- Alertas visuales sobre estado de persistencia
+- Recuperación automática de errores
+
+EXPERIENCIA DE USUARIO:
+- Diseño responsivo para móvil y desktop
+- Animaciones suaves y feedback visual
+- Estados de carga clara
+- Manejo robusto de errores con reintentos
+- Indicadores de stock y descuentos
+- Vista previa de productos con zoom
+
+Esta página representa una solución completa de e-commerce que balancea
+funcionalidad avanzada con simplicidad de uso, soportando tanto usuarios
+registrados como invitados con igual calidad de experiencia.
+*/

@@ -1,4 +1,5 @@
-// src/pages/dashboard/components/MembershipsManager.js
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/MembershipsManager.js
 // FUNCIÓN: Gestión completa de membresías - Crear, renovar, cancelar, vencimientos
 // CONECTA CON: Backend API /api/memberships/*
 
@@ -6,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import {
   CreditCard, Plus, Search, Filter, Edit, RefreshCw, Calendar, Clock,
   AlertTriangle, CheckCircle, XCircle, Eye, Trash2, RotateCcw,
-  User, DollarSign, TrendingUp, TrendingDown, Bell, Settings,
+  User, TrendingUp, TrendingDown, Bell, Settings,
   FileText, Download, Upload, MoreHorizontal, Loader, X
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -17,31 +18,31 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
   const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
   
-  // 📊 Estados principales
+  // Estados principales
   const [memberships, setMemberships] = useState([]);
   const [membershipStats, setMembershipStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // 🔍 Estados de filtros y búsqueda
+  // Estados de filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   
-  // 📄 Estados de paginación
+  // Estados de paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [membershipsPerPage] = useState(isMobile ? 10 : 20);
   const [totalMemberships, setTotalMemberships] = useState(0);
   
-  // 🔔 Estados para alertas especiales
+  // Estados para alertas especiales
   const [expiredMemberships, setExpiredMemberships] = useState([]);
   const [expiringSoon, setExpiringSoon] = useState([]);
   const [showExpiredAlert, setShowExpiredAlert] = useState(false);
   const [showExpiringAlert, setShowExpiringAlert] = useState(false);
   
-  // 🆕 Estados para crear/editar membresía
+  // Estados para crear/editar membresía
   const [showMembershipModal, setShowMembershipModal] = useState(false);
   const [editingMembership, setEditingMembership] = useState(null);
   const [membershipFormData, setMembershipFormData] = useState({
@@ -55,7 +56,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     autoRenew: false
   });
   
-  // 🎫 Tipos de membresía disponibles
+  // Tipos de membresía disponibles
   const membershipTypes = [
     { value: 'daily', label: 'Diaria', duration: 1, color: 'bg-blue-100 text-blue-800', price: 25 },
     { value: 'weekly', label: 'Semanal', duration: 7, color: 'bg-green-100 text-green-800', price: 150 },
@@ -64,7 +65,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'annual', label: 'Anual', duration: 365, color: 'bg-red-100 text-red-800', price: 2400 }
   ];
   
-  // 📊 Estados de membresía
+  // Estados de membresía
   const membershipStatuses = [
     { value: 'active', label: 'Activa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
     { value: 'expired', label: 'Vencida', color: 'bg-red-100 text-red-800', icon: XCircle },
@@ -72,7 +73,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'suspended', label: 'Suspendida', color: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle }
   ];
   
-  // 🔄 CARGAR DATOS
+  // CARGAR DATOS
   const loadMemberships = async () => {
     try {
       setLoading(true);
@@ -87,7 +88,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         sortOrder
       };
       
-      console.log('🔄 Loading memberships with params:', params);
+      console.log('Cargando membresías con parámetros:', params);
       
       const response = await apiService.get('/memberships', { params });
       const membershipData = response.data || response;
@@ -99,13 +100,13 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         setMemberships(membershipData);
         setTotalMemberships(membershipData.length);
       } else {
-        console.warn('⚠️ Memberships data format unexpected:', membershipData);
+        console.warn('Formato de datos de membresías inesperado:', membershipData);
         setMemberships([]);
         setTotalMemberships(0);
       }
       
     } catch (error) {
-      console.error('❌ Error loading memberships:', error);
+      console.error('Error al cargar membresías:', error);
       showError('Error al cargar membresías');
       setMemberships([]);
       setTotalMemberships(0);
@@ -114,14 +115,14 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📊 CARGAR ESTADÍSTICAS
+  // CARGAR ESTADÍSTICAS
   const loadMembershipStats = async () => {
     try {
       const stats = await apiService.getMembershipStats();
-      console.log('📊 Membership stats loaded:', stats);
+      console.log('Estadísticas de membresías cargadas:', stats);
       setMembershipStats(stats);
     } catch (error) {
-      console.error('❌ Error loading membership stats:', error);
+      console.error('Error al cargar estadísticas de membresías:', error);
       setMembershipStats({
         totalMemberships: 0,
         activeMemberships: 0,
@@ -131,7 +132,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 🔔 CARGAR ALERTAS DE VENCIMIENTO
+  // CARGAR ALERTAS DE VENCIMIENTO
   const loadExpirationAlerts = async () => {
     try {
       // Membresías vencidas
@@ -145,13 +146,13 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
       setExpiringSoon(Array.isArray(expiringData) ? expiringData : expiringData.memberships || []);
       
     } catch (error) {
-      console.error('❌ Error loading expiration alerts:', error);
+      console.error('Error al cargar alertas de vencimiento:', error);
       setExpiredMemberships([]);
       setExpiringSoon([]);
     }
   };
   
-  // ⏰ Cargar datos al montar y cuando cambien filtros
+  // Cargar datos al montar y cuando cambien filtros
   useEffect(() => {
     loadMemberships();
   }, [currentPage, searchTerm, selectedStatus, selectedType, sortBy, sortOrder]);
@@ -161,7 +162,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     loadExpirationAlerts();
   }, []);
   
-  // 🔍 FILTRAR MEMBRESÍAS (para datos locales)
+  // FILTRAR MEMBRESÍAS (para datos locales)
   const filteredMemberships = memberships.filter(membership => {
     const memberName = `${membership.user?.firstName || ''} ${membership.user?.lastName || ''}`.toLowerCase();
     const matchesSearch = !searchTerm || 
@@ -174,7 +175,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     return matchesSearch && matchesStatus && matchesType;
   });
   
-  // 📊 FUNCIONES DE MEMBRESÍA
+  // FUNCIONES DE MEMBRESÍA
   
   // Crear/Actualizar membresía
   const handleSaveMembership = async () => {
@@ -242,7 +243,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error saving membership:', error);
+      console.error('Error al guardar membresía:', error);
       const errorMsg = error.response?.data?.message || 'Error al guardar membresía';
       showError(errorMsg);
     } finally {
@@ -268,7 +269,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
       await loadExpirationAlerts();
       
     } catch (error) {
-      console.error('❌ Error renewing membership:', error);
+      console.error('Error al renovar membresía:', error);
       showError('Error al renovar membresía');
     }
   };
@@ -291,7 +292,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
       await loadExpirationAlerts();
       
     } catch (error) {
-      console.error('❌ Error cancelling membership:', error);
+      console.error('Error al cancelar membresía:', error);
       showError('Error al cancelar membresía');
     }
   };
@@ -333,17 +334,17 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     setShowMembershipModal(true);
   };
   
-  // 📊 Obtener información del tipo de membresía
+  // Obtener información del tipo de membresía
   const getTypeInfo = (type) => {
     return membershipTypes.find(t => t.value === type) || membershipTypes[2]; // Default: monthly
   };
   
-  // 📊 Obtener información del estado
+  // Obtener información del estado
   const getStatusInfo = (status) => {
     return membershipStatuses.find(s => s.value === status) || membershipStatuses[0]; // Default: active
   };
   
-  // 📊 Determinar estado actual de la membresía
+  // Determinar estado actual de la membresía
   const getCurrentStatus = (membership) => {
     const now = new Date();
     const endDate = new Date(membership.endDate);
@@ -354,13 +355,13 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     return 'active';
   };
   
-  // 📄 Cálculo de paginación
+  // Cálculo de paginación
   const totalPages = Math.max(1, Math.ceil(totalMemberships / membershipsPerPage));
 
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -394,7 +395,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 🔔 ALERTAS DE VENCIMIENTO */}
+      {/* ALERTAS DE VENCIMIENTO */}
       {(expiredMemberships.length > 0 || expiringSoon.length > 0) && (
         <div className="space-y-3">
           {/* Membresías vencidas */}
@@ -481,7 +482,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 📊 ESTADÍSTICAS RÁPIDAS */}
+      {/* ESTADÍSTICAS RÁPIDAS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
           <div className="flex items-center">
@@ -532,7 +533,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 🔍 FILTROS Y BÚSQUEDA */}
+      {/* FILTROS Y BÚSQUEDA */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           
@@ -597,7 +598,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📋 TABLA DE MEMBRESÍAS */}
+      {/* TABLA DE MEMBRESÍAS */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         
         {loading ? (
@@ -833,7 +834,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
               })}
             </div>
             
-            {/* 📄 PAGINACIÓN */}
+            {/* PAGINACIÓN */}
             {totalPages > 1 && (
               <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
                 <div className="flex items-center justify-between">
@@ -871,7 +872,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* 🆕 MODAL PARA CREAR/EDITAR MEMBRESÍA */}
+      {/* MODAL PARA CREAR/EDITAR MEMBRESÍA */}
       {showMembershipModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -1058,3 +1059,41 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default MembershipsManager;
+
+/**
+ * COMENTARIOS FINALES DEL COMPONENTE
+ * 
+ * PROPÓSITO:
+ * Este componente gestiona el sistema completo de membresías del gimnasio.
+ * Permite crear, renovar, cancelar y monitorear el estado de las membresías de los usuarios.
+ * 
+ * FUNCIONALIDADES PRINCIPALES:
+ * - Visualización de lista completa de membresías con filtros y búsqueda
+ * - Creación y edición de nuevas membresías
+ * - Renovación automática y manual de membresías
+ * - Cancelación de membresías activas
+ * - Alertas de vencimientos próximos y membresías vencidas
+ * - Estadísticas en tiempo real del estado de las membresías
+ * - Gestión de diferentes tipos de membresía (diaria, semanal, mensual, trimestral, anual)
+ * - Vista responsiva para escritorio y móvil
+ * 
+ * CONEXIONES CON OTROS ARCHIVOS:
+ * - AuthContext: Para verificar permisos del usuario actual
+ * - AppContext: Para mostrar notificaciones y formatear datos
+ * - apiService: Para comunicación con el backend (/api/memberships/*)
+ * - Lucide React: Para iconografía del sistema
+ * 
+ * DATOS QUE MUESTRA AL USUARIO:
+ * - Lista paginada de todas las membresías con información del usuario
+ * - Estados de membresía (activa, vencida, cancelada, suspendida)
+ * - Precios en moneda local (quetzales)
+ * - Fechas de inicio y vencimiento
+ * - Estadísticas generales del sistema
+ * - Alertas de vencimientos y renovaciones necesarias
+ * 
+ * PERMISOS REQUERIDOS:
+ * - create_memberships: Para crear nuevas membresías
+ * - edit_memberships: Para editar membresías existentes
+ * - renew_memberships: Para renovar membresías
+ * - cancel_memberships: Para cancelar membresías
+ */

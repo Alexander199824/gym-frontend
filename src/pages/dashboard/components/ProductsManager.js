@@ -1,4 +1,5 @@
-// src/pages/dashboard/components/ProductsManager.js
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/ProductsManager.js
 // FUNCIÓN: Gestión PREPARADA de productos - Muestra datos actuales del backend
 // ESTADO: Preparado para cuando se implemente la gestión completa de productos
 
@@ -13,14 +14,14 @@ import { useApp } from '../../../contexts/AppContext';
 const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, formatCurrency, isMobile } = useApp();
   
-  // 📱 Estados locales
+  // Estados locales
   const [localProducts, setLocalProducts] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // 🏷️ Categorías disponibles para productos
+  // Categorías disponibles para productos
   const productCategories = [
     { id: 'suplementos', label: 'Suplementos', icon: Package },
     { id: 'ropa', label: 'Ropa Deportiva', icon: ShoppingBag },
@@ -28,7 +29,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
     { id: 'equipamiento', label: 'Equipamiento', icon: Box }
   ];
   
-  // 📊 Plantilla para nuevo producto
+  // Plantilla para nuevo producto
   const emptyProduct = {
     id: null,
     name: '',
@@ -43,9 +44,9 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
     tags: []
   };
   
-  // 🔄 INICIALIZAR CON DATOS ACTUALES - PREPARADO
+  // INICIALIZAR CON DATOS ACTUALES - PREPARADO
   useEffect(() => {
-    console.log('🔄 ProductsManager - Checking for products data:', {
+    console.log('ProductsManager - Verificando datos de productos:', {
       hasProducts: !!products,
       isLoading,
       isArray: Array.isArray(products),
@@ -55,7 +56,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
     
     if (!isLoading) {
       if (products && Array.isArray(products)) {
-        console.log('📥 ProductsManager - Loading products from backend:', products);
+        console.log('ProductsManager - Cargando productos desde backend:', products);
         
         // Mapear productos con estructura esperada
         const mappedProducts = products.map((product, index) => ({
@@ -72,7 +73,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
           tags: Array.isArray(product.tags) ? product.tags : []
         }));
         
-        console.log('✅ ProductsManager - Products mapped successfully:', {
+        console.log('ProductsManager - Productos mapeados exitosamente:', {
           total: mappedProducts.length,
           featured: mappedProducts.filter(p => p.featured).length,
           inStock: mappedProducts.filter(p => p.inStock).length,
@@ -83,22 +84,22 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
         setIsDataLoaded(true);
         
       } else {
-        console.log('⚠️ ProductsManager - No products data or invalid format');
+        console.log('ProductsManager - Sin datos de productos o formato inválido');
         setLocalProducts([]);
         setIsDataLoaded(true);
       }
     } else {
-      console.log('⏳ ProductsManager - Data is still loading...');
+      console.log('ProductsManager - Los datos aún se están cargando...');
       setIsDataLoaded(false);
     }
   }, [products, isLoading]);
   
-  // 🔔 Notificar cambios sin guardar
+  // Notificar cambios sin guardar
   useEffect(() => {
     onUnsavedChanges(hasChanges);
   }, [hasChanges, onUnsavedChanges]);
   
-  // 💾 Guardar todos los cambios
+  // Guardar todos los cambios
   const handleSaveAll = async () => {
     try {
       console.log('Guardando productos:', localProducts);
@@ -112,12 +113,12 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
       setIsCreating(false);
       
     } catch (error) {
-      console.error('Error saving products:', error);
+      console.error('Error al guardar productos:', error);
       showError('Error al guardar productos');
     }
   };
   
-  // ➕ Crear nuevo producto
+  // Crear nuevo producto
   const handleCreateProduct = () => {
     setIsCreating(true);
     setEditingProduct({
@@ -127,14 +128,14 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
     });
   };
   
-  // ✏️ Editar producto existente
+  // Editar producto existente
   const handleEditProduct = (product) => {
-    console.log('📝 Editing product:', product);
+    console.log('Editando producto:', product);
     setEditingProduct({ ...product });
     setIsCreating(false);
   };
   
-  // 💾 Guardar producto individual
+  // Guardar producto individual
   const handleSaveProduct = () => {
     if (!editingProduct.name.trim()) {
       showError('El nombre del producto es obligatorio');
@@ -166,13 +167,13 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
     showSuccess(isCreating ? 'Producto creado' : 'Producto actualizado');
   };
   
-  // ❌ Cancelar edición
+  // Cancelar edición
   const handleCancelEdit = () => {
     setEditingProduct(null);
     setIsCreating(false);
   };
   
-  // 🗑️ Eliminar producto
+  // Eliminar producto
   const handleDeleteProduct = (productId) => {
     if (window.confirm('¿Estás seguro de eliminar este producto?')) {
       setLocalProducts(localProducts.filter(product => product.id !== productId));
@@ -181,7 +182,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ⭐ Toggle producto destacado
+  // Toggle producto destacado
   const handleToggleFeatured = (productId) => {
     setLocalProducts(localProducts.map(product => 
       product.id === productId 
@@ -191,7 +192,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
     setHasChanges(true);
   };
   
-  // 👁️ Toggle disponible/agotado
+  // Toggle disponible/agotado
   const handleToggleInStock = (productId) => {
     setLocalProducts(localProducts.map(product => 
       product.id === productId 
@@ -201,13 +202,13 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
     setHasChanges(true);
   };
   
-  // 💰 Calcular descuento
+  // Calcular descuento
   const calculateDiscount = (price, originalPrice) => {
     if (!originalPrice || originalPrice <= price) return 0;
     return Math.round(((originalPrice - price) / originalPrice) * 100);
   };
 
-  // 🔄 Mostrar loading mientras se cargan los datos
+  // Mostrar loading mientras se cargan los datos
   if (isLoading || !isDataLoaded) {
     return (
       <div className="space-y-6">
@@ -224,7 +225,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900">
@@ -238,16 +239,16 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
           {isDataLoaded && localProducts.length > 0 && (
             <div className="mt-2 flex space-x-2">
               <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                ✅ {localProducts.length} productos cargados
+                {localProducts.length} productos cargados
               </span>
               {localProducts.filter(p => p.featured).length > 0 && (
                 <span className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                  ⭐ {localProducts.filter(p => p.featured).length} destacados
+                  {localProducts.filter(p => p.featured).length} destacados
                 </span>
               )}
               {localProducts.filter(p => !p.inStock).length > 0 && (
                 <span className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-full">
-                  ❌ {localProducts.filter(p => !p.inStock).length} agotados
+                  {localProducts.filter(p => !p.inStock).length} agotados
                 </span>
               )}
             </div>
@@ -276,7 +277,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* ⚠️ INDICADOR DE CAMBIOS */}
+      {/* INDICADOR DE CAMBIOS */}
       {hasChanges && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
           <div className="flex">
@@ -290,7 +291,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 🚧 MENSAJE TEMPORAL - GESTIÓN COMPLETA PENDIENTE */}
+      {/* MENSAJE TEMPORAL - GESTIÓN COMPLETA PENDIENTE */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
         <div className="flex items-center">
           <Package className="w-6 h-6 text-blue-600 mr-3" />
@@ -304,7 +305,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white bg-opacity-60 rounded p-3">
-                <h5 className="font-medium text-blue-900 mb-1">✅ Disponible Ahora</h5>
+                <h5 className="font-medium text-blue-900 mb-1">Disponible Ahora</h5>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• Ver productos actuales</li>
                   <li>• Cargar desde backend</li>
@@ -312,7 +313,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
                 </ul>
               </div>
               <div className="bg-white bg-opacity-60 rounded p-3">
-                <h5 className="font-medium text-blue-900 mb-1">🚧 En Desarrollo</h5>
+                <h5 className="font-medium text-blue-900 mb-1">En Desarrollo</h5>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• Edición completa</li>
                   <li>• Subida de imágenes</li>
@@ -320,7 +321,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
                 </ul>
               </div>
               <div className="bg-white bg-opacity-60 rounded p-3">
-                <h5 className="font-medium text-blue-900 mb-1">🔮 Próximamente</h5>
+                <h5 className="font-medium text-blue-900 mb-1">Próximamente</h5>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• Ventas en línea</li>
                   <li>• Reportes de ventas</li>
@@ -332,7 +333,7 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📋 LISTA DE PRODUCTOS (SOLO VISTA) */}
+      {/* LISTA DE PRODUCTOS (SOLO VISTA) */}
       <div className={`grid gap-6 ${
         isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
       }`}>
@@ -505,3 +506,68 @@ const ProductsManager = ({ products, isLoading, onSave, onUnsavedChanges }) => {
 };
 
 export default ProductsManager;
+
+/**
+ * COMENTARIOS FINALES DEL COMPONENTE
+ * 
+ * PROPÓSITO:
+ * Este componente está preparado para la gestión completa de productos de la tienda del gimnasio.
+ * Actualmente muestra productos existentes desde el backend y está estructurado para implementar
+ * la funcionalidad completa de CRUD (crear, leer, actualizar, eliminar) próximamente.
+ * 
+ * FUNCIONALIDADES ACTUALES:
+ * - Visualización de productos cargados desde el backend
+ * - Marcado/desmarcado de productos como "destacados"
+ * - Control de disponibilidad (en stock/agotado)
+ * - Cálculo automático de descuentos basado en precio original vs actual
+ * - Categorización de productos (suplementos, ropa, accesorios, equipamiento)
+ * - Vista responsiva en tarjetas para escritorio y móvil
+ * - Soporte para múltiples imágenes por producto
+ * - Sistema de etiquetas (tags) y códigos SKU
+ * - Precios mostrados en quetzales guatemaltecos
+ * 
+ * FUNCIONALIDADES EN DESARROLLO:
+ * - Edición completa de productos (nombre, descripción, precio, categoría)
+ * - Subida y gestión de imágenes de productos
+ * - Gestión completa de inventario y stock
+ * - Sistema de variantes de productos (tallas, colores)
+ * - Integración con sistema de pagos
+ * - Reportes de ventas y productos más vendidos
+ * 
+ * CONEXIONES CON OTROS ARCHIVOS:
+ * - AppContext: Para mostrar notificaciones y formatear precios en quetzales
+ * - Lucide React: Para iconografía completa del sistema
+ * - Backend API: Para cargar productos existentes (pendiente implementar CRUD completo)
+ * - Landing Page: Los productos se muestran en la sección tienda de la página web
+ * 
+ * DATOS QUE MUESTRA AL USUARIO:
+ * - Lista visual de todos los productos de la tienda
+ * - Nombres, descripciones y categorías de productos
+ * - Precios en quetzales guatemaltecos con sistema de descuentos
+ * - Imágenes principales de cada producto
+ * - Estados de disponibilidad (disponible/agotado)
+ * - Productos destacados con indicador visual especial
+ * - Códigos SKU para identificación única
+ * - Etiquetas descriptivas para cada producto
+ * - Badges informativos (destacado, agotado, categoría)
+ * 
+ * ESTRUCTURA DE DATOS:
+ * - ID único del producto
+ * - Nombre y descripción
+ * - Precio actual y precio original (para descuentos)
+ * - Categoría (suplementos, ropa, accesorios, equipamiento)
+ * - Array de imágenes con URLs
+ * - Estado de stock (disponible/agotado)
+ * - Flag de producto destacado
+ * - Código SKU único
+ * - Array de etiquetas descriptivas
+ * 
+ * PREPARACIÓN FUTURA:
+ * El componente está estructurado para expandirse fácilmente con:
+ * - Sistema completo de gestión de inventario
+ * - Integración con pasarela de pagos
+ * - Carritos de compra y órdenes
+ * - Sistema de reviews y calificaciones
+ * - Gestión de promociones y descuentos temporales
+ * - Analytics de productos más vistos y vendidos
+ */

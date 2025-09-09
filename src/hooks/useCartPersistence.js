@@ -1,12 +1,12 @@
+// Autor: Alexander Echeverria
 // src/hooks/useCartPersistence.js
-// FUNCIÓN: Hook personalizado para persistencia robusta del carrito
-// FUNCIONALIDAD: ✅ Garantiza persistencia ✅ Auto-sync ✅ Recovery automático ✅ Debug integrado
+// FUNCIÓN: Hook personalizado para persistencia robusta del carrito de compras
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useApp } from '../contexts/AppContext';
 
-// 🗂️ CONSTANTES
+// Constantes de configuración
 const CART_STORAGE_KEY = 'elite_fitness_cart';
 const SESSION_STORAGE_KEY = 'elite_fitness_session_id';
 const BACKUP_STORAGE_KEY = 'elite_fitness_cart_backup';
@@ -23,7 +23,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
   const persistenceCheckRef = useRef(null);
   const autoSaveRef = useRef(null);
   
-  // ✅ FUNCIÓN: Guardar carrito con backup automático
+  // Función para guardar carrito con backup automático
   const saveCartWithBackup = useCallback((items, sessionId, options = {}) => {
     try {
       const timestamp = new Date().toISOString();
@@ -47,7 +47,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
         localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
       }
       
-      // ✅ NUEVO: Crear backup automático
+      // Crear backup automático
       const backupData = {
         ...cartData,
         backupTimestamp: timestamp,
@@ -60,7 +60,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       lastSavedSessionIdRef.current = sessionId;
       
       if (options.debug) {
-        console.log('💾 Cart saved successfully:', {
+        console.log('Carrito guardado exitosamente:', {
           itemCount: cartData.itemCount,
           totalValue: cartData.totalValue,
           sessionId: sessionId,
@@ -72,7 +72,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       return true;
       
     } catch (error) {
-      console.error('❌ Error saving cart:', error);
+      console.error('Error guardando carrito:', error);
       
       // Intentar recovery si falla el guardado
       tryRecoveryFromBackup();
@@ -81,14 +81,14 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
     }
   }, [isAuthenticated, user]);
   
-  // ✅ FUNCIÓN: Cargar carrito con recovery automático
+  // Función para cargar carrito con recovery automático
   const loadCartWithRecovery = useCallback(() => {
     try {
       const cartDataString = localStorage.getItem(CART_STORAGE_KEY);
       const sessionId = localStorage.getItem(SESSION_STORAGE_KEY);
       
       if (!cartDataString) {
-        console.log('📥 No cart data found, checking backup...');
+        console.log('No se encontraron datos del carrito, verificando backup...');
         return tryRecoveryFromBackup() || { items: [], sessionId: sessionId };
       }
       
@@ -96,20 +96,20 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       
       // Verificar expiración
       if (cartData.expiresAt && new Date(cartData.expiresAt) < new Date()) {
-        console.log('🗑️ Cart expired, clearing data...');
+        console.log('Carrito expirado, limpiando datos...');
         clearAllCartData();
         return { items: [], sessionId: null };
       }
       
       // Verificar integridad de datos
       if (!Array.isArray(cartData.items)) {
-        console.warn('⚠️ Cart data corrupted, attempting recovery...');
+        console.warn('Datos del carrito corruptos, intentando recuperación...');
         return tryRecoveryFromBackup() || { items: [], sessionId: sessionId };
       }
       
       const finalSessionId = cartData.sessionId || sessionId;
       
-      console.log('📥 Cart loaded successfully:', {
+      console.log('Carrito cargado exitosamente:', {
         itemCount: cartData.items.length,
         sessionId: finalSessionId,
         userType: cartData.userType || 'unknown',
@@ -122,7 +122,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       };
       
     } catch (error) {
-      console.error('❌ Error loading cart:', error);
+      console.error('Error cargando carrito:', error);
       
       // Intentar recovery automático
       const recovered = tryRecoveryFromBackup();
@@ -135,13 +135,13 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
     }
   }, [showWarning]);
   
-  // ✅ FUNCIÓN: Recovery desde backup
+  // Función para recovery desde backup
   const tryRecoveryFromBackup = useCallback(() => {
     try {
       const backupDataString = localStorage.getItem(BACKUP_STORAGE_KEY);
       
       if (!backupDataString) {
-        console.log('📥 No backup data available');
+        console.log('No hay datos de backup disponibles');
         return null;
       }
       
@@ -152,14 +152,14 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       const maxBackupAge = 7 * 24 * 60 * 60 * 1000; // 7 días
       
       if (backupAge > maxBackupAge) {
-        console.log('🗑️ Backup too old, discarding...');
+        console.log('Backup muy antiguo, descartando...');
         localStorage.removeItem(BACKUP_STORAGE_KEY);
         return null;
       }
       
-      console.log('🔄 Recovering cart from backup:', {
+      console.log('Recuperando carrito desde backup:', {
         itemCount: backupData.items?.length || 0,
-        backupAge: Math.round(backupAge / (1000 * 60 * 60)) + ' hours',
+        backupAge: Math.round(backupAge / (1000 * 60 * 60)) + ' horas',
         sessionId: backupData.sessionId
       });
       
@@ -185,12 +185,12 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       return null;
       
     } catch (error) {
-      console.error('❌ Error during backup recovery:', error);
+      console.error('Error durante recuperación de backup:', error);
       return null;
     }
   }, []);
   
-  // ✅ FUNCIÓN: Limpiar todos los datos del carrito
+  // Función para limpiar todos los datos del carrito
   const clearAllCartData = useCallback(() => {
     try {
       localStorage.removeItem(CART_STORAGE_KEY);
@@ -200,14 +200,14 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       lastSavedItemsRef.current = [];
       lastSavedSessionIdRef.current = null;
       
-      console.log('🧹 All cart data cleared');
+      console.log('Todos los datos del carrito han sido limpiados');
       
     } catch (error) {
-      console.error('❌ Error clearing cart data:', error);
+      console.error('Error limpiando datos del carrito:', error);
     }
   }, []);
   
-  // ✅ FUNCIÓN: Verificar persistencia periódica
+  // Función para verificar persistencia periódica
   const checkPersistence = useCallback(() => {
     try {
       // Solo para invitados con items en el carrito
@@ -219,7 +219,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       const sessionId = localStorage.getItem(SESSION_STORAGE_KEY);
       
       if (!cartDataString || !sessionId) {
-        console.warn('⚠️ Cart persistence lost, attempting recovery...');
+        console.warn('Persistencia del carrito perdida, intentando recuperación...');
         
         // Intentar guardar de nuevo
         const currentSessionId = sessionInfo?.sessionId || 
@@ -228,7 +228,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
         const saved = saveCartWithBackup(cartItems, currentSessionId, { debug: true });
         
         if (saved) {
-          console.log('✅ Cart persistence recovered');
+          console.log('Persistencia del carrito recuperada');
           
           // Actualizar sessionInfo si es necesario
           if (dispatch && actions && sessionInfo?.sessionId !== currentSessionId) {
@@ -238,16 +238,16 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
             });
           }
         } else {
-          console.error('❌ Failed to recover cart persistence');
+          console.error('Falló la recuperación de persistencia del carrito');
         }
       }
       
     } catch (error) {
-      console.error('❌ Error checking persistence:', error);
+      console.error('Error verificando persistencia:', error);
     }
   }, [isAuthenticated, cartItems, sessionInfo, saveCartWithBackup, dispatch, actions]);
   
-  // ✅ FUNCIÓN: Auto-save periódico
+  // Función para auto-save periódico
   const autoSave = useCallback(() => {
     try {
       // Solo para invitados
@@ -263,16 +263,16 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       if (currentItemsString !== lastSavedItemsString || 
           currentSessionId !== lastSavedSessionIdRef.current) {
         
-        console.log('🔄 Auto-saving cart changes...');
+        console.log('Auto-guardando cambios del carrito...');
         saveCartWithBackup(cartItems, currentSessionId, { debug: false });
       }
       
     } catch (error) {
-      console.error('❌ Error in auto-save:', error);
+      console.error('Error en auto-guardado:', error);
     }
   }, [isAuthenticated, cartItems, sessionInfo, saveCartWithBackup]);
   
-  // ✅ EFECTO: Configurar verificación periódica de persistencia
+  // Efecto para configurar verificación periódica de persistencia
   useEffect(() => {
     // Solo para invitados con items
     if (!isAuthenticated && cartItems && cartItems.length > 0) {
@@ -283,7 +283,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       // Auto-save periódico
       autoSaveRef.current = setInterval(autoSave, AUTO_SAVE_INTERVAL);
       
-      console.log('🔄 Started persistence monitoring for guest cart');
+      console.log('Iniciado monitoreo de persistencia para carrito de invitado');
       
       return () => {
         if (persistenceCheckRef.current) {
@@ -292,12 +292,12 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
         if (autoSaveRef.current) {
           clearInterval(autoSaveRef.current);
         }
-        console.log('🛑 Stopped persistence monitoring');
+        console.log('Detenido monitoreo de persistencia');
       };
     }
   }, [isAuthenticated, cartItems, checkPersistence, autoSave]);
   
-  // ✅ EFECTO: Guardar inmediatamente cuando cambian los items
+  // Efecto para guardar inmediatamente cuando cambian los items
   useEffect(() => {
     if (!isAuthenticated && cartItems && cartItems.length > 0) {
       const sessionId = sessionInfo?.sessionId;
@@ -307,7 +307,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
     }
   }, [cartItems, sessionInfo, isAuthenticated, saveCartWithBackup]);
   
-  // ✅ EFECTO: Cleanup al desmontar
+  // Efecto de cleanup al desmontar
   useEffect(() => {
     return () => {
       if (persistenceCheckRef.current) {
@@ -319,18 +319,18 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
     };
   }, []);
   
-  // ✅ FUNCIÓN: Debug del sistema de persistencia
+  // Función para debug del sistema de persistencia
   const debugPersistence = useCallback(() => {
-    console.log('🔍 ===============================');
-    console.log('💾 CART PERSISTENCE DEBUG');
-    console.log('🔍 ===============================');
+    console.log('===============================');
+    console.log('DEBUG DE PERSISTENCIA DEL CARRITO');
+    console.log('===============================');
     
     try {
       const cartDataString = localStorage.getItem(CART_STORAGE_KEY);
       const sessionId = localStorage.getItem(SESSION_STORAGE_KEY);
       const backupDataString = localStorage.getItem(BACKUP_STORAGE_KEY);
       
-      console.log('📊 Current State:', {
+      console.log('Estado Actual:', {
         isAuthenticated,
         cartItemsCount: cartItems?.length || 0,
         sessionIdInContext: sessionInfo?.sessionId,
@@ -338,7 +338,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
         lastSavedSessionId: lastSavedSessionIdRef.current
       });
       
-      console.log('💾 LocalStorage Analysis:', {
+      console.log('Análisis de LocalStorage:', {
         hasCartData: !!cartDataString,
         hasSessionId: !!sessionId,
         hasBackup: !!backupDataString,
@@ -348,7 +348,7 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       
       if (cartDataString) {
         const cartData = JSON.parse(cartDataString);
-        console.log('📋 Cart Data Structure:', {
+        console.log('Estructura de Datos del Carrito:', {
           itemCount: cartData.items?.length || 0,
           timestamp: cartData.timestamp,
           version: cartData.version,
@@ -360,18 +360,18 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
       
       if (backupDataString) {
         const backupData = JSON.parse(backupDataString);
-        console.log('🔄 Backup Data:', {
+        console.log('Datos de Backup:', {
           itemCount: backupData.items?.length || 0,
           backupAge: backupData.backupTimestamp ? 
-            Math.round((new Date() - new Date(backupData.backupTimestamp)) / (1000 * 60 * 60)) + ' hours' : 
-            'unknown'
+            Math.round((new Date() - new Date(backupData.backupTimestamp)) / (1000 * 60 * 60)) + ' horas' : 
+            'desconocido'
         });
       }
       
-      console.log('🔍 ===============================');
+      console.log('===============================');
       
     } catch (error) {
-      console.error('❌ Error in persistence debug:', error);
+      console.error('Error en debug de persistencia:', error);
     }
   }, [isAuthenticated, cartItems, sessionInfo]);
   
@@ -391,3 +391,226 @@ export const useCartPersistence = (cartItems, sessionInfo, dispatch, actions) =>
 };
 
 export default useCartPersistence;
+
+/*
+DOCUMENTACIÓN DEL HOOK useCartPersistence
+
+PROPÓSITO:
+Este hook personalizado proporciona un sistema robusto de persistencia para el carrito de compras
+de la tienda del gimnasio, garantizando que los productos seleccionados por los usuarios no se
+pierdan durante su sesión de navegación, incluso ante problemas técnicos, cierres accidentales
+del navegador o fallos temporales del sistema.
+
+FUNCIONALIDADES PRINCIPALES:
+- Persistencia automática del carrito en localStorage con sistema de backup
+- Recuperación automática de datos en caso de corrupción o pérdida
+- Auto-guardado continuo cada 2 segundos para usuarios invitados
+- Verificación periódica de integridad cada 5 segundos
+- Sistema de expiración automática después de 30 días
+- Backup de seguridad con recuperación automática
+- Logging detallado para debugging y monitoreo
+- Manejo robusto de errores con fallbacks múltiples
+
+ARCHIVOS Y CONEXIONES:
+
+CONTEXTS REQUERIDOS:
+- ../contexts/AuthContext: Verificación de estado de autenticación del usuario
+- ../contexts/AppContext: Funciones de notificación para mostrar advertencias
+
+DEPENDENCIAS DE REACT:
+- useEffect: Efectos para monitoreo continuo y cleanup
+- useCallback: Optimización de funciones para evitar re-renders
+- useRef: Referencias persistentes para intervals y estados previos
+
+QUE GESTIONA PARA EL USUARIO:
+
+DATOS DEL CARRITO PERSISTIDOS:
+El hook gestiona automáticamente todos los aspectos del carrito de compras:
+
+**Información de Productos**:
+- Lista completa de productos agregados al carrito
+- Cantidades específicas de cada producto
+- Precios en quetzales guatemaltecos de cada item
+- Variantes de productos (tallas, colores, tipos)
+- Metadatos de productos (SKU, categoría, disponibilidad)
+
+**Datos de Sesión**:
+- ID único de sesión para usuarios invitados
+- Timestamp de creación y última modificación
+- Tipo de usuario (autenticado vs invitado)
+- ID de usuario autenticado (cuando aplique)
+- Versión del formato de datos para compatibilidad
+
+**Métricas Calculadas**:
+- Número total de items en el carrito
+- Valor total del carrito en quetzales guatemaltecos
+- Fecha de expiración automática (30 días)
+- Estadísticas de uso y modificaciones
+
+**Sistema de Backup**:
+- Copia de seguridad automática de todos los datos
+- Timestamp independiente para el backup
+- Recuperación automática en caso de corrupción
+- Validación de antigüedad del backup (máximo 7 días)
+
+FUNCIONALIDADES PARA USUARIOS INVITADOS:
+
+**Persistencia Automática**:
+- Guardado instantáneo al agregar/quitar productos
+- Auto-guardado cada 2 segundos si hay cambios
+- Verificación de integridad cada 5 segundos
+- Recuperación automática si se detecta pérdida de datos
+
+**Experiencia Sin Interrupciones**:
+- Carrito conservado entre sesiones del navegador
+- Recuperación tras cierres accidentales del navegador
+- Mantenimiento de selecciones durante navegación
+- Transferencia suave al registrarse como usuario
+
+**Notificaciones de Estado**:
+- Alerta automática si se recupera desde backup
+- Información clara sobre el estado de persistencia
+- Debugging visible para usuarios técnicos
+- Logging detallado para resolución de problemas
+
+CARACTERÍSTICAS TÉCNICAS:
+
+**Llaves de Almacenamiento**:
+- `elite_fitness_cart`: Datos principales del carrito
+- `elite_fitness_session_id`: ID de sesión del usuario invitado
+- `elite_fitness_cart_backup`: Copia de seguridad automática
+
+**Estructura de Datos**:
+```javascript
+{
+  items: [array de productos],
+  timestamp: fecha de última modificación,
+  expiresAt: fecha de expiración automática,
+  version: versión del formato de datos,
+  sessionId: identificador único de sesión,
+  userType: 'authenticated' | 'guest',
+  userId: ID del usuario (si está autenticado),
+  itemCount: número total de items,
+  totalValue: valor total en quetzales
+}
+```
+
+**Intervalos de Operación**:
+- Auto-guardado: Cada 2 segundos (2000ms)
+- Verificación de integridad: Cada 5 segundos (5000ms)
+- Expiración de datos: 30 días desde última modificación
+- Expiración de backup: 7 días desde creación
+
+RECUPERACIÓN Y FALLBACKS:
+
+**Detección de Problemas**:
+- Datos del carrito corruptos o faltantes
+- SessionID perdido o inconsistente
+- Formato de datos incompatible
+- Errores de acceso a localStorage
+
+**Estrategias de Recuperación**:
+1. **Recuperación desde backup**: Uso automático de copia de seguridad
+2. **Regeneración de sesión**: Creación de nuevo ID de sesión válido
+3. **Validación y limpieza**: Eliminación de datos corruptos
+4. **Notificación al usuario**: Información sobre acciones tomadas
+
+**Logging y Debugging**:
+- Console logging detallado en desarrollo
+- Función de debug manual disponible
+- Información de estado en tiempo real
+- Métricas de rendimiento y errores
+
+CASOS DE USO ESPECÍFICOS:
+
+**Usuarios Invitados**:
+- Cliente navegando productos sin registrarse
+- Agregando múltiples productos a lo largo del tiempo
+- Cerrando accidentalmente el navegador
+- Volviendo días después a completar la compra
+
+**Transición a Usuario Registrado**:
+- Preservación del carrito durante registro
+- Transferencia suave de datos de invitado a autenticado
+- Mantenimiento de selecciones durante login
+- Sincronización con datos del perfil del usuario
+
+**Escenarios de Error**:
+- Fallo temporal de localStorage
+- Corrupción de datos por extensiones del navegador
+- Limite de almacenamiento alcanzado
+- Conflictos entre pestañas múltiples
+
+INTEGRACIÓN CON LA TIENDA DEL GIMNASIO:
+
+**Productos Específicos**:
+- Suplementos nutricionales con precios en quetzales
+- Equipos de entrenamiento y accesorios
+- Ropa deportiva con variantes de talla
+- Membresías especiales y paquetes promocionales
+- Servicios adicionales del gimnasio
+
+**Características Guatemaltecas**:
+- Precios en quetzales guatemaltecos (Q)
+- Impuestos locales calculados automáticamente
+- Opciones de pago locales disponibles
+- Productos disponibles específicamente en Guatemala
+
+OPTIMIZACIONES DE RENDIMIENTO:
+
+**Prevención de Re-renders**:
+- useCallback para todas las funciones expuestas
+- useRef para almacenar estados que no afectan rendering
+- Comparaciones eficientes de cambios en datos
+- Debouncing automático de operaciones de guardado
+
+**Gestión de Memoria**:
+- Cleanup automático de intervals al desmontar
+- Eliminación de listeners de eventos
+- Limpieza de referencias y timers
+- Prevención de memory leaks
+
+**Almacenamiento Eficiente**:
+- Compresión automática de datos JSON
+- Eliminación de campos redundantes
+- Validación de tamaño antes de guardar
+- Limpieza automática de datos expirados
+
+MONITOREO Y DIAGNÓSTICO:
+
+**Estados Disponibles**:
+- `isPersistenceActive`: Si el sistema está monitoreando activamente
+- `lastSavedCount`: Número de items en el último guardado
+- `hasBackup`: Si existe una copia de seguridad disponible
+
+**Funciones de Debug**:
+- `debugPersistence()`: Información completa del estado del sistema
+- Logging automático de operaciones importantes
+- Métricas de rendimiento y tiempo de respuesta
+- Análisis de integridad de datos
+
+BENEFICIOS PARA EL GIMNASIO:
+
+**Mejora en Conversiones**:
+- Reducción de carritos abandonados por pérdida de datos
+- Experiencia de compra más confiable
+- Mayor probabilidad de completar compras
+- Retención de intención de compra a largo plazo
+
+**Experiencia de Usuario Superior**:
+- Navegación sin preocupaciones sobre pérdida de datos
+- Transiciones suaves entre sesiones
+- Recuperación automática e invisible de problemas
+- Confianza en la estabilidad del sistema
+
+**Datos de Negocio**:
+- Información sobre patrones de abandono de carrito
+- Métricas de tiempo entre agregado y compra
+- Análisis de productos más abandonados
+- Insights sobre comportamiento de usuarios invitados
+
+Este hook es fundamental para mantener la confiabilidad de la experiencia de compra
+en la tienda del gimnasio, asegurando que ningún cliente pierda sus selecciones de
+productos por problemas técnicos y maximizando las oportunidades de conversión de
+ventas de productos en quetzales guatemaltecos.
+*/

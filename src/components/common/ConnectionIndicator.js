@@ -1,7 +1,6 @@
 // Autor: Alexander Echeverria
 // src/components/common/ConnectionIndicator.js
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import apiService from '../../services/apiService';
 
@@ -57,8 +56,8 @@ const ConnectionIndicator = ({ show = true }) => {
     let hasErrors = false;
     let hasCriticalErrors = false;
     
-    console.group('Comprehensive Backend Check');
-    console.log('Checking all endpoints...');
+    console.group('Verificación Completa del Backend');
+    console.log('Verificando todos los endpoints...');
     
     for (const endpoint of criticalEndpoints) {
       try {
@@ -72,7 +71,7 @@ const ConnectionIndicator = ({ show = true }) => {
           hasData: !!(response.data && (Array.isArray(response.data) ? response.data.length > 0 : Object.keys(response.data).length > 0))
         };
         
-        console.log(`✅ ${endpoint.name}: ${responseTime}ms`);
+        console.log(`EXITOSO ${endpoint.name}: ${responseTime}ms`);
         
       } catch (error) {
         hasErrors = true;
@@ -80,7 +79,7 @@ const ConnectionIndicator = ({ show = true }) => {
         
         results[endpoint.name] = {
           status: 'error',
-          error: error.response?.status || error.code || 'Unknown',
+          error: error.response?.status || error.code || 'Desconocido',
           message: error.message,
           details: getErrorDetails(endpoint.name, error)
         };
@@ -95,7 +94,7 @@ const ConnectionIndicator = ({ show = true }) => {
           });
         }
         
-        console.log(`❌ ${endpoint.name}: ${error.response?.status || 'Connection failed'}`);
+        console.log(`ERROR ${endpoint.name}: ${error.response?.status || 'Conexión fallida'}`);
       }
     }
     
@@ -111,11 +110,11 @@ const ConnectionIndicator = ({ show = true }) => {
       setConnectionStatus('connected');
     }
     
-    console.log('Final status:', {
-      critical_errors: hasCriticalErrors,
-      has_errors: hasErrors,
+    console.log('Estado final:', {
+      errores_criticos: hasCriticalErrors,
+      tiene_errores: hasErrors,
       total_endpoints: criticalEndpoints.length,
-      working_endpoints: Object.values(results).filter(r => r.status === 'success').length
+      endpoints_funcionando: Object.values(results).filter(r => r.status === 'success').length
     });
     console.groupEnd();
   };
@@ -146,8 +145,8 @@ const ConnectionIndicator = ({ show = true }) => {
       return {
         problem: 'Error interno en el backend',
         likely_cause: 'Campo created_at o updated_at es undefined',
-        location: 'gymController.js línea ~186',
-        technical: 'TypeError: Cannot read properties of undefined (reading toISOString)'
+        location: 'gymController.js línea aproximadamente 186',
+        technical: 'TypeError: No se puede leer propiedades de undefined (leyendo toISOString)'
       };
     }
     
@@ -155,15 +154,15 @@ const ConnectionIndicator = ({ show = true }) => {
       return {
         problem: 'Endpoint no encontrado',
         likely_cause: 'Ruta /api/gym/testimonials no implementada',
-        location: 'Backend routing',
-        technical: 'Route handler missing'
+        location: 'Enrutamiento del Backend',
+        technical: 'Manejador de ruta faltante'
       };
     }
     
     return {
       problem: 'Error de conexión',
-      likely_cause: 'Backend no está corriendo',
-      location: 'Network level',
+      likely_cause: 'Backend no está ejecutándose',
+      location: 'Nivel de red',
       technical: error.message
     };
   };
@@ -201,7 +200,7 @@ const ConnectionIndicator = ({ show = true }) => {
       case 'connected':
         return {
           color: 'bg-green-500',
-          title: 'Todos los endpoints funcionando',
+          title: 'Todos los endpoints funcionando correctamente',
           pulse: false
         };
         
@@ -271,7 +270,7 @@ const ConnectionIndicator = ({ show = true }) => {
                 onClick={() => setShowDetails(false)}
                 className="text-gray-400 hover:text-gray-600 text-sm"
               >
-                ✕
+                X
               </button>
             </div>
 
@@ -325,7 +324,7 @@ const ConnectionIndicator = ({ show = true }) => {
                     <div className="text-xs text-gray-600">
                       {status?.status === 'success' ? (
                         <span className="text-green-600">
-                          {status.responseTime}ms {status.hasData ? '📄' : '📭'}
+                          {status.responseTime}ms {status.hasData ? 'CON DATOS' : 'SIN DATOS'}
                         </span>
                       ) : (
                         <span className="text-red-600">
@@ -342,7 +341,7 @@ const ConnectionIndicator = ({ show = true }) => {
             {testimonialsError && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <h4 className="text-xs font-semibold text-red-700 mb-2">
-                  Diagnóstico: Testimonials Error
+                  Diagnóstico: Error en Testimonios
                 </h4>
                 
                 <div className="space-y-2 text-xs">
@@ -384,9 +383,9 @@ const ConnectionIndicator = ({ show = true }) => {
 
             {/* Información técnica */}
             <div className="text-xs text-gray-500 space-y-1">
-              <div>Backend URL: {process.env.REACT_APP_API_URL || 'localhost:5000'}</div>
+              <div>URL del Backend: {process.env.REACT_APP_API_URL || 'localhost:5000'}</div>
               <div>* = Endpoint crítico</div>
-              <div>📄 = Con datos, 📭 = Sin datos</div>
+              <div>CON DATOS = Contiene información, SIN DATOS = Vacío</div>
             </div>
 
             {/* Acciones */}
@@ -409,89 +408,94 @@ const ConnectionIndicator = ({ show = true }) => {
 export default ConnectionIndicator;
 
 /*
+==========================================
 DOCUMENTACIÓN DEL COMPONENTE ConnectionIndicator
+==========================================
 
-PROPÓSITO:
-Este componente implementa un indicador visual del estado de conexión con el backend,
-proporcionando diagnóstico detallado de endpoints y detección específica de errores
-comunes. Está diseñado para facilitar el debugging durante el desarrollo.
+PROPÓSITO GENERAL:
+Este componente implementa un indicador visual del estado de conexión con el backend del sistema,
+proporcionando diagnóstico detallado de endpoints y detección específica de errores comunes.
+Está diseñado para facilitar el debugging durante el desarrollo y monitoreo en producción.
+
+QUÉ MUESTRA AL USUARIO:
+- Punto indicador minimalista en la esquina inferior derecha con colores de estado:
+  * Verde: Todos los endpoints funcionando correctamente
+  * Amarillo: Algunos endpoints con errores no críticos  
+  * Rojo: Error crítico, backend no disponible
+  * Azul: Verificando conexión
+- Panel expandible al hacer clic que muestra:
+  * Estado general del backend
+  * Lista detallada de cada endpoint con tiempos de respuesta
+  * Diagnóstico específico de errores con soluciones sugeridas
+  * Información técnica para debugging
+  * Botón para verificar nuevamente la conexión
 
 FUNCIONALIDADES PRINCIPALES:
-- Verificación automática de múltiples endpoints del backend
-- Indicador visual minimalista con códigos de color
-- Panel de detalles expandible con información técnica
-- Diagnóstico específico para errores de testimonials
-- Soluciones sugeridas para problemas comunes
-- Verificación periódica cada 60 segundos
-- Sistema de logging detallado en consola
+- Verificación automática de múltiples endpoints del backend cada 60 segundos
+- Diagnóstico específico para errores comunes en testimonios
+- Sistema de logging detallado en consola del navegador
+- Detección de endpoints críticos vs no críticos
+- Prevención de memory leaks con referencias y cleanup apropiado
+- Interfaz responsive y accesible
 
-CONEXIONES CON OTROS ARCHIVOS:
+ARCHIVOS A LOS QUE SE CONECTA:
 
 SERVICIOS REQUERIDOS:
-- apiService (../../services/apiService): Servicio HTTP para comunicación con backend
+- ../../services/apiService: Servicio HTTP principal para comunicación con el backend
+  Debe exportar métodos como apiService.get() para realizar peticiones HTTP
 
-ENDPOINTS MONITOREADOS:
-- /gym/config: Configuración del gimnasio (crítico)
-- /gym/stats: Estadísticas del gimnasio
-- /gym/services: Servicios ofrecidos
-- /gym/testimonials: Testimonios de clientes
-- /store/featured-products: Productos destacados
-- /gym/membership-plans: Planes de membresía
+ENDPOINTS DEL BACKEND MONITOREADOS:
+- /gym/config: Configuración general del gimnasio (CRÍTICO)
+- /gym/stats: Estadísticas y métricas del gimnasio  
+- /gym/services: Servicios ofrecidos por el gimnasio
+- /gym/testimonials: Testimonios y reseñas de clientes
+- /store/featured-products: Productos destacados de la tienda
+- /gym/membership-plans: Planes de membresía disponibles
 
-VARIABLES DE ENTORNO:
-- REACT_APP_API_URL: URL base del backend
+VARIABLES DE ENTORNO UTILIZADAS:
+- REACT_APP_API_URL: URL base del servidor backend (ej: http://localhost:5000)
 
-ESTADOS MANEJADOS:
-- connectionStatus: Estado general de conexión
-  - 'checking': Verificando endpoints
-  - 'connected': Todos funcionando
-  - 'partial_error': Algunos endpoints fallan
-  - 'critical_error': Endpoints críticos fallan
-- showDetails: Control de visibilidad del panel expandido
-- lastCheck: Timestamp de la última verificación
-- endpointsStatus: Estado individual de cada endpoint
-- testimonialsError: Información específica de errores de testimonials
+ARCHIVOS DEL BACKEND RELACIONADOS:
+- gymController.js: Controlador que maneja las rutas del gimnasio
+- Rutas de la API REST que deben estar implementadas en el backend
+- Servidor backend que debe estar ejecutándose en el puerto configurado
 
-TIPOS DE ERRORES DETECTADOS:
-- 404: Endpoint no implementado
-- 500: Error interno del servidor
-- 403: Sin permisos de acceso
-- 422: Datos inválidos
-- ERR_NETWORK: Backend no disponible
+TECNOLOGÍAS Y DEPENDENCIAS:
+- React con Hooks (useState, useEffect, useRef)
+- Tailwind CSS para estilos
+- JavaScript ES6+ con async/await
 
-DIAGNÓSTICO ESPECÍFICO TESTIMONIALS:
-- Detección de errores en toISOString()
-- Identificación de campos undefined (created_at/updated_at)
-- Sugerencias de código para solucionar
-- Referencias a ubicación en gymController.js
-
-INTERFAZ VISUAL:
-- Punto indicador de 3x3px con colores de estado
-- Verde: Todo funcionando
-- Amarillo: Errores no críticos
-- Rojo: Errores críticos
-- Azul: Verificando
-- Panel expandible responsive de 384px de ancho
-
-CARACTERÍSTICAS TÉCNICAS:
-- useRef para prevenir memory leaks
-- Cleanup de intervalos en unmount
-- Verificación condicional basada en prop 'show'
-- Logging agrupado en consola para debugging
-- Overlay clickeable para cerrar panel
-
-USO EN LA APLICACIÓN:
-Debe incluirse en el layout principal para monitoreo continuo del backend.
-Típicamente se muestra solo en modo desarrollo:
-
+USO RECOMENDADO EN LA APLICACIÓN:
 ```javascript
+// En el layout principal o App.js
+import ConnectionIndicator from './components/common/ConnectionIndicator';
+
+// Mostrar solo en desarrollo
 {process.env.NODE_ENV === 'development' && <ConnectionIndicator />}
+
+// O mostrar siempre pero controlado
+<ConnectionIndicator show={mostrarIndicador} />
 ```
 
-BENEFICIOS PARA DESARROLLO:
-- Identificación rápida de problemas de backend
-- Diagnóstico automático con soluciones sugeridas
-- Monitoreo continuo sin interrumpir el flujo de trabajo
-- Información técnica detallada para debugging
-- Prevención de errores silenciosos
+TIPOS DE ERRORES DETECTADOS Y DIAGNOSTICADOS:
+- 404: Endpoint no implementado en el backend
+- 500: Error interno del servidor (común en testimonials por campos undefined)
+- 403: Sin permisos de acceso al endpoint
+- 422: Datos inválidos enviados al servidor
+- ERR_NETWORK: Backend no disponible o no ejecutándose
+
+BENEFICIOS PARA DESARROLLO Y PRODUCCIÓN:
+- Identificación inmediata de problemas de conectividad
+- Diagnóstico automático con soluciones específicas para errores comunes
+- Monitoreo continuo sin interrumpir el flujo de trabajo del usuario
+- Información técnica detallada para debugging eficiente
+- Prevención de errores silenciosos que afecten la experiencia del usuario
+- Facilita la comunicación entre frontend y backend durante desarrollo
+
+NOTAS TÉCNICAS IMPORTANTES:
+- Utiliza intervalos de 60 segundos para verificación automática
+- Implementa cleanup adecuado para prevenir memory leaks
+- Solo se renderiza si la prop 'show' es true
+- Registra información detallada en la consola del navegador para debugging
+- Maneja estados de loading, success y error de manera robusta
 */

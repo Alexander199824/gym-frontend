@@ -1,6 +1,5 @@
-// src/pages/dashboard/components/MediaUploader.js
-// FUNCIÓN: Gestor MEJORADO de multimedia - Logo, Video Hero + Miniatura
-// CAMBIOS: Mejor manejo de video + poster, estados separados, UI mejorada
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/MediaUploader.js
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -14,7 +13,7 @@ import { useApp } from '../../../contexts/AppContext';
 const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, isMobile } = useApp();
   
-  // 📱 Estados locales - SEPARADOS Y MEJORADOS
+  // Estados locales - Separados y mejorados
   const [mediaFiles, setMediaFiles] = useState({
     logo: null,
     heroVideo: null,
@@ -30,7 +29,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [previewVideo, setPreviewVideo] = useState(false);
   
-  // 🔗 Categorías de medios MEJORADAS
+  // Categorías de medios mejoradas
   const mediaTabs = [
     { 
       id: 'logo', 
@@ -52,9 +51,9 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   ];
   
-  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO para video + poster
+  // Inicializar con datos actuales - Mejorado para video + poster
   useEffect(() => {
-    console.log('🔄 MediaUploader - Checking for gym config data:', {
+    console.log('MediaUploader - Verificando datos de configuración:', {
       hasGymConfig: !!gymConfig,
       isLoading: gymConfig?.isLoading,
       hasData: !!gymConfig?.data,
@@ -62,11 +61,11 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     });
     
     if (gymConfig?.data && !gymConfig.isLoading) {
-      console.log('📥 MediaUploader - Loading data from backend:', gymConfig.data);
+      console.log('MediaUploader - Cargando datos desde backend:', gymConfig.data);
       
       const backendData = gymConfig.data;
       
-      // Mapear datos del backend - MEJORADO
+      // Mapear datos del backend - Mejorado
       const newMediaFiles = {
         // Logo
         logo: backendData.logo ? {
@@ -108,7 +107,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
         } : null
       };
       
-      console.log('✅ MediaUploader - Data mapped successfully:', {
+      console.log('MediaUploader - Datos mapeados exitosamente:', {
         hasLogo: !!newMediaFiles.logo,
         hasHeroVideo: !!newMediaFiles.heroVideo,
         hasHeroPoster: !!newMediaFiles.heroPoster,
@@ -123,20 +122,20 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
       setIsDataLoaded(true);
       
     } else if (gymConfig?.isLoading) {
-      console.log('⏳ MediaUploader - Data is still loading...');
+      console.log('MediaUploader - Los datos aún se están cargando...');
       setIsDataLoaded(false);
     } else {
-      console.log('⚠️ MediaUploader - No data available');
+      console.log('MediaUploader - No hay datos disponibles');
       setIsDataLoaded(true);
     }
   }, [gymConfig]);
   
-  // 🔔 Notificar cambios sin guardar
+  // Notificar cambios sin guardar
   useEffect(() => {
     onUnsavedChanges(hasChanges);
   }, [hasChanges, onUnsavedChanges]);
   
-  // 📁 Manejar subida de archivos MEJORADA
+  // Manejar subida de archivos mejorada
   const handleFileUpload = async (file, category) => {
     if (!file) return;
     
@@ -189,7 +188,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
           };
           video.src = tempUrl;
         } catch (error) {
-          console.log('Could not extract video duration:', error);
+          console.log('No se pudo extraer la duración del video:', error);
         }
       }
       
@@ -204,7 +203,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
           };
           img.src = tempUrl;
         } catch (error) {
-          console.log('Could not extract image dimensions:', error);
+          console.log('No se pudieron extraer las dimensiones de la imagen:', error);
         }
       }
       
@@ -226,14 +225,14 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
       showSuccess(`${typeNames[category]} cargado exitosamente`);
       
     } catch (error) {
-      console.error('Error loading file:', error);
+      console.error('Error cargando archivo:', error);
       showError(error.message || 'Error al cargar el archivo');
     } finally {
       setUploadingFile(null);
     }
   };
   
-  // 🗑️ Eliminar archivo MEJORADO
+  // Eliminar archivo mejorado
   const handleDeleteFile = (category) => {
     const typeNames = {
       logo: 'logo',
@@ -259,7 +258,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 🔗 Agregar video desde URL MEJORADO
+  // Agregar video desde URL mejorado
   const handleAddVideoUrl = () => {
     if (!videoUrl.trim()) {
       showError('Por favor ingresa una URL válida');
@@ -293,7 +292,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     showSuccess('Video agregado exitosamente');
   };
   
-  // 🔧 HELPER: Detectar plataforma de video
+  // Helper: Detectar plataforma de video
   const detectVideoPlatform = (url) => {
     if (url.includes('youtube.com') || url.includes('youtu.be')) return 'YouTube';
     if (url.includes('vimeo.com')) return 'Vimeo';
@@ -301,7 +300,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     return 'Archivo directo';
   };
   
-  // 🔧 HELPER: Obtener nombre del video desde URL
+  // Helper: Obtener nombre del video desde URL
   const getVideoNameFromUrl = (url) => {
     const platform = detectVideoPlatform(url);
     
@@ -322,7 +321,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📋 Copiar URL al portapapeles
+  // Copiar URL al portapapeles
   const handleCopyUrl = async (url) => {
     try {
       await navigator.clipboard.writeText(url);
@@ -332,12 +331,12 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 💾 Guardar cambios MEJORADO
+  // Guardar cambios mejorado
   const handleSave = async () => {
     try {
-      console.log('💾 Saving media files:', mediaFiles);
+      console.log('Guardando archivos multimedia:', mediaFiles);
       
-      // Preparar datos para enviar - ESTRUCTURA MEJORADA
+      // Preparar datos para enviar - Estructura mejorada
       const updatedConfig = {
         logo: mediaFiles.logo ? {
           url: mediaFiles.logo.url,
@@ -364,19 +363,19 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
         }
       };
       
-      console.log('📤 Sending updated config to backend:', updatedConfig);
+      console.log('Enviando configuración actualizada al backend:', updatedConfig);
       
       onSave(updatedConfig);
       setHasChanges(false);
       showSuccess('Multimedia actualizada exitosamente');
       
     } catch (error) {
-      console.error('Error saving media:', error);
+      console.error('Error guardando multimedia:', error);
       showError('Error al guardar multimedia');
     }
   };
   
-  // 📊 Formatear tamaño de archivo
+  // Formatear tamaño de archivo
   const formatFileSize = (bytes) => {
     if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -385,7 +384,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
   
-  // 🎬 Formatear duración de video
+  // Formatear duración de video
   const formatDuration = (seconds) => {
     if (!seconds) return '';
     const minutes = Math.floor(seconds / 60);
@@ -393,7 +392,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // 🔄 Mostrar loading mientras se cargan los datos
+  // Mostrar loading mientras se cargan los datos
   if (gymConfig?.isLoading || !isDataLoaded) {
     return (
       <div className="space-y-6">
@@ -410,7 +409,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER MEJORADO */}
+      {/* Header mejorado */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900">
@@ -420,27 +419,27 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
             Logo, video principal y miniatura
           </p>
           
-          {/* Mostrar archivos actuales cargados - MEJORADO */}
+          {/* Mostrar archivos actuales cargados - Mejorado */}
           {isDataLoaded && (
             <div className="mt-3 flex flex-wrap gap-2">
               {mediaFiles.logo && (
                 <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full border border-green-200">
-                  ✅ Logo
+                  Logo
                 </span>
               )}
               {mediaFiles.heroVideo && (
                 <span className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded-full border border-purple-200">
-                  🎬 Video
+                  Video
                 </span>
               )}
               {mediaFiles.heroPoster && (
                 <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full border border-blue-200">
-                  🖼️ Miniatura
+                  Miniatura
                 </span>
               )}
               {mediaFiles.heroImage && !mediaFiles.heroVideo && (
                 <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-full border border-orange-200">
-                  📸 Imagen
+                  Imagen
                 </span>
               )}
             </div>
@@ -458,7 +457,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* ⚠️ INDICADOR DE CAMBIOS */}
+      {/* Indicador de cambios */}
       {hasChanges && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
           <div className="flex">
@@ -472,7 +471,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 🔗 NAVEGACIÓN POR CATEGORÍAS MEJORADA */}
+      {/* Navegación por categorías mejorada */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex space-x-1 overflow-x-auto">
           {mediaTabs.map((tab) => (
@@ -500,10 +499,10 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📋 CONTENIDO SEGÚN CATEGORÍA ACTIVA */}
+      {/* Contenido según categoría activa */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         
-        {/* CATEGORÍA: Logo */}
+        {/* Categoría: Logo */}
         {activeTab === 'logo' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -519,7 +518,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
             
             {mediaFiles.logo ? (
               <div className="space-y-4">
-                {/* Vista previa del logo MEJORADA */}
+                {/* Vista previa del logo mejorada */}
                 <div className="flex items-start space-x-6">
                   <div className="w-40 h-40 border-2 border-gray-200 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden shadow-sm">
                     <img
@@ -650,7 +649,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* CATEGORÍA: Sección Principal COMPLETAMENTE NUEVA */}
+        {/* Categoría: Sección Principal completamente nueva */}
         {activeTab === 'hero' && (
           <div className="space-y-8">
             <div className="flex items-center justify-between">
@@ -664,7 +663,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            {/* RESUMEN ACTUAL */}
+            {/* Resumen actual */}
             <div className="bg-gray-50 rounded-lg p-4">
               <h5 className="font-medium text-gray-900 mb-3">Estado Actual:</h5>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -674,7 +673,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                     <span className="text-sm font-medium">Video Principal</span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
-                    {mediaFiles.heroVideo ? '✅ Configurado' : '⭕ Sin video'}
+                    {mediaFiles.heroVideo ? 'Configurado' : 'Sin video'}
                   </p>
                 </div>
                 
@@ -684,7 +683,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                     <span className="text-sm font-medium">Miniatura</span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
-                    {mediaFiles.heroPoster ? '✅ Configurada' : '⭕ Sin miniatura'}
+                    {mediaFiles.heroPoster ? 'Configurada' : 'Sin miniatura'}
                   </p>
                 </div>
                 
@@ -694,13 +693,13 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
                     <span className="text-sm font-medium">Imagen Alternativa</span>
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
-                    {mediaFiles.heroImage && !mediaFiles.heroVideo ? '✅ Activa' : '⭕ No se usa'}
+                    {mediaFiles.heroImage && !mediaFiles.heroVideo ? 'Activa' : 'No se usa'}
                   </p>
                 </div>
               </div>
             </div>
             
-            {/* 🎬 SECCIÓN: VIDEO PRINCIPAL */}
+            {/* Sección: Video Principal */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h5 className="font-medium text-gray-900 flex items-center">
@@ -885,7 +884,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
               )}
             </div>
             
-            {/* 🖼️ SECCIÓN: MINIATURA DEL VIDEO */}
+            {/* Sección: Miniatura del Video */}
             <div className="space-y-4">
               <h5 className="font-medium text-gray-900 flex items-center">
                 <Camera className="w-4 h-4 text-blue-600 mr-2" />
@@ -978,7 +977,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
               )}
             </div>
             
-            {/* 📸 SECCIÓN: IMAGEN ALTERNATIVA (si no hay video) */}
+            {/* Sección: Imagen Alternativa (si no hay video) */}
             {!mediaFiles.heroVideo && (
               <div className="space-y-4">
                 <h5 className="font-medium text-gray-900 flex items-center">
@@ -1064,7 +1063,7 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
               </div>
             )}
             
-            {/* 📱 VISTA PREVIA EN DIFERENTES DISPOSITIVOS */}
+            {/* Vista previa en diferentes dispositivos */}
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
               <div className="flex">
                 <Monitor className="w-5 h-5 text-purple-400 mt-0.5" />
@@ -1090,3 +1089,132 @@ const MediaUploader = ({ gymConfig, onSave, onUnsavedChanges }) => {
 };
 
 export default MediaUploader;
+
+/*
+=============================================================================
+PROPÓSITO DEL COMPONENTE
+=============================================================================
+
+El componente MediaUploader es una herramienta especializada de gestión 
+multimedia que permite a los administradores del gimnasio subir, editar 
+y administrar todos los elementos visuales que aparecen en su página web 
+pública. Funciona como un centro de control multimedia completo.
+
+FUNCIONALIDADES PRINCIPALES:
+- Gestión de logo del gimnasio con vista previa en tiempo real
+- Sistema avanzado de video principal con soporte para archivos locales
+- Integración con plataformas externas (YouTube, Vimeo, Dailymotion)
+- Manejo de miniatura/poster para videos con optimización automática
+- Imagen alternativa para cuando no hay video configurado
+- Validación estricta de archivos por tipo y tamaño
+- Vista previa inmediata de todos los elementos multimedia
+- Estados de carga optimizados durante la subida de archivos
+- Sistema de guardado independiente con detección de cambios
+
+LO QUE VE EL USUARIO ADMINISTRADOR:
+- Header con resumen de archivos multimedia cargados actualmente
+- Navegación por pestañas para diferentes categorías:
+  * Logo: Gestión del logo principal del gimnasio
+  * Sección Principal: Video/imagen hero con miniatura
+- Alertas de cambios sin guardar con indicadores visuales
+- Áreas de subida tipo "drag & drop" intuitivas
+- Vista previa en tiempo real de todos los elementos
+- Información detallada de archivos (tamaño, resolución, duración)
+- Botones de acción contextual (reemplazar, copiar URL, eliminar)
+- Indicadores de carga durante procesos de subida
+- Vista previa de cómo se verá en diferentes dispositivos
+
+GESTIÓN DE LOGO:
+- Soporte para PNG, JPG, SVG hasta 5MB
+- Vista previa inmediata al cargar archivo
+- Extracción automática de dimensiones de imagen
+- Información técnica completa (tamaño, resolución, fecha)
+- Opciones para reemplazar, copiar URL o eliminar
+- Optimización automática para navegación y footer
+
+SISTEMA DE VIDEO AVANZADO:
+- Subida de archivos locales (MP4, WebM hasta 100MB)
+- URLs externas de YouTube, Vimeo, Dailymotion
+- Detección automática de plataforma de video
+- Extracción de duración cuando es posible
+- Vista previa integrada con controles de video
+- Gestión independiente de miniatura/poster
+- Fallback a imagen alternativa si no hay video
+
+MINIATURA Y POSTER:
+- Imagen que se muestra antes de reproducir video
+- Soporte para JPG, PNG hasta 25MB
+- Recomendación de resolución 1920×1080px
+- Vista previa en aspecto 16:9 optimizado
+- Gestión independiente del video principal
+
+ARCHIVOS Y COMPONENTES CONECTADOS:
+=============================================================================
+
+CONTEXTO UTILIZADO:
+- AppContext (../../../contexts/AppContext)
+  * showSuccess, showError: Notificaciones de estado de operaciones
+  * isMobile: Detección de dispositivo para UI responsiva
+
+PROPS RECIBIDAS:
+- gymConfig: Configuración multimedia actual desde el backend
+  * Incluye logo, video hero, poster y configuraciones
+  * Estados de carga para mostrar spinners apropiados
+- onSave: Función callback para guardar cambios multimedia
+  * Recibe objeto con logo y hero (video, poster, imagen)
+- onUnsavedChanges: Callback para notificar cambios sin guardar
+  * Permite al componente padre mostrar advertencias de navegación
+
+ESTADOS INTERNOS:
+- mediaFiles: Objeto con todos los archivos multimedia actuales
+  * logo: Datos completos del logo (URL, dimensiones, tipo)
+  * heroVideo: Video principal con metadata completa
+  * heroPoster: Miniatura/poster del video
+  * heroImage: Imagen alternativa para cuando no hay video
+- hasChanges: Control de cambios sin guardar
+- uploadingFile: Estado de carga por tipo de archivo
+- activeTab: Pestaña actualmente visible (logo/hero)
+- videoUrl: URL temporal para agregar videos externos
+
+VALIDACIONES IMPLEMENTADAS:
+- Logo: PNG, JPG, SVG hasta 5MB con verificación de tipo MIME
+- Video: MP4, WebM, MOV hasta 100MB con validación estricta
+- Imágenes: JPG, PNG hasta 25MB para miniaturas y alternativas
+- URLs de video: Verificación de plataformas soportadas
+- Extracción automática de metadata (dimensiones, duración)
+
+INTEGRACIÓN CON BACKEND:
+- Carga configuración multimedia existente desde gymConfig
+- Mapea datos complejos con soporte para formatos legacy
+- Envía estructura optimizada al backend via onSave
+- Manejo de URLs externas vs archivos locales
+- Soporte para configuraciones de hero complejas
+
+CARACTERÍSTICAS ESPECIALES:
+- Sistema de pestañas para organización clara de contenido
+- Vista previa inmediata sin necesidad de guardar cambios
+- Soporte para videos externos con detección de plataforma
+- Extracción automática de metadata de archivos multimedia
+- Gestión de URLs temporales para preview instantáneo
+- Validación estricta con mensajes de error específicos
+- Interfaz drag & drop intuitiva para subida de archivos
+- Indicadores visuales de estado de cada tipo de contenido
+- Vista previa responsiva para diferentes dispositivos
+- Herramientas de gestión avanzada (copiar URL, reemplazar, eliminar)
+
+FLUJO DE USUARIO TÍPICO:
+1. Usuario accede a la sección de multimedia desde dashboard
+2. Ve resumen de archivos multimedia actuales en header
+3. Selecciona pestaña (Logo o Sección Principal)
+4. Sube archivo arrastrando o haciendo clic en área de subida
+5. Ve vista previa inmediata con información técnica
+6. Puede agregar miniatura para videos o imagen alternativa
+7. Sistema detecta cambios y muestra indicador de guardado
+8. Usuario guarda cambios cuando está satisfecho
+9. Cambios se reflejan inmediatamente en página web pública
+
+Este componente es esencial para la identidad visual del gimnasio,
+permitiendo una gestión multimedia profesional sin conocimientos 
+técnicos, con una experiencia de usuario similar a plataformas 
+CMS premium como WordPress o Squarespace.
+*/

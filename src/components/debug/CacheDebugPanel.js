@@ -1,13 +1,13 @@
 // Autor: Alexander Echeverria
 // src/components/debug/CacheDebugPanel.js
 // FUNCIÓN: Panel de debug para monitorear el rendimiento del cache en desarrollo
-// MUESTRA: Estadísticas en tiempo real, hit rate, peticiones ahorradas
+// MUESTRA: Estadísticas en tiempo real, tasa de aciertos, peticiones ahorradas
 
 import React, { useState, useEffect } from 'react';
 import { useCache } from '../../contexts/CacheContext';
 import { 
   BarChart3, Activity, Clock, Database, 
-  Zap, TrendingUp, RefreshCw, X 
+  Zap, TrendingUp, RefreshCw, X, Bird 
 } from 'lucide-react';
 
 const CacheDebugPanel = ({ show = true }) => {
@@ -33,7 +33,7 @@ const CacheDebugPanel = ({ show = true }) => {
     const totalRequests = stats.hits + stats.misses;
     const hitRate = totalRequests > 0 ? (stats.hits / totalRequests * 100) : 0;
     const savedRequests = stats.hits;
-    const cacheEfficiency = hitRate > 0 ? 'Excelente' : hitRate > 50 ? 'Buena' : 'Baja';
+    const cacheEfficiency = hitRate > 70 ? 'Excelente' : hitRate > 50 ? 'Buena' : 'Baja';
     
     return {
       hitRate: hitRate.toFixed(1),
@@ -104,7 +104,7 @@ const CacheDebugPanel = ({ show = true }) => {
           <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Database className="w-5 h-5" />
-              <h3 className="font-semibold">Cache Performance</h3>
+              <h3 className="font-semibold">Rendimiento de Cache</h3>
             </div>
             <button
               onClick={() => setIsExpanded(false)}
@@ -122,7 +122,7 @@ const CacheDebugPanel = ({ show = true }) => {
                 <div className="text-2xl font-bold text-green-600">
                   {metrics.hitRate}%
                 </div>
-                <div className="text-xs text-gray-600">Hit Rate</div>
+                <div className="text-xs text-gray-600">Tasa de Aciertos</div>
               </div>
               
               <div className="text-center">
@@ -140,21 +140,21 @@ const CacheDebugPanel = ({ show = true }) => {
                 <div className="font-semibold text-gray-900">
                   {metrics.totalRequests}
                 </div>
-                <div className="text-gray-600">Total Requests</div>
+                <div className="text-gray-600">Total de Peticiones</div>
               </div>
               
               <div className="bg-gray-50 rounded p-2 text-center">
                 <div className="font-semibold text-gray-900">
                   {metrics.memoryUsage}
                 </div>
-                <div className="text-gray-600">Cached Items</div>
+                <div className="text-gray-600">Elementos en Cache</div>
               </div>
               
               <div className="bg-gray-50 rounded p-2 text-center">
                 <div className="font-semibold text-gray-900">
                   {metrics.activePending}
                 </div>
-                <div className="text-gray-600">Pending</div>
+                <div className="text-gray-600">Pendientes</div>
               </div>
               
             </div>
@@ -166,7 +166,7 @@ const CacheDebugPanel = ({ show = true }) => {
                 metrics.efficiency === 'Buena' ? 'bg-yellow-100 text-yellow-800' :
                 'bg-red-100 text-red-800'
               }`}>
-                <Zap className="w-3 h-3 inline mr-1" />
+                <Bird className="w-3 h-3 inline mr-1" />
                 Eficiencia: {metrics.efficiency}
               </div>
             </div>
@@ -176,13 +176,13 @@ const CacheDebugPanel = ({ show = true }) => {
           <div className="p-4 max-h-48 overflow-y-auto">
             <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
               <Clock className="w-4 h-4 mr-1" />
-              Cache Entries:
+              Entradas de Cache:
             </h4>
 
             {getCacheEntries().length === 0 ? (
               <div className="text-center text-gray-500 py-4">
                 <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <div className="text-xs">No cache entries</div>
+                <div className="text-xs">No hay entradas en cache</div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -200,17 +200,17 @@ const CacheDebugPanel = ({ show = true }) => {
                       <span className={`px-2 py-1 rounded ${
                         entry.expired ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                       }`}>
-                        {entry.expired ? 'Expired' : 'Valid'}
+                        {entry.expired ? 'Expirado' : 'Válido'}
                       </span>
                     </div>
                     
                     <div className="flex justify-between text-gray-600">
-                      <span>Age: {entry.age}</span>
+                      <span>Antigüedad: {entry.age}</span>
                       <span>TTL: {entry.ttl}</span>
                     </div>
                     
                     <div className="text-gray-500 mt-1">
-                      Size: {(entry.size / 1024).toFixed(1)}KB
+                      Tamaño: {(entry.size / 1024).toFixed(1)}KB
                     </div>
                   </div>
                 ))}
@@ -225,7 +225,7 @@ const CacheDebugPanel = ({ show = true }) => {
               className="flex-1 bg-red-500 text-white text-xs py-2 px-3 rounded hover:bg-red-600 transition-colors flex items-center justify-center"
             >
               <RefreshCw className="w-3 h-3 mr-1" />
-              Clear Cache
+              Limpiar Cache
             </button>
             
             <button
@@ -233,7 +233,7 @@ const CacheDebugPanel = ({ show = true }) => {
               className="flex-1 bg-blue-500 text-white text-xs py-2 px-3 rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
             >
               <TrendingUp className="w-3 h-3 mr-1" />
-              Reload Page
+              Recargar Página
             </button>
           </div>
 
@@ -260,7 +260,7 @@ de caching de manera eficiente.
 
 FUNCIONALIDADES PRINCIPALES:
 - Monitoreo en tiempo real de estadísticas de cache
-- Indicador compacto con métricas clave (hit rate, peticiones ahorradas)
+- Indicador compacto con métricas clave (tasa de aciertos, peticiones ahorradas)
 - Panel expandible con información detallada
 - Visualización de entradas individuales del cache
 - Métricas de eficiencia y rendimiento
@@ -277,38 +277,54 @@ CONTEXTS REQUERIDOS:
   - clearCache(): Limpia el cache completamente
 
 COMPONENTES IMPORTADOS:
-- Iconos de Lucide React: BarChart3, Activity, Clock, Database, Zap, TrendingUp, RefreshCw, X
+- Iconos de Lucide React: BarChart3, Activity, Clock, Database, Zap, TrendingUp, RefreshCw, X, Bird
 
 UBICACIÓN EN LA APLICACIÓN:
 - Esquina inferior izquierda (fixed bottom-4 left-4)
 - Solo visible en modo desarrollo (NODE_ENV === 'development')
 - Z-index alto para visibilidad sobre otros elementos
 
+QUE MUESTRA AL USUARIO:
+- Indicador minimalista: Porcentaje de cache y peticiones ahorradas
+- Panel expandido con título "Rendimiento de Cache"
+- Tasa de Aciertos en porcentaje con color verde
+- Peticiones Ahorradas con color azul
+- Total de Peticiones, Elementos en Cache y Pendientes
+- Nivel de eficiencia (Excelente/Buena/Baja) con icono de quetzal
+- Lista detallada de entradas de cache mostrando:
+  - Nombre de la entrada
+  - Estado (Válido/Expirado)
+  - Antigüedad desde creación
+  - TTL restante
+  - Tamaño en KB
+- Botones de acción: "Limpiar Cache" y "Recargar Página"
+- Mensaje informativo: "Cache inteligente activo • Solo en desarrollo"
+
 MÉTRICAS MONITOREADAS:
-- Hit Rate: Porcentaje de aciertos del cache
+- Tasa de Aciertos: Porcentaje de aciertos del cache
 - Peticiones Ahorradas: Número de requests evitados
-- Total de Requests: Suma de hits y misses
-- Cached Items: Número de elementos en memoria
-- Pending Requests: Peticiones en progreso
+- Total de Peticiones: Suma de hits y misses
+- Elementos en Cache: Número de elementos en memoria
+- Peticiones Pendientes: Peticiones en progreso
 - Eficiencia General: Evaluación cualitativa del rendimiento
 
 INFORMACIÓN DE ENTRADAS DE CACHE:
 - Clave de identificación (sin prefijo 'api_')
-- Edad desde la creación
+- Antigüedad desde la creación
 - TTL (Time To Live) restante
 - Tamaño en KB
 - Estado (válido/expirado)
 
 ESTADOS VISUALES:
-- Indicador compacto: Muestra hit rate y peticiones ahorradas
+- Indicador compacto: Muestra tasa de aciertos y peticiones ahorradas
 - Panel expandido: Información completa y detallada
 - Entradas válidas: Fondo gris claro, borde gris
 - Entradas expiradas: Fondo rojo claro, borde rojo
 
 MÉTRICAS DE EFICIENCIA:
-- Excelente: Hit rate > 70% (verde)
-- Buena: Hit rate 50-70% (amarillo)
-- Baja: Hit rate < 50% (rojo)
+- Excelente: Tasa de aciertos > 70% (verde) con icono de quetzal
+- Buena: Tasa de aciertos 50-70% (amarillo) con icono de quetzal
+- Baja: Tasa de aciertos < 50% (rojo) con icono de quetzal
 
 CASOS DE USO EN EL GIMNASIO:
 - Optimización de carga de datos de membresías
@@ -317,6 +333,7 @@ CASOS DE USO EN EL GIMNASIO:
 - Debugging de problemas de datos obsoletos
 - Optimización de consultas de estadísticas
 - Mejora de experiencia de usuario en dashboards
+- Monitoreo de transacciones en quetzales
 
 CARACTERÍSTICAS TÉCNICAS:
 - Actualización automática cada segundo
@@ -347,7 +364,7 @@ RESTRICCIONES:
 
 INTEGRACIÓN CON EL SISTEMA:
 - Monitorea cache de datos del gimnasio
-- Incluye información de transacciones (quetzales)
+- Incluye información de transacciones en quetzales
 - Supervisa datos de usuarios y membresías
 - Analiza rendimiento de APIs críticas
 

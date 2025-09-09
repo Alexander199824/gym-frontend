@@ -1,6 +1,5 @@
-// src/pages/dashboard/components/TestimonialManager.js
-// FUNCIÓN: Gestión completa de testimonios para CLIENTES - MÚLTIPLES TESTIMONIOS
-// CONECTA CON: API de testimonios según documento de especificaciones
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/TestimonialManager.js
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -18,22 +17,22 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, formatDate, isMobile } = useApp();
   const queryClient = useQueryClient();
   
-  // 📊 Estados principales
+  // Estados principales
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // 📝 Estados del formulario
+  // Estados del formulario
   const [formData, setFormData] = useState({
     text: '',
     rating: 0,
     role: ''
   });
   
-  // ⚠️ Estados de validación
+  // Estados de validación
   const [fieldErrors, setFieldErrors] = useState({});
   const [hoverRating, setHoverRating] = useState(0);
   
-  // 🎯 Roles profesionales disponibles
+  // Roles profesionales disponibles
   const professionalRoles = [
     { value: 'Estudiante', icon: Book, description: 'Estudiante universitario o escolar' },
     { value: 'Profesional', icon: Briefcase, description: 'Profesional en activo' },
@@ -50,7 +49,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'Otro', icon: User, description: 'Otra profesión' }
   ];
   
-  // 🔄 QUERY: Obtener mis testimonios
+  // QUERY: Obtener mis testimonios
   const { 
     data: testimonials, 
     isLoading: testimonialsLoading,
@@ -62,24 +61,24 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     staleTime: 2 * 60 * 1000,
     retry: 2,
     onError: (error) => {
-      console.error('❌ Error loading testimonials:', error);
+      console.error('Error al cargar testimonios:', error);
       if (error.response?.status !== 404) {
         showError('Error al cargar tus testimonios');
       }
     }
   });
   
-  // 🆕 MUTATION: Crear testimonio
+  // MUTATION: Crear testimonio
   const createTestimonialMutation = useMutation({
     mutationFn: (testimonialData) => apiService.createTestimonial(testimonialData),
     onSuccess: (response) => {
-      console.log('✅ Testimonio creado exitosamente:', response);
+      console.log('Testimonio creado exitosamente:', response);
       
       // Mostrar mensaje personalizado del backend
       if (response.data?.thankYouMessage) {
         showSuccess(response.data.thankYouMessage);
       } else {
-        showSuccess(response.message || '¡Testimonio enviado exitosamente!');
+        showSuccess(response.message || 'Testimonio enviado exitosamente!');
       }
       
       // Limpiar formulario y cerrar modal
@@ -95,10 +94,10 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
       }
     },
     onError: (error) => {
-      console.error('❌ Error creando testimonio:', error);
+      console.error('Error al crear testimonio:', error);
       
       if (error.response?.status === 400) {
-        // Usuario ya tiene testimonio - ESTE CASO YA NO DEBERÍA OCURRIR
+        // Usuario ya tiene testimonio
         const message = error.response.data?.message || 'Error al crear testimonio';
         showError(message);
         
@@ -124,15 +123,15 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     }
   });
   
-  // 📊 Procesar datos de testimonios - ACTUALIZADO
+  // Procesar datos de testimonios
   const testimonialData = testimonials?.data || {};
   const userTestimonials = testimonialData.testimonials || [];
-  const canSubmitNew = testimonialData.canSubmitNew !== false; // ✅ Siempre true ahora
+  const canSubmitNew = testimonialData.canSubmitNew !== false;
   const publishedCount = testimonialData.publishedCount || 0;
   const pendingCount = testimonialData.pendingCount || 0;
   const thankYouMessage = testimonialData.thankYouMessage;
   
-  // 🔧 FUNCIONES HELPER
+  // FUNCIONES HELPER
   
   // Validar testimonio
   const validateTestimonial = () => {
@@ -279,13 +278,13 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER - ACTUALIZADO */}
+      {/* ENCABEZADO */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
             <MessageSquare className="w-6 h-6 mr-2 text-blue-600" />
             Mis Testimonios
-            {/* ✅ NUEVO: Mostrar contador */}
+            {/* Mostrar contador */}
             {userTestimonials.length > 0 && (
               <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
                 {userTestimonials.length}
@@ -301,7 +300,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         </div>
         
         <div className="flex items-center space-x-3 mt-4 lg:mt-0">
-          {/* ✅ NUEVO: Mostrar estadísticas */}
+          {/* Mostrar estadísticas */}
           {publishedCount > 0 && (
             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm flex items-center">
               <CheckCircle className="w-4 h-4 mr-1" />
@@ -316,7 +315,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
             </span>
           )}
           
-          {/* ✅ SIEMPRE mostrar botón para agregar más */}
+          {/* Siempre mostrar botón para agregar más */}
           <button
             onClick={() => setShowCreateForm(true)}
             className="btn-primary btn-sm"
@@ -327,7 +326,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 💬 MENSAJE DE AGRADECIMIENTO - MEJORADO */}
+      {/* MENSAJE DE AGRADECIMIENTO */}
       {thankYouMessage && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
@@ -339,10 +338,10 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               <p className="text-sm text-blue-800">
                 {thankYouMessage}
               </p>
-              {/* ✅ NUEVO: Recordatorio sobre poder agregar más */}
+              {/* Recordatorio sobre poder agregar más */}
               {userTestimonials.length > 0 && (
                 <p className="text-xs text-blue-700 mt-2">
-                  💡 Recuerda que puedes agregar más testimonios sobre diferentes aspectos del gimnasio.
+                  Recuerda que puedes agregar más testimonios sobre diferentes aspectos del gimnasio.
                 </p>
               )}
             </div>
@@ -350,7 +349,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 📋 LISTA DE TESTIMONIOS - MEJORADA */}
+      {/* LISTA DE TESTIMONIOS */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         
         {testimonialsLoading ? (
@@ -383,7 +382,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               return (
                 <div key={testimonial.id} className="p-6">
                   
-                  {/* ✅ NUEVO: Indicador de más reciente */}
+                  {/* Indicador de más reciente */}
                   {index === 0 && userTestimonials.length > 1 && (
                     <div className="mb-3">
                       <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
@@ -393,7 +392,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
                   )}
                   
-                  {/* Header del testimonio - MEJORADO */}
+                  {/* Header del testimonio */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
@@ -418,7 +417,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                         <div className="flex items-center space-x-2 text-sm text-gray-500">
                           <Calendar className="w-4 h-4" />
                           <span>Enviado el {formatDate(testimonial.submittedAt)}</span>
-                          {/* ✅ NUEVO: Mostrar fecha de publicación si está publicado */}
+                          {/* Mostrar fecha de publicación si está publicado */}
                           {testimonial.status === 'Publicado' && testimonial.publishedAt && (
                             <>
                               <span>•</span>
@@ -429,7 +428,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                       </div>
                     </div>
                     
-                    {/* ✅ Estado mejorado */}
+                    {/* Estado */}
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(testimonial.status)}`}>
                       <StatusIcon className="w-3 h-3 mr-1" />
                       {testimonial.status}
@@ -464,7 +463,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
                   </div>
                   
-                  {/* ✅ Información adicional según estado - MEJORADO */}
+                  {/* Información adicional según estado */}
                   {testimonial.status === 'Publicado' && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                       <div className="flex items-center text-sm text-green-800">
@@ -472,7 +471,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                         Tu testimonio está publicado y visible para otros usuarios
                         {testimonial.featured && (
                           <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
-                            ⭐ Destacado
+                            Destacado
                           </span>
                         )}
                       </div>
@@ -492,7 +491,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               );
             })}
             
-            {/* ✅ NUEVO: Botón para agregar más al final */}
+            {/* Botón para agregar más al final */}
             <div className="p-6 bg-gray-50 text-center">
               <p className="text-gray-600 mb-3">
                 ¿Tienes más experiencias que compartir?
@@ -509,7 +508,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* 🆕 MODAL PARA CREAR TESTIMONIO */}
+      {/* MODAL PARA CREAR TESTIMONIO */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -692,7 +691,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 💡 INFORMACIÓN ADICIONAL - ACTUALIZADA */}
+      {/* INFORMACIÓN ADICIONAL */}
       {userTestimonials.length === 0 && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
           <div className="flex items-start">
@@ -718,3 +717,126 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default TestimonialManager;
+
+/*
+ * COMPONENTE: TestimonialManager
+ * AUTOR: Alexander Echeverria
+ * 
+ * PROPÓSITO:
+ * Este componente permite a los clientes del gimnasio gestionar sus testimonios de experiencia.
+ * Los usuarios pueden crear múltiples testimonios, ver su estado de revisión y seguimiento,
+ * y contribuir con diferentes aspectos de su experiencia en el gimnasio.
+ * 
+ * FUNCIONALIDADES PARA EL USUARIO:
+ * 
+ * GESTIÓN DE TESTIMONIOS MÚLTIPLES:
+ * - Crear testimonios ilimitados sobre diferentes aspectos del gimnasio
+ * - Ver todos sus testimonios en una lista organizada
+ * - Seguimiento del estado de cada testimonio (publicado, en revisión, pendiente)
+ * - Contador visual de testimonios totales, publicados y en revisión
+ * - Indicador del testimonio más reciente
+ * 
+ * FORMULARIO DE CREACIÓN:
+ * - Campo de texto libre para compartir experiencias (máximo 500 caracteres)
+ * - Sistema de calificación con estrellas interactivas (1-5 estrellas)
+ * - Selección de profesión/rol para contexto de la experiencia
+ * - Validación en tiempo real de todos los campos
+ * - Contador de caracteres con alertas visuales
+ * 
+ * PROFESIONES DISPONIBLES:
+ * - Estudiante (universitario o escolar)
+ * - Profesional en activo
+ * - Empresario/Emprendedor
+ * - Médico/Profesional de la salud
+ * - Ingeniero/Técnico
+ * - Profesor/Educador
+ * - Deportista/Atleta
+ * - Freelancer/Trabajador independiente
+ * - Ejecutivo/Gerente
+ * - Artista/Creativo
+ * - Ama de Casa
+ * - Jubilado
+ * - Otra profesión
+ * 
+ * SISTEMA DE ESTADOS:
+ * - "Publicado": Testimonio visible públicamente, puede ser destacado
+ * - "En revisión": Testimonio enviado, esperando aprobación del equipo
+ * - "Pendiente de aprobación": En cola para revisión
+ * - "No público - Guardado para análisis": Guardado internamente pero no público
+ * 
+ * EXPERIENCIA DE USUARIO:
+ * - Interfaz intuitiva con navegación clara
+ * - Feedback visual inmediato con colores y estados
+ * - Modal elegante para creación de nuevos testimonios
+ * - Mensajes de agradecimiento personalizados
+ * - Indicadores de progreso durante el envío
+ * - Vista previa completa antes de enviar
+ * 
+ * VALIDACIONES Y SEGURIDAD:
+ * - Texto mínimo de 10 caracteres, máximo 500
+ * - Calificación obligatoria del 1 al 5
+ * - Selección obligatoria de profesión
+ * - Validación en tiempo real con mensajes descriptivos
+ * - Prevención de envíos duplicados
+ * - Limpieza automática de espacios en blanco
+ * 
+ * INFORMACIÓN MOSTRADA AL USUARIO:
+ * - Lista completa de sus testimonios con detalles
+ * - Fecha de envío y publicación de cada testimonio
+ * - Estado actual con iconos descriptivos
+ * - Calificación y profesión asociada
+ * - Texto completo del testimonio
+ * - Indicador si el testimonio está destacado
+ * - Estadísticas personales (total, publicados, en revisión)
+ * 
+ * CONEXIONES Y DEPENDENCIAS:
+ * 
+ * CONTEXTS:
+ * - AuthContext: Para obtener información del usuario autenticado
+ * - AppContext: Para notificaciones, formateo de fechas y utilidades
+ * 
+ * SERVICIOS API:
+ * - apiService: Servicio principal para comunicación con el backend
+ * 
+ * ENDPOINTS CONECTADOS:
+ * - apiService.getMyTestimonials(): Obtiene todos los testimonios del usuario
+ * - apiService.createTestimonial(data): Crea un nuevo testimonio
+ * 
+ * QUERIES Y MUTATIONS (React Query):
+ * - Query 'myTestimonials': Gestiona la carga y cache de testimonios del usuario
+ * - Mutation para crear testimonios con manejo de errores y estados
+ * - Invalidación automática de cache tras operaciones exitosas
+ * - Retry automático en caso de fallos de conexión
+ * 
+ * PROPIEDADES RECIBIDAS:
+ * - onSave: Función callback al completar operaciones exitosas
+ * - onUnsavedChanges: Función callback para notificar cambios sin guardar
+ * 
+ * ESTRUCTURA DE DATOS:
+ * - testimonialData: { testimonials[], canSubmitNew, publishedCount, pendingCount, thankYouMessage }
+ * - formData: { text, rating, role }
+ * - fieldErrors: Objeto con errores de validación por campo
+ * 
+ * TECNOLOGÍAS:
+ * - React con Hooks (useState, useEffect) para estado local
+ * - React Query (useQuery, useMutation) para gestión de datos del servidor
+ * - Lucide React para iconografía moderna y consistente
+ * - Tailwind CSS para estilos responsivos y utilities-first
+ * - JavaScript ES6+ para validaciones y lógica de componente
+ * 
+ * BENEFICIOS PARA EL NEGOCIO:
+ * - Recopila feedback valioso de clientes sobre diferentes aspectos
+ * - Genera contenido auténtico para marketing y promoción
+ * - Permite identificar fortalezas y áreas de mejora
+ * - Facilita la construcción de comunidad entre miembros
+ * - Proporciona testimonios segmentados por profesión/demografía
+ * - Crea base de datos de experiencias para análisis de satisfacción
+ * 
+ * IMPACTO EN LA COMUNIDAD:
+ * - Los testimonios ayudan a nuevos miembros a tomar decisiones
+ * - Fomenta el sentido de pertenencia y comunidad
+ * - Motiva a otros usuarios a compartir sus experiencias
+ * - Crea un ciclo positivo de retroalimentación
+ * - Permite a usuarios identificarse con experiencias similares
+ * - Construye confianza y credibilidad del gimnasio
+ */

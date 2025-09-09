@@ -1,6 +1,5 @@
-// src/pages/dashboard/components/ServicesManager.js
-// FUNCIÓN: Gestión CORREGIDA de servicios - Crear servicios nuevos FUNCIONA
-// CAMBIOS: Arreglado proceso de creación, mejor gestión de IDs temporales
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/ServicesManager.js
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -13,26 +12,26 @@ import { useApp } from '../../../contexts/AppContext';
 const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, isMobile } = useApp();
   
-  // 📱 Estados locales
+  // Estados locales
   const [localServices, setLocalServices] = useState([]);
   const [editingService, setEditingService] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // 🎯 Iconos disponibles para servicios
+  // Iconos disponibles para servicios
   const availableIcons = [
-    { id: 'target', component: Target, name: 'Objetivo/Target' },
+    { id: 'target', component: Target, name: 'Objetivo/Meta' },
     { id: 'users', component: Users, name: 'Grupo/Usuarios' },
     { id: 'heart', component: Heart, name: 'Corazón/Salud' },
-    { id: 'dumbbell', component: Dumbbell, name: 'Pesas/Gym' },
+    { id: 'dumbbell', component: Dumbbell, name: 'Pesas/Gimnasio' },
     { id: 'award', component: Award, name: 'Premio/Logro' },
     { id: 'shield', component: Shield, name: 'Protección/Seguridad' },
     { id: 'zap', component: Zap, name: 'Energía/Poder' },
     { id: 'star', component: Star, name: 'Estrella/Premium' }
   ];
   
-  // 📊 Plantilla para nuevo servicio
+  // Plantilla para nuevo servicio
   const emptyService = {
     id: null,
     title: '',
@@ -42,9 +41,9 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     active: true
   };
   
-  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO
+  // INICIALIZAR CON DATOS ACTUALES
   useEffect(() => {
-    console.log('🔄 ServicesManager - Checking for services data:', {
+    console.log('Verificando datos de servicios:', {
       hasServices: !!services,
       isLoading,
       isArray: Array.isArray(services),
@@ -54,7 +53,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     
     if (!isLoading) {
       if (services && Array.isArray(services)) {
-        console.log('📥 ServicesManager - Loading services from backend:', services);
+        console.log('Cargando servicios desde el backend:', services);
         
         // Mapear servicios con estructura esperada
         const mappedServices = services.map((service, index) => ({
@@ -66,7 +65,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
           active: service.active !== false
         }));
         
-        console.log('✅ ServicesManager - Services mapped successfully:', {
+        console.log('Servicios mapeados exitosamente:', {
           total: mappedServices.length,
           active: mappedServices.filter(s => s.active).length,
           titles: mappedServices.map(s => s.title)
@@ -76,25 +75,25 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
         setIsDataLoaded(true);
         
       } else {
-        console.log('⚠️ ServicesManager - No services data, starting with empty array');
+        console.log('No hay datos de servicios, iniciando con arreglo vacío');
         setLocalServices([]);
         setIsDataLoaded(true);
       }
     } else {
-      console.log('⏳ ServicesManager - Data is still loading...');
+      console.log('Los datos aún se están cargando...');
       setIsDataLoaded(false);
     }
   }, [services, isLoading]);
   
-  // 🔔 Notificar cambios sin guardar
+  // Notificar cambios sin guardar
   useEffect(() => {
     onUnsavedChanges(hasChanges);
   }, [hasChanges, onUnsavedChanges]);
   
-  // 💾 Guardar todos los cambios
+  // Guardar todos los cambios
   const handleSaveAll = async () => {
     try {
-      console.log('💾 Guardando servicios:', localServices);
+      console.log('Guardando servicios:', localServices);
       
       // Limpiar IDs temporales antes de guardar
       const servicesToSave = localServices.map(service => ({
@@ -111,34 +110,34 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
       setIsCreating(false);
       
     } catch (error) {
-      console.error('Error saving services:', error);
+      console.error('Error al guardar servicios:', error);
       showError('Error al guardar servicios');
     }
   };
   
-  // ➕ CREAR NUEVO SERVICIO - CORREGIDO
+  // CREAR NUEVO SERVICIO
   const handleCreateService = () => {
-    console.log('➕ Creating new service...');
+    console.log('Creando nuevo servicio...');
     
     const newService = {
       ...emptyService,
       id: `temp_${Date.now()}` // ID temporal único
     };
     
-    console.log('📝 New service template:', newService);
+    console.log('Plantilla de nuevo servicio:', newService);
     
     setEditingService(newService);
     setIsCreating(true);
   };
   
-  // ✏️ Editar servicio existente
+  // Editar servicio existente
   const handleEditService = (service) => {
-    console.log('📝 Editing service:', service);
+    console.log('Editando servicio:', service);
     setEditingService({ ...service });
     setIsCreating(false);
   };
   
-  // 💾 GUARDAR SERVICIO INDIVIDUAL - CORREGIDO
+  // GUARDAR SERVICIO INDIVIDUAL
   const handleSaveService = () => {
     if (!editingService.title.trim()) {
       showError('El título es obligatorio');
@@ -150,20 +149,20 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
       return;
     }
     
-    console.log('💾 Saving service:', editingService);
+    console.log('Guardando servicio:', editingService);
     
     if (isCreating) {
       // AGREGAR NUEVO SERVICIO
-      console.log('➕ Adding new service to list');
+      console.log('Agregando nuevo servicio a la lista');
       setLocalServices(prevServices => {
         const newServices = [...prevServices, editingService];
-        console.log('✅ Updated services list:', newServices);
+        console.log('Lista de servicios actualizada:', newServices);
         return newServices;
       });
       showSuccess('Servicio creado exitosamente');
     } else {
       // ACTUALIZAR SERVICIO EXISTENTE
-      console.log('✏️ Updating existing service');
+      console.log('Actualizando servicio existente');
       setLocalServices(prevServices => 
         prevServices.map(service => 
           service.id === editingService.id ? editingService : service
@@ -177,13 +176,13 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     setIsCreating(false);
   };
   
-  // ❌ Cancelar edición
+  // Cancelar edición
   const handleCancelEdit = () => {
     setEditingService(null);
     setIsCreating(false);
   };
   
-  // 🗑️ Eliminar servicio
+  // Eliminar servicio
   const handleDeleteService = (serviceId) => {
     if (window.confirm('¿Estás seguro de eliminar este servicio?')) {
       setLocalServices(localServices.filter(service => service.id !== serviceId));
@@ -192,7 +191,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 👁️ Toggle activar/desactivar
+  // Toggle activar/desactivar
   const handleToggleActive = (serviceId) => {
     setLocalServices(localServices.map(service => 
       service.id === serviceId 
@@ -202,7 +201,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
     setHasChanges(true);
   };
 
-  // 🔄 Mostrar loading mientras se cargan los datos
+  // Mostrar loading mientras se cargan los datos
   if (isLoading || !isDataLoaded) {
     return (
       <div className="space-y-6">
@@ -219,7 +218,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* ENCABEZADO */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900">
@@ -232,7 +231,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
           {/* Mostrar servicios actuales cargados */}
           {isDataLoaded && localServices.length > 0 && (
             <div className="mt-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full inline-block">
-              ✅ {localServices.length} servicios cargados ({localServices.filter(s => s.active).length} activos)
+              {localServices.length} servicios cargados ({localServices.filter(s => s.active).length} activos)
             </div>
           )}
         </div>
@@ -259,7 +258,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* ⚠️ INDICADOR DE CAMBIOS */}
+      {/* INDICADOR DE CAMBIOS */}
       {hasChanges && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
           <div className="flex">
@@ -273,7 +272,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 📝 FORMULARIO DE CREACIÓN/EDICIÓN - MOSTRAR ARRIBA CUANDO ESTÁ CREANDO */}
+      {/* FORMULARIO DE CREACIÓN/EDICIÓN - MOSTRAR ARRIBA CUANDO ESTÁ CREANDO */}
       {editingService && isCreating && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <ServiceForm
@@ -287,7 +286,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 📋 LISTA DE SERVICIOS */}
+      {/* LISTA DE SERVICIOS */}
       <div className="space-y-4">
         {localServices.map((service, index) => (
           <div key={service.id} className={`bg-white border rounded-lg overflow-hidden ${
@@ -420,7 +419,7 @@ const ServicesManager = ({ services, isLoading, onSave, onUnsavedChanges }) => {
   );
 };
 
-// 📝 COMPONENTE: Formulario de servicio
+// COMPONENTE: Formulario de servicio
 const ServiceForm = ({ 
   service, 
   availableIcons, 
@@ -431,7 +430,7 @@ const ServiceForm = ({
 }) => {
   const [newFeature, setNewFeature] = useState('');
   
-  // 🏷️ Características comunes para servicios
+  // Características comunes para servicios
   const commonFeatures = [
     'Entrenador personalizado',
     'Evaluación inicial',
@@ -477,7 +476,7 @@ const ServiceForm = ({
       {/* Título del formulario */}
       <div className="flex items-center justify-between">
         <h4 className="text-lg font-medium text-gray-900">
-          {isCreating ? '➕ Crear Nuevo Servicio' : `✏️ Editar: ${service.title || 'Servicio'}`}
+          {isCreating ? 'Crear Nuevo Servicio' : `Editar: ${service.title || 'Servicio'}`}
         </h4>
         
         <div className="flex space-x-2">
@@ -542,7 +541,7 @@ const ServiceForm = ({
           {/* Icono */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Icono
+              Ícono
             </label>
             <div className="grid grid-cols-2 gap-3">
               {availableIcons.map((icon) => (
@@ -564,7 +563,7 @@ const ServiceForm = ({
               ))}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Icono que aparece junto al servicio
+              Ícono que aparece junto al servicio
             </p>
           </div>
           
@@ -664,3 +663,97 @@ const ServiceForm = ({
 };
 
 export default ServicesManager;
+
+/*
+ * COMPONENTE: ServicesManager
+ * AUTOR: Alexander Echeverria
+ * 
+ * PROPÓSITO:
+ * Este componente gestiona la creación, edición y administración completa de servicios del gimnasio.
+ * Permite a los administradores configurar los servicios que se mostrarán en la página web pública,
+ * incluyendo su información, características y estado de visibilidad.
+ * 
+ * FUNCIONALIDADES PARA EL USUARIO:
+ * 
+ * GESTIÓN DE SERVICIOS:
+ * - Crear nuevos servicios con título, descripción y características personalizadas
+ * - Editar servicios existentes manteniendo la integridad de los datos
+ * - Eliminar servicios con confirmación para evitar pérdidas accidentales
+ * - Activar/desactivar servicios para controlar su visibilidad en la página web
+ * 
+ * PERSONALIZACIÓN VISUAL:
+ * - Seleccionar íconos representativos para cada servicio de una biblioteca predefinida
+ * - Íconos disponibles: Objetivo, Usuarios, Corazón, Pesas, Premio, Escudo, Energía, Estrella
+ * - Vista previa inmediata del ícono seleccionado
+ * 
+ * CARACTERÍSTICAS DE SERVICIOS:
+ * - Agregar características personalizadas para describir beneficios específicos
+ * - Lista de características comunes predefinidas para selección rápida:
+ *   * Entrenador personalizado
+ *   * Evaluación inicial
+ *   * Seguimiento continuo
+ *   * Planes nutricionales
+ *   * Acceso ilimitado
+ *   * Clases grupales
+ *   * Equipamiento especializado
+ *   * Asesoría profesional
+ * - Eliminar características no deseadas con un clic
+ * 
+ * INTERFAZ DE USUARIO:
+ * - Formulario intuitivo con validación en tiempo real
+ * - Indicadores visuales de estado (activo/inactivo) con iconos de ojo
+ * - Notificaciones de éxito y error para feedback inmediato
+ * - Advertencias de cambios sin guardar para prevenir pérdida de datos
+ * - Diseño responsivo que funciona en dispositivos móviles y de escritorio
+ * 
+ * FLUJO DE TRABAJO:
+ * - Vista de lista con todos los servicios y sus estados
+ * - Modo de edición inline para servicios existentes
+ * - Formulario expandido para creación de nuevos servicios
+ * - Sistema de guardado por lotes para eficiencia
+ * - Confirmaciones antes de acciones destructivas
+ * 
+ * CONEXIONES Y DEPENDENCIAS:
+ * 
+ * CONTEXTOS:
+ * - AppContext: Proporciona funciones de notificación (showSuccess, showError)
+ *   y utilidades como detección de dispositivo móvil (isMobile)
+ * 
+ * PROPIEDADES RECIBIDAS:
+ * - services: Array de servicios existentes desde el componente padre
+ * - isLoading: Estado de carga para mostrar indicadores apropiados
+ * - onSave: Función callback para guardar cambios en el backend
+ * - onUnsavedChanges: Función callback para notificar cambios pendientes
+ * 
+ * COMUNICACIÓN CON BACKEND:
+ * - Recibe datos de servicios existentes a través de la prop 'services'
+ * - Envía actualizaciones através de la función 'onSave'
+ * - Maneja IDs temporales para nuevos servicios antes del guardado
+ * - Estructura de datos compatible con APIs REST estándar
+ * 
+ * ESTADOS LOCALES:
+ * - localServices: Copia local de servicios para edición sin afectar datos originales
+ * - editingService: Servicio actualmente en edición
+ * - isCreating: Bandera para distinguir entre creación y edición
+ * - hasChanges: Indicador de cambios pendientes de guardar
+ * - isDataLoaded: Control de carga inicial de datos
+ * 
+ * VALIDACIONES:
+ * - Título obligatorio con validación antes de guardar
+ * - Descripción obligatoria con validación antes de guardar
+ * - Prevención de características duplicadas
+ * - Confirmación antes de eliminar servicios
+ * 
+ * IMPACTO EN LA PÁGINA WEB:
+ * - Los servicios activos aparecen en la sección "Servicios" de la página pública
+ * - Cada servicio muestra su ícono, título, descripción y características
+ * - Los servicios inactivos no son visibles para los visitantes
+ * - El orden de los servicios se mantiene según su posición en la lista
+ * 
+ * TECNOLOGÍAS:
+ * - React con Hooks (useState, useEffect) para manejo de estado
+ * - Lucide React para iconografía moderna y consistente
+ * - Tailwind CSS para estilos responsivos y utilities-first
+ * - JavaScript ES6+ para lógica de componente
+ * - PropTypes implícitos a través de la estructura de props
+ */

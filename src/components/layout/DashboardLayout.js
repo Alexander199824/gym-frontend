@@ -40,10 +40,10 @@ const DashboardLayout = () => {
       const isMobileDetected = width < 768;
       setIsMobileState(isMobileDetected);
       
-      // Debug info
+      // Info de debug
       if (process.env.NODE_ENV === 'development') {
-        console.log('Mobile detection:', {
-          windowWidth: width,
+        console.log('Detección móvil:', {
+          anchoVentana: width,
           isMobileFromContext: isMobile,
           isMobileDetected,
           userAgent: navigator.userAgent.includes('Mobile')
@@ -61,11 +61,11 @@ const DashboardLayout = () => {
   
   // FUNCIONES DE CONTROL MEJORADAS - Con debug
   const toggleMobileMenu = useCallback(() => {
-    console.log('Toggling mobile menu, current state:', showMobileMenu);
+    console.log('Alternando menú móvil, estado actual:', showMobileMenu);
     
     setShowMobileMenu(prev => {
       const newState = !prev;
-      console.log('Mobile menu new state:', newState);
+      console.log('Nuevo estado del menú móvil:', newState);
       
       // Prevenir scroll del body cuando el menú está abierto
       if (newState) {
@@ -83,7 +83,7 @@ const DashboardLayout = () => {
   }, [showMobileMenu]);
   
   const toggleNotifications = useCallback(() => {
-    console.log('Toggling notifications, current state:', showNotifications);
+    console.log('Alternando notificaciones, estado actual:', showNotifications);
     
     setShowNotifications(prev => {
       const newState = !prev;
@@ -101,7 +101,7 @@ const DashboardLayout = () => {
   }, [showNotifications]);
   
   const closeMobileMenu = useCallback(() => {
-    console.log('Closing mobile menu');
+    console.log('Cerrando menú móvil');
     setShowMobileMenu(false);
     document.body.style.overflow = 'unset';
     document.body.style.paddingRight = '0px';
@@ -109,7 +109,7 @@ const DashboardLayout = () => {
   }, []);
   
   const closeNotifications = useCallback(() => {
-    console.log('Closing notifications');
+    console.log('Cerrando notificaciones');
     setShowNotifications(false);
     document.body.style.overflow = 'unset';
     document.body.style.paddingRight = '0px';
@@ -397,7 +397,7 @@ const Breadcrumbs = React.memo(() => {
   const pathSegments = location.pathname.split('/').filter(Boolean);
   
   const routeNames = {
-    dashboard: 'Dashboard',
+    dashboard: 'Panel Principal',
     admin: 'Administración',
     staff: 'Personal',
     client: 'Cliente',
@@ -407,7 +407,6 @@ const Breadcrumbs = React.memo(() => {
     reports: 'Reportes',
     analytics: 'Análisis',
     profile: 'Perfil',
-    settings: 'Configuración',
     create: 'Crear',
     edit: 'Editar',
     expired: 'Vencidas',
@@ -431,7 +430,7 @@ const Breadcrumbs = React.memo(() => {
   if (pathSegments.length <= 1) return null;
   
   return (
-    <nav className="flex bg-white rounded-lg shadow-sm p-3" aria-label="Breadcrumb">
+    <nav className="flex bg-white rounded-lg shadow-sm p-3" aria-label="Navegación de migas de pan">
       <ol className="inline-flex items-center space-x-1 md:space-x-3">
         {pathSegments.map((segment, index) => {
           const isLast = index === pathSegments.length - 1;
@@ -502,109 +501,140 @@ ESTRUCTURA DEL LAYOUT:
 4. Panel de notificaciones lateral
 5. Indicador de estado del sistema
 
-CONEXIONES CON OTROS ARCHIVOS:
+ARCHIVOS Y CONEXIONES:
 
 CONTEXTS REQUERIDOS:
-- AuthContext (../../contexts/AuthContext): Autenticación y permisos de usuario
-- AppContext (../../contexts/AppContext): Estado global y configuración móvil
-
-COMPONENTES IMPORTADOS:
-- Sidebar (./Sidebar): Barra lateral de navegación para desktop
-- Header (./Header): Cabecera con controles y navegación
-- MobileMenu (./MobileMenu): Menú de navegación móvil
-- NotificationPanel (./NotificationPanel): Panel de notificaciones
-- SystemStatusIndicator (../common/SystemStatusIndicator): Indicador de estado
+- ../../contexts/AuthContext: Autenticación, permisos de usuario y datos del usuario actual
+- ../../contexts/AppContext: Estado global de la aplicación y configuración móvil
 
 HOOKS DE REACT ROUTER:
-- Outlet: Renderiza componentes de rutas hijas
-- useLocation: Detecta cambios de ruta para auto-cierre de menús
+- react-router-dom (Outlet): Renderiza componentes de rutas hijas dinámicamente
+- react-router-dom (useLocation): Detecta cambios de ruta para auto-cierre de menús
 
-ESTADOS MANEJADOS:
-- showMobileMenu: Control del menú móvil
-- showNotifications: Control del panel de notificaciones
-- isScrolled: Estado de scroll para efectos visuales
+COMPONENTES IMPORTADOS:
+- ./Sidebar: Barra lateral de navegación principal para escritorio
+- ./Header: Cabecera con controles de navegación y usuario
+- ./MobileMenu: Menú de navegación deslizable para dispositivos móviles
+- ./NotificationPanel: Panel lateral de notificaciones del sistema
+- ../common/SystemStatusIndicator: Indicador circular de estado del sistema
+
+ESTADOS MANEJADOS LOCALMENTE:
+- showMobileMenu: Control de visibilidad del menú móvil
+- showNotifications: Control de visibilidad del panel de notificaciones
+- isScrolled: Estado de scroll para efectos visuales del header
 - lastScrollY: Posición previa de scroll para header inteligente
-- headerVisible: Visibilidad del header en móvil
-- isMobileState: Detección de dispositivo móvil (fallback)
+- headerVisible: Control de visibilidad del header en móvil
+- isMobileState: Detección de dispositivo móvil (sistema de fallback)
+
+QUE SE MUESTRA AL USUARIO:
+
+ELEMENTOS VISUALES PRINCIPALES:
+- Layout principal de la aplicación con estructura responsive
+- Sidebar de navegación en escritorio (colapsable)
+- Menú móvil deslizable desde la izquierda (85% del ancho de pantalla)
+- Header principal que se adapta al scroll en móvil
+- Área de contenido central donde se renderizan las páginas
+- Panel de notificaciones deslizable desde la derecha
+- Breadcrumbs de navegación contextual (solo en escritorio)
+- Indicador circular de estado del sistema (esquina inferior izquierda)
+
+INTERACCIONES DISPONIBLES:
+- Clic en botón hamburguesa para abrir/cerrar menú móvil
+- Clic en icono de notificaciones para abrir panel lateral
+- Swipe hacia la izquierda para cerrar menú móvil
+- Swipe hacia la derecha para cerrar panel de notificaciones
+- Tecla Escape para cerrar cualquier panel abierto
+- Clic en backdrop para cerrar overlays
+- Enlaces navegables en breadcrumbs
+
+COMPORTAMIENTO DEL HEADER EN MÓVIL:
+- Se oculta automáticamente al hacer scroll hacia abajo
+- Aparece automáticamente al hacer scroll hacia arriba
+- Efecto de blur y sombra al hacer scroll
+- Permanece fijo en la parte superior
 
 CARACTERÍSTICAS MÓVILES OPTIMIZADAS:
 - Header inteligente que se oculta al scroll down, aparece al scroll up
 - Gestos táctiles para cerrar menús (swipe left/right)
-- Prevención de zoom automático en inputs iOS
+- Prevención de zoom automático en campos de entrada iOS
 - Gestión de overflow del body durante menús abiertos
-- Animaciones suaves para transiciones
-- Z-index optimizado para overlays
+- Animaciones suaves para transiciones de 300ms
+- Z-index optimizado para overlays y menús
 
 NAVEGACIÓN POR GESTOS:
-- Swipe left: Cierra menú móvil
-- Swipe right: Cierra panel de notificaciones
-- Escape key: Cierra cualquier panel abierto
-- Click en backdrop: Cierra overlays
+- Swipe hacia la izquierda: Cierra menú móvil si está abierto
+- Swipe hacia la derecha: Cierra panel de notificaciones si está abierto
+- Tecla Escape: Cierra cualquier panel abierto
+- Clic en áreas de backdrop: Cierra overlays automáticamente
 
 BREADCRUMBS CONTEXTUALES:
-- Solo visibles en desktop para ahorrar espacio móvil
-- Traducción automática de rutas a nombres amigables
-- Soporte para rutas del gimnasio (membresías, pagos, reportes)
-- Enlaces navegables con hover effects
+- Solo visibles en escritorio para ahorrar espacio en móvil
+- Traducción automática de rutas a nombres amigables en español
+- Soporte completo para rutas del gimnasio
+- Enlaces navegables con efectos hover suaves
 
 RUTAS SOPORTADAS EN BREADCRUMBS:
-- dashboard: Panel principal
-- admin/staff/client: Roles de usuario
-- memberships: Gestión de membresías
-- payments: Pagos en quetzales
-- reports/analytics: Reportes y análisis
-- store: Tienda de productos
-- users: Gestión de usuarios
-- settings: Configuración
+- Panel Principal: Dashboard principal del usuario
+- Administración/Personal/Cliente: Secciones por roles
+- Membresías: Gestión de membresías del gimnasio
+- Pagos: Sistema de pagos en quetzales guatemaltecos
+- Reportes/Análisis: Módulos de reporting y analytics
+- Tienda: Gestión de productos y ventas
+- Usuarios: Administración de usuarios del sistema
 
 OPTIMIZACIONES DE RENDIMIENTO:
-- useCallback para funciones de control
-- React.memo para Breadcrumbs
-- Event listeners con cleanup automático
-- Detección de móvil con fallback
-- Lazy loading de paneles
+- useCallback para funciones de control críticas
+- React.memo para componente Breadcrumbs
+- Event listeners con cleanup automático al desmontar
+- Detección de móvil con sistema de fallback robusto
+- Lazy loading implícito de paneles
 
-ACCESIBILIDAD:
-- Aria labels en breadcrumbs
-- Navegación por teclado (Escape)
-- Roles semánticos apropiados
-- Focus management en menús
-- Contraste adecuado en overlays
+ACCESIBILIDAD IMPLEMENTADA:
+- Aria-labels descriptivos en elementos de navegación
+- Navegación completa por teclado (Escape key)
+- Roles semánticos apropiados en breadcrumbs
+- Gestión de focus en menús y overlays
+- Contraste adecuado en todos los overlays
 
 CARACTERÍSTICAS TÉCNICAS:
-- Z-index escalonado para overlays (99990-99999)
+- Sistema de Z-index escalonado para overlays (99990-99999)
 - Transiciones CSS optimizadas (300ms ease-out)
-- Backdrop blur effects en header con scroll
-- Scrollbar personalizada delgada
-- Prevención de body scroll durante overlays
+- Efectos de backdrop blur en header durante scroll
+- Scrollbar personalizada delgada y estilizada
+- Prevención completa de body scroll durante overlays
 
 INTEGRACIÓN CON EL SISTEMA DEL GIMNASIO:
-- Soporte para roles diferenciados (admin, staff, client)
-- Navegación contextual según permisos
-- Monitoreo de estado del sistema integrado
+- Soporte completo para roles diferenciados (admin, staff, client)
+- Navegación contextual basada en permisos de usuario
+- Monitoreo de estado del sistema integrado y visible
 - Breadcrumbs específicos para operaciones del gimnasio
 - Optimización para flujos de trabajo del gimnasio
+- Soporte para transacciones en quetzales guatemaltecos
 
 RESPONSIVE DESIGN:
-- Breakpoint principal en 768px (md)
-- Sidebar colapsable en desktop
-- Menú deslizable en móvil (85% max-width)
-- Header sticky en móvil, relativo en desktop
-- Spacing adaptativo (py-4 móvil, py-6 desktop)
+- Breakpoint principal en 768px (md) para móvil/escritorio
+- Sidebar completamente colapsable en escritorio
+- Menú deslizable en móvil con máximo 85% del ancho
+- Header sticky en móvil, posición relativa en escritorio
+- Espaciado adaptativo (py-4 móvil, py-6 escritorio)
+- Contenido centrado con max-width responsiva
 
 GESTIÓN DE MEMORIA:
-- Cleanup automático de event listeners
-- Restauración de estilos del body al desmontar
+- Cleanup automático de todos los event listeners
+- Restauración completa de estilos del body al desmontar
 - Eliminación de clases CSS temporales
-- Prevención de memory leaks
+- Prevención activa de memory leaks
+- Limpieza de intervalos y timeouts
 
 DEBUGGING Y DESARROLLO:
-- Logs de console para debugging de estados móviles
-- Información de detección de dispositivo
-- Indicador de estado del sistema visible
-- Variables de entorno para debug mode
+- Logs detallados en consola para debugging de estados móviles
+- Información completa de detección de dispositivo
+- Indicador visual de estado del sistema siempre visible
+- Variables de entorno para modo debug
+- Información de userAgent para diagnóstico
 
 Este componente es fundamental para la experiencia de usuario en la aplicación
-del gimnasio, proporcionando una base sólida y responsive para todos los
-dashboards mientras mantiene optimizaciones específicas para dispositivos móviles.
+del gimnasio, proporcionando una base sólida, responsive y optimizada para todos
+los dashboards mientras mantiene características específicas para dispositivos
+móviles y flujos de trabajo del gimnasio en Guatemala.
 */

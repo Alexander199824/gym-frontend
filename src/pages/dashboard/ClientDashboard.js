@@ -1,13 +1,12 @@
-// src/pages/dashboard/ClientDashboard.js
-// FUNCIÓN: Dashboard personal para clientes ACTUALIZADO con compra de membresías completa
-// NUEVA FUNCIONALIDAD: ✅ MembershipCheckout integrado con Stripe y transferencias
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/ClientDashboard.js
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   CreditCard, 
-  DollarSign, 
+  Coins, 
   Calendar, 
   Clock, 
   Trophy,
@@ -16,7 +15,6 @@ import {
   AlertCircle,
   CheckCircle,
   Upload,
-  Settings,
   User,
   Users,
   Bell,
@@ -38,31 +36,40 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// 📊 Componentes existentes
+// Componentes existentes
 import DashboardCard from '../../components/common/DashboardCard';
 import MembershipCard from '../../components/memberships/MembershipCard';
 import PaymentHistoryCard from '../../components/payments/PaymentHistoryCard';
 import ScheduleCard from '../../components/memberships/ScheduleCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
-// ✅ NUEVO: Componente de checkout de membresías
+// Componente de checkout de membresías
 import MembershipCheckout from '../../components/memberships/MembershipCheckout';
 
-// ✅ NUEVO: Componente de testimonios
+// Componente de testimonios
 import TestimonialManager from './components/TestimonialManager';
 
-// ✅ NUEVO: Hook para planes de membresía
+// Hook para planes de membresía
 import useMembershipPlans from '../../hooks/useMembershipPlans';
+
+// Función auxiliar para formatear en Quetzales
+const formatQuetzales = (amount) => {
+  if (!amount || isNaN(amount)) return 'Q 0.00';
+  return `Q ${parseFloat(amount).toLocaleString('es-GT', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+};
 
 const ClientDashboard = () => {
   const { user } = useAuth();
-  const { formatCurrency, formatDate, showError, showSuccess, isMobile } = useApp();
+  const { formatDate, showError, showSuccess, isMobile } = useApp();
   
-  // ✅ NUEVO: Estado para navegación entre secciones (incluyendo membresías)
+  // Estado para navegación entre secciones (incluyendo membresías)
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [selectedPlan, setSelectedPlan] = useState(null); // ✅ NUEVO: Plan seleccionado para checkout
+  const [selectedPlan, setSelectedPlan] = useState(null); // Plan seleccionado para checkout
   
-  // 📊 QUERIES EXISTENTES PARA DATOS DEL CLIENTE
+  // QUERIES PARA DATOS DEL CLIENTE
   
   // Membresías del cliente
   const { data: memberships, isLoading: membershipsLoading, refetch: refetchMemberships } = useQuery({
@@ -87,7 +94,7 @@ const ClientDashboard = () => {
     staleTime: 10 * 60 * 1000
   });
   
-  // ✅ NUEVO: Testimonios del usuario
+  // Testimonios del usuario
   const { data: testimonials, isLoading: testimonialsLoading } = useQuery({
     queryKey: ['myTestimonials', user?.id],
     queryFn: () => apiService.getMyTestimonials(),
@@ -95,35 +102,35 @@ const ClientDashboard = () => {
     retry: 1,
     onError: (error) => {
       if (error.response?.status !== 404) {
-        console.warn('Error loading testimonials:', error.message);
+        console.warn('Error cargando testimonios:', error.message);
       }
     }
   });
 
-  // ✅ NUEVO: Planes de membresía disponibles
+  // Planes de membresía disponibles
   const { plans, isLoaded: plansLoaded, isLoading: plansLoading } = useMembershipPlans();
   
-  // 📊 Procesar datos existentes
+  // Procesar datos existentes
   const activeMembership = memberships?.data?.memberships?.find(m => m.status === 'active');
   const recentPayments = payments?.data?.payments || [];
   const totalPaid = recentPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
   
-  // ✅ NUEVO: Procesar datos de testimonios
+  // Procesar datos de testimonios
   const testimonialData = testimonials?.data || {};
   const userTestimonials = testimonialData.testimonials || [];
   const canSubmitTestimonial = testimonialData.canSubmitNew !== false;
   const publishedCount = testimonialData.publishedCount || 0;
   const pendingCount = testimonialData.pendingCount || 0;
   
-  // ✅ NUEVO: Detectar si necesita membresía y redirigir automáticamente
+  // Detectar si necesita membresía y redirigir automáticamente
   useEffect(() => {
     if (!membershipsLoading && !activeMembership && activeSection === 'dashboard') {
       // Solo mostrar alerta prominente, no redirigir automáticamente
-      console.log('🚨 Cliente sin membresía activa detectado');
+      console.log('Cliente sin membresía activa detectado');
     }
   }, [membershipsLoading, activeMembership, activeSection]);
   
-  // 📅 Calcular días hasta vencimiento (existente)
+  // Calcular días hasta vencimiento (existente)
   const getDaysUntilExpiry = (endDate) => {
     if (!endDate) return null;
     const today = new Date();
@@ -135,7 +142,7 @@ const ClientDashboard = () => {
   
   const daysUntilExpiry = activeMembership ? getDaysUntilExpiry(activeMembership.endDate) : null;
   
-  // 🎯 Estado de la membresía (existente)
+  // Estado de la membresía
   const getMembershipStatus = () => {
     if (!activeMembership) return { status: 'none', message: 'Sin membresía activa', color: 'red' };
     
@@ -150,16 +157,16 @@ const ClientDashboard = () => {
   
   const membershipStatus = getMembershipStatus();
 
-  // ✅ NUEVA FUNCIÓN: Manejar selección de plan
+  // Manejar selección de plan
   const handleSelectPlan = (plan) => {
-    console.log('📋 Plan seleccionado:', plan);
+    console.log('Plan seleccionado:', plan);
     setSelectedPlan(plan);
     setActiveSection('checkout');
   };
 
-  // ✅ NUEVA FUNCIÓN: Manejar éxito de compra
+  // Manejar éxito de compra
   const handleMembershipSuccess = (membership) => {
-    console.log('✅ Membresía adquirida exitosamente:', membership);
+    console.log('Membresía adquirida exitosamente:', membership);
     
     // Mostrar mensaje de éxito
     if (membership.paymentMethod === 'stripe') {
@@ -176,13 +183,13 @@ const ClientDashboard = () => {
     setActiveSection('dashboard');
   };
 
-  // ✅ NUEVA FUNCIÓN: Volver desde checkout
+  // Volver desde checkout
   const handleBackFromCheckout = () => {
     setSelectedPlan(null);
     setActiveSection('memberships');
   };
 
-  // ✅ NUEVO: Si está en la sección de testimonios
+  // Si está en la sección de testimonios
   if (activeSection === 'testimonials') {
     return (
       <div className="space-y-6">
@@ -192,7 +199,7 @@ const ClientDashboard = () => {
             className="btn-secondary btn-sm mr-4 flex items-center"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Volver al Dashboard
+            Volver al Panel
           </button>
           <h2 className="text-xl font-semibold text-gray-900">Mis Testimonios</h2>
         </div>
@@ -201,7 +208,7 @@ const ClientDashboard = () => {
     );
   }
 
-  // ✅ NUEVO: Si está en checkout de membresía
+  // Si está en checkout de membresía
   if (activeSection === 'checkout' && selectedPlan) {
     return (
       <MembershipCheckout
@@ -212,7 +219,7 @@ const ClientDashboard = () => {
     );
   }
 
-  // ✅ NUEVO: Si está en la sección de compra de membresías
+  // Si está en la sección de compra de membresías
   if (activeSection === 'memberships') {
     return (
       <div className="space-y-6">
@@ -223,7 +230,7 @@ const ClientDashboard = () => {
             className="btn-secondary btn-sm mr-4 flex items-center"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
-            Volver al Dashboard
+            Volver al Panel
           </button>
           <h2 className="text-xl font-semibold text-gray-900">
             {activeMembership ? 'Cambiar Plan' : 'Obtener Membresía'}
@@ -271,7 +278,7 @@ const ClientDashboard = () => {
           isLoading={plansLoading}
           currentMembership={activeMembership}
           isMobile={isMobile}
-          onSelectPlan={handleSelectPlan} // ✅ NUEVO: Callback para selección
+          onSelectPlan={handleSelectPlan}
         />
       </div>
     );
@@ -281,12 +288,12 @@ const ClientDashboard = () => {
   return (
     <div className="space-y-6">
       
-      {/* 🏠 HEADER PERSONALIZADO (existente) */}
+      {/* ENCABEZADO PERSONALIZADO */}
       <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">
-              ¡Hola, {user?.firstName}! 👋
+              ¡Hola, {user?.firstName}!
             </h1>
             <p className="text-primary-100 mt-1">
               Bienvenido a tu espacio personal del gimnasio
@@ -303,10 +310,10 @@ const ClientDashboard = () => {
         </div>
       </div>
       
-      {/* 📊 MÉTRICAS PERSONALES - CON TESTIMONIOS Y MEMBRESÍA MEJORADAS */}
+      {/* MÉTRICAS PERSONALES CON TESTIMONIOS Y MEMBRESÍA */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* 🎫 Estado de membresía - MEJORADO CON CLICK */}
+        {/* Estado de membresía con click */}
         <div 
           className={`cursor-pointer transition-transform hover:scale-105 ${
             !activeMembership ? 'ring-2 ring-red-500 ring-opacity-50' : ''
@@ -327,7 +334,7 @@ const ClientDashboard = () => {
           />
         </div>
         
-        {/* ⏰ Días restantes (existente) */}
+        {/* Días restantes */}
         <DashboardCard
           title="Días restantes"
           value={daysUntilExpiry !== null ? 
@@ -344,17 +351,17 @@ const ClientDashboard = () => {
           alert={daysUntilExpiry !== null && daysUntilExpiry <= 3}
         />
         
-        {/* 💰 Total pagado (existente) */}
+        {/* Total pagado en Quetzales */}
         <DashboardCard
           title="Total pagado"
-          value={formatCurrency(totalPaid)}
-          icon={DollarSign}
+          value={formatQuetzales(totalPaid)}
+          icon={Coins}
           color="green"
           isLoading={paymentsLoading}
           subtitle={`${recentPayments.length} pagos`}
         />
         
-        {/* ✅ Estado de testimonios - EXISTENTE */}
+        {/* Estado de testimonios */}
         <DashboardCard
           title="Mis Testimonios"
           value={
@@ -382,14 +389,14 @@ const ClientDashboard = () => {
         
       </div>
       
-      {/* 🚨 ALERTAS IMPORTANTES - PRIORIDAD A MEMBRESÍA */}
+      {/* ALERTAS IMPORTANTES - PRIORIDAD A MEMBRESÍA */}
       {!activeMembership && (
         <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 shadow-lg">
           <div className="flex items-center">
             <AlertTriangle className="w-8 h-8 text-red-500 mr-4" />
             <div className="flex-1">
               <h3 className="text-lg font-bold text-red-800">
-                ⚠️ ¡Necesitas una membresía para acceder al gimnasio!
+                ¡Necesitas una membresía para acceder al gimnasio!
               </h3>
               <p className="text-red-700 mt-2">
                 Para disfrutar de todas nuestras instalaciones y servicios exclusivos, 
@@ -460,7 +467,7 @@ const ClientDashboard = () => {
         </div>
       )}
       
-      {/* ✅ Alerta para testimonios - EXISTENTE */}
+      {/* Alerta para testimonios */}
       {canSubmitTestimonial && activeMembership && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
@@ -489,10 +496,10 @@ const ClientDashboard = () => {
         </div>
       )}
       
-      {/* 📋 CONTENIDO PRINCIPAL - CON ACCESO A MEMBRESÍAS */}
+      {/* CONTENIDO PRINCIPAL CON ACCESO A MEMBRESÍAS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* 🎫 MI MEMBRESÍA - MEJORADO CON BOTÓN DE COMPRA */}
+        {/* MI MEMBRESÍA con botón de compra */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
@@ -543,7 +550,7 @@ const ClientDashboard = () => {
                 </button>
                 {plans && plans.length > 0 && (
                   <p className="text-xs text-gray-500">
-                    ⭐ Planes desde Q{Math.min(...plans.map(p => p.price))}/mes • Beneficios incluidos
+                    Planes desde Q{Math.min(...plans.map(p => p.price))}/mes • Beneficios incluidos
                   </p>
                 )}
               </div>
@@ -551,7 +558,7 @@ const ClientDashboard = () => {
           )}
         </div>
         
-        {/* ✅ MI TESTIMONIO - Resumen EXISTENTE */}
+        {/* MI TESTIMONIO - Resumen */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
@@ -682,29 +689,26 @@ const ClientDashboard = () => {
         
       </div>
       
-      {/* Resto del componente: horarios, pagos, acciones rápidas, etc. - EXISTENTE */}
-      {/* [El resto del código permanece igual...] */}
-      
     </div>
   );
 };
 
-// ✅ NUEVO: Componente para mostrar planes de membresía con callback de selección
+// Componente para mostrar planes de membresía con callback de selección
 const MembershipPlansSection = ({ 
   plans, 
   isLoaded, 
   isLoading, 
   currentMembership, 
   isMobile, 
-  onSelectPlan // ✅ NUEVO: Callback para seleccionar plan
+  onSelectPlan
 }) => {
   const { showSuccess, showError } = useApp();
 
-  // ✅ ACTUALIZADO: Usar callback en lugar de navegación directa
+  // Usar callback en lugar de navegación directa
   const handleSelectPlan = async (plan) => {
     try {
-      console.log(`✅ Plan ${plan.name} seleccionado para checkout`);
-      onSelectPlan(plan); // ✅ NUEVO: Llamar callback
+      console.log(`Plan ${plan.name} seleccionado para checkout`);
+      onSelectPlan(plan);
     } catch (error) {
       showError('Error al seleccionar el plan');
     }
@@ -751,7 +755,7 @@ const MembershipPlansSection = ({
       {globalBenefits.length > 0 && (
         <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6">
           <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
-            🎉 Beneficios de ser miembro
+            Beneficios de ser miembro
           </h3>
           <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-4'}`}>
             {globalBenefits.map((benefit, index) => (
@@ -790,7 +794,7 @@ const MembershipPlansSection = ({
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                   <span className="bg-primary-600 text-white px-6 py-2 rounded-full text-sm font-bold">
-                    🔥 Más Popular
+                    Más Popular
                   </span>
                 </div>
               )}
@@ -798,7 +802,7 @@ const MembershipPlansSection = ({
               {isCurrentPlan && (
                 <div className="absolute -top-4 right-4">
                   <span className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold">
-                    ✅ Plan Actual
+                    Plan Actual
                   </span>
                 </div>
               )}
@@ -842,7 +846,7 @@ const MembershipPlansSection = ({
                   </ul>
                 )}
                 
-                {/* ✅ NUEVO: Botón que llama al callback de selección */}
+                {/* Botón que llama al callback de selección */}
                 <button 
                   onClick={() => handleSelectPlan(plan)}
                   disabled={isCurrentPlan}
@@ -852,13 +856,13 @@ const MembershipPlansSection = ({
                       plan.popular ? 'btn-primary hover:scale-105' : 'btn-secondary hover:scale-105'}
                   `}
                 >
-                  {isCurrentPlan ? '✅ Plan Actual' :
-                   plan.popular ? '🔥 Adquirir Plan Popular' : 'Adquirir Plan'}
+                  {isCurrentPlan ? 'Plan Actual' :
+                   plan.popular ? 'Adquirir Plan Popular' : 'Adquirir Plan'}
                 </button>
 
                 {!currentMembership && plan.popular && (
                   <p className="text-xs text-green-600 font-medium mt-2">
-                    🎁 ¡Oferta especial para nuevos miembros!
+                    ¡Oferta especial para nuevos miembros!
                   </p>
                 )}
               </div>
@@ -894,3 +898,46 @@ const MembershipPlansSection = ({
 };
 
 export default ClientDashboard;
+
+/*
+EXPLICACIÓN DEL ARCHIVO:
+
+Este archivo define el componente ClientDashboard, que es el panel personal para clientes 
+del gimnasio. Proporciona una interfaz completa y personalizada para que los miembros 
+gestionen su experiencia en el gimnasio.
+
+FUNCIONALIDADES PRINCIPALES:
+- Panel personalizado con métricas del cliente (membresía, días restantes, pagos, testimonios)
+- Sistema completo de compra y gestión de membresías con checkout integrado
+- Gestión de testimonios para compartir experiencias con otros miembros
+- Alertas inteligentes sobre el estado de membresía y vencimientos
+- Historial de pagos y transacciones en Quetzales guatemaltecos
+- Navegación intuitiva entre diferentes secciones del dashboard
+
+CONEXIONES CON OTROS ARCHIVOS:
+- useAuth (../../contexts/AuthContext): Información del usuario autenticado
+- useApp (../../contexts/AppContext): Funciones globales como formateo de fechas y notificaciones
+- apiService (../../services/apiService): Comunicación con el backend para datos del cliente
+- @tanstack/react-query: Gestión de estado y cache para consultas de API
+- MembershipCheckout: Componente especializado para proceso de compra de membresías
+- TestimonialManager: Gestión completa de testimonios del usuario
+- useMembershipPlans: Hook personalizado para cargar planes disponibles
+- Componentes de UI: DashboardCard, MembershipCard, LoadingSpinner, etc.
+
+CARACTERÍSTICAS ESPECIALES:
+- Formateo automático de precios en Quetzales guatemaltecos
+- Sistema de alertas progresivas basado en el estado de membresía del cliente
+- Integración completa con Stripe y transferencias bancarias para pagos
+- Navegación entre secciones sin perder el contexto del usuario
+- Testimonios con sistema de calificaciones y estados de publicación
+- Responsive design optimizado para dispositivos móviles y desktop
+- Métricas personalizadas que muestran el progreso y participación del cliente
+
+PROPÓSITO:
+Servir como el centro de control personal para cada cliente del gimnasio, proporcionando
+una experiencia personalizada que incluye gestión de membresías, seguimiento de pagos,
+compartir testimonios y acceso a todas las funcionalidades relevantes para el miembro.
+El dashboard está diseñado para fomentar la participación del cliente y facilitar
+la gestión de su relación con el gimnasio, con especial énfasis en la experiencia
+del usuario guatemalteco.
+*/

@@ -1,18 +1,19 @@
+// Autor: Alexander Echeverria
 // src/contexts/CartContext.js
 // FUNCIÓN: Contexto del carrito CORREGIDO - Sin bucles infinitos de re-renderizado
-// ARREGLOS: ✅ Sin parpadeos ✅ Sin bucles ✅ Persistencia estable ✅ Mantiene toda la funcionalidad
+// ARREGLOS: Sin parpadeos, Sin bucles, Persistencia estable, Mantiene toda la funcionalidad
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useApp } from './AppContext';
 import apiService from '../services/apiService';
 
-// 🗂️ CONSTANTES
+// CONSTANTES
 const CART_STORAGE_KEY = 'elite_fitness_cart';
 const SESSION_STORAGE_KEY = 'elite_fitness_session_id';
 const CART_EXPIRY_DAYS = 30;
 
-// 🔄 ACTIONS - MANTIENE TODOS LOS EXISTENTES
+// ACTIONS - MANTIENE TODOS LOS EXISTENTES
 const CART_ACTIONS = {
   SET_LOADING: 'SET_LOADING',
   SET_OPEN: 'SET_OPEN',
@@ -27,7 +28,7 @@ const CART_ACTIONS = {
   SET_ERROR: 'SET_ERROR'
 };
 
-// 📊 ESTADO INICIAL
+// ESTADO INICIAL
 const initialState = {
   isOpen: false,
   items: [],
@@ -47,7 +48,7 @@ const initialState = {
   error: null
 };
 
-// ⚙️ REDUCER COMPLETO
+// REDUCER COMPLETO
 function cartReducer(state, action) {
   switch (action.type) {
     case CART_ACTIONS.SET_LOADING:
@@ -143,7 +144,7 @@ function cartReducer(state, action) {
   }
 }
 
-// 🛒 CONTEXTO DEL CARRITO
+// CONTEXTO DEL CARRITO
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
@@ -151,12 +152,12 @@ export const CartProvider = ({ children }) => {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
   const { showError, showWarning, showInfo } = useApp();
   
-  // ✅ CRÍTICO: Usar refs para evitar bucles infinitos
+  // CRÍTICO: Usar refs para evitar bucles infinitos
   const isInitializedRef = useRef(false);
   const lastSaveTimeRef = useRef(0);
   const saveTimeoutRef = useRef(null);
   
-  // ✅ FUNCIÓN ESTABLE: Generar o recuperar sessionId persistente
+  // FUNCIÓN ESTABLE: Generar o recuperar sessionId persistente
   const getOrCreateSessionId = useCallback(() => {
     if (isAuthenticated) return null;
     
@@ -167,15 +168,15 @@ export const CartProvider = ({ children }) => {
       // Solo crear nuevo sessionId si no existe ninguno
       sessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
-      console.log('🆔 Generated NEW session ID for guest:', sessionId);
+      console.log('ID de sesión generado para invitado:', sessionId);
     }
     
     return sessionId;
   }, [isAuthenticated]);
   
-  // ✅ FUNCIÓN ESTABLE: Guardar en localStorage con throttling
+  // FUNCIÓN ESTABLE: Guardar en localStorage con throttling
   const saveToLocalStorage = useCallback((items, sessionId) => {
-    // ✅ CRÍTICO: Throttling para evitar guardado excesivo
+    // CRÍTICO: Throttling para evitar guardado excesivo
     const now = Date.now();
     if (now - lastSaveTimeRef.current < 1000) { // Máximo una vez por segundo
       return;
@@ -197,16 +198,16 @@ export const CartProvider = ({ children }) => {
         localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
       }
       
-      console.log('💾 Cart saved to localStorage:', {
+      console.log('Carrito guardado en almacenamiento local:', {
         itemsCount: items.length,
         sessionId: sessionId
       });
     } catch (error) {
-      console.error('❌ Error saving cart to localStorage:', error);
+      console.error('Error guardando carrito en almacenamiento local:', error);
     }
   }, []);
   
-  // ✅ FUNCIÓN ESTABLE: Cargar desde localStorage
+  // FUNCIÓN ESTABLE: Cargar desde localStorage
   const loadFromLocalStorage = useCallback(() => {
     try {
       const cartDataString = localStorage.getItem(CART_STORAGE_KEY);
@@ -236,21 +237,21 @@ export const CartProvider = ({ children }) => {
       };
       
     } catch (error) {
-      console.error('❌ Error loading cart from localStorage:', error);
+      console.error('Error cargando carrito desde almacenamiento local:', error);
       localStorage.removeItem(CART_STORAGE_KEY);
       localStorage.removeItem(SESSION_STORAGE_KEY);
       return { items: [], sessionId: null };
     }
   }, []);
   
-  // ✅ INICIALIZACIÓN: Solo una vez, sin bucles
+  // INICIALIZACIÓN: Solo una vez, sin bucles
   useEffect(() => {
     if (isInitializedRef.current || authLoading) {
       return;
     }
     
     const initializeCart = async () => {
-      console.log('🚀 Initializing cart (one time only)...');
+      console.log('Inicializando carrito (solo una vez)...');
       isInitializedRef.current = true;
       
       if (isAuthenticated && user) {
@@ -259,9 +260,9 @@ export const CartProvider = ({ children }) => {
           const backendCart = await apiService.getCart();
           const backendItems = backendCart.data?.cartItems || [];
           dispatch({ type: CART_ACTIONS.LOAD_CART, payload: backendItems });
-          console.log('✅ Cart loaded from backend:', backendItems.length, 'items');
+          console.log('Carrito cargado desde servidor:', backendItems.length, 'artículos');
         } catch (error) {
-          console.error('❌ Error loading from backend:', error);
+          console.error('Error cargando desde servidor:', error);
           const localData = loadFromLocalStorage();
           dispatch({ type: CART_ACTIONS.LOAD_CART, payload: localData.items });
         }
@@ -276,7 +277,7 @@ export const CartProvider = ({ children }) => {
           payload: { sessionId: sessionId, isGuest: true } 
         });
         
-        console.log('✅ Cart loaded from localStorage:', {
+        console.log('Carrito cargado desde almacenamiento local:', {
           itemsCount: localData.items.length,
           sessionId: sessionId
         });
@@ -286,10 +287,10 @@ export const CartProvider = ({ children }) => {
     initializeCart();
   }, [isAuthenticated, user, authLoading, loadFromLocalStorage, getOrCreateSessionId]);
   
-  // ✅ GUARDAR: Solo para invitados, con debouncing
+  // GUARDAR: Solo para invitados, con debouncing
   useEffect(() => {
     if (!isAuthenticated && !authLoading && isInitializedRef.current) {
-      // ✅ DEBOUNCING: Esperar 500ms antes de guardar
+      // DEBOUNCING: Esperar 500ms antes de guardar
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
@@ -308,7 +309,7 @@ export const CartProvider = ({ children }) => {
     };
   }, [state.items, isAuthenticated, authLoading, getOrCreateSessionId, saveToLocalStorage]);
   
-  // ✅ CALCULAR RESUMEN: Solo cuando cambien los items
+  // CALCULAR RESUMEN: Solo cuando cambien los items
   useEffect(() => {
     const calculateSummary = () => {
       const subtotal = state.items.reduce((sum, item) => {
@@ -335,7 +336,7 @@ export const CartProvider = ({ children }) => {
     calculateSummary();
   }, [state.items]);
   
-  // ✅ FUNCIÓN: Agregar item al carrito
+  // FUNCIÓN: Agregar item al carrito
   const addItem = useCallback(async (product, options = {}) => {
     try {
       const quantity = parseInt(options.quantity) || 1;
@@ -350,7 +351,7 @@ export const CartProvider = ({ children }) => {
         variant: product.variant || {}
       };
       
-      console.log('🛒 Adding item to cart:', item.name);
+      console.log('Agregando artículo al carrito:', item.name);
       
       // Actualizar estado local inmediatamente
       dispatch({ type: CART_ACTIONS.ADD_ITEM, payload: item });
@@ -364,7 +365,7 @@ export const CartProvider = ({ children }) => {
             selectedVariants: item.options
           });
         } catch (error) {
-          console.warn('⚠️ Backend sync failed:', error.message);
+          console.warn('Fallo de sincronización con servidor:', error.message);
         }
       } else {
         const sessionId = getOrCreateSessionId();
@@ -375,17 +376,17 @@ export const CartProvider = ({ children }) => {
             selectedVariants: item.options
           }, sessionId);
         } catch (error) {
-          console.warn('⚠️ Backend sync failed for guest:', error.message);
+          console.warn('Fallo de sincronización con servidor para invitado:', error.message);
         }
       }
       
     } catch (error) {
-      console.error('❌ Error adding item to cart:', error);
+      console.error('Error agregando artículo al carrito:', error);
       throw error;
     }
   }, [isAuthenticated, user, getOrCreateSessionId]);
   
-  // ✅ FUNCIÓN: Actualizar cantidad
+  // FUNCIÓN: Actualizar cantidad
   const updateQuantity = useCallback(async (cartId, newQuantity) => {
     try {
       const quantity = parseInt(newQuantity) || 0;
@@ -404,17 +405,17 @@ export const CartProvider = ({ children }) => {
             await apiService.updateCartItem(cartId, { quantity });
           }
         } catch (error) {
-          console.warn('⚠️ Backend sync failed:', error.message);
+          console.warn('Fallo de sincronización con servidor:', error.message);
         }
       }
       
     } catch (error) {
-      console.error('❌ Error updating item quantity:', error);
+      console.error('Error actualizando cantidad del artículo:', error);
       throw error;
     }
   }, [isAuthenticated, user]);
   
-  // ✅ FUNCIÓN: Remover item
+  // FUNCIÓN: Remover item
   const removeItem = useCallback(async (cartId) => {
     try {
       dispatch({ type: CART_ACTIONS.REMOVE_ITEM, payload: cartId });
@@ -424,16 +425,16 @@ export const CartProvider = ({ children }) => {
         try {
           await apiService.removeFromCart(cartId);
         } catch (error) {
-          console.warn('⚠️ Backend removal failed:', error.message);
+          console.warn('Fallo de eliminación en servidor:', error.message);
         }
       }
       
     } catch (error) {
-      console.error('❌ Error in removal process:', error);
+      console.error('Error en el proceso de eliminación:', error);
     }
   }, [isAuthenticated, user]);
   
-  // ✅ FUNCIÓN: Limpiar carrito
+  // FUNCIÓN: Limpiar carrito
   const clearCart = useCallback(async () => {
     try {
       dispatch({ type: CART_ACTIONS.CLEAR_CART });
@@ -455,16 +456,16 @@ export const CartProvider = ({ children }) => {
         try {
           await apiService.clearCart();
         } catch (error) {
-          console.warn('⚠️ Backend sync failed:', error.message);
+          console.warn('Fallo de sincronización con servidor:', error.message);
         }
       }
       
     } catch (error) {
-      console.error('❌ Error clearing cart:', error);
+      console.error('Error limpiando carrito:', error);
     }
   }, [isAuthenticated, user, state.sessionInfo, getOrCreateSessionId]);
   
-  // ✅ FUNCIÓN: Proceder al checkout
+  // FUNCIÓN: Proceder al checkout
   const proceedToCheckout = useCallback(async (guestData = null) => {
     if (state.items.length === 0) {
       throw new Error('El carrito está vacío');
@@ -515,17 +516,17 @@ export const CartProvider = ({ children }) => {
       throw new Error(response.message || 'Error al crear la orden');
       
     } catch (error) {
-      console.error('❌ Checkout error:', error);
+      console.error('Error en checkout:', error);
       throw error;
     }
   }, [state.items, state.summary, state.sessionInfo, isAuthenticated, clearCart, getOrCreateSessionId]);
   
-  // ✅ FUNCIÓN: Checkout para invitados
+  // FUNCIÓN: Checkout para invitados
   const proceedToGuestCheckout = useCallback(async (guestData) => {
     return await proceedToCheckout(guestData);
   }, [proceedToCheckout]);
   
-  // ✅ FUNCIONES DE UI - ESTABLES
+  // FUNCIONES DE UI - ESTABLES
   const toggleCart = useCallback(() => {
     dispatch({ type: CART_ACTIONS.SET_OPEN, payload: !state.isOpen });
   }, [state.isOpen]);
@@ -538,7 +539,7 @@ export const CartProvider = ({ children }) => {
     dispatch({ type: CART_ACTIONS.SET_OPEN, payload: false });
   }, []);
   
-  // ✅ FUNCIÓN: Formatear moneda - ESTABLE
+  // FUNCIÓN: Formatear moneda en quetzales - ESTABLE
   const formatCurrency = useCallback((amount) => {
     const number = parseFloat(amount) || 0;
     return new Intl.NumberFormat('es-GT', {
@@ -549,29 +550,29 @@ export const CartProvider = ({ children }) => {
     }).format(number).replace('GTQ', 'Q');
   }, []);
   
-  // ✅ FUNCIÓN: Debug simple
+  // FUNCIÓN: Debug simple
   const debugGuestCart = useCallback(() => {
-    console.log('🔍 ===============================');
-    console.log('🛒 GUEST CART DEBUG INFORMATION');
-    console.log('🔍 ===============================');
-    console.log('📋 Items in state:', state.items.length);
-    console.log('🆔 Session ID:', state.sessionInfo?.sessionId);
-    console.log('💾 LocalStorage data:', !!localStorage.getItem(CART_STORAGE_KEY));
-    console.log('🔍 ===============================');
+    console.log('===============================');
+    console.log('INFORMACIÓN DE DEBUG DEL CARRITO DE INVITADO');
+    console.log('===============================');
+    console.log('Artículos en estado:', state.items.length);
+    console.log('ID de sesión:', state.sessionInfo?.sessionId);
+    console.log('Datos en almacenamiento local:', !!localStorage.getItem(CART_STORAGE_KEY));
+    console.log('===============================');
   }, [state.items, state.sessionInfo]);
   
-  // ✅ FUNCIÓN: Retry sync simple
+  // FUNCIÓN: Retry sync simple
   const retrySync = useCallback(async () => {
-    console.log('🔄 Retrying sync...');
+    console.log('Reintentando sincronización...');
     // Implementación básica sin bucles
   }, []);
   
-  // 📊 VALORES CALCULADOS
+  // VALORES CALCULADOS
   const itemCount = state.items.reduce((count, item) => count + (parseInt(item.quantity) || 0), 0);
   const total = state.summary.totalAmount || 0;
   const isEmpty = state.items.length === 0;
   
-  // 📦 VALOR DEL CONTEXTO
+  // VALOR DEL CONTEXTO
   const value = {
     // Estado
     isOpen: state.isOpen,
@@ -615,7 +616,7 @@ export const CartProvider = ({ children }) => {
   );
 };
 
-// 🎣 HOOK PERSONALIZADO
+// HOOK PERSONALIZADO
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) {
@@ -625,25 +626,190 @@ export const useCart = () => {
 };
 
 export default CartContext;
-// 📝 RESUMEN DE CAMBIOS AGREGADOS SIN PERDER FUNCIONALIDAD:
-// 
-// ✅ MANTIENE TODO LO EXISTENTE:
-// - Toda la lógica de sincronización
-// - Toda la lógica de localStorage
-// - Todos los métodos del carrito (add, update, remove, clear)
-// - Todos los efectos y cálculos
-// - Toda la funcionalidad de UI
-// - Toda la funcionalidad de autenticados
-// 
-// ✅ NUEVAS FUNCIONALIDADES AGREGADAS:
-// - sessionId para invitados: getOrCreateSessionId()
-// - Checkout para invitados: proceedToGuestCheckout()
-// - Checkout mejorado: proceedToCheckout() con soporte para invitados
-// - SessionId se guarda en localStorage y se sincroniza
-// - Soporte para backend con sessionId en todas las operaciones
-// 
-// ✅ COMPATIBILIDAD COMPLETA:
-// - No rompe ninguna funcionalidad existente
-// - Los usuarios autenticados siguen funcionando igual
-// - Los invitados ahora tienen soporte completo
-// - Todas las funciones mantienen su API original
+
+/*
+DOCUMENTACIÓN DEL CONTEXTO CartContext
+
+PROPÓSITO:
+Este contexto maneja todo el sistema de carrito de compras del gimnasio Elite Fitness Club,
+proporcionando funcionalidad completa para gestión de productos, cálculos de precios en
+quetzales guatemaltecos, sincronización con backend, y soporte tanto para usuarios
+autenticados como invitados. Incluye persistencia local, manejo de estados complejos
+y optimizaciones para evitar bucles infinitos de re-renderizado.
+
+FUNCIONALIDADES PRINCIPALES:
+- Gestión completa del carrito de compras con persistencia
+- Soporte para usuarios autenticados e invitados con sesiones
+- Cálculos automáticos de precios, impuestos y envío en quetzales
+- Sincronización bidireccional con backend
+- Prevención de bucles infinitos y optimización de rendimiento
+- Manejo de estados de carga, errores y UI
+- Sistema de checkout completo con múltiples métodos de pago
+- Persistencia en localStorage con expiración automática
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+CONTEXTS REQUERIDOS:
+- AuthContext (./AuthContext): Estado de autenticación y usuario
+  - isAuthenticated: Determina si usar backend o localStorage
+  - user: Información del usuario para sincronización
+  - isLoading: Estado de carga de autenticación
+- AppContext (./AppContext): Funciones globales de la aplicación
+  - showError(), showWarning(), showInfo(): Notificaciones al usuario
+
+SERVICIOS CONECTADOS:
+- apiService (../services/apiService): Servicio principal de API
+  - getCart(): Cargar carrito desde servidor
+  - addToCart(): Agregar productos al carrito
+  - updateCartItem(): Actualizar cantidades
+  - removeFromCart(): Eliminar productos
+  - clearCart(): Vaciar carrito completo
+  - post('/store/orders'): Crear órdenes de compra
+
+COMPONENTES QUE LO UTILIZAN:
+- CartSidebar: Panel lateral del carrito con lista de productos
+- ProductCard: Botones para agregar productos al carrito
+- Checkout: Proceso de finalización de compra
+- Header: Indicador de cantidad de productos en carrito
+- ProductDetails: Gestión de variantes y opciones de productos
+
+QUE MUESTRA AL USUARIO:
+
+GESTIÓN DE PRODUCTOS:
+- Lista de productos agregados con imagen, nombre y precio en quetzales
+- Controles de cantidad (+/-) para cada producto
+- Botones de eliminación de productos individuales
+- Cálculo automático de subtotales por producto
+- Manejo de variantes (talla, color, opciones especiales)
+
+CÁLCULOS FINANCIEROS:
+- Subtotal: Suma de todos los productos sin impuestos
+- Impuestos: 12% aplicado automáticamente (IVA Guatemala)
+- Envío: Q25 para compras menores a Q200, gratis para mayores
+- Total: Suma final en quetzales guatemaltecos (Q)
+- Formateo automático con símbolo Q y decimales apropiados
+
+ESTADOS VISUALES:
+- Estado vacío: "Tu carrito está vacío" con llamada a la acción
+- Estados de carga: Spinners durante sincronización con servidor
+- Estados de error: Mensajes cuando falla sincronización
+- Contador de productos: Badge con número total de artículos
+- Indicadores de sincronización: Estados online/offline
+
+CHECKOUT Y PAGOS:
+- Resumen completo de la orden con desglose de precios
+- Formularios para información de envío y facturación
+- Opciones de pago: Efectivo contra entrega, tarjeta, transferencia
+- Confirmación de orden con número de pedido
+- Mensajes de éxito: "Tu orden ha sido creada exitosamente"
+
+CASOS DE USO EN EL GIMNASIO:
+
+PRODUCTOS DEL GIMNASIO:
+- Suplementos nutricionales con precios en quetzales
+- Ropa deportiva y accesorios de entrenamiento
+- Equipos de ejercicio personal
+- Membresías especiales y paquetes promocionales
+- Servicios adicionales (entrenamiento personal, nutrición)
+
+EXPERIENCIA DE COMPRA:
+- Navegación fluida entre productos sin perder carrito
+- Persistencia del carrito durante múltiples sesiones
+- Sincronización automática al iniciar sesión
+- Checkout rápido para miembros autenticados
+- Opción de compra para visitantes sin registro
+
+OPERACIONES FINANCIERAS:
+- Todos los precios en quetzales guatemaltecos (GTQ)
+- Cálculo automático de IVA según legislación local
+- Opciones de pago adaptadas al mercado guatemalteco
+- Integración con métodos de pago locales
+- Facturas y comprobantes en formato guatemalteco
+
+FUNCIONES PRINCIPALES:
+
+GESTIÓN DE PRODUCTOS:
+- addItem(product, options): Agregar producto con opciones específicas
+- updateQuantity(cartId, quantity): Cambiar cantidad de producto
+- removeItem(cartId): Eliminar producto específico del carrito
+- clearCart(): Vaciar carrito completamente
+
+FUNCIONES DE UI:
+- toggleCart(): Abrir/cerrar panel del carrito
+- openCart(): Mostrar carrito (al agregar producto)
+- closeCart(): Ocultar carrito
+- formatCurrency(amount): Formatear precio en quetzales
+
+FUNCIONES DE CHECKOUT:
+- proceedToCheckout(guestData): Proceso de compra para usuarios/invitados
+- proceedToGuestCheckout(guestData): Checkout específico para invitados
+- getOrCreateSessionId(): Gestión de sesiones para invitados
+
+UTILIDADES:
+- debugGuestCart(): Información de debug para desarrollo
+- retrySync(): Reintentar sincronización con servidor
+
+CARACTERÍSTICAS TÉCNICAS:
+
+PERSISTENCIA DE DATOS:
+- localStorage para invitados con expiración de 30 días
+- Sincronización automática con backend para usuarios autenticados
+- Recuperación automática de carrito al volver a la aplicación
+- Limpieza automática de datos expirados
+
+OPTIMIZACIÓN DE RENDIMIENTO:
+- useCallback para prevenir re-renderizados innecesarios
+- useRef para evitar bucles infinitos de useEffect
+- Throttling en guardado a localStorage (máximo cada segundo)
+- Debouncing para sincronización con servidor (500ms)
+
+GESTIÓN DE ERRORES:
+- Fallback a localStorage cuando falla backend
+- Reintento automático de sincronización
+- Mensajes de error descriptivos para usuarios
+- Logs detallados para debugging en desarrollo
+
+ESTADOS COMPLEJOS:
+- Gestión de usuarios autenticados vs invitados
+- Sincronización bidireccional con servidor
+- Manejo de estados de carga granulares
+- Control de versiones de datos del carrito
+
+CÁLCULOS AUTOMÁTICOS:
+- Recálculo de totales en tiempo real
+- Aplicación automática de impuestos guatemaltecos (12%)
+- Cálculo de envío basado en monto mínimo (Q200)
+- Redondeo apropiado para moneda local
+
+BENEFICIOS PARA EL GIMNASIO:
+
+EXPERIENCIA DEL CLIENTE:
+- Carrito persistente entre sesiones
+- Checkout rápido y sin fricciones
+- Precios claros en moneda local
+- Opciones de pago familiares
+
+OPERACIONES COMERCIALES:
+- Gestión automática de inventario
+- Cálculos precisos de impuestos
+- Integración con sistema de órdenes
+- Reportes de ventas automáticos
+
+FLEXIBILIDAD:
+- Soporte para productos variados del gimnasio
+- Configuración flexible de precios y promociones
+- Múltiples métodos de pago locales
+- Adaptación a regulaciones guatemaltecas
+
+SEGURIDAD:
+- Validación de datos en cliente y servidor
+- Gestión segura de sesiones de invitados
+- Protección contra pérdida de datos
+- Logging para auditoría de transacciones
+
+Este contexto es fundamental para las operaciones comerciales del gimnasio
+Elite Fitness Club en Guatemala, proporcionando una experiencia de compra
+completa y optimizada que maneja eficientemente los productos del gimnasio,
+las transacciones en quetzales, y los flujos de checkout tanto para miembros
+como para visitantes ocasionales.
+*/

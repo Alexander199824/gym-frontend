@@ -56,7 +56,7 @@ const SystemStatusIndicator = ({ show = true }) => {
       }
       
     } catch (error) {
-      console.log('System status check failed:', error.message);
+      console.log('Verificación de estado del sistema falló:', error.message);
       setSystemStatus('error');
       setSystemInfo(prev => ({
         ...prev,
@@ -155,7 +155,7 @@ const SystemStatusIndicator = ({ show = true }) => {
                 onClick={() => setShowDetails(false)}
                 className="text-gray-400 hover:text-gray-600 text-sm"
               >
-                ✕
+                X
               </button>
             </div>
 
@@ -254,96 +254,88 @@ FUNCIONALIDADES PRINCIPALES:
 - Acceso restringido solo para administradores
 - Información en tiempo real de usuarios y membresías
 - Estado de salud del backend
-- Logging de actividad del sistema
+- Registro de actividad del sistema
 
-CONEXIONES CON OTROS ARCHIVOS:
+ARCHIVOS Y CONEXIONES:
 
 CONTEXTS REQUERIDOS:
-- AuthContext (../../contexts/AuthContext): Verificación de rol de administrador
+- ../../contexts/AuthContext: Verificación de rol de administrador y datos del usuario
 
 SERVICIOS UTILIZADOS:
-- apiService (../../services/apiService): Comunicación con backend
-  - getUserStats(): Estadísticas de usuarios
-  - getSystemHealth(): Estado de salud del sistema
-  - getMembershipStats(): Estadísticas de membresías
+- ../../services/apiService: Comunicación con backend del gimnasio
+  * getUserStats(): Obtiene estadísticas de usuarios del sistema
+  * getSystemHealth(): Verifica estado de salud del servidor
+  * getMembershipStats(): Obtiene estadísticas de membresías activas
 
 UBICACIÓN EN LA APLICACIÓN:
-- Esquina inferior izquierda (fixed bottom-4 left-4)
+- Posición fija en esquina inferior izquierda
 - Z-index alto para visibilidad sobre otros elementos
-- Solo visible para usuarios con role === 'admin'
+- Solo visible para usuarios con rol de administrador
 
 ESTADOS DEL SISTEMA MONITOREADOS:
-- operational: Todo funcionando correctamente (verde)
-- partial: Algunos servicios funcionando (amarillo)
-- error: Problemas críticos detectados (rojo)
-- checking: Verificando estado (azul, pulsante)
+- operativo: Todo funcionando correctamente (indicador verde)
+- parcial: Algunos servicios funcionando (indicador amarillo)
+- error: Problemas críticos detectados (indicador rojo)
+- verificando: Comprobando estado (indicador azul pulsante)
 
 MÉTRICAS MONITOREADAS:
-- Usuarios totales en el sistema
-- Usuarios activos
-- Membresías activas
+- Número total de usuarios registrados en el sistema
+- Usuarios activos en la plataforma
+- Membresías activas del gimnasio
 - Estado de salud del backend
 - Tiempo de actividad del sistema
-- Timestamp de última verificación
+- Marca de tiempo de última verificación
+
+QUE SE MUESTRA AL USUARIO ADMINISTRADOR:
+- Círculo indicador de estado del sistema en tiempo real
+- Panel expandible con información detallada al hacer clic
+- Estado general del sistema (Operativo/Parcial/Error/Verificando)
+- Contador de usuarios totales en tarjeta azul
+- Contador de membresías activas en tarjeta verde
+- Hora de última verificación del sistema
+- Nombre y apellido del administrador actual
+- Rol del usuario (administrador)
+- Botón para actualizar manualmente el estado
 
 VERIFICACIONES AUTOMÁTICAS:
-- Comprobación inicial al cargar
+- Comprobación inicial al cargar el componente
 - Verificaciones periódicas cada 30 segundos
-- Manejo de errores de conexión
-- Actualización manual disponible
-
-INFORMACIÓN MOSTRADA EN EL PANEL:
-- Estado general del sistema
-- Métricas de usuarios y membresías
-- Información del administrador actual
-- Hora de última verificación
-- Controles de actualización manual
+- Manejo de errores de conexión con el servidor
+- Actualización manual disponible mediante botón
 
 CASOS DE USO:
-- Monitoreo continuo del sistema por administradores
+- Monitoreo continuo del sistema por administradores del gimnasio
 - Detección temprana de problemas de conectividad
-- Supervisión de métricas clave del gimnasio
+- Supervisión de métricas clave del negocio
 - Validación de funcionamiento de servicios críticos
-- Control de estado durante mantenimientos
+- Control de estado durante mantenimientos programados
 
 CARACTERÍSTICAS TÉCNICAS:
-- Componente funcional con hooks de React
-- Polling automático con cleanup apropiado
-- Manejo de estados asíncronos
-- Interfaz expandible/colapsable
+- Componente funcional de React con hooks
+- Polling automático con limpieza apropiada de intervalos
+- Manejo de estados asíncronos para llamadas API
+- Interfaz expandible y colapsable
 - Animaciones CSS para estados activos
-- Responsive design para diferentes pantallas
+- Diseño responsive para diferentes pantallas
 
-SEGURIDAD:
-- Acceso restringido por rol de usuario
-- Verificación de autenticación antes de mostrar
+SEGURIDAD Y ACCESO:
+- Acceso restringido exclusivamente por rol de usuario administrador
+- Verificación de autenticación antes de mostrar contenido
 - Datos sensibles solo visibles para administradores
-- Logging de errores sin exposición de información crítica
+- Registro de errores sin exposición de información crítica del sistema
 
 INTEGRACIÓN CON EL SISTEMA DEL GIMNASIO:
-- Conexión directa con APIs de estadísticas
-- Monitoreo de membresías (incluyendo transacciones en quetzales)
-- Supervisión de base de usuarios
+- Conexión directa con APIs de estadísticas del gimnasio
+- Monitoreo de membresías y transacciones en quetzales guatemaltecos
+- Supervisión de base de usuarios del gimnasio
 - Estado de servicios críticos del negocio
 
 BENEFICIOS PARA ADMINISTRADORES:
-- Visión general instantánea del sistema
-- Detección proactiva de problemas
+- Visión general instantánea del estado del sistema
+- Detección proactiva de problemas operativos
 - Métricas de negocio en tiempo real
 - Herramienta de diagnóstico rápido
-- Interfaz no intrusiva
-
-DIFERENCIAS CON ConnectionIndicator:
-- Específico para administradores vs general para desarrollo
-- Enfoque en métricas de negocio vs diagnóstico técnico
-- Ubicación izquierda vs derecha
-- Información operativa vs información de debugging
-
-PERSONALIZACIÓN:
-- Colores de estado configurables
-- Intervalos de verificación ajustables
-- Métricas mostradas personalizables
-- Posición y tamaño adaptables
+- Interfaz no intrusiva que no interfiere con el trabajo
 
 Este componente es esencial para administradores del gimnasio que necesitan
 supervisar el estado general del sistema y las métricas clave del negocio

@@ -1,3 +1,4 @@
+// Autor: Alexander Echeverria
 // src/contexts/AppContext.js
 // FUNCIÓN: Estado global con cache MEJORADO para persistir entre navegaciones
 // CONECTA CON: Todos los hooks de gym y sistema de cache
@@ -6,25 +7,25 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// 🏗️ ESTADO INICIAL
+// ESTADO INICIAL
 const initialState = {
-  // 🎨 Configuración de UI
+  // Configuración de UI
   theme: 'light',                    // light, dark, auto
   sidebarCollapsed: false,           // ¿Sidebar colapsado?
   notifications: [],                 // Notificaciones en tiempo real
   
-  // 📱 Configuración de dispositivo
+  // Configuración de dispositivo
   isMobile: false,                   // ¿Es dispositivo móvil?
   isTablet: false,                   // ¿Es tablet?
   screenSize: 'desktop',             // mobile, tablet, desktop
   
-  // 🌍 Configuración regional
+  // Configuración regional
   language: 'es',                    // Idioma de la aplicación
   timezone: 'America/Guatemala',     // Zona horaria
-  currency: 'GTQ',                   // Moneda
+  currency: 'GTQ',                   // Moneda quetzales guatemaltecos
   dateFormat: 'dd/MM/yyyy',          // Formato de fecha
   
-  // 🔔 Sistema de notificaciones
+  // Sistema de notificaciones
   notificationSettings: {
     desktop: true,                   // Notificaciones del navegador
     sound: true,                     // Sonidos
@@ -32,7 +33,7 @@ const initialState = {
     push: false                      // Push notifications (futuro)
   },
   
-  // 📊 Estado de datos del backend
+  // Estado de datos del backend
   dataLoading: {
     gymConfig: false,
     gymStats: false,
@@ -45,7 +46,7 @@ const initialState = {
     gymVideo: false
   },
   
-  // 💾 Cache del backend - MEJORADO con persistencia
+  // Cache del backend - MEJORADO con persistencia
   backendCache: {
     gymConfig: { data: null, timestamp: null, ttl: 30 * 60 * 1000 }, // 30 min - más tiempo
     gymStats: { data: null, timestamp: null, ttl: 10 * 60 * 1000 }, // 10 min
@@ -58,14 +59,14 @@ const initialState = {
     gymVideo: { data: null, timestamp: null, ttl: 60 * 60 * 1000 } // 60 min - video raramente cambia
   },
   
-  // 🎯 Filtros globales
+  // Filtros globales
   globalFilters: {
     dateRange: null,
     selectedGym: null,
     activeOnly: true
   },
   
-  // 🔧 Configuración de la aplicación
+  // Configuración de la aplicación
   appSettings: {
     autoRefresh: true,               // Refrescar datos automáticamente
     refreshInterval: 30000,          // Intervalo de refresco (30s)
@@ -75,7 +76,7 @@ const initialState = {
     persistentCache: true            // Cache persistente entre navegaciones
   },
   
-  // 📈 Métricas en tiempo real
+  // Métricas en tiempo real
   liveMetrics: {
     onlineUsers: 0,
     todayPayments: 0,
@@ -83,7 +84,7 @@ const initialState = {
     lastUpdate: null
   },
   
-  // 🔄 Estado de sincronización
+  // Estado de sincronización
   syncStatus: {
     isOnline: navigator.onLine,
     lastSync: null,
@@ -91,7 +92,7 @@ const initialState = {
     failedRequests: []
   },
   
-  // 🎬 Estado del video - NUEVO
+  // Estado del video - NUEVO
   videoState: {
     loaded: false,
     error: false,
@@ -100,7 +101,7 @@ const initialState = {
   }
 };
 
-// 🎯 TIPOS DE ACCIONES
+// TIPOS DE ACCIONES
 const ACTION_TYPES = {
   // UI Actions
   SET_THEME: 'SET_THEME',
@@ -140,7 +141,7 @@ const ACTION_TYPES = {
   UPDATE_VIDEO_STATE: 'UPDATE_VIDEO_STATE'
 };
 
-// 🔄 REDUCER DE LA APLICACIÓN
+// REDUCER DE LA APLICACIÓN
 function appReducer(state, action) {
   switch (action.type) {
     case ACTION_TYPES.SET_THEME:
@@ -285,10 +286,10 @@ function appReducer(state, action) {
   }
 }
 
-// 🏗️ CREAR CONTEXTO
+// CREAR CONTEXTO
 const AppContext = createContext();
 
-// 🎣 HOOK PERSONALIZADO
+// HOOK PERSONALIZADO
 export function useApp() {
   const context = useContext(AppContext);
   if (!context) {
@@ -297,16 +298,16 @@ export function useApp() {
   return context;
 }
 
-// 🏭 PROVIDER DE LA APLICACIÓN
+// PROVIDER DE LA APLICACIÓN
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   
-  // 💾 EFECTO: Cargar cache desde localStorage AL INICIO
+  // EFECTO: Cargar cache desde localStorage AL INICIO
   useEffect(() => {
     loadCacheFromStorage();
   }, []);
   
-  // 📱 EFECTO: Detectar tamaño de pantalla
+  // EFECTO: Detectar tamaño de pantalla
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
@@ -325,7 +326,7 @@ export function AppProvider({ children }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // 🌐 EFECTO: Detectar estado de conexión
+  // EFECTO: Detectar estado de conexión
   useEffect(() => {
     const handleOnline = () => {
       dispatch({
@@ -350,7 +351,7 @@ export function AppProvider({ children }) {
     };
   }, []);
   
-  // 🎨 EFECTO: Manejar tema del sistema
+  // EFECTO: Manejar tema del sistema
   useEffect(() => {
     if (state.theme === 'auto') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -366,7 +367,7 @@ export function AppProvider({ children }) {
     }
   }, [state.theme]);
   
-  // ⏰ EFECTO: Auto refresh de métricas
+  // EFECTO: Auto refresh de métricas
   useEffect(() => {
     if (state.appSettings.autoRefresh) {
       const interval = setInterval(() => {
@@ -377,18 +378,18 @@ export function AppProvider({ children }) {
     }
   }, [state.appSettings.autoRefresh, state.appSettings.refreshInterval]);
   
-  // 💾 EFECTO: Guardar cache en localStorage cuando cambie - MEJORADO
+  // EFECTO: Guardar cache en localStorage cuando cambie - MEJORADO
   useEffect(() => {
     if (state.appSettings.persistentCache) {
       saveCacheToStorage();
     }
   }, [state.backendCache, state.appSettings.persistentCache]);
   
-  // 🔄 EFECTO: Refrescar cache cuando se vuelve visible la página
+  // EFECTO: Refrescar cache cuando se vuelve visible la página
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('🔄 Page became visible, checking cache freshness...');
+        console.log('Page became visible, checking cache freshness...');
         checkCacheFreshness();
       }
     };
@@ -397,20 +398,20 @@ export function AppProvider({ children }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
   
-  // ⚡ FUNCIONES DE LA APLICACIÓN
+  // FUNCIONES DE LA APLICACIÓN
   
-  // 🎨 Cambiar tema
+  // Cambiar tema
   const setTheme = (theme) => {
     dispatch({ type: ACTION_TYPES.SET_THEME, payload: theme });
     localStorage.setItem('gym_theme', theme);
   };
   
-  // 📱 Toggle sidebar
+  // Toggle sidebar
   const toggleSidebar = () => {
     dispatch({ type: ACTION_TYPES.TOGGLE_SIDEBAR });
   };
   
-  // 🔔 Agregar notificación
+  // Agregar notificación
   const addNotification = (notification) => {
     const id = Date.now().toString();
     const newNotification = {
@@ -440,17 +441,17 @@ export function AppProvider({ children }) {
     }
   };
   
-  // 🗑️ Remover notificación
+  // Remover notificación
   const removeNotification = (id) => {
     dispatch({ type: ACTION_TYPES.REMOVE_NOTIFICATION, payload: id });
   };
   
-  // 🧹 Limpiar todas las notificaciones
+  // Limpiar todas las notificaciones
   const clearNotifications = () => {
     dispatch({ type: ACTION_TYPES.CLEAR_NOTIFICATIONS });
   };
   
-  // ⚙️ Actualizar configuración de notificaciones
+  // Actualizar configuración de notificaciones
   const updateNotificationSettings = (settings) => {
     dispatch({ type: ACTION_TYPES.UPDATE_NOTIFICATION_SETTINGS, payload: settings });
     
@@ -460,16 +461,16 @@ export function AppProvider({ children }) {
     }
   };
   
-  // 📊 Establecer estado de carga de datos
+  // Establecer estado de carga de datos
   const setDataLoading = (loadingState) => {
     dispatch({ type: ACTION_TYPES.SET_DATA_LOADING, payload: loadingState });
   };
   
-  // 💾 FUNCIONES DE CACHE MEJORADAS
+  // FUNCIONES DE CACHE MEJORADAS
   
   // Establecer datos en cache
   const setCacheData = (key, data) => {
-    console.log(`💾 Setting cache for ${key}:`, data);
+    console.log(`Setting cache for ${key}:`, data);
     dispatch({
       type: ACTION_TYPES.SET_CACHE_DATA,
       payload: { key, data }
@@ -480,7 +481,7 @@ export function AppProvider({ children }) {
   const getCacheData = (key) => {
     const cacheItem = state.backendCache[key];
     if (!cacheItem || !cacheItem.timestamp) {
-      console.log(`📭 Cache MISS for ${key}: No data`);
+      console.log(`Cache MISS for ${key}: No data`);
       return null;
     }
     
@@ -488,11 +489,11 @@ export function AppProvider({ children }) {
     const age = now - cacheItem.timestamp;
     
     if (age > cacheItem.ttl) {
-      console.log(`⏰ Cache EXPIRED for ${key}: Age ${age}ms > TTL ${cacheItem.ttl}ms`);
+      console.log(`Cache EXPIRED for ${key}: Age ${age}ms > TTL ${cacheItem.ttl}ms`);
       return null;
     }
     
-    console.log(`✅ Cache HIT for ${key}: Age ${age}ms, TTL ${cacheItem.ttl}ms`);
+    console.log(`Cache HIT for ${key}: Age ${age}ms, TTL ${cacheItem.ttl}ms`);
     return cacheItem.data;
   };
   
@@ -509,7 +510,7 @@ export function AppProvider({ children }) {
   
   // Verificar frescura del cache
   const checkCacheFreshness = () => {
-    console.log('🔍 Checking cache freshness...');
+    console.log('Checking cache freshness...');
     const now = Date.now();
     
     Object.entries(state.backendCache).forEach(([key, cacheItem]) => {
@@ -518,9 +519,9 @@ export function AppProvider({ children }) {
         const remainingTime = cacheItem.ttl - age;
         
         if (remainingTime <= 0) {
-          console.log(`🕰️ Cache for ${key} expired, marking for refresh`);
+          console.log(`Cache for ${key} expired, marking for refresh`);
         } else {
-          console.log(`✅ Cache for ${key} still fresh: ${Math.round(remainingTime / 1000)}s remaining`);
+          console.log(`Cache for ${key} still fresh: ${Math.round(remainingTime / 1000)}s remaining`);
         }
       }
     });
@@ -528,7 +529,7 @@ export function AppProvider({ children }) {
   
   // Limpiar cache completo
   const clearCache = () => {
-    console.log('🧹 Clearing all cache...');
+    console.log('Clearing all cache...');
     dispatch({ type: ACTION_TYPES.CLEAR_CACHE });
     if (state.appSettings.persistentCache) {
       localStorage.removeItem('gym_backend_cache');
@@ -537,7 +538,7 @@ export function AppProvider({ children }) {
   
   // Limpiar item específico del cache
   const clearCacheItem = (key) => {
-    console.log(`🗑️ Clearing cache for ${key}`);
+    console.log(`Clearing cache for ${key}`);
     dispatch({ type: ACTION_TYPES.CLEAR_CACHE_ITEM, payload: key });
   };
   
@@ -552,7 +553,7 @@ export function AppProvider({ children }) {
         const validCache = {};
         const now = Date.now();
         
-        console.log('📥 Loading cache from localStorage...');
+        console.log('Loading cache from localStorage...');
         
         // Verificar y cargar solo cache válido
         Object.entries(cacheData).forEach(([key, item]) => {
@@ -565,9 +566,9 @@ export function AppProvider({ children }) {
                 ...item,
                 ttl // Actualizar TTL desde configuración actual
               };
-              console.log(`✅ Restored ${key} from cache (age: ${Math.round(age / 1000)}s)`);
+              console.log(`Restored ${key} from cache (age: ${Math.round(age / 1000)}s)`);
             } else {
-              console.log(`⏰ Expired ${key} in cache (age: ${Math.round(age / 1000)}s)`);
+              console.log(`Expired ${key} in cache (age: ${Math.round(age / 1000)}s)`);
             }
           }
         });
@@ -577,11 +578,11 @@ export function AppProvider({ children }) {
             type: ACTION_TYPES.LOAD_CACHE_FROM_STORAGE, 
             payload: validCache 
           });
-          console.log(`🎉 Loaded ${Object.keys(validCache).length} valid cache entries`);
+          console.log(`Loaded ${Object.keys(validCache).length} valid cache entries`);
         }
       }
     } catch (error) {
-      console.error('❌ Error loading cache from localStorage:', error);
+      console.error('Error loading cache from localStorage:', error);
     }
   };
   
@@ -602,14 +603,14 @@ export function AppProvider({ children }) {
       
       if (savedCount > 0) {
         localStorage.setItem('gym_backend_cache', JSON.stringify(cacheToSave));
-        console.log(`💾 Saved ${savedCount} cache entries to localStorage`);
+        console.log(`Saved ${savedCount} cache entries to localStorage`);
       }
     } catch (error) {
-      console.error('❌ Error saving cache to localStorage:', error);
+      console.error('Error saving cache to localStorage:', error);
     }
   };
   
-  // 🎬 FUNCIONES DEL VIDEO - NUEVAS
+  // FUNCIONES DEL VIDEO - NUEVAS
   const updateVideoState = (newState) => {
     dispatch({ type: ACTION_TYPES.UPDATE_VIDEO_STATE, payload: newState });
   };
@@ -626,34 +627,34 @@ export function AppProvider({ children }) {
     updateVideoState({ muted });
   };
   
-  // 🎯 Establecer filtro global
+  // Establecer filtro global
   const setGlobalFilter = (filter) => {
     dispatch({ type: ACTION_TYPES.SET_GLOBAL_FILTER, payload: filter });
   };
   
-  // 🧹 Limpiar filtros globales
+  // Limpiar filtros globales
   const clearGlobalFilters = () => {
     dispatch({ type: ACTION_TYPES.CLEAR_GLOBAL_FILTERS });
   };
   
-  // ⚙️ Actualizar configuración de la app
+  // Actualizar configuración de la app
   const updateAppSettings = (settings) => {
     dispatch({ type: ACTION_TYPES.UPDATE_APP_SETTINGS, payload: settings });
     localStorage.setItem('gym_app_settings', JSON.stringify({ ...state.appSettings, ...settings }));
   };
   
-  // 🌍 Cambiar idioma
+  // Cambiar idioma
   const setLanguage = (language) => {
     dispatch({ type: ACTION_TYPES.UPDATE_LANGUAGE, payload: language });
     localStorage.setItem('gym_language', language);
   };
   
-  // 📈 Actualizar métricas en tiempo real
+  // Actualizar métricas en tiempo real
   const updateLiveMetrics = (metrics) => {
     dispatch({ type: ACTION_TYPES.UPDATE_LIVE_METRICS, payload: metrics });
   };
   
-  // 🔄 Refrescar métricas en tiempo real
+  // Refrescar métricas en tiempo real
   const refreshLiveMetrics = async () => {
     try {
       // Simulación de métricas (reemplazar con API real)
@@ -669,12 +670,12 @@ export function AppProvider({ children }) {
     }
   };
   
-  // 📅 Formatear fecha según configuración
+  // Formatear fecha según configuración
   const formatDate = (date, formatString = state.dateFormat) => {
     return format(new Date(date), formatString, { locale: es });
   };
   
-  // 💰 Formatear moneda según configuración
+  // Formatear moneda en quetzales guatemaltecos
   const formatCurrency = (amount) => {
     const formatter = new Intl.NumberFormat('es-GT', {
       style: 'currency',
@@ -684,7 +685,7 @@ export function AppProvider({ children }) {
     return formatter.format(amount);
   };
   
-  // 🔔 Funciones de notificación simplificadas
+  // Funciones de notificación simplificadas
   const showSuccess = (message, title = 'Éxito') => {
     addNotification({ type: 'success', title, message, icon: 'CheckCircle' });
   };
@@ -701,7 +702,7 @@ export function AppProvider({ children }) {
     addNotification({ type: 'warning', title, message, icon: 'AlertTriangle' });
   };
   
-  // 📦 VALOR DEL CONTEXTO
+  // VALOR DEL CONTEXTO
   const contextValue = {
     // Estado
     ...state,
@@ -766,21 +767,166 @@ export function AppProvider({ children }) {
   );
 }
 
-// 📝 CAMBIOS APLICADOS PARA PERSISTENCIA:
-// ✅ Cache se carga automáticamente al iniciar
-// ✅ Cache se guarda automáticamente cuando cambia
-// ✅ TTL más largos para datos estables (config, video)
-// ✅ Verificación de frescura cuando la página se vuelve visible
-// ✅ Estado del video agregado al contexto global
-// ✅ Funciones específicas para manejar estado del video
-// ✅ Logs detallados para debug
-// ✅ Compatible con toda la funcionalidad existente
+/*
+DOCUMENTACIÓN DEL CONTEXTO AppContext
 
-// 📝 NOTAS DE CAMBIOS:
-// ✅ Agregado sistema de cache completo para backend
-// ✅ TTL configurables por tipo de dato
-// ✅ Persistencia en localStorage
-// ✅ Estado de sincronización y conexión
-// ✅ Funciones simplificadas para cache
-// ✅ Auto-limpieza de cache expirado
-// ✅ Compatible con todos los hooks del backend
+PROPÓSITO:
+Este contexto proporciona el estado global de la aplicación del gimnasio Elite Fitness Club,
+manejando configuración de UI, notificaciones, cache inteligente, métricas en tiempo real
+y funciones de utilidad. Sirve como el cerebro central que coordina toda la información
+y configuración compartida entre componentes, con soporte especializado para el mercado
+guatemalteco y transacciones en quetzales.
+
+FUNCIONALIDADES PRINCIPALES:
+- Gestión de estado global centralizada con useReducer
+- Sistema de cache inteligente con persistencia en localStorage
+- Configuración de UI responsive (móvil, tablet, desktop)
+- Sistema de notificaciones unificado
+- Formateo de fechas y moneda en quetzales guatemaltecos
+- Métricas en tiempo real del gimnasio
+- Manejo de estado de conexión online/offline
+- Configuración de video y multimedia
+- Filtros globales para datos
+- Persistencia de configuraciones de usuario
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+HOOKS QUE LO UTILIZAN:
+- useApp(): Hook principal exportado para acceder al contexto
+- Todos los hooks personalizados del gimnasio que requieren estado global
+- Hooks de datos que necesitan cache inteligente
+- Hooks de UI que manejan responsive design
+
+COMPONENTES CONECTADOS:
+- ClientDashboard: Panel principal que usa métricas y notificaciones
+- MembershipCard: Utiliza formatCurrency para mostrar precios en quetzales
+- PaymentHistoryCard: Formatea transacciones en moneda guatemalteca
+- ScheduleCard: Usa formatDate para fechas localizadas
+- MembershipCheckout: Integra notificaciones y formateo de moneda
+- CacheDebugPanel: Accede a funciones de cache para debugging
+- RateLimitDebug: Utiliza sistema de notificaciones
+
+SERVICIOS INTEGRADOS:
+- membershipService: Cache de datos de membresías
+- paymentService: Cache de transacciones financieras
+- userService: Cache de información de usuarios
+- gymService: Cache de configuración del gimnasio
+
+LIBRERÍAS EXTERNAS:
+- date-fns: Formateo de fechas con locale español
+- date-fns/locale/es: Localización española para fechas
+
+QUE PROPORCIONA AL USUARIO:
+
+CONFIGURACIÓN REGIONAL:
+- Idioma español por defecto (language: 'es')
+- Zona horaria Guatemala (timezone: 'America/Guatemala')
+- Moneda quetzales guatemaltecos (currency: 'GTQ')
+- Formato de fecha local (dateFormat: 'dd/MM/yyyy')
+
+FUNCIONES DE FORMATEO:
+- formatCurrency(): Formatea montos como "Q 150.00" usando Intl.NumberFormat
+- formatDate(): Formatea fechas en español guatemalteco
+- Configuración automática de locale español para todas las fechas
+
+SISTEMA DE NOTIFICACIONES:
+- showSuccess(): Muestra notificaciones de éxito con icono verde
+- showError(): Muestra errores persistentes con icono rojo
+- showInfo(): Muestra información con icono azul  
+- showWarning(): Muestra advertencias con icono amarillo
+- Notificaciones del navegador cuando están habilitadas
+- Auto-eliminación después de 5 segundos (excepto errores)
+
+CONFIGURACIÓN DE UI:
+- Detección automática de dispositivo (móvil/tablet/desktop)
+- Gestión de tema (claro/oscuro/automático)
+- Estado del sidebar (colapsado/expandido)
+- Configuración de animaciones y modo compacto
+
+CACHE INTELIGENTE:
+- TTL configurables por tipo de dato (10min a 60min)
+- Persistencia automática en localStorage
+- Verificación de frescura al volver a la página
+- Logs detallados para debugging
+- Auto-limpieza de cache expirado
+
+MÉTRICAS EN TIEMPO REAL:
+- Usuarios online en el gimnasio
+- Pagos del día actual en quetzales
+- Membresías vencidas pendientes
+- Actualización automática cada 30 segundos
+
+CONFIGURACIONES DE CACHE POR TIPO:
+- gymConfig: 30 minutos (configuración estable)
+- gymStats: 10 minutos (estadísticas dinámicas)
+- gymServices: 30 minutos (servicios del gimnasio)
+- testimonials: 30 minutos (testimonios de clientes)
+- featuredProducts: 10 minutos (productos destacados)
+- sectionsContent: 20 minutos (contenido de secciones)
+- navigation: 60 minutos (navegación raramente cambia)
+- branding: 60 minutos (marca y logos estables)
+- gymVideo: 60 minutos (videos promocionales)
+
+CASOS DE USO EN EL GIMNASIO:
+- Formateo consistente de precios de membresías en quetzales
+- Cache de datos de clientes para acceso rápido
+- Notificaciones de pagos vencidos o completados
+- Métricas de ocupación en tiempo real
+- Configuración regional guatemalteca automática
+- Persistencia de preferencias de usuario
+- Optimización de rendimiento con cache inteligente
+
+ESTADO DE CONEXIÓN:
+- Detección automática online/offline
+- Manejo de requests fallidos cuando no hay conexión
+- Reintento automático al recuperar conexión
+- Estado de sincronización pendiente
+
+GESTIÓN DE VIDEO:
+- Estado de carga de videos promocionales
+- Control de reproducción y audio
+- Manejo de errores en contenido multimedia
+- Optimización para dispositivos móviles
+
+CONFIGURACIONES PERSISTENTES:
+- Tema preferido del usuario
+- Idioma seleccionado
+- Configuraciones de notificaciones
+- Configuraciones de la aplicación
+- Cache de datos entre sesiones
+
+FUNCIONALIDADES TÉCNICAS:
+- useReducer para manejo de estado complejo
+- localStorage para persistencia de datos
+- Event listeners para detección de cambios
+- Cleanup automático de efectos
+- Validación de cache por TTL
+- Manejo de errores graceful
+
+INTEGRACIÓN CON BACKEND:
+- Cache automático de respuestas de API
+- Gestión de estados de carga
+- Manejo de errores de red
+- Optimización de requests duplicados
+- Persistencia de datos críticos
+
+BENEFICIOS PARA RENDIMIENTO:
+- Reducción de requests al servidor
+- Carga instantánea de datos cacheados
+- Optimización de memoria con límites de cache
+- Limpieza automática de datos obsoletos
+- Persistencia inteligente entre navegaciones
+
+ACCESIBILIDAD Y UX:
+- Soporte completo para dispositivos móviles
+- Notificaciones no intrusivas
+- Tema automático según preferencias del sistema
+- Formateo local para mejor comprensión
+- Estados de carga claros y consistentes
+
+Este contexto es fundamental para la operación del gimnasio en Guatemala,
+proporcionando una base sólida para todas las operaciones financieras en
+quetzales, configuración regional apropiada, y optimización de rendimiento
+a través de un sistema de cache inteligente que mejora significativamente
+la experiencia del usuario.
+*/

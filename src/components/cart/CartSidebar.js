@@ -63,33 +63,33 @@ const CartSidebar = () => {
 
   if (!isOpen) return null;
 
-  // FUNCIÓN: Ir al checkout (para invitados)
+  // FUNCIÓN: Ir al pago (para invitados)
   const handleGuestCheckout = () => {
     if (isEmpty) {
       showError('Tu carrito está vacío');
       return;
     }
     
-    console.log('Redirecting to guest checkout...');
+    console.log('Redirigiendo al pago como invitado...');
     closeCart();
     navigate('/checkout');
   };
 
-  // FUNCIÓN: Ir al login (para usuarios que quieren autenticarse)
+  // FUNCIÓN: Ir al inicio de sesión (para usuarios que quieren autenticarse)
   const handleGoToLogin = () => {
-    console.log('Redirecting to login...');
+    console.log('Redirigiendo al inicio de sesión...');
     closeCart();
     navigate('/login', { state: { from: '/store', returnToCart: true } });
   };
 
-  // FUNCIÓN: Checkout para usuarios autenticados
+  // FUNCIÓN: Pago para usuarios autenticados
   const handleAuthenticatedCheckout = () => {
     if (isEmpty) {
       showError('Tu carrito está vacío');
       return;
     }
     
-    console.log('Redirecting authenticated user to checkout...');
+    console.log('Redirigiendo usuario autenticado al pago...');
     closeCart();
     navigate('/checkout');
   };
@@ -103,18 +103,18 @@ const CartSidebar = () => {
 
   return (
     <>
-      {/* Overlay */}
+      {/* Fondo transparente */}
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 z-[60]"
         onClick={closeCart}
       />
       
-      {/* Sidebar */}
+      {/* Panel lateral */}
       <div className={`fixed top-0 right-0 h-full z-[70] bg-white shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
         isMobile ? 'w-full' : 'w-96'
       }`}>
         
-        {/* HEADER COMPACTO */}
+        {/* ENCABEZADO COMPACTO */}
         <div className="flex-shrink-0 flex items-center justify-between p-3 border-b border-gray-200 bg-white">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
             <ShoppingCart className="w-4 h-4 mr-2" />
@@ -159,7 +159,7 @@ const CartSidebar = () => {
         {/* CONTENIDO PRINCIPAL - MÁS ESPACIO PARA PRODUCTOS */}
         <div className="flex-1 flex flex-col min-h-0">
           
-          {/* ÁREA DE ITEMS - PRIORIZADA */}
+          {/* ÁREA DE PRODUCTOS - PRIORIZADA */}
           <div className="flex-1 overflow-y-auto">
             <div className="p-3">
               
@@ -214,7 +214,7 @@ const CartSidebar = () => {
             </div>
           </div>
 
-          {/* FOOTER COMPACTO */}
+          {/* PIE DE PÁGINA COMPACTO */}
           {!isLoading && !isEmpty && (
             <div className="flex-shrink-0 border-t border-gray-200 bg-white">
               <div className="p-3 space-y-3">
@@ -328,7 +328,7 @@ const CartSidebar = () => {
   );
 };
 
-// COMPONENTE OPTIMIZADO: Item del carrito más compacto
+// COMPONENTE OPTIMIZADO: Producto del carrito más compacto
 const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   
@@ -340,7 +340,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
     try {
       await onUpdateQuantity(item.cartId || item.id, safeQty);
     } catch (error) {
-      console.error('Error updating quantity:', error);
+      console.error('Error actualizando cantidad:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -352,7 +352,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
     try {
       await onRemove(item.cartId || item.id);
     } catch (error) {
-      console.error('Error removing item:', error);
+      console.error('Error eliminando producto:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -366,7 +366,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
   return (
     <div className={`bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm ${isUpdating ? 'opacity-50' : ''}`}>
       
-      {/* LAYOUT HORIZONTAL COMPACTO */}
+      {/* DISEÑO HORIZONTAL COMPACTO */}
       <div className="flex items-start space-x-2.5">
         
         {/* Imagen más pequeña */}
@@ -379,7 +379,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, formatCurrency, isMobile }
           }}
         />
         
-        {/* Info del producto */}
+        {/* Información del producto */}
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-medium text-gray-900 leading-tight mb-0.5 truncate">
             {itemName}
@@ -452,52 +452,61 @@ export default CartSidebar;
 DOCUMENTACIÓN DEL COMPONENTE CartSidebar
 
 PROPÓSITO:
-Este componente implementa un sidebar deslizable para el carrito de compras con diseño optimizado
-y compacto que prioriza la visualización de productos sobre elementos decorativos.
+Este componente implementa un panel lateral deslizable para el carrito de compras con diseño 
+optimizado y compacto que prioriza la visualización de productos sobre elementos decorativos.
+El usuario ve un carrito de compras completo con productos, cantidades, precios en quetzales,
+opciones de pago y navegación intuitiva.
 
-FUNCIONALIDADES PRINCIPALES:
-- Visualización de productos en el carrito con diseño compacto
-- Controles de cantidad y eliminación de productos
-- Cálculo de totales con moneda en quetzales (Q)
-- Manejo de usuarios autenticados e invitados
-- Información de envío y promociones
-- Estados de carga y sincronización
-- Diseño responsivo para móvil y escritorio
+FUNCIONALIDADES QUE VE EL USUARIO:
+- Panel lateral que se desliza desde la derecha
+- Lista de productos agregados al carrito con imágenes
+- Controles para aumentar/disminuir cantidades de cada producto
+- Botón para eliminar productos individuales
+- Resumen de precios con subtotal, envío y total en quetzales guatemaltecos
+- Promoción de envío gratis para compras superiores a Q200
+- Opciones de checkout diferentes para usuarios registrados e invitados
+- Indicador de estado de conexión y sincronización
+- Botón para vaciar todo el carrito
+- Mensajes informativos sobre beneficios de crear cuenta
 
 CONEXIONES CON OTROS ARCHIVOS:
 
 CONTEXTS REQUERIDOS:
-- CartContext (../../contexts/CartContext): Manejo del estado del carrito, productos, totales
-- AuthContext (../../contexts/AuthContext): Estado de autenticación del usuario
-- AppContext (../../contexts/AppContext): Configuración global de la aplicación
+- CartContext (../../contexts/CartContext): Manejo del estado del carrito, productos, totales, sincronización
+- AuthContext (../../contexts/AuthContext): Estado de autenticación para mostrar opciones personalizadas
+- AppContext (../../contexts/AppContext): Configuración global, notificaciones y detección de dispositivo móvil
 
 DEPENDENCIAS DE NAVEGACIÓN:
-- useNavigate de react-router-dom: Para redirecciones a checkout y login
+- useNavigate de react-router-dom: Para redirecciones fluidas entre páginas
 
 RUTAS CONECTADAS:
-- /checkout: Página de finalización de compra
-- /login: Página de autenticación
-- /store: Página principal de la tienda
+- /checkout: Página de finalización de compra donde el usuario ingresa datos de envío y pago
+- /login: Página de autenticación para usuarios que quieren beneficios adicionales  
+- /store: Página principal de la tienda para continuar comprando
 
 COMPONENTES RELACIONADOS:
-- Layout principal que incluye este sidebar
+- Layout principal que incluye este sidebar como overlay
 - Componentes de producto que agregan items al carrito
 - Páginas de checkout y login que reciben la información del carrito
+- Notificaciones globales para feedback de acciones
 
-ESTILOS:
-- Utiliza Tailwind CSS para estilos responsivos
-- Iconos de Lucide React para interfaz
+ESTILOS Y EXPERIENCIA VISUAL:
+- Utiliza Tailwind CSS para diseño responsivo y moderno
+- Iconos de Lucide React para interfaz intuitiva
+- Animaciones suaves de deslizamiento y hover
 - Diseño optimizado para mostrar máximo contenido de productos
+- Adaptable para dispositivos móviles y escritorio
 
-MONEDA:
-- Configurado para usar quetzales guatemaltecos (Q)
-- Formateo de precios manejado por CartContext
-- Cálculos de envío gratis por compras superiores a Q200
+MONEDA Y PRECIOS:
+- Configurado para usar quetzales guatemaltecos (Q) exclusivamente
+- Formateo de precios manejado centralmente por CartContext
+- Cálculos automáticos de envío gratis por compras superiores a Q200.00
+- Visualización clara de subtotales y total final
 
-ESTADOS MANEJADOS:
-- Carga de productos
-- Actualización de cantidades
-- Sincronización con servidor
-- Errores de conexión
-- Estados de checkout
+ESTADOS Y FEEDBACK AL USUARIO:
+- Indicadores de carga durante operaciones
+- Estados de actualización de cantidades en tiempo real
+- Sincronización automática para usuarios autenticados
+- Mensajes de error y confirmación
+- Estados de conexión visibles para debugging
 */

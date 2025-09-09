@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRequestCoordinatorStatus } from '../../hooks/useDebounced';
-import { Activity, Clock, AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { Activity, Clock, AlertTriangle, CheckCircle, X, Bird } from 'lucide-react';
 
 const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -97,7 +97,7 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
             ? 'bg-yellow-500 text-white animate-pulse' 
             : 'bg-blue-500 text-white hover:bg-blue-600'
         }`}
-        title="Debug Rate Limiting"
+        title="Monitor de Peticiones"
       >
         <Activity className="w-6 h-6 mx-auto" />
       </button>
@@ -109,9 +109,9 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
           {/* Header */}
           <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
             <div className="flex items-center space-x-2">
-              <Activity className="w-5 h-5 text-blue-500" />
+              <Bird className="w-5 h-5 text-blue-500" />
               <h3 className="text-sm font-semibold text-gray-900">
-                Rate Limit Debug
+                Monitor de Peticiones
               </h3>
             </div>
             <button
@@ -159,7 +159,7 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
           {apiServiceStatus && (
             <div className="p-4 border-b border-gray-200">
               <h4 className="text-xs font-semibold text-gray-700 mb-2">
-                API Service
+                Servicio de API
               </h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="text-center">
@@ -186,7 +186,7 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
           <div className="p-4">
             <h4 className="text-xs font-semibold text-gray-700 mb-2 flex items-center">
               <Clock className="w-3 h-3 mr-1" />
-              Log de Peticiones
+              Registro de Peticiones
             </h4>
             <div className="space-y-1 max-h-32 overflow-y-auto">
               {requestLog.length === 0 ? (
@@ -232,7 +232,7 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
                 onClick={() => setRequestLog([])}
                 className="flex-1 text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300"
               >
-                Limpiar Log
+                Limpiar Registro
               </button>
               <button
                 onClick={() => {
@@ -241,7 +241,7 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
                 }}
                 className="flex-1 text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
               >
-                Refresh All
+                Actualizar Todo
               </button>
             </div>
           </div>
@@ -253,7 +253,7 @@ const RateLimitDebug = ({ show = process.env.REACT_APP_DEBUG_MODE === 'true' }) 
             'bg-green-100 text-green-700'
           }`}>
             {coordinatorStatus.activeRequests > 5 ? (
-              'Alto tráfico - Posible rate limiting'
+              'Alto tráfico - Posible limitación de velocidad'
             ) : coordinatorStatus.activeRequests > 0 ? (
               'Peticiones en progreso'
             ) : (
@@ -272,7 +272,7 @@ export const LogRateLimitStatus = () => {
 
   useEffect(() => {
     if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-      console.log('Rate Limit Status:', {
+      console.log('Estado del Límite de Velocidad:', {
         activeRequests: status.activeRequests,
         queuedRequests: status.queuedRequests,
         processing: status.processing,
@@ -318,12 +318,34 @@ SERVICIOS MONITOREADOS:
   - Monitoreo de cola de peticiones y límites globales
 
 COMPONENTES IMPORTADOS:
-- Iconos de Lucide React: Activity, Clock, AlertTriangle, CheckCircle, X
+- Iconos de Lucide React: Activity, Clock, AlertTriangle, CheckCircle, X, Bird
 
 CONFIGURACIÓN DE ACTIVACIÓN:
 - Solo activo cuando REACT_APP_DEBUG_MODE === 'true'
 - Ubicado en esquina inferior derecha como botón flotante
 - Panel expandible de 384px de ancho con altura máxima
+
+QUE MUESTRA AL USUARIO:
+- Botón flotante con icono de actividad que cambia color según estado:
+  - Azul: Sistema estable
+  - Amarillo pulsante: Peticiones activas en progreso
+- Panel expandido con título "Monitor de Peticiones" e icono de quetzal
+- Sección "Coordinador de Peticiones" mostrando:
+  - Número de peticiones activas (verde/amarillo)
+  - Peticiones en cola (naranja/gris)
+  - Estado del procesador (Activo/Pausado en azul/gris)
+- Sección "Servicio de API" (cuando está disponible) con:
+  - Cola API (rojo si hay backlog, verde si está limpia)
+  - Peticiones globales (rojo si >50, verde si menor)
+- "Registro de Peticiones" con cronología de actividad:
+  - Mensajes con timestamps
+  - Códigos de color: azul (info), amarillo (warning), rojo (error)
+  - Iconos de estado para cada tipo de mensaje
+- Botones de acción: "Limpiar Registro" y "Actualizar Todo"
+- Barra de estado inferior con mensajes:
+  - "Sistema estable" (verde)
+  - "Peticiones en progreso" (amarillo)
+  - "Alto tráfico - Posible limitación de velocidad" (rojo)
 
 MÉTRICAS MONITOREADAS:
 - Peticiones activas: Número de requests en progreso
@@ -349,8 +371,10 @@ CASOS DE USO EN EL GIMNASIO:
 - Monitoreo de peticiones de autenticación
 - Análisis de consultas de estadísticas del gimnasio
 - Optimización de calls de información de usuarios
-- Detección de problemas en procesamiento de pagos (quetzales)
+- Detección de problemas en procesamiento de pagos en quetzales
 - Identificación de cuellos de botella en APIs críticas
+- Monitoreo de transacciones financieras del gimnasio
+- Análisis de rendimiento en consultas de inventario
 
 CARACTERÍSTICAS TÉCNICAS:
 - Interceptación no invasiva de console methods
@@ -361,20 +385,22 @@ CARACTERÍSTICAS TÉCNICAS:
 
 CONTROLES DISPONIBLES:
 - Toggle del panel principal
-- Limpiar log de peticiones
+- Limpiar registro de peticiones
 - Refresh completo de la aplicación
 - Cierre del panel expandido
 
 COMPONENTE ADICIONAL:
 - LogRateLimitStatus: Versión simplificada para logging en consola
 - Se ejecuta automáticamente en modo debug
-- Registra estado cada vez que cambia
+- Registra estado cada vez que cambia con mensaje "Estado del Límite de Velocidad"
 
 INTEGRACIÓN CON EL SISTEMA:
 - Monitorea APIs del gimnasio (usuarios, membresías, pagos)
-- Detecta problemas en transacciones financieras
+- Detecta problemas en transacciones financieras en quetzales
 - Supervisa carga de datos críticos del negocio
 - Analiza rendimiento de autenticación y autorización
+- Monitorea consultas de estadísticas y reportes
+- Supervisa operaciones de inventario y equipos
 
 BENEFICIOS PARA DESARROLLO:
 - Identificación temprana de problemas de rate limiting
@@ -399,5 +425,6 @@ PERSONALIZACIÓN:
 Este componente es esencial para desarrolladores que necesitan optimizar
 el manejo de peticiones HTTP en la aplicación del gimnasio, proporcionando
 visibilidad completa sobre el comportamiento del rate limiting y facilitando
-la identificación de problemas de rendimiento en tiempo real.
+la identificación de problemas de rendimiento en tiempo real, especialmente
+crítico para operaciones financieras que involucran transacciones en quetzales.
 */

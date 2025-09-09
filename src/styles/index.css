@@ -3,7 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 🌐 FUENTE INTER (como en la imagen) */
+/* FUENTE INTER (como en la imagen) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* 📱 ESTILOS BASE GLOBALES */
@@ -49,7 +49,7 @@
   }
 }
 
-/* 🧩 COMPONENTES ELITE FITNESS CLUB */
+/* OMPONENTES ELITE FITNESS CLUB */
 @layer components {
   
   /* BOTONES ELITE TURQUESA Y ROSA */

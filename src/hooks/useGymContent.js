@@ -1,18 +1,17 @@
-// src/hooks/useGymContent.js
-// FUNCIÓN: Hook para obtener contenido dinámico del gimnasio - CORREGIDO
-// CONECTA CON: Backend API /api/gym/content usando apiService
+// Autor: Alexander Echeverria
+// Dirección: src/hooks/useGymContent.js
 
 import { useState, useEffect } from 'react';
 import apiService from '../services/apiService';
 
 const useGymContent = () => {
-  // 🏗️ Estados
+  // Estados principales
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
 
-  // 📱 Contenido por defecto mientras carga
+  // Contenido por defecto mientras carga
   const defaultContent = {
     hero: null,
     services: null,
@@ -22,7 +21,7 @@ const useGymContent = () => {
     store: null
   };
 
-  // 🚀 Función para obtener contenido del gimnasio
+  // Función para obtener contenido del gimnasio
   const fetchGymContent = async (force = false) => {
     // Cache de 10 minutos (contenido puede cambiar ocasionalmente)
     if (content && !force && lastFetch) {
@@ -34,7 +33,7 @@ const useGymContent = () => {
       setLoading(true);
       setError(null);
       
-      console.log('📄 Obteniendo contenido del gimnasio desde backend...');
+      console.log('Obteniendo contenido del gimnasio desde backend...');
       
       // Verificar que apiService tenga la función
       if (!apiService || typeof apiService.get !== 'function') {
@@ -46,17 +45,17 @@ const useGymContent = () => {
       
       // Si no existe ese endpoint, intentar obtener desde config general
       if (!response.success) {
-        console.log('📄 Endpoint /gym/content no disponible, usando configuración general...');
+        console.log('Endpoint /gym/content no disponible, usando configuración general...');
         response = await apiService.getGymConfig();
       }
       
       if (response && response.success && response.data) {
-        console.log('✅ Contenido del gimnasio obtenido:', response.data);
+        console.log('Contenido del gimnasio obtenido exitosamente:', response.data);
         
         // Estructurar el contenido de manera consistente
         const structuredContent = {
           hero: response.data.hero || {
-            title: response.data.name || 'Elite Fitness Club',
+            title: response.data.name || 'Club de Entrenamiento Elite',
             subtitle: response.data.tagline || 'Tu mejor versión te espera',
             description: response.data.description || 'Descubre el gimnasio que transformará tu vida',
             imageUrl: response.data.hero?.imageUrl || null,
@@ -93,11 +92,11 @@ const useGymContent = () => {
         setContent(structuredContent);
         setLastFetch(Date.now());
       } else {
-        console.warn('⚠️ No se pudo obtener contenido del gimnasio');
+        console.warn('No se pudo obtener contenido del gimnasio');
         setContent(defaultContent);
       }
     } catch (err) {
-      console.error('❌ Error al obtener contenido del gimnasio:', err);
+      console.error('Error al obtener contenido del gimnasio:', err);
       setError(err.message);
       
       // En caso de error, mantener contenido por defecto
@@ -107,20 +106,20 @@ const useGymContent = () => {
     }
   };
 
-  // 🔄 Efecto para cargar contenido al montar
+  // Efecto para cargar contenido al montar el componente
   useEffect(() => {
     fetchGymContent();
   }, []);
 
-  // 🎯 Función para refrescar contenido
+  // Función para refrescar contenido manualmente
   const refresh = () => {
     fetchGymContent(true);
   };
 
-  // 🔄 Función para actualizar una sección específica
+  // Función para actualizar una sección específica
   const updateContent = async (section, newData) => {
     try {
-      console.log(`📝 Actualizando sección ${section}...`);
+      console.log(`Actualizando sección ${section}...`);
       
       if (!apiService || typeof apiService.put !== 'function') {
         throw new Error('apiService.put no está disponible');
@@ -129,7 +128,7 @@ const useGymContent = () => {
       const response = await apiService.put(`/gym/content/${section}`, newData);
       
       if (response.success) {
-        console.log(`✅ Sección ${section} actualizada`);
+        console.log(`Sección ${section} actualizada correctamente`);
         setContent(prev => ({
           ...prev,
           [section]: response.data
@@ -139,13 +138,13 @@ const useGymContent = () => {
         throw new Error(response.message || 'Error al actualizar contenido');
       }
     } catch (err) {
-      console.error(`❌ Error al actualizar sección ${section}:`, err);
+      console.error(`Error al actualizar sección ${section}:`, err);
       setError(err.message);
       return false;
     }
   };
 
-  // 🔍 Función para verificar si una sección tiene datos
+  // Función para verificar si una sección tiene datos
   const hasSection = (sectionName) => {
     return content && 
            content[sectionName] && 
@@ -153,7 +152,7 @@ const useGymContent = () => {
            Object.keys(content[sectionName]).length > 0;
   };
 
-  // 🔍 Función para verificar si hay contenido disponible
+  // Función para verificar si hay contenido disponible
   const hasAnyContent = () => {
     if (!content) return false;
     
@@ -164,12 +163,12 @@ const useGymContent = () => {
     );
   };
 
-  // 🎯 Función para obtener contenido de una sección específica
+  // Función para obtener contenido de una sección específica
   const getSectionContent = (sectionName) => {
     return content?.[sectionName] || null;
   };
 
-  // 🎨 Función para verificar si el contenido está completo
+  // Función para verificar si el contenido está completo
   const isContentComplete = () => {
     if (!content) return false;
     
@@ -177,7 +176,7 @@ const useGymContent = () => {
     return requiredSections.every(section => hasSection(section));
   };
 
-  // 📊 Función para obtener estadísticas del contenido
+  // Función para obtener estadísticas del contenido
   const getContentStats = () => {
     if (!content) return null;
     
@@ -191,7 +190,7 @@ const useGymContent = () => {
     };
   };
 
-  // 🏠 Retornar contenido y funciones
+  // Retornar todas las propiedades y funciones disponibles
   return {
     // Estados principales
     content: content || defaultContent,
@@ -220,7 +219,7 @@ const useGymContent = () => {
     contact: getSectionContent('contact'),
     store: getSectionContent('store'),
     
-    // Estado útil
+    // Estados útiles para componentes
     isLoaded: !loading && content !== null && !error,
     hasError: !!error,
     isEmpty: !content || !hasAnyContent(),
@@ -229,3 +228,52 @@ const useGymContent = () => {
 };
 
 export default useGymContent;
+
+/**
+ * DOCUMENTACIÓN DEL HOOK useGymContent
+ * 
+ * PROPÓSITO:
+ * Hook personalizado de React que gestiona la obtención y manipulación del contenido
+ * dinámico del gimnasio desde el backend. Proporciona una interfaz unificada para
+ * acceder a todas las secciones del sitio web del gimnasio.
+ * 
+ * FUNCIONALIDAD PRINCIPAL:
+ * - Obtiene contenido del gimnasio desde la API backend
+ * - Implementa sistema de caché de 10 minutos para optimizar rendimiento
+ * - Proporciona contenido por defecto mientras carga o en caso de error
+ * - Permite actualización de secciones específicas
+ * - Incluye funciones de validación y estadísticas
+ * 
+ * ARCHIVOS CON LOS QUE SE CONECTA:
+ * - '../services/apiService': Servicio principal para comunicación con el backend
+ * - Backend API endpoints: '/gym/content' y '/gym/content/{section}'
+ * - Cualquier componente React que importe este hook
+ * 
+ * SECCIONES QUE MANEJA:
+ * - hero: Sección principal/banner del sitio
+ * - services: Servicios del gimnasio
+ * - plans: Planes de membresía
+ * - testimonials: Testimonios de clientes
+ * - contact: Información de contacto
+ * - store: Tienda de productos
+ * 
+ * USO TÍPICO:
+ * const { content, loading, error, refresh } = useGymContent();
+ * 
+ * ESTADOS RETORNADOS:
+ * - content: Objeto con todas las secciones del gimnasio
+ * - loading: Boolean indicando si está cargando
+ * - error: Mensaje de error si ocurre algún problema
+ * - isLoaded: Boolean indicando si ya se cargó exitosamente
+ * 
+ * FUNCIONES DISPONIBLES:
+ * - refresh(): Fuerza actualización del contenido
+ * - updateContent(section, data): Actualiza una sección específica
+ * - getSectionContent(name): Obtiene contenido de una sección
+ * - hasSection(name): Verifica si una sección tiene datos
+ * 
+ * NOTA PARA DESARROLLADORES:
+ * Este hook es fundamental para la gestión de contenido dinámico del sitio.
+ * Cualquier cambio debe mantener la retrocompatibilidad con los componentes
+ * que lo utilizan. Los precios están configurados en quetzales (Q).
+ */

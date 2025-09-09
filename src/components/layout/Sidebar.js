@@ -1,6 +1,6 @@
+// Autor: Alexander Echeverria
 // src/components/layout/Sidebar.js
-// FUNCIÓN: Sidebar SOLO para desktop - reparado para colapso correcto
-// CAMBIOS: ✅ Tienda agregada para todos los usuarios ✅ Logout sin errores CORREGIDO ✅ Iconos actualizados para GTQ
+// FUNCIÓN: Sidebar solo para desktop con navegación colapsable
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -8,14 +8,14 @@ import {
   Home, 
   Users, 
   CreditCard, 
-  Coins, // ✅ CAMBIADO: DollarSign por Coins para representar quetzales
+  Coins,
   BarChart3, 
-  Settings,
+  Clock,
   LogOut,
   User,
   ChevronLeft,
   ChevronRight,
-  ShoppingBag  // ✅ AGREGADO para la tienda
+  ShoppingBag
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -28,23 +28,23 @@ const Sidebar = ({ collapsed }) => {
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  // 🎯 Verificar si una ruta está activa
+  // Verificar si una ruta está activa
   const isActiveRoute = (path) => location.pathname === path;
   const isActiveSection = (paths) => paths.some(path => location.pathname.startsWith(path));
   
-  // 📋 Obtener elementos del menú según el rol - ✅ TIENDA AGREGADA
+  // Obtener elementos del menú según el rol
   const getMenuItems = () => {
     const baseItems = [
       {
         id: 'dashboard',
-        label: 'Tablero Principal',
+        label: 'Panel Principal',
         icon: Home,
         path: getDashboardPath(),
         show: true
       }
     ];
     
-    // 👥 Usuarios
+    // Usuarios
     if (hasPermission('view_users')) {
       baseItems.push({
         id: 'users',
@@ -55,7 +55,7 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // 🎫 Membresías
+    // Membresías
     if (hasPermission('view_memberships')) {
       baseItems.push({
         id: 'memberships',
@@ -66,27 +66,27 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // 💰 Pagos - ✅ ACTUALIZADO con icono de quetzales
+    // Pagos en quetzales
     if (hasPermission('view_payments')) {
       baseItems.push({
         id: 'payments',
-        label: 'Pagos (GTQ)',
-        icon: Coins, // ✅ CAMBIADO: Icono específico para quetzales
+        label: 'Pagos (Q)',
+        icon: Coins,
         path: '/dashboard/payments',
         show: true
       });
     }
 
-    // 🛍️ TIENDA - ✅ AGREGADA PARA TODOS LOS USUARIOS
+    // Tienda - Disponible para todos los usuarios
     baseItems.push({
       id: 'store',
       label: 'Tienda',
       icon: ShoppingBag,
-      path: '/store', // Ruta pública de la tienda
+      path: '/store',
       show: true
     });
     
-    // 📊 Reportes
+    // Reportes
     if (hasPermission('view_reports')) {
       baseItems.push({
         id: 'reports',
@@ -97,13 +97,13 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // ⚙️ Configuración
-    if (hasPermission('manage_system_settings')) {
+    // Gestión de Horarios
+    if (hasPermission('manage_gym_schedule')) {
       baseItems.push({
-        id: 'settings',
-        label: 'Configuración del Sistema',
-        icon: Settings,
-        path: '/dashboard/settings',
+        id: 'schedule',
+        label: 'Horarios de Atención',
+        icon: Clock,
+        path: '/dashboard/schedule',
         show: true
       });
     }
@@ -111,7 +111,7 @@ const Sidebar = ({ collapsed }) => {
     return baseItems.filter(item => item.show);
   };
   
-  // 🏠 Obtener ruta del dashboard según rol
+  // Obtener ruta del dashboard según rol
   const getDashboardPath = () => {
     switch (user?.role) {
       case 'admin':
@@ -127,27 +127,27 @@ const Sidebar = ({ collapsed }) => {
   
   const menuItems = getMenuItems();
   
-  // 🔐 Manejar logout ✅ CORREGIDO - MÁS ROBUSTO
+  // Manejar logout robusto
   const handleLogout = async () => {
     if (isLoggingOut) return;
     
     try {
       setIsLoggingOut(true);
-      console.log('🔐 Iniciando cierre de sesión...');
+      console.log('Iniciando cierre de sesión...');
       
-      // ✅ Limpiar datos locales ANTES del logout
+      // Limpiar datos locales antes del logout
       try {
         localStorage.removeItem('elite_fitness_cart');
         localStorage.removeItem('elite_fitness_session_id');
         localStorage.removeItem('elite_fitness_wishlist');
         localStorage.removeItem('elite_fitness_payments_cache');
         localStorage.removeItem('elite_fitness_user_preferences');
-        console.log('🧹 Datos locales limpiados correctamente');
+        console.log('Datos locales limpiados correctamente');
       } catch (localStorageError) {
-        console.warn('⚠️ Error limpiando localStorage:', localStorageError);
+        console.warn('Error limpiando localStorage:', localStorageError);
       }
       
-      // ✅ Llamar al logout del contexto con timeout
+      // Llamar al logout del contexto con timeout
       const logoutPromise = logout();
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout en cierre de sesión')), 5000)
@@ -155,31 +155,31 @@ const Sidebar = ({ collapsed }) => {
       
       await Promise.race([logoutPromise, timeoutPromise]);
       
-      console.log('✅ Cierre de sesión exitoso');
+      console.log('Cierre de sesión exitoso');
       showSuccess && showSuccess('Sesión cerrada correctamente');
       
-      // ✅ Navegar después del logout exitoso
+      // Navegar después del logout exitoso
       setTimeout(() => {
         navigate('/login', { replace: true });
       }, 100);
       
     } catch (error) {
-      console.error('❌ Error durante el cierre de sesión:', error);
+      console.error('Error durante el cierre de sesión:', error);
       
-      // ✅ FALLBACK ROBUSTO: Forzar limpieza y redirección
+      // Fallback robusto: Forzar limpieza y redirección
       try {
         // Limpiar todo el localStorage
         localStorage.clear();
         sessionStorage.clear();
         
-        console.log('🔄 Forzando recarga para limpiar estado...');
+        console.log('Forzando recarga para limpiar estado...');
         showError && showError('Cerrando sesión...');
         
         // Forzar redirección
         window.location.href = '/login';
         
       } catch (fallbackError) {
-        console.error('❌ Error en fallback de cierre de sesión:', fallbackError);
+        console.error('Error en fallback de cierre de sesión:', fallbackError);
         // Último recurso
         window.location.reload();
       }
@@ -191,12 +191,12 @@ const Sidebar = ({ collapsed }) => {
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       
-      {/* 🔝 HEADER CON TOGGLE */}
+      {/* Header con toggle */}
       <div className={`flex items-center justify-between border-b border-gray-200 transition-all duration-300 ${
         collapsed ? 'p-2' : 'p-4'
       }`}>
         
-        {/* Logo - SE OCULTA COMPLETAMENTE cuando está colapsado */}
+        {/* Logo - se oculta completamente cuando está colapsado */}
         {!collapsed && (
           <div className="transition-opacity duration-300">
             <GymLogo size="md" variant="professional" showText={true} />
@@ -213,13 +213,13 @@ const Sidebar = ({ collapsed }) => {
         </button>
       </div>
       
-      {/* 👤 INFORMACIÓN DEL USUARIO */}
+      {/* Información del usuario */}
       <div className={`border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50 transition-all duration-300 ${
         collapsed ? 'p-2' : 'p-4'
       }`}>
         <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
           
-          {/* Avatar - SIEMPRE visible */}
+          {/* Avatar - siempre visible */}
           <div className="w-10 h-10 bg-elite-gradient rounded-full flex items-center justify-center flex-shrink-0">
             {user?.profileImage ? (
               <img 
@@ -234,7 +234,7 @@ const Sidebar = ({ collapsed }) => {
             )}
           </div>
           
-          {/* Información del usuario - DESAPARECE cuando está colapsado */}
+          {/* Información del usuario - desaparece cuando está colapsado */}
           {!collapsed && (
             <div className="transition-opacity duration-300 min-w-0 flex-1">
               <div className="text-sm font-medium text-gray-900 truncate">
@@ -249,7 +249,7 @@ const Sidebar = ({ collapsed }) => {
         </div>
       </div>
       
-      {/* 📋 NAVEGACIÓN PRINCIPAL */}
+      {/* Navegación principal */}
       <nav className={`flex-1 space-y-2 transition-all duration-300 ${
         collapsed ? 'p-2' : 'p-4'
       }`}>
@@ -267,10 +267,10 @@ const Sidebar = ({ collapsed }) => {
             `}
             title={collapsed ? item.label : undefined}
           >
-            {/* Icono - SIEMPRE visible */}
+            {/* Icono - siempre visible */}
             <item.icon className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
             
-            {/* Texto - DESAPARECE cuando está colapsado */}
+            {/* Texto - desaparece cuando está colapsado */}
             {!collapsed && (
               <span className="text-sm font-medium transition-opacity duration-300">
                 {item.label}
@@ -280,12 +280,12 @@ const Sidebar = ({ collapsed }) => {
         ))}
       </nav>
       
-      {/* 🔗 ENLACES ADICIONALES */}
+      {/* Enlaces adicionales */}
       <div className={`border-t border-gray-200 space-y-2 transition-all duration-300 ${
         collapsed ? 'p-2' : 'p-4'
       }`}>
         
-        {/* 👤 Mi Perfil */}
+        {/* Mi Perfil */}
         <Link
           to="/dashboard/profile"
           className={`
@@ -306,7 +306,7 @@ const Sidebar = ({ collapsed }) => {
           )}
         </Link>
         
-        {/* 🔴 Cerrar Sesión - ✅ CORREGIDO */}
+        {/* Cerrar Sesión */}
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}
@@ -340,3 +340,178 @@ const Sidebar = ({ collapsed }) => {
 };
 
 export default Sidebar;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE Sidebar
+
+PROPÓSITO:
+Este componente implementa la barra lateral de navegación principal para escritorio en la aplicación
+del gimnasio, proporcionando acceso rápido a todas las funcionalidades del sistema con capacidad de
+colapso para optimizar el espacio de pantalla. Incluye navegación contextual basada en roles de usuario
+y gestión de horarios de atención del gimnasio.
+
+FUNCIONALIDADES PRINCIPALES:
+- Sidebar colapsable con animaciones suaves de transición
+- Navegación contextual basada en permisos y roles de usuario
+- Avatar de usuario personalizable con información de rol
+- Logout seguro con confirmación y limpieza de datos
+- Indicadores visuales de ruta activa
+- Logo del gimnasio adaptativo según estado de colapso
+- Tooltips informativos cuando está colapsado
+- Acceso universal a la tienda de productos
+
+ARCHIVOS Y CONEXIONES:
+
+CONTEXTS REQUERIDOS:
+- ../../contexts/AuthContext: Autenticación, datos del usuario, permisos y función de logout
+- ../../contexts/AppContext: Control del estado del sidebar, notificaciones y funciones globales
+
+HOOKS DE REACT ROUTER:
+- react-router-dom (Link): Enlaces de navegación interna sin recarga
+- react-router-dom (useLocation): Detectar ruta activa para resaltado visual
+- react-router-dom (useNavigate): Navegación programática después del logout
+
+COMPONENTES IMPORTADOS:
+- ../common/GymLogo: Logo oficial del gimnasio con variantes de tamaño y texto
+
+ICONOS DE LUCIDE REACT:
+- Home: Panel principal/dashboard del usuario
+- Users: Gestión de usuarios del gimnasio
+- CreditCard: Membresías y suscripciones
+- Coins: Pagos y transacciones en quetzales guatemaltecos
+- BarChart3: Reportes financieros y análisis
+- Clock: Horarios de atención del gimnasio
+- ShoppingBag: Tienda de productos universal
+- User: Perfil personal del usuario
+- LogOut: Cerrar sesión con confirmación
+- ChevronLeft/ChevronRight: Control de colapso del sidebar
+
+ESTADOS MANEJADOS LOCALMENTE:
+- isLoggingOut: Control del proceso de cierre de sesión con spinner
+
+QUE SE MUESTRA AL USUARIO:
+
+ESTRUCTURA VISUAL DEL SIDEBAR:
+- Barra lateral fija del lado izquierdo con fondo blanco
+- Header con logo del gimnasio y botón de colapso
+- Sección de información del usuario con avatar
+- Navegación principal con iconos y etiquetas
+- Footer con perfil personal y logout
+- Ancho variable: 256px expandido, 64px colapsado
+- Transiciones suaves de 300ms para todos los cambios
+
+HEADER DEL SIDEBAR:
+- **Estado expandido**: Logo completo del gimnasio con texto visible
+- **Estado colapsado**: Solo botón de toggle centrado, logo oculto
+- **Botón de toggle**: Flecha izquierda para colapsar, derecha para expandir
+- Tooltip descriptivo: "Expandir menú lateral" / "Contraer menú lateral"
+- Borde inferior gris como separador visual
+
+INFORMACIÓN DEL USUARIO:
+- **Avatar circular**: 40px de diámetro con gradiente del gimnasio de fondo
+- **Con imagen**: Muestra foto de perfil circular del usuario
+- **Sin imagen**: Iniciales generadas automáticamente en blanco
+- **Estado expandido**: Nombre completo + rol debajo del avatar
+- **Estado colapsado**: Solo avatar centrado sin texto
+- **Roles mostrados**: Administrador, Personal del Gimnasio, Cliente Miembro
+- Fondo con gradiente sutil primary a secondary
+
+NAVEGACIÓN PRINCIPAL:
+- **Panel Principal**: Dashboard específico según rol del usuario
+- **Usuarios**: Gestión de usuarios (solo con permisos view_users)
+- **Membresías**: Gestión de membresías del gimnasio (solo con permisos)
+- **Pagos (Q)**: Transacciones en quetzales guatemaltecos (solo con permisos)
+- **Tienda**: Acceso universal para todos los usuarios sin restricciones
+- **Reportes Financieros**: Análisis y reportes (solo con permisos)
+- **Horarios de Atención**: Gestión de horarios del gimnasio (solo admin)
+
+INDICADORES VISUALES DE NAVEGACIÓN:
+- **Ruta activa**: Fondo azul claro, texto azul oscuro, borde derecho azul
+- **Hover effects**: Fondo gris claro al pasar el cursor
+- **Estado expandido**: Icono + texto con espaciado generoso
+- **Estado colapsado**: Solo icono centrado con tooltip
+- **Transiciones**: Animaciones suaves de 300ms para cambios
+
+FOOTER CON ACCIONES PERSONALES:
+- **Mi Perfil**: Enlace al perfil personal del usuario
+- **Cerrar Sesión**: Botón rojo con confirmación automática
+- **Estado de logout**: Spinner animado durante el proceso
+- **Tooltips**: Información visible cuando está colapsado
+- Separador superior para diferenciar de navegación
+
+COMPORTAMIENTO DE COLAPSO:
+- **Expandido (256px)**: Logo + avatar + texto completo visible
+- **Colapsado (64px)**: Solo iconos centrados + tooltips informativos
+- **Animaciones**: Transiciones suaves de opacidad y posición
+- **Persistencia**: Estado recordado durante la sesión
+- **Responsive**: Solo visible en desktop (768px+)
+
+ROLES Y PERMISOS SOPORTADOS:
+- **Administrador**: Acceso completo incluyendo horarios de atención
+- **Personal/Colaborador**: Gestión operativa sin configuración de horarios
+- **Cliente**: Acceso limitado a funciones personales y tienda
+
+NAVEGACIÓN CONTEXTUAL POR ROL:
+- **Admin dashboard**: /dashboard/admin con funciones administrativas
+- **Staff dashboard**: /dashboard/staff con herramientas de personal
+- **Client dashboard**: /dashboard/client con vista de cliente
+- **Fallback**: /dashboard genérico si no se detecta rol
+
+GESTIÓN DE HORARIOS DE ATENCIÓN:
+- **Funcionalidad nueva**: Reemplaza configuración del sistema
+- **Acceso**: Solo administradores con permiso manage_gym_schedule
+- **Propósito**: Gestionar horarios de apertura/cierre del gimnasio
+- **Icono**: Clock para representar gestión temporal
+- **Ruta**: /dashboard/schedule para administración de horarios
+
+TIENDA UNIVERSAL:
+- **Acceso**: Todos los usuarios sin excepción ni permisos
+- **Propósito**: Venta de productos, suplementos, mercancía del gimnasio
+- **Icono**: ShoppingBag para representar compras
+- **Ruta**: /store como ruta pública accesible
+
+PAGOS EN QUETZALES:
+- **Moneda**: Específicamente en quetzales guatemaltecos (Q)
+- **Icono**: Coins para representar moneda local
+- **Funcionalidad**: Gestión de pagos de membresías y productos
+- **Permisos**: Solo usuarios con view_payments
+
+SEGURIDAD Y LOGOUT:
+- **Proceso robusto**: Limpieza de localStorage y sessionStorage
+- **Fallback**: Redirección forzada en caso de errores
+- **Timeout**: Límite de 5 segundos para logout
+- **Confirmación visual**: Spinner durante proceso
+- **Datos limpiados**: Carrito, sesión, wishlist, cache de pagos, preferencias
+
+OPTIMIZACIONES DE RENDIMIENTO:
+- **Memoización**: Funciones de verificación de rutas optimizadas
+- **Transiciones CSS**: Animaciones fluidas sin JavaScript pesado
+- **Conditional rendering**: Elementos ocultos no renderizados
+- **Event listeners**: Gestión eficiente de clicks y navigation
+
+ACCESIBILIDAD:
+- **Tooltips**: Información contextual cuando está colapsado
+- **Contraste**: Colores accesibles en todos los estados
+- **Navegación por teclado**: Funcional en todos los enlaces
+- **Alt tags**: Descripciones apropiadas en imágenes de avatar
+- **Área de click**: Botones con tamaño mínimo de 44px
+
+INTEGRACIÓN CON EL SISTEMA DEL GIMNASIO:
+- **Membresías**: Gestión completa de suscripciones y renovaciones
+- **Pagos**: Sistema de transacciones en quetzales guatemaltecos
+- **Usuarios**: Administración de clientes, personal y administradores
+- **Reportes**: Análisis financiero y operativo del gimnasio
+- **Horarios**: Gestión de horarios de atención y funcionamiento
+- **Tienda**: Venta de productos complementarios del gimnasio
+
+RESPONSIVE DESIGN:
+- **Solo escritorio**: No visible en dispositivos móviles (< 768px)
+- **Ancho adaptativo**: Colapsable para pantallas pequeñas de escritorio
+- **Contenido escalable**: Todos los elementos se adaptan al ancho
+- **Transiciones fluidas**: Animaciones optimizadas para cualquier resolución
+
+Este componente es fundamental para la navegación en escritorio de la aplicación
+del gimnasio, proporcionando acceso eficiente a todas las funcionalidades mientras
+mantiene una interfaz limpia y profesional adaptada a las necesidades específicas
+del negocio de fitness en Guatemala.
+*/

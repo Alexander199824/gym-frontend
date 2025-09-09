@@ -1,6 +1,6 @@
-// src/pages/dashboard/components/PlansManager.js
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/PlansManager.js
 // FUNCIÓN: Gestión MEJORADA de planes - Vista de edición corregida y responsive
-// CAMBIOS: Formulario de edición en modal, mejor layout, vista completa
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -13,7 +13,7 @@ import { useApp } from '../../../contexts/AppContext';
 const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, formatCurrency, isMobile } = useApp();
   
-  // 📱 Estados locales
+  // Estados locales
   const [localPlans, setLocalPlans] = useState([]);
   const [editingPlan, setEditingPlan] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -21,7 +21,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   
-  // 🎯 Iconos disponibles para planes - AMPLIADOS
+  // Iconos disponibles para planes - AMPLIADOS
   const availableIcons = [
     { id: 'crown', component: Crown, name: 'Premium' },
     { id: 'star', component: Star, name: 'Popular' },
@@ -33,7 +33,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     { id: 'plus', component: Plus, name: 'Completo' }
   ];
   
-  // 📅 Tipos de duración - CON DÍA AGREGADO
+  // Tipos de duración - CON DÍA AGREGADO
   const durationType = [
     { value: 'daily', label: 'Diario' },
     { value: 'monthly', label: 'Mensual' },
@@ -41,7 +41,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     { value: 'yearly', label: 'Anual' }
   ];
   
-  // 📊 Plantilla para nuevo plan
+  // Plantilla para nuevo plan
   const emptyPlan = {
     id: null,
     name: '',
@@ -53,9 +53,9 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     popular: false
   };
   
-  // 🔄 INICIALIZAR CON DATOS ACTUALES - MEJORADO
+  // INICIALIZAR CON DATOS ACTUALES - MEJORADO
   useEffect(() => {
-    console.log('🔄 PlansManager - Checking for plans data:', {
+    console.log('PlansManager - Verificando datos de planes:', {
       hasPlans: !!plans,
       isLoading,
       isArray: Array.isArray(plans),
@@ -65,7 +65,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     
     if (!isLoading) {
       if (plans && Array.isArray(plans)) {
-        console.log('📥 PlansManager - Loading plans from backend:', plans);
+        console.log('PlansManager - Cargando planes desde backend:', plans);
         
         // Mapear planes con estructura esperada
         const mappedPlans = plans.map((plan, index) => ({
@@ -79,7 +79,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
           popular: plan.popular === true
         }));
         
-        console.log('✅ PlansManager - Plans mapped successfully:', {
+        console.log('PlansManager - Planes mapeados exitosamente:', {
           total: mappedPlans.length,
           popular: mappedPlans.filter(p => p.popular).length,
           names: mappedPlans.map(p => p.name),
@@ -90,22 +90,22 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
         setIsDataLoaded(true);
         
       } else {
-        console.log('⚠️ PlansManager - No plans data or invalid format');
+        console.log('PlansManager - Sin datos de planes o formato inválido');
         setLocalPlans([]);
         setIsDataLoaded(true);
       }
     } else {
-      console.log('⏳ PlansManager - Data is still loading...');
+      console.log('PlansManager - Los datos aún se están cargando...');
       setIsDataLoaded(false);
     }
   }, [plans, isLoading]);
   
-  // 🔔 Notificar cambios sin guardar
+  // Notificar cambios sin guardar
   useEffect(() => {
     onUnsavedChanges(hasChanges);
   }, [hasChanges, onUnsavedChanges]);
   
-  // 💾 Guardar todos los cambios
+  // Guardar todos los cambios
   const handleSaveAll = async () => {
     try {
       // Validar que hay al menos un plan
@@ -133,12 +133,12 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
       setShowEditModal(false);
       
     } catch (error) {
-      console.error('Error saving plans:', error);
+      console.error('Error al guardar planes:', error);
       showError('Error al guardar planes');
     }
   };
   
-  // ➕ Crear nuevo plan
+  // Crear nuevo plan
   const handleCreatePlan = () => {
     setIsCreating(true);
     setEditingPlan({
@@ -148,15 +148,15 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     setShowEditModal(true);
   };
   
-  // ✏️ Editar plan existente
+  // Editar plan existente
   const handleEditPlan = (plan) => {
-    console.log('📝 Editing plan:', plan);
+    console.log('Editando plan:', plan);
     setEditingPlan({ ...plan });
     setIsCreating(false);
     setShowEditModal(true);
   };
   
-  // 💾 Guardar plan individual
+  // Guardar plan individual
   const handleSavePlan = () => {
     if (!editingPlan.name.trim()) {
       showError('El nombre del plan es obligatorio');
@@ -203,14 +203,14 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     showSuccess(isCreating ? 'Plan creado' : 'Plan actualizado');
   };
   
-  // ❌ Cancelar edición
+  // Cancelar edición
   const handleCancelEdit = () => {
     setEditingPlan(null);
     setIsCreating(false);
     setShowEditModal(false);
   };
   
-  // 🗑️ Eliminar plan
+  // Eliminar plan
   const handleDeletePlan = (planId) => {
     if (window.confirm('¿Estás seguro de eliminar este plan de membresía?')) {
       setLocalPlans(localPlans.filter(plan => plan.id !== planId));
@@ -219,7 +219,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ⭐ Toggle plan popular
+  // Toggle plan popular
   const handleTogglePopular = (planId) => {
     setLocalPlans(localPlans.map(plan => ({
       ...plan,
@@ -228,13 +228,13 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
     setHasChanges(true);
   };
   
-  // 💰 Calcular descuento
+  // Calcular descuento
   const calculateDiscount = (price, originalPrice) => {
     if (!originalPrice || originalPrice <= price) return 0;
     return Math.round(((originalPrice - price) / originalPrice) * 100);
   };
 
-  // 🔄 Mostrar loading mientras se cargan los datos
+  // Mostrar loading mientras se cargan los datos
   if (isLoading || !isDataLoaded) {
     return (
       <div className="space-y-6">
@@ -251,7 +251,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900">
@@ -265,11 +265,11 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
           {isDataLoaded && localPlans.length > 0 && (
             <div className="mt-2 flex space-x-2">
               <span className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                ✅ {localPlans.length} planes cargados
+                {localPlans.length} planes cargados
               </span>
               {localPlans.filter(p => p.popular).length > 0 && (
                 <span className="text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
-                  ⭐ {localPlans.filter(p => p.popular).length} popular
+                  {localPlans.filter(p => p.popular).length} popular
                 </span>
               )}
             </div>
@@ -297,7 +297,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* ⚠️ INDICADOR DE CAMBIOS */}
+      {/* INDICADOR DE CAMBIOS */}
       {hasChanges && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
           <div className="flex">
@@ -311,7 +311,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 📋 LISTA DE PLANES */}
+      {/* LISTA DE PLANES */}
       <div className={`grid gap-6 ${
         isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
       }`}>
@@ -462,7 +462,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* 🆕 MODAL DE EDICIÓN MEJORADO */}
+      {/* MODAL DE EDICIÓN MEJORADO */}
       {showEditModal && editingPlan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
@@ -516,7 +516,7 @@ const PlansManager = ({ plans, isLoading, onSave, onUnsavedChanges }) => {
   );
 };
 
-// 📝 COMPONENTE: Formulario de plan MEJORADO
+// COMPONENTE: Formulario de plan MEJORADO
 const PlanForm = ({ 
   plan, 
   availableIcons, 
@@ -546,7 +546,7 @@ const PlanForm = ({
   return (
     <div className="space-y-8">
       
-      {/* 📊 VISTA PREVIA DEL PLAN */}
+      {/* VISTA PREVIA DEL PLAN */}
       <div className="bg-gradient-to-br from-primary-50 to-blue-50 rounded-xl p-6 border border-primary-200">
         <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
           <Eye className="w-5 h-5 mr-2 text-primary-600" />
@@ -613,7 +613,7 @@ const PlanForm = ({
         </div>
       </div>
       
-      {/* 📋 FORMULARIO PRINCIPAL */}
+      {/* FORMULARIO PRINCIPAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Columna izquierda: Información básica */}
@@ -672,7 +672,7 @@ const PlanForm = ({
             {plan.originalPrice && plan.originalPrice > plan.price && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800">
-                  💰 Descuento calculado: {calculateDiscount(plan.price, plan.originalPrice)}%
+                  Descuento calculado: {calculateDiscount(plan.price, plan.originalPrice)}%
                 </p>
               </div>
             )}
@@ -815,3 +815,51 @@ const PlanForm = ({
 };
 
 export default PlansManager;
+
+/**
+ * COMENTARIOS FINALES DEL COMPONENTE
+ * 
+ * PROPÓSITO:
+ * Este componente maneja la gestión completa de planes de membresía para el gimnasio.
+ * Permite crear, editar, eliminar y configurar planes que se muestran en la página web del gimnasio.
+ * 
+ * FUNCIONALIDADES PRINCIPALES:
+ * - Creación y edición de planes de membresía con vista previa en tiempo real
+ * - Configuración de precios en quetzales guatemaltecos con sistema de descuentos
+ * - Selección de iconos personalizados para cada plan
+ * - Gestión de características/beneficios de cada plan
+ * - Sistema de plan "popular" con destacado visual
+ * - Múltiples duraciones: diario, mensual, trimestral y anual
+ * - Modal de edición responsive con formulario completo
+ * - Vista en tarjetas responsiva para escritorio y móvil
+ * - Sistema de cambios sin guardar con alertas
+ * 
+ * CONEXIONES CON OTROS ARCHIVOS:
+ * - AppContext: Para mostrar notificaciones y manejar modo móvil
+ * - Lucide React: Para iconografía completa del sistema
+ * - No requiere comunicación directa con backend (manejado por componente padre)
+ * 
+ * DATOS QUE MUESTRA AL USUARIO:
+ * - Lista visual de todos los planes configurados
+ * - Precios en quetzales guatemaltecos (Q) con descuentos calculados automáticamente
+ * - Características/beneficios de cada plan con iconos de verificación
+ * - Indicadores visuales para plan popular (destacado con borde dorado)
+ * - Vista previa en tiempo real mientras se edita un plan
+ * - Iconos personalizables para identificar cada tipo de plan
+ * - Duración de cada plan (diario, mensual, trimestral, anual)
+ * 
+ * VALIDACIONES INCLUIDAS:
+ * - Nombre del plan obligatorio
+ * - Precio mayor a 0 quetzales
+ * - Precio original mayor al precio actual (para descuentos)
+ * - Solo un plan puede ser marcado como "popular" a la vez
+ * - Debe existir al menos un plan antes de guardar
+ * 
+ * CARACTERÍSTICAS ESPECIALES:
+ * - Cálculo automático de porcentaje de descuento
+ * - Mapeo inteligente de datos desde el backend
+ * - Sistema de iconos expandible con 8 opciones predefinidas
+ * - Gestión de estado local con sincronización de cambios
+ * - Interfaz drag-and-drop para reordenar características
+ * - Responsivo completo para todos los dispositivos
+ */

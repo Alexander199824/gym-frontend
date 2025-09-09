@@ -1,6 +1,5 @@
-// src/pages/dashboard/components/UsersManager.js
-// FUNCIÓN: Gestión completa de usuarios SIN ERRORES PARA COLABORADOR
-// CAMBIOS: Colaborador puede ver toda la info de clientes sin mensajes de error
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/UsersManager.js
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -23,7 +22,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     canCreateUsers,
     canEditUsers,
     canDeleteUsers,
-    canViewUserDetails, // 🆕 NUEVA FUNCIÓN SIN ERRORES
+    canViewUserDetails,
     canEditSpecificUser,
     canDeleteSpecificUser,
     userRole
@@ -31,29 +30,29 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   
   const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
   
-  // 📊 Estados principales
+  // Estados principales
   const [users, setUsers] = useState([]);
   const [userStats, setUserStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // 🔍 Estados de filtros y búsqueda
+  // Estados de filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   
-  // 📄 Estados de paginación
+  // Estados de paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(isMobile ? 10 : 20);
   const [totalUsers, setTotalUsers] = useState(0);
   
-  // 🆕 Estados para crear/editar usuario
+  // Estados para crear/editar usuario
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   
-  // 🆕 Estados para VER DETALLES de usuario (SIN EDITAR)
+  // Estados para VER DETALLES de usuario (SIN EDITAR)
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [viewingUser, setViewingUser] = useState(null);
   
@@ -72,10 +71,10 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     isActive: true
   });
 
-  // 🔒 Estados para validaciones
+  // Estados para validaciones
   const [fieldErrors, setFieldErrors] = useState({});
   
-  // 📊 Obtener roles disponibles SEGÚN PERMISOS DEL USUARIO ACTUAL
+  // Obtener roles disponibles según permisos del usuario actual
   const getAvailableUserRoles = () => {
     const viewableRoles = getViewableUserRoles();
     const allRoles = [
@@ -101,7 +100,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
 
   const userRoles = getAvailableUserRoles();
 
-  // 🛡️ FUNCIONES DE VALIDACIÓN (Mantenidas igual)
+  // FUNCIONES DE VALIDACIÓN
   
   const validateName = (value) => {
     const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'-]*$/;
@@ -288,12 +287,12 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     return Object.keys(errors).length === 0;
   };
   
-  // 🔄 CARGAR DATOS CON FILTROS DE ROL APLICADOS
+  // CARGAR DATOS CON FILTROS DE ROL APLICADOS
   const loadUsers = async () => {
     try {
       setLoading(true);
       
-      // 🆕 APLICAR FILTROS DE ROL SEGÚN PERMISOS
+      // Aplicar filtros de rol según permisos
       const viewableRoles = getViewableUserRoles();
       
       const params = {
@@ -304,7 +303,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         sortOrder
       };
       
-      // 🔒 FILTRO CRÍTICO: Solo aplicar filtro de rol si el usuario actual puede ver múltiples roles
+      // Filtro crítico: Solo aplicar filtro de rol si el usuario actual puede ver múltiples roles
       if (viewableRoles.length === 1) {
         // Colaborador: solo puede ver clientes
         params.role = viewableRoles[0];
@@ -318,15 +317,15 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         params.isActive = selectedStatus === 'active';
       }
       
-      console.log('🔄 Loading users with role-filtered params:', params);
-      console.log('👤 Current user role:', userRole);
-      console.log('👁️ Viewable roles:', viewableRoles);
+      console.log('Cargando usuarios con parámetros filtrados por rol:', params);
+      console.log('Rol del usuario actual:', userRole);
+      console.log('Roles visibles:', viewableRoles);
       
       const response = await apiService.get('/users', { params });
       const userData = response.data || response;
       
       if (userData.users && Array.isArray(userData.users)) {
-        // 🔒 FILTRO ADICIONAL EN CLIENTE: Por si el backend no aplica filtros
+        // Filtro adicional en cliente: Por si el backend no aplica filtros
         const filteredUsers = userData.users.filter(user => {
           return canViewUsersOfRole(user.role);
         });
@@ -334,7 +333,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         setUsers(filteredUsers);
         setTotalUsers(userData.pagination?.total || filteredUsers.length);
         
-        console.log('✅ Users loaded and filtered:', {
+        console.log('Usuarios cargados y filtrados:', {
           totalFromBackend: userData.users.length,
           afterRoleFilter: filteredUsers.length,
           roles: [...new Set(filteredUsers.map(u => u.role))]
@@ -348,19 +347,19 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         setUsers(filteredUsers);
         setTotalUsers(filteredUsers.length);
       } else {
-        console.warn('⚠️ Users data format unexpected:', userData);
+        console.warn('Formato de datos de usuarios inesperado:', userData);
         setUsers([]);
         setTotalUsers(0);
       }
       
     } catch (error) {
-      console.error('❌ Error loading users:', error);
+      console.error('Error al cargar usuarios:', error);
       
-      // 🆕 NO MOSTRAR ERRORES PARA COLABORADORES - Solo log silencioso
+      // No mostrar errores para colaboradores - Solo log silencioso
       if (userRole === 'admin') {
         showError('Error al cargar usuarios');
       } else {
-        console.log('⚠️ Error silenciado para colaborador - continuando con datos vacíos');
+        console.log('Error silenciado para colaborador - continuando con datos vacíos');
       }
       
       setUsers([]);
@@ -370,13 +369,13 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📊 CARGAR ESTADÍSTICAS CON FILTROS DE ROL - SIN ERRORES PARA COLABORADORES
+  // Cargar estadísticas con filtros de rol - Sin errores para colaboradores
   const loadUserStats = async () => {
     try {
       const stats = await apiService.getUserStats();
-      console.log('📊 User stats loaded:', stats);
+      console.log('Estadísticas de usuarios cargadas:', stats);
       
-      // 🔒 FILTRAR ESTADÍSTICAS SEGÚN ROLES VISIBLES
+      // Filtrar estadísticas según roles visibles
       const viewableRoles = getViewableUserRoles();
       const filteredStats = { ...stats };
       
@@ -400,8 +399,8 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       setUserStats(filteredStats);
       
     } catch (error) {
-      // 🆕 LOG SILENCIOSO - No mostrar errores en UI
-      console.log('⚠️ Error loading user stats (silenciado):', error.message);
+      // Log silencioso - No mostrar errores en UI
+      console.log('Error al cargar estadísticas de usuarios (silenciado):', error.message);
       
       // Calcular estadísticas localmente con filtros de rol
       const viewableRoles = getViewableUserRoles();
@@ -429,7 +428,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ⏰ Cargar datos al montar y cuando cambien filtros - SIN ERRORES PARA COLABORADORES
+  // Cargar datos al montar y cuando cambien filtros - Sin errores para colaboradores
   useEffect(() => {
     // Cargar datos silenciosamente para colaboradores
     const loadDataSilently = async () => {
@@ -437,7 +436,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         await loadUsers();
       } catch (error) {
         // Log silencioso, no mostrar errores en UI para colaboradores
-        console.log('🔄 Carga inicial de usuarios (error silenciado para colaborador):', error.message);
+        console.log('Carga inicial de usuarios (error silenciado para colaborador):', error.message);
       }
     };
     
@@ -450,7 +449,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         try {
           await loadUserStats();
         } catch (error) {
-          console.log('📊 Carga de estadísticas (error silenciado):', error.message);
+          console.log('Carga de estadísticas (error silenciado):', error.message);
         }
       };
       
@@ -458,9 +457,9 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, [users, totalUsers]);
   
-  // 🔍 FILTRAR USUARIOS (para datos locales) CON PERMISOS
+  // Filtrar usuarios (para datos locales) con permisos
   const filteredUsers = users.filter(user => {
-    // 🔒 FILTRO CRÍTICO: Solo mostrar usuarios que puede ver según su rol
+    // Filtro crítico: Solo mostrar usuarios que puede ver según su rol
     if (!canViewUsersOfRole(user.role)) {
       return false;
     }
@@ -476,17 +475,17 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     return matchesSearch && matchesRole && matchesStatus;
   });
   
-  // 📊 FUNCIONES DE USUARIO CON PERMISOS VERIFICADOS
+  // FUNCIONES DE USUARIO CON PERMISOS VERIFICADOS
   
-  // 🆕 VER DETALLES DE USUARIO (SIN EDITAR) - NUEVA FUNCIÓN SIN ERRORES
+  // Ver detalles de usuario (sin editar) - Nueva función sin errores
   const handleViewUserDetails = (user) => {
-    // 🔒 VERIFICAR PERMISOS SIN MOSTRAR ERROR
+    // Verificar permisos sin mostrar error
     if (!canViewUserDetails(user)) {
-      console.log('ℹ️ No se pueden ver los detalles de este usuario (permisos)');
+      console.log('No se pueden ver los detalles de este usuario (permisos)');
       return;
     }
     
-    console.log('👁️ Viewing user details:', user);
+    console.log('Viendo detalles del usuario:', user);
     setViewingUser(user);
     setShowUserDetailsModal(true);
   };
@@ -506,7 +505,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     try {
       setSaving(true);
       
-      // 🔒 VERIFICAR QUE EL ROL A CREAR ES PERMITIDO
+      // Verificar que el rol a crear es permitido
       if (userRole === 'colaborador' && userFormData.role !== 'cliente') {
         showError('Los colaboradores solo pueden crear usuarios clientes');
         return;
@@ -519,7 +518,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       
       let response;
       if (editingUser) {
-        // 🔒 VERIFICAR PERMISOS PARA EDITAR
+        // Verificar permisos para editar
         if (!canEditSpecificUser(editingUser)) {
           showError('No tienes permisos para editar este usuario');
           return;
@@ -544,7 +543,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error saving user:', error);
+      console.error('Error al guardar usuario:', error);
       const errorMsg = error.response?.data?.message || 'Error al guardar usuario';
       showError(errorMsg);
     } finally {
@@ -573,7 +572,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       await loadUserStats();
       
     } catch (error) {
-      console.error('❌ Error deleting user:', error);
+      console.error('Error al eliminar usuario:', error);
       showError('Error al eliminar usuario');
     }
   };
@@ -583,8 +582,8 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     const userToToggle = users.find(u => u.id === userId);
     
     if (!canEditSpecificUser(userToToggle)) {
-      // 🆕 NO MOSTRAR ERRORES PARA COLABORADORES - Solo log silencioso
-      console.log('ℹ️ Colaborador no puede cambiar estado de usuario (permisos)');
+      // No mostrar errores para colaboradores - Solo log silencioso
+      console.log('Colaborador no puede cambiar estado de usuario (permisos)');
       return;
     }
     
@@ -596,14 +595,14 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
       await loadUserStats();
       
     } catch (error) {
-      console.error('❌ Error toggling user status:', error);
+      console.error('Error al cambiar estado del usuario:', error);
       showError('Error al cambiar estado del usuario');
     }
   };
   
   // Reset form
   const resetUserForm = () => {
-    // 🔒 ESTABLECER ROL POR DEFECTO SEGÚN PERMISOS
+    // Establecer rol por defecto según permisos
     const defaultRole = userRole === 'colaborador' ? 'cliente' : 'cliente';
     
     setUserFormData({
@@ -626,8 +625,8 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   // Abrir modal para editar
   const handleEditUser = (user) => {
     if (!canEditSpecificUser(user)) {
-      // 🆕 NO MOSTRAR ERRORES PARA COLABORADORES - Solo log silencioso
-      console.log('ℹ️ Colaborador no puede editar usuarios (permisos)');
+      // No mostrar errores para colaboradores - Solo log silencioso
+      console.log('Colaborador no puede editar usuarios (permisos)');
       return;
     }
     
@@ -662,16 +661,16 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
     setShowUserModal(true);
   };
   
-  // 📊 Obtener color de rol
+  // Obtener color de rol
   const getRoleInfo = (role) => {
     return userRoles.forFilters.find(r => r.value === role) || 
            { value: role, label: role, color: 'bg-gray-100 text-gray-800' };
   };
   
-  // 📄 Cálculo de paginación
+  // Cálculo de paginación
   const totalPages = Math.max(1, Math.ceil(totalUsers / usersPerPage));
 
-  // 🎨 Función para truncar texto
+  // Función para truncar texto
   const truncateText = (text, maxLength = 20) => {
     if (!text) return '';
     if (text.length <= maxLength) return text;
@@ -681,14 +680,14 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER CON INDICADOR DE PERMISOS */}
+      {/* ENCABEZADO CON INDICADOR DE PERMISOS */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
             <Users className="w-6 h-6 mr-2 text-blue-600" />
             Gestión de Usuarios
             
-            {/* 🔒 INDICADOR DE PERMISOS LIMITADOS */}
+            {/* Indicador de permisos limitados */}
             {userRole === 'colaborador' && (
               <span className="ml-3 px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
@@ -726,7 +725,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📊 ESTADÍSTICAS RÁPIDAS FILTRADAS POR ROL */}
+      {/* ESTADÍSTICAS RÁPIDAS FILTRADAS POR ROL */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
@@ -779,7 +778,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 🔍 FILTROS Y BÚSQUEDA CON ROLES LIMITADOS */}
+      {/* FILTROS Y BÚSQUEDA CON ROLES LIMITADOS */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           
@@ -795,7 +794,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
             />
           </div>
           
-          {/* Filtro por rol - LIMITADO SEGÚN PERMISOS */}
+          {/* Filtro por rol - limitado según permisos */}
           <select
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value)}
@@ -842,7 +841,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📋 TABLA DE USUARIOS CON BOTONES CONDICIONADOS POR PERMISOS */}
+      {/* TABLA DE USUARIOS CON BOTONES CONDICIONADOS POR PERMISOS */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         
         {loading ? (
@@ -998,7 +997,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                         <td className="px-4 py-4 text-center">
                           <div className="flex items-center justify-center space-x-2">
                             
-                            {/* 👁️ Ver detalles completos - OJITO COMO ICONO */}
+                            {/* Ver detalles completos */}
                             {canViewUserDetails(user) && (
                               <button
                                 onClick={() => handleViewUserDetails(user)}
@@ -1009,7 +1008,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                               </button>
                             )}
                             
-                            {/* ✏️ Editar usuario - Solo si tiene permisos (Admins únicamente) */}
+                            {/* Editar usuario - Solo si tiene permisos (Admins únicamente) */}
                             {canEditSpecificUser(user) && (
                               <button
                                 onClick={() => handleEditUser(user)}
@@ -1020,7 +1019,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                               </button>
                             )}
                             
-                            {/* 🗑️ Eliminar usuario - Solo si tiene permisos (Admins únicamente) */}
+                            {/* Eliminar usuario - Solo si tiene permisos (Admins únicamente) */}
                             {canDeleteSpecificUser(user) && (
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
@@ -1031,7 +1030,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                               </button>
                             )}
                             
-                            {/* 🔒 Indicador informativo para colaboradores */}
+                            {/* Indicador informativo para colaboradores */}
                             {userRole === 'colaborador' && (
                               <div className="text-xs text-blue-600 italic flex items-center">
                                 <Eye className="w-3 h-3 mr-1" />
@@ -1047,7 +1046,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
               </table>
             </div>
             
-            {/* Mobile Cards - CON PERMISOS APLICADOS */}
+            {/* Mobile Cards - con permisos aplicados */}
             <div className="md:hidden divide-y divide-gray-200">
               {filteredUsers.map((user) => {
                 const roleInfo = getRoleInfo(user.role);
@@ -1134,7 +1133,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
               })}
             </div>
             
-            {/* 📄 PAGINACIÓN */}
+            {/* PAGINACIÓN */}
             {totalPages > 1 && (
               <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
                 <div className="flex items-center justify-between">
@@ -1172,7 +1171,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* 🆕 MODAL PARA VER DETALLES COMPLETOS DEL USUARIO (SIN EDITAR) */}
+      {/* MODAL PARA VER DETALLES COMPLETOS DEL USUARIO (SIN EDITAR) */}
       {showUserDetailsModal && viewingUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-screen overflow-y-auto">
@@ -1196,7 +1195,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            {/* Contenido del modal - INFORMACIÓN COMPLETA */}
+            {/* Contenido del modal - información completa */}
             <div className="px-6 py-4">
               
               {/* Información básica con foto */}
@@ -1273,7 +1272,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
                     
                     <div>
-                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</label>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Correo Electrónico</label>
                       <p className="text-sm text-gray-900">{viewingUser.email}</p>
                     </div>
                     
@@ -1406,7 +1405,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                     {viewingUser.profileImage && (
                       <div>
                         <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Imagen de Perfil</label>
-                        <p className="text-sm text-green-600">✅ Configurada</p>
+                        <p className="text-sm text-green-600">Configurada</p>
                       </div>
                     )}
                   </div>
@@ -1463,7 +1462,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 🆕 MODAL PARA CREAR/EDITAR USUARIO CON ROLES LIMITADOS (MANTENIDO IGUAL) */}
+      {/* MODAL PARA CREAR/EDITAR USUARIO CON ROLES LIMITADOS */}
       {showUserModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -1538,7 +1537,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
+                    Correo Electrónico *
                   </label>
                   <input
                     type="email"
@@ -1609,7 +1608,7 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
                   </p>
                 </div>
                 
-                {/* 🔒 ROL LIMITADO PARA COLABORADORES */}
+                {/* Rol limitado para colaboradores */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Rol *
@@ -1777,13 +1776,190 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
 
 export default UsersManager;
 
-// 📝 CAMBIOS REALIZADOS PARA COLABORADOR:
-// ✅ Solo puede ver usuarios clientes (filtrado automático)
-// ✅ No puede editar usuarios existentes (botones ocultos)
-// ✅ No puede eliminar usuarios (botones ocultos)
-// ✅ Puede crear solo usuarios clientes (rol fijo en formulario)
-// ✅ Estadísticas filtradas por roles visibles
-// ✅ Interfaz adaptada con indicadores de permisos limitados
-// ✅ Validaciones de permisos en todas las acciones
-// ✅ Mensajes específicos para colaboradores
-// ✅ Mantiene toda la funcionalidad para administradores
+/*
+ * COMPONENTE: UsersManager
+ * AUTOR: Alexander Echeverria
+ * 
+ * PROPÓSITO:
+ * Este componente proporciona una gestión completa y segura de usuarios del gimnasio con un 
+ * sistema avanzado de permisos que diferencia entre administradores y colaboradores.
+ * Permite visualizar, crear, editar y eliminar usuarios con controles de acceso específicos.
+ * 
+ * FUNCIONALIDADES PARA ADMINISTRADORES:
+ * 
+ * GESTIÓN COMPLETA DE USUARIOS:
+ * - Ver todos los usuarios del sistema (clientes, colaboradores, administradores)
+ * - Crear usuarios con cualquier rol disponible
+ * - Editar información completa de cualquier usuario
+ * - Eliminar usuarios del sistema
+ * - Activar/desactivar cuentas de usuario
+ * - Cambiar roles y permisos
+ * 
+ * DASHBOARD Y ESTADÍSTICAS:
+ * - Total de usuarios registrados en el sistema
+ * - Usuarios activos e inactivos
+ * - Nuevos usuarios del mes actual
+ * - Distribución por roles (cliente, colaborador, administrador)
+ * - Gráficos de tendencias y crecimiento
+ * 
+ * FUNCIONALIDADES PARA COLABORADORES:
+ * 
+ * ACCESO LIMITADO Y SEGURO:
+ * - Ver únicamente información de clientes (no otros colaboradores ni admins)
+ * - Crear nuevos usuarios solo con rol de cliente
+ * - Ver detalles completos de clientes sin poder editarlos
+ * - Indicadores visuales claros de permisos limitados
+ * - Acceso a estadísticas filtradas solo de clientes
+ * 
+ * RESTRICCIONES DE SEGURIDAD:
+ * - No puede editar usuarios existentes
+ * - No puede eliminar usuarios
+ * - No puede cambiar estados de usuarios
+ * - Solo visualización de datos sin acciones destructivas
+ * - Errores silenciados para mejor experiencia de usuario
+ * 
+ * SISTEMA DE BÚSQUEDA Y FILTROS:
+ * 
+ * BÚSQUEDA AVANZADA:
+ * - Búsqueda por nombre completo de usuario
+ * - Búsqueda por dirección de correo electrónico
+ * - Búsqueda en tiempo real sin necesidad de botones
+ * - Resultados instantáneos mientras el usuario escribe
+ * 
+ * FILTROS INTELIGENTES:
+ * - Filtro por rol (adaptado a permisos del usuario actual)
+ * - Filtro por estado (activo/inactivo)
+ * - Ordenamiento por fecha de creación, nombre, rol
+ * - Filtros persistentes durante la sesión
+ * 
+ * FORMULARIO DE CREACIÓN/EDICIÓN:
+ * 
+ * INFORMACIÓN PERSONAL:
+ * - Nombre y apellido con validación de caracteres especiales
+ * - Correo electrónico con validación de formato
+ * - Teléfono con formato internacional (+502)
+ * - Fecha de nacimiento con validación de edad mínima (13 años)
+ * 
+ * INFORMACIÓN DE SEGURIDAD:
+ * - Contraseña con validación de fortaleza (mínimo 6 caracteres, letras y números)
+ * - Selección de rol (limitada según permisos del usuario actual)
+ * - Estado activo/inactivo del usuario
+ * 
+ * CONTACTO DE EMERGENCIA:
+ * - Nombre del contacto de emergencia
+ * - Teléfono del contacto con validación
+ * - Campos opcionales pero recomendados para seguridad
+ * 
+ * VALIDACIONES Y SEGURIDAD:
+ * 
+ * VALIDACIONES EN TIEMPO REAL:
+ * - Nombres: Solo letras, espacios, guiones y acentos
+ * - Teléfonos: Solo números y caracteres (+, -, (), espacios)
+ * - Correos: Formato válido con verificación completa
+ * - Contraseñas: Combinación de letras y números
+ * - Edad: Mínimo 13 años calculado automáticamente
+ * 
+ * CONTROLES DE ACCESO:
+ * - Verificación de permisos antes de cada acción
+ * - Botones condicionados según rol del usuario
+ * - Filtrado automático de datos según permisos
+ * - Logs silenciosos para colaboradores sin permisos
+ * 
+ * INTERFAZ DE USUARIO:
+ * 
+ * VISTA DE ESCRITORIO:
+ * - Tabla completa con información organizada en columnas
+ * - Avatar personalizable o iniciales automáticas
+ * - Estados visuales con colores (verde=activo, rojo=inactivo)
+ * - Botones de acción con iconos descriptivos
+ * - Tooltips informativos en cada botón
+ * 
+ * VISTA MÓVIL:
+ * - Tarjetas responsivas para dispositivos pequeños
+ * - Información condensada pero completa
+ * - Botones adaptados para touch
+ * - Navegación optimizada para móviles
+ * 
+ * PAGINACIÓN Y RENDIMIENTO:
+ * - Paginación inteligente (10 usuarios en móvil, 20 en escritorio)
+ * - Navegación entre páginas con contadores
+ * - Indicadores de progreso durante la carga
+ * - Optimización de consultas según filtros
+ * 
+ * MODAL DE DETALLES COMPLETOS:
+ * 
+ * INFORMACIÓN EXPANDIDA:
+ * - Vista completa de todos los datos del usuario
+ * - Información personal organizada en secciones
+ * - Datos del sistema (fechas, IDs, configuraciones)
+ * - Contacto de emergencia si está configurado
+ * - Estadísticas adicionales (tiempo como usuario, tipo)
+ * 
+ * EXPERIENCIA VISUAL:
+ * - Avatar grande o iniciales prominentes
+ * - Códigos de color para roles y estados
+ * - Secciones organizadas con iconos descriptivos
+ * - Información de contexto y ayuda
+ * 
+ * CONEXIONES Y DEPENDENCIAS:
+ * 
+ * CONTEXTOS:
+ * - AuthContext: Sistema completo de autenticación y autorización
+ *   * Verificación de roles y permisos específicos
+ *   * Funciones de control de acceso granular
+ *   * Información del usuario actual
+ * - AppContext: Utilidades del sistema
+ *   * Notificaciones de éxito y error
+ *   * Formateo de fechas y monedas
+ *   * Detección de dispositivos móviles
+ * 
+ * SERVICIOS API:
+ * - apiService: Comunicación con el backend
+ * 
+ * ENDPOINTS CONECTADOS:
+ * - GET /api/users: Obtiene lista de usuarios con filtros y paginación
+ * - POST /api/users: Crea nuevos usuarios con validación
+ * - PUT /api/users/:id: Actualiza información de usuarios existentes
+ * - DELETE /api/users/:id: Elimina usuarios del sistema
+ * - GET /api/users/stats: Obtiene estadísticas y métricas de usuarios
+ * 
+ * FUNCIONES DE PERMISOS UTILIZADAS:
+ * - canViewUsersOfRole(role): Verifica si puede ver usuarios de un rol específico
+ * - getViewableUserRoles(): Obtiene lista de roles que puede visualizar
+ * - canCreateUsers(): Verifica permisos de creación
+ * - canEditUsers(): Verifica permisos de edición general
+ * - canDeleteUsers(): Verifica permisos de eliminación general
+ * - canViewUserDetails(user): Verifica si puede ver detalles de un usuario específico
+ * - canEditSpecificUser(user): Verifica si puede editar un usuario específico
+ * - canDeleteSpecificUser(user): Verifica si puede eliminar un usuario específico
+ * 
+ * PROPIEDADES RECIBIDAS:
+ * - onSave: Función callback ejecutada tras operaciones exitosas
+ * - onUnsavedChanges: Función callback para notificar cambios pendientes
+ * 
+ * TECNOLOGÍAS:
+ * - React con Hooks (useState, useEffect) para manejo de estado complejo
+ * - Lucide React para iconografía moderna y consistente
+ * - Tailwind CSS para estilos responsivos y utilities-first
+ * - JavaScript ES6+ con validaciones avanzadas
+ * - Expresiones regulares para validación de formatos
+ * - Cálculos de edad y fechas automáticos
+ * 
+ * IMPACTO EN EL NEGOCIO:
+ * - Control centralizado de acceso al sistema
+ * - Gestión segura de información de clientes
+ * - Trazabilidad completa de usuarios y cambios
+ * - Facilita el trabajo del personal con permisos apropiados
+ * - Protege información sensible con controles de acceso
+ * - Mejora la eficiencia operativa con búsquedas y filtros
+ * - Cumple con estándares de seguridad y privacidad
+ * 
+ * BENEFICIOS PARA EL USUARIO:
+ * - Interfaz intuitiva adaptada al rol del usuario
+ * - Feedback inmediato en todas las acciones
+ * - Formularios con validación en tiempo real
+ * - Búsqueda rápida y efectiva de usuarios
+ * - Vista detallada de información completa
+ * - Experiencia optimizada para móviles y escritorio
+ * - Operaciones seguras con confirmaciones apropiadas
+ */

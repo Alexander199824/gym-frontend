@@ -1,7 +1,6 @@
 // Autor: Alexander Echeverria
 // src/components/common/DashboardCard.js
 
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ExternalLink, TrendingUp, TrendingDown } from 'lucide-react';
@@ -21,7 +20,7 @@ const DashboardCard = ({
   className = ''
 }) => {
   
-  // CONFIGURACIÓN DE COLORES
+  // CONFIGURACIÓN DE COLORES TEMÁTICOS
   const colorConfig = {
     primary: {
       bg: 'bg-primary-50',
@@ -75,7 +74,7 @@ const DashboardCard = ({
   
   const colors = colorConfig[color] || colorConfig.primary;
   
-  // CONTENIDO DE LA TARJETA
+  // CONTENIDO PRINCIPAL DE LA TARJETA
   const cardContent = (
     <div className={`
       bg-white rounded-lg shadow-lg p-6 transition-all duration-200
@@ -84,7 +83,7 @@ const DashboardCard = ({
       ${className}
     `}>
       
-      {/* INDICADOR DE ALERTA */}
+      {/* INDICADOR DE ALERTA VISUAL */}
       {alert && (
         <div className="absolute top-2 right-2">
           <div className={`w-3 h-3 rounded-full ${colors.icon} animate-pulse`}></div>
@@ -92,7 +91,7 @@ const DashboardCard = ({
       )}
       
       <div className="flex items-center">
-        {/* ICONO */}
+        {/* ICONO TEMÁTICO */}
         <div className={`
           w-12 h-12 rounded-lg flex items-center justify-center
           ${colors.icon}
@@ -100,7 +99,7 @@ const DashboardCard = ({
           <Icon className="w-6 h-6 text-white" />
         </div>
         
-        {/* CONTENIDO */}
+        {/* CONTENIDO PRINCIPAL */}
         <div className="ml-4 flex-1">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-gray-600">
@@ -111,7 +110,7 @@ const DashboardCard = ({
             )}
           </div>
           
-          {/* VALOR PRINCIPAL */}
+          {/* VALOR PRINCIPAL CON FORMATO EN QUETZALES */}
           <div className="flex items-center mt-1">
             {isLoading ? (
               <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
@@ -121,7 +120,7 @@ const DashboardCard = ({
               </p>
             )}
             
-            {/* CAMBIO/TENDENCIA */}
+            {/* INDICADOR DE CAMBIO Y TENDENCIA */}
             {change && !isLoading && (
               <div className={`
                 ml-2 flex items-center text-sm
@@ -137,7 +136,7 @@ const DashboardCard = ({
             )}
           </div>
           
-          {/* SUBTÍTULO */}
+          {/* SUBTÍTULO DESCRIPTIVO */}
           {subtitle && (
             <p className="text-xs text-gray-500 mt-1">
               {subtitle}
@@ -146,7 +145,7 @@ const DashboardCard = ({
         </div>
       </div>
       
-      {/* BARRA DE PROGRESO (opcional) */}
+      {/* BARRA DE PROGRESO PARA ALERTAS */}
       {alert && (
         <div className="mt-4">
           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -160,7 +159,7 @@ const DashboardCard = ({
     </div>
   );
   
-  // WRAPPER CON LINK O CLICK
+  // ENVOLVER CON ENLACE O ACCIÓN DE CLICK
   if (link) {
     return (
       <Link to={link} className="block">
@@ -180,7 +179,7 @@ const DashboardCard = ({
   return cardContent;
 };
 
-// VARIANTE: Tarjeta con gráfico pequeño
+// VARIANTE: Tarjeta con gráfico integrado
 export const DashboardCardWithChart = ({ 
   title, 
   value, 
@@ -200,7 +199,7 @@ export const DashboardCardWithChart = ({
       link={link}
       className="pb-4"
     >
-      {/* Mini gráfico */}
+      {/* Mini gráfico de tendencias */}
       <div className="mt-4 h-8">
         <div className="flex items-end justify-between h-full space-x-1">
           {chartData.slice(-7).map((point, index) => (
@@ -216,7 +215,7 @@ export const DashboardCardWithChart = ({
   );
 };
 
-// VARIANTE: Tarjeta compacta
+// VARIANTE: Tarjeta compacta para espacios reducidos
 export const CompactDashboardCard = ({ 
   title, 
   value, 
@@ -259,23 +258,23 @@ export const CompactDashboardCard = ({
   );
 };
 
-// VARIANTE: Tarjeta con estado
+// VARIANTE: Tarjeta con estado y acciones
 export const StatusDashboardCard = ({ 
   title, 
   value, 
   icon: Icon, 
-  status = 'success', // success, warning, error, info
+  status = 'exitoso', // exitoso, advertencia, error, informativo
   description = null,
   actions = null 
 }) => {
   const statusConfig = {
-    success: {
+    exitoso: {
       bg: 'bg-green-50',
       border: 'border-green-200',
       icon: 'bg-green-500',
       text: 'text-green-600'
     },
-    warning: {
+    advertencia: {
       bg: 'bg-yellow-50',
       border: 'border-yellow-200',
       icon: 'bg-yellow-500',
@@ -287,7 +286,7 @@ export const StatusDashboardCard = ({
       icon: 'bg-red-500',
       text: 'text-red-600'
     },
-    info: {
+    informativo: {
       bg: 'bg-blue-50',
       border: 'border-blue-200',
       icon: 'bg-blue-500',
@@ -295,7 +294,7 @@ export const StatusDashboardCard = ({
     }
   };
   
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig.informativo;
   
   return (
     <div className={`
@@ -336,105 +335,130 @@ export const StatusDashboardCard = ({
 export default DashboardCard;
 
 /*
+==========================================
 DOCUMENTACIÓN DEL COMPONENTE DashboardCard
+==========================================
 
-PROPÓSITO:
+PROPÓSITO GENERAL:
 Este componente proporciona una tarjeta reutilizable y altamente personalizable para mostrar
-métricas, estadísticas y datos clave en los diferentes dashboards de la aplicación. Incluye
-múltiples variantes especializadas para diferentes casos de uso.
+métricas, estadísticas y datos clave en los diferentes paneles de control de la aplicación.
+Incluye múltiples variantes especializadas para diferentes casos de uso del gimnasio.
+
+QUÉ MUESTRA AL USUARIO:
+- Tarjetas visuales con métricas importantes como:
+  * Número de miembros activos
+  * Ingresos mensuales en quetzales (Q)
+  * Asistencia diaria al gimnasio
+  * Estadísticas de clases y entrenadores
+  * Alertas de equipamiento y mantenimiento
+- Indicadores de tendencia (aumento/disminución) con colores verde/rojo
+- Iconos temáticos para identificar rápidamente el tipo de métrica
+- Estados de carga con animaciones mientras se obtienen los datos
+- Enlaces a páginas detalladas cuando es aplicable
+
+VARIANTES DISPONIBLES PARA EL USUARIO:
+1. DashboardCard: Tarjeta base para métricas generales
+2. DashboardCardWithChart: Incluye mini gráfico de tendencias de los últimos 7 días
+3. CompactDashboardCard: Versión compacta para pantallas móviles o espacios reducidos
+4. StatusDashboardCard: Con estados específicos (exitoso, advertencia, error, informativo)
 
 FUNCIONALIDADES PRINCIPALES:
-- Tarjeta base con icono, título, valor y opciones de personalización
-- Sistema de colores temáticos configurables
-- Estados de carga con animaciones
-- Indicadores de tendencias (aumento/disminución)
-- Alertas visuales con animaciones
-- Soporte para enlaces y acciones onClick
-- Múltiples variantes especializadas
+- Sistema de colores temáticos para categorizar información
+- Animaciones suaves para transiciones y estados de carga
+- Indicadores visuales de alertas con pulsos animados
+- Soporte para navegación (enlaces internos)
+- Acciones personalizables al hacer clic
+- Barras de progreso para alertas críticas
+- Formateo automático de valores monetarios en quetzales
 
-VARIANTES DISPONIBLES:
-- DashboardCard: Componente base principal
-- DashboardCardWithChart: Tarjeta con mini gráfico integrado
-- CompactDashboardCard: Versión compacta para espacios reducidos
-- StatusDashboardCard: Tarjeta con estados y acciones
-
-CONEXIONES CON OTROS ARCHIVOS:
+ARCHIVOS A LOS QUE SE CONECTA:
 
 COMPONENTES IMPORTADOS:
-- LoadingSpinner (./LoadingSpinner): Componente de carga
-- Link (react-router-dom): Para navegación interna
-- Iconos (lucide-react): ExternalLink, TrendingUp, TrendingDown
+- './LoadingSpinner': Componente de animación de carga
+- 'react-router-dom': Para navegación entre páginas (Link)
+- 'lucide-react': Iconos para enlaces externos y tendencias
+  * ExternalLink: Icono para enlaces externos
+  * TrendingUp: Flecha hacia arriba para aumentos
+  * TrendingDown: Flecha hacia abajo para disminuciones
 
-ARCHIVOS QUE USAN ESTE COMPONENTE:
-- AdminDashboard: Panel de administración con métricas del gimnasio
-- StaffDashboard: Panel del personal con estadísticas de trabajo
-- ClientDashboard: Panel del cliente con métricas personales
-- Reports y páginas de análisis
+ARCHIVOS QUE UTILIZAN ESTE COMPONENTE:
+- src/pages/admin/AdminDashboard.js: Panel principal de administración
+- src/pages/staff/StaffDashboard.js: Panel del personal del gimnasio
+- src/pages/client/ClientDashboard.js: Panel personal del cliente
+- src/pages/reports/: Páginas de reportes y análisis
+- src/components/charts/: Componentes de gráficos que incluyen métricas
 
-PROPS DEL COMPONENTE BASE:
-- title: Título de la métrica
-- value: Valor principal a mostrar
-- icon: Componente de icono (Lucide React)
-- color: Tema de color ('primary', 'blue', 'green', etc.)
-- isLoading: Estado de carga
-- subtitle: Texto descriptivo adicional
-- change: Objeto con cambios/tendencias { value, type }
-- link: Ruta para navegación
-- alert: Indicador de alerta
-- onClick: Función de click personalizada
-- className: Clases CSS adicionales
+CONTEXTOS RELACIONADOS:
+- src/contexts/AuthContext.js: Para determinar permisos y datos del usuario
+- src/contexts/GymContext.js: Datos del gimnasio (miembros, clases, equipos)
+- src/contexts/StatsContext.js: Estadísticas y métricas en tiempo real
 
-CONFIGURACIÓN DE COLORES:
-Soporta 8 temas de color predefinidos:
-- primary: Colores primarios de la marca
-- blue: Tonos azules
-- green: Tonos verdes (típicamente para éxito/ganancias)
-- yellow: Tonos amarillos (advertencias)
-- orange: Tonos naranjas
-- red: Tonos rojos (errores/alertas críticas)
-- purple: Tonos púrpuras
-- gray: Tonos grises (neutros)
+SERVICIOS DE DATOS:
+- src/services/apiService.js: Para obtener datos del backend
+- src/services/statsService.js: Cálculos específicos de estadísticas
+- src/services/formatService.js: Formateo de números y moneda en quetzales
+
+CONFIGURACIÓN DE COLORES DISPONIBLES:
+- primary: Colores principales de la marca del gimnasio
+- blue: Para información general y estadísticas neutras
+- green: Para métricas positivas, ingresos, membresías activas
+- yellow: Para advertencias y alertas de mantenimiento
+- orange: Para notificaciones importantes
+- red: Para errores, alertas críticas, equipos fuera de servicio
+- purple: Para métricas especiales o promociones
+- gray: Para datos neutros o inactivos
+
+PROPS PRINCIPALES QUE RECIBE:
+- title: Título descriptivo de la métrica (ej: "Miembros Activos")
+- value: Valor a mostrar (ej: "247", "Q 15,450")
+- icon: Icono de Lucide React para identificar visualmente
+- color: Tema de color de la lista anterior
+- isLoading: Muestra animación de carga
+- subtitle: Texto adicional explicativo
+- change: Objeto con cambios porcentuales { value: 12, type: 'increase' }
+- link: Ruta para navegar a detalles
+- alert: Activa estado de alerta visual
+- onClick: Función personalizada al hacer clic
+
+CASOS DE USO ESPECÍFICOS EN EL GIMNASIO:
+- Membresías: Activas, vencidas, nuevas del mes
+- Finanzas: Ingresos diarios/mensuales en quetzales, pagos pendientes
+- Asistencia: Personas en el gimnasio, clases del día, ocupación
+- Personal: Entrenadores activos, clases programadas
+- Equipamiento: Estado de máquinas, mantenimientos pendientes
+- Clientes: Nuevos registros, renovaciones, cumpleaños
+
+FORMATO DE MONEDA:
+- Todos los valores monetarios se muestran en quetzales guatemaltecos (Q)
+- Formato: Q 1,500.00 para cantidades exactas
+- Formato compacto: Q 15K para miles, Q 1.5M para millones
 
 CARACTERÍSTICAS TÉCNICAS:
-- Animaciones CSS con Tailwind
-- Responsive design
-- Estados hover interactivos
-- Barras de progreso animadas para alertas
-- Sistema de iconos flexible
-- Soporte para datos de gráficos (variante WithChart)
-
-CASOS DE USO TÍPICOS:
-- Métricas de membresías activas
-- Ingresos y estadísticas financieras (en quetzales)
-- Asistencia y ocupación del gimnasio
-- Estadísticas de entrenadores y clases
-- Alertas de mantenimiento de equipos
-- KPIs del negocio
-- Progreso personal del cliente
-
-ESTRUCTURA VISUAL:
-- Header con título y enlace opcional
-- Icono temático a la izquierda
-- Valor principal prominente
-- Indicadores de tendencia opcionales
-- Subtítulo descriptivo
-- Barra de progreso para alertas
+- Responsive: Se adapta a móvil, tablet y escritorio
+- Accesible: Colores con contraste adecuado, navegación por teclado
+- Performante: Animaciones CSS optimizadas
+- Modular: Fácil de extender con nuevas variantes
+- Typed: Preparado para TypeScript si se migra en el futuro
 
 INTEGRACIÓN CON DASHBOARDS:
-Se utiliza principalmente en:
-- Páginas de resumen ejecutivo
-- Paneles de monitoreo en tiempo real
-- Reportes de rendimiento
-- Interfaces de administración
-- Vistas de cliente personalizado
+Este componente es fundamental en:
+- Página de inicio del administrador (métricas generales)
+- Panel de entrenadores (sus clases y clientes)
+- Vista del cliente (su progreso y estadísticas)
+- Reportes ejecutivos (KPIs del negocio)
+- Alertas de sistema (mantenimiento, vencimientos)
 
-MONEDA:
-Cuando se muestran valores monetarios, el componente está configurado para
-trabajar con quetzales guatemaltecos (Q) según el contexto de la aplicación.
+FLUJO DE DATOS TÍPICO:
+1. El dashboard padre obtiene datos del backend
+2. Formatea los valores según el tipo (moneda, porcentajes, números)
+3. Pasa las props necesarias al DashboardCard
+4. El componente renderiza con el color y estado apropiado
+5. Si hay click/enlace, navega a la página de detalles correspondiente
 
-ACCESIBILIDAD:
-- Colores con suficiente contraste
-- Texto descriptivo en iconos
-- Navegación por teclado soportada
-- Estados visuales claros
+MONITOREO Y ALERTAS:
+Las tarjetas pueden mostrar:
+- Estados normales: Verde para métricas saludables
+- Advertencias: Amarillo para situaciones que requieren atención
+- Errores: Rojo para problemas críticos que necesitan acción inmediata
+- Información: Azul para datos neutrales o informativos
 */

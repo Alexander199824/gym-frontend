@@ -1,6 +1,5 @@
-// src/pages/auth/LoginPage.js
-// FUNCIÓN: Login con Google OAuth REACTIVADO
-// CAMBIOS: ✅ Google OAuth completamente funcional
+// Autor: Alexander Echeverria
+// Archivo: src/pages/auth/LoginPage.js
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
@@ -24,7 +23,7 @@ import { useApp } from '../../contexts/AppContext';
 import GymLogo from '../../components/common/GymLogo';
 import useGymConfig from '../../hooks/useGymConfig';
 
-// 📝 ESQUEMA DE VALIDACIÓN PARA LOGIN TRADICIONAL
+// Esquema de validación para inicio de sesión tradicional
 const loginSchema = yup.object({
   email: yup
     .string()
@@ -45,7 +44,7 @@ const LoginPage = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   
-  // 📱 Estados locales
+  // Estados locales del componente
   const [loginMethod, setLoginMethod] = useState('credentials');
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -53,10 +52,10 @@ const LoginPage = () => {
   const [oauthError, setOauthError] = useState(null);
   const [loginError, setLoginError] = useState(null);
   
-  // 🎯 Obtener ruta de redirección solicitada
+  // Obtener ruta de redirección solicitada
   const from = location.state?.from?.pathname || null;
   
-  // 📋 Configuración del formulario tradicional
+  // Configuración del formulario tradicional
   const {
     register,
     handleSubmit,
@@ -72,10 +71,10 @@ const LoginPage = () => {
     }
   });
   
-  // 🔄 Redirigir si ya está autenticado
+  // Redirigir si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('👤 Usuario ya autenticado, redirigiendo...');
+      console.log('Usuario ya autenticado, redirigiendo...');
       
       if (from) {
         navigate(from, { replace: true });
@@ -85,7 +84,7 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, navigate, from]);
   
-  // 🔍 Manejar callback de OAuth Google
+  // Manejar callback de OAuth Google
   useEffect(() => {
     const token = searchParams.get('token');
     const error = searchParams.get('error');
@@ -95,7 +94,7 @@ const LoginPage = () => {
     }
   }, [searchParams]);
   
-  // 🔐 Función para manejar callback de Google OAuth
+  // Función para manejar callback de Google OAuth
   const handleOAuthCallback = async () => {
     const token = searchParams.get('token');
     const refreshToken = searchParams.get('refresh');
@@ -117,7 +116,7 @@ const LoginPage = () => {
     
     if (token && refreshToken && loginType === 'google') {
       try {
-        console.log('🎉 OAuth Google exitoso:', {
+        console.log('OAuth Google exitoso:', {
           role,
           userId,
           name: decodeURIComponent(name || ''),
@@ -145,7 +144,7 @@ const LoginPage = () => {
     }
   };
   
-  // 🏠 Obtener ruta de dashboard según rol
+  // Obtener ruta de dashboard según rol
   const getDashboardPathByRole = (role) => {
     switch (role) {
       case 'admin':
@@ -159,7 +158,7 @@ const LoginPage = () => {
     }
   };
   
-  // ✅ Manejo de login con credenciales
+  // Manejo de inicio de sesión con credenciales
   const onCredentialsSubmit = async (data) => {
     try {
       setIsCredentialsLoading(true);
@@ -171,7 +170,7 @@ const LoginPage = () => {
         password: data.password
       };
       
-      console.log('🔑 Intentando login para:', cleanData.email);
+      console.log('Intentando inicio de sesión para:', cleanData.email);
       
       const result = await login(cleanData);
       
@@ -199,7 +198,7 @@ const LoginPage = () => {
       }
       
     } catch (error) {
-      console.error('❌ Error en login:', error.message);
+      console.error('Error en inicio de sesión:', error.message);
       
       let errorMessage = 'Error al iniciar sesión. Intenta nuevamente.';
       
@@ -227,7 +226,7 @@ const LoginPage = () => {
     }
   };
   
-  // 🚀 ✅ GOOGLE OAUTH REACTIVADO - Iniciar Google OAuth
+  // Iniciar Google OAuth
   const handleGoogleLogin = () => {
     try {
       setIsGoogleLoading(true);
@@ -239,25 +238,25 @@ const LoginPage = () => {
       const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
       const googleLoginUrl = `${baseUrl}/api/auth/google`;
       
-      console.log('🚀 Iniciando OAuth Google:', googleLoginUrl);
+      console.log('Iniciando OAuth Google:', googleLoginUrl);
       
       // Guardar el estado actual para redirigir después del login
       if (from) {
         sessionStorage.setItem('oauth_redirect_after_login', from);
       }
       
-      // ✅ REACTIVADO: Redirigir a Google OAuth
+      // Redirigir a Google OAuth
       window.location.href = googleLoginUrl;
       
     } catch (error) {
-      console.error('❌ Error al iniciar Google OAuth:', error);
+      console.error('Error al iniciar Google OAuth:', error);
       showError('Error al conectar con Google. Intenta nuevamente.');
       setIsGoogleLoading(false);
       setLoginMethod('credentials');
     }
   };
   
-  // 📱 Mostrar estado de carga durante autenticación
+  // Mostrar estado de carga durante autenticación
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -290,7 +289,7 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen flex">
       
-      {/* 🏋️ LADO IZQUIERDO - Branding Elite Fitness */}
+      {/* LADO IZQUIERDO - Branding Elite Fitness */}
       <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:justify-center lg:px-12 bg-elite-gradient relative overflow-hidden">
         
         {/* Elementos decorativos */}
@@ -326,7 +325,7 @@ const LoginPage = () => {
         </div>
       </div>
       
-      {/* 📱 LADO DERECHO - Formularios de Login */}
+      {/* LADO DERECHO - Formularios de Inicio de Sesión */}
       <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-12 bg-white relative">
         
         {/* Botón de volver (móvil) */}
@@ -342,7 +341,7 @@ const LoginPage = () => {
         
         <div className="mx-auto w-full max-w-md">
           
-          {/* 🏠 Logo móvil */}
+          {/* Logo móvil */}
           <div className="flex justify-center mb-8 lg:hidden">
             {config && config.logo && config.logo.url ? (
               <img 
@@ -355,7 +354,7 @@ const LoginPage = () => {
             )}
           </div>
           
-          {/* 📝 Título */}
+          {/* Título */}
           <div className="text-center mb-10">
             <h2 className="text-3xl font-display font-bold text-gray-900 mb-3">
               Bienvenido de vuelta
@@ -365,7 +364,7 @@ const LoginPage = () => {
             </p>
           </div>
           
-          {/* ❌ Error general de login */}
+          {/* Error general de inicio de sesión */}
           {loginError && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div className="flex items-center">
@@ -382,7 +381,7 @@ const LoginPage = () => {
             </div>
           )}
           
-          {/* ❌ Error de OAuth */}
+          {/* Error de OAuth */}
           {oauthError && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div className="flex items-center">
@@ -399,7 +398,7 @@ const LoginPage = () => {
             </div>
           )}
           
-          {/* 🚀 ✅ BOTÓN DE GOOGLE OAUTH REACTIVADO */}
+          {/* BOTÓN DE GOOGLE OAUTH */}
           <div className="mb-6">
             <button
               onClick={handleGoogleLogin}
@@ -422,7 +421,7 @@ const LoginPage = () => {
             </button>
           </div>
           
-          {/* 📏 Separador */}
+          {/* Separador */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -434,11 +433,11 @@ const LoginPage = () => {
             </div>
           </div>
           
-          {/* 🔐 FORMULARIO DE LOGIN TRADICIONAL */}
+          {/* FORMULARIO DE INICIO DE SESIÓN TRADICIONAL */}
           <div className="space-y-6">
             <form onSubmit={handleSubmit(onCredentialsSubmit)} className="space-y-6">
               
-              {/* 📧 Email */}
+              {/* Email */}
               <div className="form-group">
                 <label htmlFor="email" className="form-label form-label-required">
                   Correo Electrónico
@@ -462,7 +461,7 @@ const LoginPage = () => {
                 )}
               </div>
               
-              {/* 🔒 Contraseña */}
+              {/* Contraseña */}
               <div className="form-group">
                 <label htmlFor="password" className="form-label form-label-required">
                   Contraseña
@@ -498,7 +497,7 @@ const LoginPage = () => {
                 )}
               </div>
               
-              {/* 🔘 Botón de login tradicional */}
+              {/* Botón de inicio de sesión tradicional */}
               <button
                 type="submit"
                 disabled={isCredentialsLoading || isSubmitting || isGoogleLoading}
@@ -516,10 +515,10 @@ const LoginPage = () => {
               
             </form>
             
-            {/* 💡 Información adicional */}
+            {/* Información adicional */}
             <div className="text-center">
               <p className="text-sm text-gray-600 mb-4">
-                ✅ Google OAuth activo y funcionando
+                Google OAuth activo y funcionando
               </p>
               <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
                 <div className="flex items-center">
@@ -538,7 +537,7 @@ const LoginPage = () => {
             </div>
           </div>
           
-          {/* 🔗 Enlaces adicionales */}
+          {/* Enlaces adicionales */}
           <div className="mt-8 text-center">
             <p className="text-gray-600 mb-4">
               ¿No tienes una cuenta?
@@ -551,7 +550,7 @@ const LoginPage = () => {
             </Link>
           </div>
           
-          {/* 🔙 Volver al inicio */}
+          {/* Volver al inicio */}
           <div className="mt-6 text-center">
             <Link 
               to="/" 
@@ -569,3 +568,76 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+
+/*
+=============================================================================
+PROPÓSITO DEL COMPONENTE
+=============================================================================
+
+Este componente LoginPage es la página principal de inicio de sesión del 
+sistema Elite Fitness Club. Proporciona una interfaz completa para que los 
+usuarios accedan a su cuenta mediante dos métodos:
+
+1. Autenticación con Google OAuth (opción principal)
+2. Inicio de sesión tradicional con email y contraseña
+
+FUNCIONALIDADES PRINCIPALES:
+- Validación de formularios con react-hook-form y yup
+- Integración con Google OAuth para inicio de sesión rápido
+- Manejo de estados de carga y errores
+- Redirección inteligente basada en roles de usuario
+- Diseño responsivo adaptado para móvil y escritorio
+- Gestión de tokens de autenticación y sesión
+
+LO QUE VE EL USUARIO:
+- Lado izquierdo: Branding del gimnasio con logo y descripción
+- Lado derecho: Formulario de inicio de sesión con:
+  * Botón principal "Continuar con Google"
+  * Separador visual
+  * Formulario tradicional con email y contraseña
+  * Enlaces para crear cuenta nueva
+  * Botón para regresar a la página principal
+
+ARCHIVOS Y COMPONENTES CONECTADOS:
+=============================================================================
+
+CONTEXTOS UTILIZADOS:
+- AuthContext (../../contexts/AuthContext)
+  * Maneja la lógica de autenticación global
+  * Proporciona métodos login(), isAuthenticated, isLoading
+  
+- AppContext (../../contexts/AppContext)
+  * Gestiona notificaciones globales (showError, showSuccess)
+  * Detecta si es dispositivo móvil (isMobile)
+
+HOOKS PERSONALIZADOS:
+- useGymConfig (../../hooks/useGymConfig)
+  * Obtiene configuración del gimnasio (logo, nombre, descripción)
+
+COMPONENTES IMPORTADOS:
+- GymLogo (../../components/common/GymLogo)
+  * Logo por defecto cuando no hay configuración personalizada
+
+RUTAS DE NAVEGACIÓN:
+- "/" - Página principal del sitio
+- "/register" - Página de registro de nuevos usuarios
+- "/dashboard" - Dashboard general (redirige según rol)
+- "/dashboard/admin" - Panel de administrador
+- "/dashboard/staff" - Panel de personal/colaboradores  
+- "/dashboard/client" - Panel de clientes
+
+INTEGRACIÓN CON BACKEND:
+- Endpoint Google OAuth: ${API_URL}/api/auth/google
+- Utiliza variables de entorno para configuración
+- Maneja tokens JWT y refresh tokens
+- Gestiona localStorage para persistencia de sesión
+
+VALIDACIONES IMPLEMENTADAS:
+- Email: formato válido y requerido
+- Contraseña: mínimo 6 caracteres y requerida
+- Manejo de errores de red y autenticación
+- Estados de carga para UX optimizada
+
+Este componente es crucial para el flujo de autenticación y representa
+el punto de entrada principal para usuarios registrados en el sistema.
+*/

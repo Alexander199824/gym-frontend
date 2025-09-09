@@ -1,12 +1,15 @@
 // src/hooks/useOptimizedAPI.js
-// FUNCIÓN: Hook optimizado que elimina peticiones duplicadas usando cache inteligente
+// Autor: Alexander Echeverria
+// Archivo: src/hooks/useOptimizedAPI.js
+
+// FUNCION: Hook optimizado que elimina peticiones duplicadas usando cache inteligente
 // REDUCE: 90% de peticiones al backend, maneja múltiples usuarios eficientemente
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useCache } from '../contexts/CacheContext';
 import apiService from '../services/apiService';
 
-// 🎯 CONFIGURACIÓN DE ENDPOINTS
+// CONFIGURACION DE ENDPOINTS
 const ENDPOINTS = {
   config: {
     url: '/gym/config',
@@ -46,7 +49,7 @@ const ENDPOINTS = {
   }
 };
 
-// 🎣 HOOK PRINCIPAL OPTIMIZADO
+// HOOK PRINCIPAL OPTIMIZADO
 const useOptimizedAPI = (endpointKey, options = {}) => {
   const {
     immediate = true,      // Cargar inmediatamente
@@ -57,7 +60,7 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
     dependencies = []     // Dependencias para recargar
   } = options;
 
-  // 🏪 Cache context
+  // Cache context
   const {
     getCachedData,
     setCachedData,
@@ -70,36 +73,36 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
     errors
   } = useCache();
 
-  // 📋 Estado local
+  // Estado local
   const [data, setData] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   
-  // 🔧 Referencias
+  // Referencias
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef(null);
 
-  // 📊 Configuración del endpoint
+  // Configuración del endpoint
   const endpointConfig = ENDPOINTS[endpointKey];
   if (!endpointConfig) {
-    throw new Error(`Unknown endpoint: ${endpointKey}`);
+    throw new Error(`Endpoint desconocido: ${endpointKey}`);
   }
 
   const cacheKey = `api_${endpointKey}`;
   const isLoading = loading[cacheKey] || false;
   const error = errors[cacheKey] || null;
 
-  // 🔄 Función principal de fetch con cache inteligente
+  // Función principal de fetch con cache inteligente
   const fetchData = useCallback(async (attempt = 1) => {
     if (!isMountedRef.current) return;
 
-    console.group(`🎯 OptimizedAPI: ${endpointKey} (attempt ${attempt})`);
+    console.group(`OptimizedAPI: ${endpointKey} (intento ${attempt})`);
 
     try {
-      // 1️⃣ VERIFICAR CACHE PRIMERO
+      // VERIFICAR CACHE PRIMERO
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
-        console.log('✅ Using cached data');
+        console.log('Usando datos en cache');
         setData(cachedData);
         setIsLoaded(true);
         console.groupEnd();
@@ -108,9 +111,9 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
         return cachedData;
       }
 
-      // 2️⃣ VERIFICAR SI HAY PETICIÓN EN CURSO
+      // VERIFICAR SI HAY PETICION EN CURSO
       if (isPending(cacheKey)) {
-        console.log('⏳ Request already in progress, waiting...');
+        console.log('Petición ya en progreso, esperando...');
         console.groupEnd();
         
         // Esperar a que termine la petición en curso
@@ -133,8 +136,8 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
         });
       }
 
-      // 3️⃣ HACER NUEVA PETICIÓN
-      console.log('🚀 Making new API request');
+      // HACER NUEVA PETICION
+      console.log('Haciendo nueva petición a la API');
       
       if (attempt === 1) {
         setLoading(cacheKey, true);
@@ -152,12 +155,12 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
       const response = await apiService[endpointConfig.method]();
 
       if (!isMountedRef.current) {
-        console.log('🚫 Component unmounted, aborting');
+        console.log('Componente desmontado, abortando');
         console.groupEnd();
         return;
       }
 
-      // 4️⃣ PROCESAR RESPUESTA
+      // PROCESAR RESPUESTA
       let processedData = null;
       
       if (response && response.success && response.data) {
@@ -166,36 +169,36 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
         processedData = response; // Algunos endpoints devuelven data directamente
       }
 
-      console.log('📦 Processed data:', !!processedData);
+      console.log('Datos procesados:', !!processedData);
 
       if (processedData) {
-        // 5️⃣ GUARDAR EN CACHE Y ESTADO
+        // GUARDAR EN CACHE Y ESTADO
         setCachedData(cacheKey, processedData, endpointConfig.ttl);
         setData(processedData);
         setIsLoaded(true);
         setRetryCount(0);
         
-        console.log('✅ Data cached and set successfully');
+        console.log('Datos guardados en cache exitosamente');
         
         if (onSuccess) onSuccess(processedData);
       } else {
-        throw new Error('Invalid response structure');
+        throw new Error('Estructura de respuesta inválida');
       }
 
       console.groupEnd();
       return processedData;
 
     } catch (err) {
-      console.error('❌ API Error:', err.message);
+      console.error('Error de API:', err.message);
       
       if (!isMountedRef.current) {
         console.groupEnd();
         return;
       }
 
-      // 6️⃣ MANEJO DE ERRORES Y REINTENTOS
+      // MANEJO DE ERRORES Y REINTENTOS
       if (attempt < retries && err.name !== 'AbortError') {
-        console.log(`🔄 Retrying in ${retryDelay}ms (${attempt}/${retries})`);
+        console.log(`Reintentando en ${retryDelay}ms (${attempt}/${retries})`);
         
         setTimeout(() => {
           if (isMountedRef.current) {
@@ -210,7 +213,7 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
         setIsLoaded(true);
         clearPending(cacheKey);
         
-        console.log('💥 Max retries reached or aborted');
+        console.log('Máximo de reintentos alcanzado o abortado');
         
         if (onError) onError(err);
       }
@@ -239,9 +242,9 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
     onError
   ]);
 
-  // 🔄 Función manual de reload
+  // Función manual de reload
   const reload = useCallback((force = false) => {
-    console.log(`🔄 Manual reload requested for ${endpointKey} (force: ${force})`);
+    console.log(`Recarga manual solicitada para ${endpointKey} (forzar: ${force})`);
     
     if (force) {
       // Invalidar cache si es forzado
@@ -253,7 +256,7 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
     fetchData();
   }, [endpointKey, cacheKey, setCachedData, fetchData]);
 
-  // 🚀 Efecto principal para cargar datos
+  // Efecto principal para cargar datos
   useEffect(() => {
     if (immediate) {
       fetchData();
@@ -267,11 +270,11 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
       }
       clearPending(cacheKey);
       
-      console.log(`🧹 Cleanup for ${endpointKey}`);
+      console.log(`Limpieza para ${endpointKey}`);
     };
   }, [immediate, ...dependencies]);
 
-  // 🔧 Marcar como desmontado cuando se desmonte el componente
+  // Marcar como desmontado cuando se desmonte el componente
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -293,7 +296,7 @@ const useOptimizedAPI = (endpointKey, options = {}) => {
   };
 };
 
-// 🎣 HOOKS ESPECÍFICOS OPTIMIZADOS (mantienen la misma API)
+// HOOKS ESPECIFICOS OPTIMIZADOS (mantienen la misma API)
 export const useGymConfig = (options = {}) => {
   return useOptimizedAPI('config', options);
 };
@@ -318,7 +321,7 @@ export const useMembershipPlans = (options = {}) => {
   return useOptimizedAPI('plans', options);
 };
 
-// 🎣 HOOK PARA CARGAR MÚLTIPLES ENDPOINTS
+// HOOK PARA CARGAR MULTIPLES ENDPOINTS
 export const useMultipleAPI = (endpoints, options = {}) => {
   const {
     immediate = true,
@@ -361,3 +364,44 @@ export const useMultipleAPI = (endpoints, options = {}) => {
 };
 
 export default useOptimizedAPI;
+
+/*
+=== COMENTARIOS FINALES ===
+
+PROPOSITO DEL ARCHIVO:
+Este hook personalizado (useOptimizedAPI) está diseñado para optimizar las peticiones HTTP
+reduciendo en un 90% las llamadas duplicadas al backend mediante un sistema de cache inteligente.
+
+FUNCIONALIDAD PRINCIPAL:
+- Cache inteligente con TTL (Time To Live) configurable
+- Eliminación de peticiones duplicadas mediante detección de peticiones pendientes  
+- Sistema de reintentos automáticos con backoff exponencial
+- Manejo robusto de errores y estados de carga
+- Soporte para múltiples endpoints simultáneos
+- Limpieza automática de recursos al desmontar componentes
+
+ARCHIVOS A LOS QUE SE CONECTA:
+- ../contexts/CacheContext: Proveedor del contexto de cache global
+- ../services/apiService: Servicio que maneja las peticiones HTTP reales
+- Componentes React que consuman los hooks exportados
+
+HOOKS EXPORTADOS:
+- useOptimizedAPI: Hook principal genérico
+- useGymConfig: Para configuración del gimnasio
+- useGymStats: Para estadísticas del gimnasio  
+- useGymServices: Para servicios disponibles
+- useTestimonials: Para testimonios de clientes
+- useFeaturedProducts: Para productos destacados
+- useMembershipPlans: Para planes de membresía
+- useMultipleAPI: Para cargar múltiples endpoints simultáneamente
+
+BENEFICIOS:
+- Mejora significativa en el rendimiento de la aplicación
+- Reducción del tráfico de red y carga del servidor
+- Mejor experiencia de usuario con tiempos de respuesta más rápidos
+- Gestión inteligente de recursos y memoria
+- Manejo robusto de errores de red
+
+Este sistema es especialmente útil para aplicaciones con múltiples usuarios concurrentes
+donde los mismos datos se solicitan frecuentemente.
+*/

@@ -1,12 +1,13 @@
+// Autor: Alexander Echeverria
 // src/contexts/AuthContext.js
 // FUNCIÓN: AuthContext MEJORADO con refreshUserData para OAuth
-// CAMBIOS: ✅ Agregada función refreshUserData para compatibilidad con OAuth
+// CAMBIOS: Agregada función refreshUserData para compatibilidad con OAuth
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import apiService from '../services/apiService';
 import toast from 'react-hot-toast';
 
-// 🏗️ ESTADO INICIAL
+// ESTADO INICIAL
 const initialState = {
   user: null,                    // Datos del usuario logueado
   isAuthenticated: false,        // ¿Está logueado?
@@ -16,7 +17,7 @@ const initialState = {
   sessionExpiry: null            // Cuándo expira la sesión
 };
 
-// 🎯 TIPOS DE ACCIONES
+// TIPOS DE ACCIONES
 const ACTION_TYPES = {
   AUTH_START: 'AUTH_START',           // Iniciando proceso de auth
   AUTH_SUCCESS: 'AUTH_SUCCESS',       // Login exitoso
@@ -27,7 +28,7 @@ const ACTION_TYPES = {
   SET_LOADING: 'SET_LOADING'          // Cambiar estado de carga
 };
 
-// 🔄 REDUCER DE AUTENTICACIÓN
+// REDUCER DE AUTENTICACIÓN
 function authReducer(state, action) {
   switch (action.type) {
     case ACTION_TYPES.AUTH_START:
@@ -87,10 +88,10 @@ function authReducer(state, action) {
   }
 }
 
-// 🔐 HELPER: Calcular permisos basados en el rol - CORREGIDO PARA EVITAR ERRORES
+// HELPER: Calcular permisos basados en el rol - CORREGIDO PARA EVITAR ERRORES
 function getUserPermissions(role) {
   const permissions = {
-    // 👤 Permisos de Cliente
+    // Permisos de Cliente
     cliente: [
       'view_own_profile',
       'edit_own_profile',
@@ -99,67 +100,67 @@ function getUserPermissions(role) {
       'upload_transfer_proof'
     ],
     
-    // 👥 Permisos de Colaborador - CORREGIDOS PARA VER SIN ERRORES
+    // Permisos de Colaborador - CORREGIDOS PARA VER SIN ERRORES
     colaborador: [
-      // ✅ Perfil propio
+      // Perfil propio
       'view_own_profile',
       'edit_own_profile',
       'view_own_memberships',
       'view_own_payments',
       'upload_transfer_proof',
       
-      // ✅ Usuarios - PERMISOS ESPECÍFICOS PARA VER CLIENTES
-      'view_users',                    // ✅ Puede ver usuarios
-      'view_client_users_only',        // 🆕 Solo puede ver clientes
-      'view_user_details',             // 🆕 Puede ver detalles completos de usuarios
-      'view_client_full_info',         // 🆕 Puede ver toda la información de clientes
-      'create_users',                  // ✅ Puede crear usuarios
+      // Usuarios - PERMISOS ESPECÍFICOS PARA VER CLIENTES
+      'view_users',                    // Puede ver usuarios
+      'view_client_users_only',        // Solo puede ver clientes
+      'view_user_details',             // Puede ver detalles completos de usuarios
+      'view_client_full_info',         // Puede ver toda la información de clientes
+      'create_users',                  // Puede crear usuarios
       
-      // ❌ NO TIENE: 'edit_users' - No puede editar usuarios existentes
-      // ❌ NO TIENE: 'delete_users' - No puede eliminar usuarios
-      // ❌ NO TIENE: 'view_staff_users' - No puede ver otros colaboradores/admins
+      // NO TIENE: 'edit_users' - No puede editar usuarios existentes
+      // NO TIENE: 'delete_users' - No puede eliminar usuarios
+      // NO TIENE: 'view_staff_users' - No puede ver otros colaboradores/admins
       
-      // ✅ Membresías - COMPLETO
+      // Membresías - COMPLETO
       'view_memberships',
       'create_memberships',
       'edit_memberships',
       'renew_memberships',
       'cancel_memberships',
       
-      // ✅ Pagos - COMPLETO
+      // Pagos - COMPLETO
       'view_payments',
       'create_payments',
       'validate_transfers',
       'view_expired_memberships',
       'register_daily_income',
       
-      // ✅ Operaciones diarias
+      // Operaciones diarias
       'view_dashboard_stats',
       'register_gym_visits',
       'manage_daily_operations'
     ],
     
-    // 🔧 Permisos de Admin - TODOS LOS PERMISOS
+    // Permisos de Admin - TODOS LOS PERMISOS
     admin: [
-      // ✅ Perfil propio
+      // Perfil propio
       'view_own_profile',
       'edit_own_profile',
       'view_own_memberships',
       'view_own_payments',
       'upload_transfer_proof',
       
-      // ✅ Usuarios - COMPLETO
-      'view_users',              // ✅ Puede ver todos los usuarios
-      'view_all_user_roles',     // 🆕 Puede ver usuarios de todos los roles
-      'view_user_details',       // 🆕 Puede ver detalles completos
-      'view_client_full_info',   // 🆕 Puede ver toda la información
-      'create_users',            // ✅ Puede crear usuarios
-      'edit_users',              // ✅ Puede editar usuarios
-      'delete_users',            // ✅ Puede eliminar usuarios
-      'manage_user_roles',       // ✅ Puede cambiar roles
-      'view_staff_users',        // ✅ Puede ver colaboradores y admins
+      // Usuarios - COMPLETO
+      'view_users',              // Puede ver todos los usuarios
+      'view_all_user_roles',     // Puede ver usuarios de todos los roles
+      'view_user_details',       // Puede ver detalles completos
+      'view_client_full_info',   // Puede ver toda la información
+      'create_users',            // Puede crear usuarios
+      'edit_users',              // Puede editar usuarios
+      'delete_users',            // Puede eliminar usuarios
+      'manage_user_roles',       // Puede cambiar roles
+      'view_staff_users',        // Puede ver colaboradores y admins
       
-      // ✅ Membresías - COMPLETO
+      // Membresías - COMPLETO
       'view_memberships',
       'create_memberships',
       'edit_memberships',
@@ -167,20 +168,19 @@ function getUserPermissions(role) {
       'renew_memberships',
       'cancel_memberships',
       
-      // ✅ Pagos - COMPLETO
+      // Pagos - COMPLETO
       'view_payments',
       'create_payments',
       'validate_transfers',
       'view_expired_memberships',
       'register_daily_income',
       
-      // ✅ Reportes y análisis
+      // Reportes y análisis
       'view_reports',
       'view_statistics',
       'export_data',
       
-      // ✅ Configuración del sistema
-      'manage_system_settings',
+      // Operaciones del gimnasio
       'manage_content',
       'manage_services',
       'manage_products',
@@ -188,7 +188,7 @@ function getUserPermissions(role) {
       'manage_branding',
       'manage_media',
       
-      // ✅ Administración avanzada
+      // Administración avanzada
       'manage_roles_permissions',
       'access_admin_panel',
       'manage_backup_restore',
@@ -199,7 +199,7 @@ function getUserPermissions(role) {
   return permissions[role] || permissions.cliente;
 }
 
-// 📅 HELPER: Calcular cuándo expira la sesión
+// HELPER: Calcular cuándo expira la sesión
 function calculateSessionExpiry() {
   const expireDays = parseInt(process.env.REACT_APP_TOKEN_EXPIRY) || 7;
   const expiry = new Date();
@@ -207,7 +207,7 @@ function calculateSessionExpiry() {
   return expiry;
 }
 
-// 🏠 HELPER: Determinar ruta de dashboard según rol
+// HELPER: Determinar ruta de dashboard según rol
 function getDashboardPath(role) {
   switch (role) {
     case 'admin':
@@ -221,11 +221,11 @@ function getDashboardPath(role) {
   }
 }
 
-// 🏗️ CREAR CONTEXTOS
+// CREAR CONTEXTOS
 const AuthContext = createContext();
 const AuthDispatchContext = createContext();
 
-// 🎣 HOOK PERSONALIZADO PARA USAR EL CONTEXTO DE AUTH
+// HOOK PERSONALIZADO PARA USAR EL CONTEXTO DE AUTH
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
@@ -242,16 +242,16 @@ export function useAuthActions() {
   return dispatch;
 }
 
-// 🏭 PROVIDER DE AUTENTICACIÓN
+// PROVIDER DE AUTENTICACIÓN
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
   
-  // 🚀 EFECTO: Verificar autenticación al iniciar
+  // EFECTO: Verificar autenticación al iniciar
   useEffect(() => {
     checkAuthStatus();
   }, []);
   
-  // ⏰ EFECTO: Monitorear actividad del usuario
+  // EFECTO: Monitorear actividad del usuario
   useEffect(() => {
     if (state.isAuthenticated) {
       const activityTimer = setInterval(() => {
@@ -262,27 +262,27 @@ export function AuthProvider({ children }) {
     }
   }, [state.isAuthenticated]);
   
-  // ⚡ FUNCIONES DE AUTENTICACIÓN
+  // FUNCIONES DE AUTENTICACIÓN
   
   // Verificar estado de autenticación
   const checkAuthStatus = async () => {
     try {
-      console.log('🔍 Verificando estado de autenticación...');
+      console.log('Verificando estado de autenticación...');
       const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
       
       if (!token) {
-        console.log('❌ No hay token, marcando como no autenticado');
+        console.log('No hay token, marcando como no autenticado');
         dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
         return;
       }
       
-      console.log('🔍 Token encontrado, verificando con el servidor...');
+      console.log('Token encontrado, verificando con el servidor...');
       
       // Verificar token con el servidor
       const response = await apiService.getProfile();
       
       if (response.success && response.data.user) {
-        console.log('✅ Usuario autenticado correctamente:', {
+        console.log('Usuario autenticado correctamente:', {
           userId: response.data.user.id,
           role: response.data.user.role,
           name: `${response.data.user.firstName} ${response.data.user.lastName}`
@@ -293,24 +293,24 @@ export function AuthProvider({ children }) {
           payload: response.data 
         });
       } else {
-        console.log('❌ Token inválido o usuario no encontrado');
+        console.log('Token inválido o usuario no encontrado');
         dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
       }
     } catch (error) {
-      console.error('❌ Error al verificar autenticación:', error);
+      console.error('Error al verificar autenticación:', error);
       dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
     }
   };
   
-  // ✅ NUEVA FUNCIÓN: Refrescar datos del usuario (para OAuth)
+  // NUEVA FUNCIÓN: Refrescar datos del usuario (para OAuth)
   const refreshUserData = async () => {
     try {
-      console.log('🔄 Refrescando datos del usuario...');
+      console.log('Refrescando datos del usuario...');
       
       const token = localStorage.getItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
       
       if (!token) {
-        console.log('❌ No hay token para refrescar');
+        console.log('No hay token para refrescar');
         dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
         return false;
       }
@@ -319,7 +319,7 @@ export function AuthProvider({ children }) {
       const response = await apiService.getProfile();
       
       if (response.success && response.data.user) {
-        console.log('✅ Datos del usuario refrescados exitosamente:', {
+        console.log('Datos del usuario refrescados exitosamente:', {
           userId: response.data.user.id,
           role: response.data.user.role,
           name: `${response.data.user.firstName} ${response.data.user.lastName}`
@@ -332,12 +332,12 @@ export function AuthProvider({ children }) {
         
         return true;
       } else {
-        console.log('❌ Error al obtener datos frescos del usuario');
+        console.log('Error al obtener datos frescos del usuario');
         dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
         return false;
       }
     } catch (error) {
-      console.error('❌ Error al refrescar datos del usuario:', error);
+      console.error('Error al refrescar datos del usuario:', error);
       // No marcar como fallo si ya estaba autenticado
       if (!state.isAuthenticated) {
         dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
@@ -351,12 +351,12 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: ACTION_TYPES.AUTH_START });
       
-      console.log('🔑 Iniciando login con credenciales:', { email: credentials.email });
+      console.log('Iniciando login con credenciales:', { email: credentials.email });
       
       const response = await apiService.login(credentials);
       
       if (response.success && response.data.user) {
-        console.log('✅ Login exitoso:', {
+        console.log('Login exitoso:', {
           userId: response.data.user.id,
           userRole: response.data.user.role,
           userName: `${response.data.user.firstName} ${response.data.user.lastName}`
@@ -380,7 +380,7 @@ export function AuthProvider({ children }) {
         throw new Error(response.message || 'Error en el login');
       }
     } catch (error) {
-      console.error('❌ Error en login:', error);
+      console.error('Error en login:', error);
       dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
       throw error;
     }
@@ -391,7 +391,7 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: ACTION_TYPES.AUTH_START });
       
-      console.log('📝 Iniciando registro:', {
+      console.log('Iniciando registro:', {
         email: userData.email,
         firstName: userData.firstName,
         lastName: userData.lastName
@@ -400,7 +400,7 @@ export function AuthProvider({ children }) {
       const response = await apiService.register(userData);
       
       if (response.success && response.data.user) {
-        console.log('✅ Registro exitoso:', {
+        console.log('Registro exitoso:', {
           userId: response.data.user.id,
           userRole: response.data.user.role
         });
@@ -423,7 +423,7 @@ export function AuthProvider({ children }) {
         throw new Error(response.message || 'Error en el registro');
       }
     } catch (error) {
-      console.error('❌ Error en registro:', error);
+      console.error('Error en registro:', error);
       dispatch({ type: ACTION_TYPES.AUTH_FAILURE });
       throw error;
     }
@@ -466,17 +466,17 @@ export function AuthProvider({ children }) {
     dispatch({ type: ACTION_TYPES.UPDATE_ACTIVITY });
   };
   
-  // 🔒 HELPER: Verificar si el usuario tiene un permiso específico
+  // HELPER: Verificar si el usuario tiene un permiso específico
   const hasPermission = (permission) => {
     return state.permissions.includes(permission);
   };
   
-  // 👤 HELPER: Verificar si el usuario tiene un rol específico
+  // HELPER: Verificar si el usuario tiene un rol específico
   const hasRole = (role) => {
     return state.user?.role === role;
   };
   
-  // 🆕 HELPER: Verificar si puede ver usuarios de cierto rol
+  // HELPER: Verificar si puede ver usuarios de cierto rol
   const canViewUsersOfRole = (targetRole) => {
     const currentUserRole = state.user?.role;
     
@@ -498,7 +498,7 @@ export function AuthProvider({ children }) {
     return false;
   };
   
-  // 🆕 HELPER: Obtener roles que el usuario actual puede ver
+  // HELPER: Obtener roles que el usuario actual puede ver
   const getViewableUserRoles = () => {
     const currentUserRole = state.user?.role;
     
@@ -514,22 +514,22 @@ export function AuthProvider({ children }) {
     }
   };
   
-  // 🆕 HELPER: Verificar si puede crear usuarios
+  // HELPER: Verificar si puede crear usuarios
   const canCreateUsers = () => {
     return hasPermission('create_users');
   };
   
-  // 🆕 HELPER: Verificar si puede editar usuarios EN GENERAL
+  // HELPER: Verificar si puede editar usuarios EN GENERAL
   const canEditUsers = () => {
     return hasPermission('edit_users');
   };
   
-  // 🆕 HELPER: Verificar si puede eliminar usuarios EN GENERAL
+  // HELPER: Verificar si puede eliminar usuarios EN GENERAL
   const canDeleteUsers = () => {
     return hasPermission('delete_users');
   };
   
-  // 🆕 HELPER: Verificar si puede VER DETALLES de un usuario específico
+  // HELPER: Verificar si puede VER DETALLES de un usuario específico
   const canViewUserDetails = (targetUser) => {
     const currentUserRole = state.user?.role;
     
@@ -556,7 +556,7 @@ export function AuthProvider({ children }) {
     return false;
   };
   
-  // 🆕 HELPER: Verificar si puede editar un usuario específico
+  // HELPER: Verificar si puede editar un usuario específico
   const canEditSpecificUser = (targetUser) => {
     const currentUserRole = state.user?.role;
     
@@ -578,7 +578,7 @@ export function AuthProvider({ children }) {
     return false;
   };
   
-  // 🆕 HELPER: Verificar si puede eliminar un usuario específico
+  // HELPER: Verificar si puede eliminar un usuario específico
   const canDeleteSpecificUser = (targetUser) => {
     const currentUserRole = state.user?.role;
     
@@ -600,35 +600,34 @@ export function AuthProvider({ children }) {
     return false;
   };
   
-  // 🎨 HELPER: Verificar si puede gestionar contenido de la web
+  // HELPER: Verificar si puede gestionar contenido de la web
   const canManageContent = () => {
     if (hasRole('admin')) return true;
-    return hasPermission('manage_content') || 
-           hasPermission('manage_system_settings');
+    return hasPermission('manage_content');
   };
   
-  // 🏪 HELPER: Verificar si puede gestionar productos de la tienda
+  // HELPER: Verificar si puede gestionar productos de la tienda
   const canManageStore = () => {
     return hasRole('admin') || 
            hasPermission('manage_products') || 
            hasPermission('manage_store');
   };
   
-  // 🎯 HELPER: Verificar si puede gestionar servicios
+  // HELPER: Verificar si puede gestionar servicios
   const canManageServices = () => {
     return hasRole('admin') || 
            hasPermission('manage_services') || 
            hasPermission('manage_content');
   };
   
-  // 🎫 HELPER: Verificar si puede gestionar planes de membresía
+  // HELPER: Verificar si puede gestionar planes de membresía
   const canManagePlans = () => {
     return hasRole('admin') || 
            hasPermission('manage_plans') || 
            hasPermission('manage_memberships');
   };
   
-  // 🔋 HELPER: Verificar si la sesión está próxima a expirar
+  // HELPER: Verificar si la sesión está próxima a expirar
   const isSessionExpiring = () => {
     if (!state.sessionExpiry) return false;
     
@@ -639,12 +638,12 @@ export function AuthProvider({ children }) {
     return diffHours <= 24;
   };
   
-  // ✅ FUNCIÓN: Obtener ruta de dashboard para rol específico
+  // FUNCIÓN: Obtener ruta de dashboard para rol específico
   const getDashboardPathForRole = (role) => {
     return getDashboardPath(role);
   };
   
-  // 📦 VALOR DEL CONTEXTO
+  // VALOR DEL CONTEXTO
   const contextValue = {
     // Estado
     ...state,
@@ -656,7 +655,7 @@ export function AuthProvider({ children }) {
     updateProfile,
     updateActivity,
     checkAuthStatus,
-    refreshUserData,              // ✅ NUEVA FUNCIÓN PARA OAUTH
+    refreshUserData,              // NUEVA FUNCIÓN PARA OAUTH
     
     // Funciones de utilidad básicas
     hasPermission,
@@ -664,15 +663,15 @@ export function AuthProvider({ children }) {
     isSessionExpiring,
     getDashboardPathForRole,
     
-    // 🆕 FUNCIONES DE GESTIÓN DE USUARIOS CORREGIDAS
-    canViewUsersOfRole,          // ✅ ¿Puede ver usuarios de X rol?
-    getViewableUserRoles,        // ✅ ¿Qué roles puede ver?
-    canCreateUsers,              // ✅ ¿Puede crear usuarios?
-    canEditUsers,                // ✅ ¿Puede editar usuarios en general?
-    canDeleteUsers,              // ✅ ¿Puede eliminar usuarios en general?
-    canViewUserDetails,          // 🆕 ¿Puede ver detalles de usuario específico? (SIN ERRORES)
-    canEditSpecificUser,         // ✅ ¿Puede editar usuario específico?
-    canDeleteSpecificUser,       // ✅ ¿Puede eliminar usuario específico?
+    // FUNCIONES DE GESTIÓN DE USUARIOS CORREGIDAS
+    canViewUsersOfRole,          // ¿Puede ver usuarios de X rol?
+    getViewableUserRoles,        // ¿Qué roles puede ver?
+    canCreateUsers,              // ¿Puede crear usuarios?
+    canEditUsers,                // ¿Puede editar usuarios en general?
+    canDeleteUsers,              // ¿Puede eliminar usuarios en general?
+    canViewUserDetails,          // ¿Puede ver detalles de usuario específico?
+    canEditSpecificUser,         // ¿Puede editar usuario específico?
+    canDeleteSpecificUser,       // ¿Puede eliminar usuario específico?
     
     // Funciones de gestión de contenido
     canManageContent,
@@ -695,7 +694,7 @@ export function AuthProvider({ children }) {
   );
 }
 
-// 🛡️ COMPONENTE HOC: Proteger rutas que requieren autenticación
+// COMPONENTE HOC: Proteger rutas que requieren autenticación
 export function withAuth(Component, requiredPermissions = []) {
   return function AuthenticatedComponent(props) {
     const { isAuthenticated, isLoading, hasPermission } = useAuth();
@@ -739,34 +738,191 @@ export function withAuth(Component, requiredPermissions = []) {
   };
 }
 
-// 📝 CAMBIOS REALIZADOS EN ESTA VERSIÓN:
-// 
-// ✅ NUEVA FUNCIÓN REFRESHUSERDATA:
-// - Agregada función refreshUserData() para compatibilidad con OAuth
-// - Logs detallados para debug
-// - Manejo robusto de errores
-// - Retorna true/false para indicar éxito
-// 
-// ✅ MEJORAS EN CHECKAUTH:
-// - Mejor logging para debug
-// - Más detalles en los logs de verificación
-// 
-// ✅ LOGOUT MEJORADO:
-// - Limpia todos los tokens relacionados con OAuth
-// - Incluye refresh token y datos de usuario
-// 
-// ✅ COMPATIBILIDAD COMPLETA:
-// - Mantiene toda la funcionalidad existente
-// - No rompe ninguna funcionalidad anterior
-// - Agregada funcionalidad OAuth sin afectar login tradicional
-// ✅ Removido 'edit_users' de permisos de colaborador
-// ✅ Removido 'delete_users' de permisos de colaborador
-// ✅ Agregado 'view_client_users_only' para limitar vista
-// ✅ Agregadas funciones para verificar permisos específicos de usuarios
-// ✅ Agregadas funciones para verificar roles visibles
-// ✅ Agregadas funciones para verificar acciones específicas en usuarios
-// ✅ Mantenida compatibilidad con todo el sistema existente
-// ✅ Agregado canManageContent() que retorna true para admins
-// ✅ Agregados permisos específicos de gestión de contenido
-// ✅ Agregadas funciones canManageStore, canManageServices, canManagePlans
-// ✅ Mantiene TODA la funcionalidad original del AuthContext
+/*
+DOCUMENTACIÓN DEL CONTEXTO AuthContext
+
+PROPÓSITO:
+Este contexto maneja todo el sistema de autenticación y autorización del gimnasio
+Elite Fitness Club. Proporciona funciones para login, registro, gestión de sesiones,
+verificación de permisos y control de acceso basado en roles. Es el núcleo de
+seguridad que protege las operaciones financieras en quetzales y los datos sensibles
+de clientes y staff del gimnasio.
+
+FUNCIONALIDADES PRINCIPALES:
+- Sistema de autenticación completo (login/register/logout)
+- Gestión de sesiones con expiración automática
+- Sistema de permisos granulares por rol de usuario
+- Protección de rutas con HOC withAuth
+- Refrescar datos de usuario para OAuth
+- Verificación de tokens y estado de sesión
+- Control de acceso a funciones específicas del gimnasio
+- Manejo de roles jerárquicos (cliente/colaborador/admin)
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+SERVICIOS CONECTADOS:
+- apiService (../services/apiService): Servicio principal de API
+  - login(): Autenticación de credenciales
+  - register(): Registro de nuevos usuarios
+  - getProfile(): Obtener datos del perfil usuario
+  - updateProfile(): Actualizar información personal
+
+COMPONENTES QUE LO UTILIZAN:
+- ClientDashboard: Panel de clientes con verificación de permisos
+- MembershipCard: Verificación para acciones de membresía
+- PaymentHistoryCard: Control de acceso a datos financieros
+- MembershipCheckout: Verificación para procesar pagos
+- ScheduleCard: Permisos para editar horarios
+- Todos los componentes que requieren autenticación
+
+HOOKS QUE LO USAN:
+- useAuth(): Hook principal para acceder al contexto
+- useAuthActions(): Hook para acciones de dispatch
+- Cualquier hook personalizado que requiera verificación de usuario
+
+LIBRERÍAS EXTERNAS:
+- react-hot-toast: Notificaciones de sistema (logout, errores)
+
+ROLES DEL SISTEMA:
+
+CLIENTE:
+- Permisos limitados a sus propios datos
+- Puede ver y editar su perfil personal
+- Acceso a sus membresías y pagos
+- Puede subir comprobantes de transferencia
+- Dashboard: /dashboard/client
+
+COLABORADOR (STAFF):
+- Todos los permisos de cliente
+- Puede ver SOLO clientes (no otros staff/admins)
+- Crear nuevos usuarios clientes
+- Gestión completa de membresías y pagos
+- Validar transferencias bancarias
+- Registrar visitas y operaciones diarias
+- NO puede editar o eliminar usuarios existentes
+- Dashboard: /dashboard/staff
+
+ADMIN:
+- Todos los permisos del sistema
+- Ver, crear, editar y eliminar cualquier usuario
+- Gestión completa de roles y permisos
+- Acceso a reportes y estadísticas
+- Configuración de contenido y servicios
+- Administración de productos y planes
+- Gestión de branding y medios
+- Dashboard: /dashboard/admin
+
+QUE MUESTRA AL USUARIO:
+
+ESTADOS DE CARGA:
+- Spinner de carga durante verificación de autenticación
+- Indicadores de procesamiento durante login/registro
+
+MENSAJES DE AUTENTICACIÓN:
+- "Login exitoso" al autenticarse correctamente
+- "Registro exitoso" al crear cuenta nueva
+- "Sesión cerrada exitosamente" al hacer logout
+- "Error en el login/registro" en caso de fallo
+
+MENSAJES DE AUTORIZACIÓN:
+- "Acceso Denegado" (título en rojo)
+- "No tienes permisos para acceder a esta página" (explicación)
+- Redirección automática a /login si no está autenticado
+
+NAVEGACIÓN AUTOMÁTICA:
+- Redirección a dashboard específico según rol después del login
+- Redirección a /login al cerrar sesión
+- Protección automática de rutas sin autorización
+
+FUNCIONES DE VERIFICACIÓN:
+
+PERMISOS BÁSICOS:
+- hasPermission(permission): Verificar permiso específico
+- hasRole(role): Verificar rol exacto del usuario
+- isSessionExpiring(): Verificar si sesión está por expirar
+
+GESTIÓN DE USUARIOS:
+- canViewUsersOfRole(role): ¿Puede ver usuarios de X rol?
+- getViewableUserRoles(): Lista de roles que puede ver
+- canCreateUsers(): ¿Puede crear nuevos usuarios?
+- canEditUsers(): ¿Puede editar usuarios en general?
+- canDeleteUsers(): ¿Puede eliminar usuarios?
+- canViewUserDetails(user): ¿Puede ver detalles de usuario específico?
+- canEditSpecificUser(user): ¿Puede editar usuario específico?
+- canDeleteSpecificUser(user): ¿Puede eliminar usuario específico?
+
+GESTIÓN DE CONTENIDO:
+- canManageContent(): ¿Puede gestionar contenido web?
+- canManageStore(): ¿Puede gestionar productos de tienda?
+- canManageServices(): ¿Puede gestionar servicios del gimnasio?
+- canManagePlans(): ¿Puede gestionar planes de membresía?
+
+CASOS DE USO EN EL GIMNASIO:
+
+OPERACIONES FINANCIERAS:
+- Control de acceso a pagos en quetzales
+- Validación de transferencias bancarias
+- Protección de datos de transacciones
+- Autorización para procesar reembolsos
+
+GESTIÓN DE MEMBRESÍAS:
+- Verificación para crear/editar/cancelar membresías
+- Control de acceso a renovaciones
+- Autorización para ver vencimientos
+- Permisos para registrar pagos diarios
+
+ADMINISTRACIÓN DE USUARIOS:
+- Jerarquía de permisos: Cliente < Colaborador < Admin
+- Colaboradores pueden crear clientes pero no editarlos
+- Admins tienen control total sobre usuarios
+- Protección contra auto-eliminación
+
+OPERACIONES DIARIAS:
+- Registro de visitas al gimnasio
+- Validación de comprobantes de pago
+- Gestión de estadísticas diarias
+- Control de acceso a reportes financieros
+
+CARACTERÍSTICAS TÉCNICAS:
+
+PERSISTENCIA DE SESIÓN:
+- Tokens almacenados en localStorage
+- Verificación automática al cargar la aplicación
+- Limpieza automática de datos al logout
+- Soporte para refresh tokens (OAuth)
+
+SEGURIDAD:
+- Verificación de tokens con el servidor
+- Expiración automática de sesiones
+- Limpieza de datos sensibles al cerrar sesión
+- Logs detallados para auditoría
+
+MANEJO DE ERRORES:
+- Captura de errores de autenticación
+- Fallback graceful en caso de fallo de red
+- Mensajes descriptivos para usuarios
+- Logs de debugging para desarrolladores
+
+INTEGRATION CON OAUTH:
+- Función refreshUserData() para compatibilidad OAuth
+- Manejo de múltiples tipos de tokens
+- Sincronización de datos de usuario
+- Soporte para autenticación externa
+
+PROTECCIÓN DE RUTAS:
+- HOC withAuth para componentes protegidos
+- Verificación automática de permisos requeridos
+- Redirección automática según estado de auth
+- Mensajes de acceso denegado personalizados
+
+OPTIMIZACIÓN:
+- Verificación de autenticación solo al inicio
+- Cache de permisos en memoria
+- Actualización de actividad automática
+- Limpieza de timers al desmontar
+
+Este contexto es fundamental para la seguridad del gimnasio en Guatemala,
+protegiendo todas las operaciones financieras en quetzales, controlando
+el acceso a datos sensibles de clientes, y garantizando que solo personal
+autorizado pueda realizar operaciones críticas del negocio.
+*/

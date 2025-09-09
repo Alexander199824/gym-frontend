@@ -1,10 +1,5 @@
-// src/pages/checkout/CheckoutPage.js
-// FUNCIÓN: Página de checkout COMPLETA - CORREGIDA - Solo datos del backend
-// FIX: ✅ Sin datos hardcodeados - Solo del backend
-// FIX: ✅ Flujo de éxito corregido - MENSAJE DE ÉXITO ARREGLADO
-// FIX: ✅ Layout de confirmación sin resumen vacío
-// FIX: ✅ Emails para usuarios invitados
-// GUATEMALA: ✅ Implementación completa de departamentos y municipios
+// Autor: Alexander Echeverria
+// Archivo: src/pages/checkout/CheckoutPage.js
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -34,7 +29,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// ✅ IMPORTAR DATOS COMPLETOS DE GUATEMALA
+// Importar datos completos de Guatemala
 import { 
   GUATEMALA_LOCATIONS,
   DEPARTMENTS,
@@ -54,7 +49,7 @@ import {
   useElements 
 } from '@stripe/react-stripe-js';
 
-// REGEX MEJORADOS - MÁS FLEXIBLES
+// Patrones de validación mejorados y más flexibles
 const VALIDATION_PATTERNS = {
   name: /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'\.]+$/, 
   phone: /^[\d\s\-\(\)\+]+$/, 
@@ -62,7 +57,7 @@ const VALIDATION_PATTERNS = {
   address: /^[A-Za-zÀ-ÿ\u00f1\u00d1\d\s\-.,#°\/]+$/ 
 };
 
-// MENSAJES DE ERROR MEJORADOS
+// Mensajes de error mejorados
 const ERROR_MESSAGES = {
   name: 'Solo se permiten letras, espacios, acentos, guiones y puntos',
   phone: 'Solo se permiten números, espacios, guiones y paréntesis',
@@ -86,7 +81,7 @@ const CheckoutPage = () => {
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo, isMobile } = useApp();
 
-  // ✅ FIX: Ref para prevenir múltiples inicializaciones
+  // Ref para prevenir múltiples inicializaciones
   const stripeInitialized = useRef(false);
   const stripeInitializing = useRef(false);
   const isInitialMount = useRef(true);
@@ -98,7 +93,7 @@ const CheckoutPage = () => {
   const [orderCreated, setOrderCreated] = useState(null);
   const [stripePromise, setStripePromise] = useState(null);
 
-  // ✅ CORREGIDO: Estado VACÍO para datos del backend - Sin datos hardcodeados
+  // Estado vacío para datos del backend - Sin datos hardcodeados
   const [gymConfig, setGymConfig] = useState({
     name: '',
     description: '',
@@ -115,7 +110,7 @@ const CheckoutPage = () => {
     }
   });
 
-  // ✅ NUEVO: Estado para opciones de entrega dinámicas
+  // Estado para opciones de entrega dinámicas
   const [deliveryOptions, setDeliveryOptions] = useState({});
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
@@ -126,7 +121,7 @@ const CheckoutPage = () => {
     phone: user?.phone || ''
   });
 
-  // ✅ GUATEMALA: Usar datos completos de Guatemala
+  // Guatemala: Usar datos completos de Guatemala
   const [shippingAddress, setShippingAddress] = useState({
     street: '',
     city: '', 
@@ -145,37 +140,37 @@ const CheckoutPage = () => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   
-  // ✅ GUATEMALA: Estados para datos de Guatemala
+  // Guatemala: Estados para datos de Guatemala
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
 
-  // ✅ CORREGIDO: Cargar configuración REAL del backend
+  // Cargar configuración real del backend
   useEffect(() => {
     const loadGymConfig = async () => {
       if (gymConfigLoaded.current) return;
       
       try {
         setIsLoadingConfig(true);
-        console.log('🏢 Cargando configuración del gym desde el backend...');
+        console.log('Cargando configuración del gym desde el backend...');
         
         const [configResponse, contactResponse, hoursResponse] = await Promise.all([
           apiService.getGymConfig().catch(err => {
-            console.warn('⚠️ Error cargando gym config:', err.message);
+            console.warn('Error cargando gym config:', err.message);
             return null;
           }),
           apiService.get('/gym/contact').catch(err => {
-            console.warn('⚠️ Error cargando contacto:', err.message);
+            console.warn('Error cargando contacto:', err.message);
             return null;
           }),
           apiService.get('/gym/hours').catch(err => {
-            console.warn('⚠️ Error cargando horarios:', err.message);
+            console.warn('Error cargando horarios:', err.message);
             return null;
           })
         ]);
 
-        // ✅ SOLO PROCESAR SI HAY DATOS REALES DEL BACKEND
+        // Solo procesar si hay datos reales del backend
         if (configResponse?.success && configResponse.data) {
           const config = configResponse.data;
-          console.log('✅ Configuración del gym cargada desde DB:', config);
+          console.log('Configuración del gym cargada desde DB:', config);
           
           setGymConfig({
             name: config.name || config.gymName || '',
@@ -194,7 +189,7 @@ const CheckoutPage = () => {
           });
         }
 
-        // ✅ PROCESAR datos de contacto adicionales SOLO SI EXISTEN
+        // Procesar datos de contacto adicionales solo si existen
         if (contactResponse?.success && contactResponse.data) {
           const contact = contactResponse.data;
           setGymConfig(prev => ({
@@ -208,7 +203,7 @@ const CheckoutPage = () => {
           }));
         }
 
-        // ✅ PROCESAR horarios adicionales SOLO SI EXISTEN
+        // Procesar horarios adicionales solo si existen
         if (hoursResponse?.success && hoursResponse.data) {
           const hours = hoursResponse.data;
           setGymConfig(prev => ({
@@ -222,11 +217,11 @@ const CheckoutPage = () => {
         }
 
         gymConfigLoaded.current = true;
-        console.log('✅ Configuración del gym completada SOLO con datos del backend');
+        console.log('Configuración del gym completada solo con datos del backend');
         
       } catch (error) {
-        console.error('❌ Error cargando configuración del gym:', error);
-        // ✅ MANTENER ESTADO VACÍO SI NO HAY DATOS - NO HAY FALLBACKS HARDCODEADOS
+        console.error('Error cargando configuración del gym:', error);
+        // Mantener estado vacío si no hay datos - No hay fallbacks hardcodeados
       } finally {
         setIsLoadingConfig(false);
       }
@@ -235,17 +230,17 @@ const CheckoutPage = () => {
     loadGymConfig();
   }, []);
 
-  // ✅ CORREGIDO: Actualizar opciones de entrega SOLO con datos del backend
+  // Actualizar opciones de entrega solo con datos del backend
   useEffect(() => {
     const updateDeliveryOptions = () => {
-      // ✅ NO CREAR OPCIONES SIN DATOS DEL BACKEND
+      // No crear opciones sin datos del backend
       if (!gymConfig.name || !gymConfig.contact.address) {
-        console.log('⏳ Esperando datos del backend para configurar opciones de entrega...');
+        console.log('Esperando datos del backend para configurar opciones de entrega...');
         setDeliveryOptions({}); // Mantener vacío hasta tener datos reales
         return;
       }
 
-      // ✅ CREAR OPCIONES SOLO CON DATOS REALES DEL BACKEND
+      // Crear opciones solo con datos reales del backend
       const options = {
         pickup_store: {
           id: 'pickup_store',
@@ -281,7 +276,7 @@ const CheckoutPage = () => {
       };
 
       setDeliveryOptions(options);
-      console.log('✅ Opciones de entrega configuradas con datos REALES del backend');
+      console.log('Opciones de entrega configuradas con datos reales del backend');
     };
 
     if (!isLoadingConfig) {
@@ -289,7 +284,7 @@ const CheckoutPage = () => {
     }
   }, [isLoadingConfig, gymConfig.name, gymConfig.contact.address, gymConfig.hours.full]);
 
-  // ✅ FIX: Funciones memoizadas para evitar re-renders
+  // Funciones memoizadas para evitar re-renders
   const memoizedShowInfo = useCallback((message) => {
     if (showInfo) showInfo(message);
   }, [showInfo]);
@@ -302,19 +297,19 @@ const CheckoutPage = () => {
     if (showSuccess) showSuccess(message);
   }, [showSuccess]);
 
-  // ✅ FIX CRÍTICO: EFECTO Carrito vacío - NO redirigir en step 3
+  // Efecto carrito vacío - No redirigir en step 3
   useEffect(() => {
-    // ✅ FIX: No redirigir si estamos en step 3 (página de confirmación)
+    // No redirigir si estamos en step 3 (página de confirmación)
     if (isEmpty && step !== 3) {
-      console.log('🛒 Carrito está vacío, redirigiendo...');
+      console.log('Carrito está vacío, redirigiendo...');
       setTimeout(() => {
         memoizedShowInfo('Tu carrito está vacío');
       }, 100);
       navigate('/store');
     }
-  }, [isEmpty, navigate, memoizedShowInfo, step]); // ✅ Agregar 'step' como dependencia
+  }, [isEmpty, navigate, memoizedShowInfo, step]); // Agregar 'step' como dependencia
 
-  // ✅ FIX: EFECTO Stripe SIN funciones externas como dependencias
+  // Efecto Stripe sin funciones externas como dependencias
   useEffect(() => {
     const initializeStripe = async () => {
       if (stripeInitialized.current || stripeInitializing.current) {
@@ -323,32 +318,32 @@ const CheckoutPage = () => {
 
       try {
         stripeInitializing.current = true;
-        console.log('💳 Initializing Stripe configuration...');
+        console.log('Inicializando configuración de Stripe...');
         
         const stripeConfig = await apiService.getStripeConfig();
         
         if (stripeConfig?.data?.stripe?.enabled) {
           const publishableKey = stripeConfig.data.stripe.publishableKey;
-          console.log('🔑 Loading Stripe with publishable key...');
+          console.log('Cargando Stripe con clave pública...');
           
           const stripe = await loadStripe(publishableKey);
           setStripePromise(Promise.resolve(stripe));
-          console.log('✅ Stripe loaded successfully');
+          console.log('Stripe cargado exitosamente');
           
           setTimeout(() => {
-            memoizedShowInfo('💳 Pagos con tarjeta disponibles');
+            memoizedShowInfo('Pagos con tarjeta disponibles');
           }, 100);
         } else {
-          console.warn('⚠️ Stripe not enabled on backend');
+          console.warn('Stripe no habilitado en backend');
           setTimeout(() => {
-            memoizedShowInfo('💰 Solo pagos en efectivo disponibles');
+            memoizedShowInfo('Solo pagos en efectivo disponibles');
           }, 100);
         }
         
         stripeInitialized.current = true;
         
       } catch (error) {
-        console.error('❌ Error loading Stripe:', error);
+        console.error('Error cargando Stripe:', error);
         setTimeout(() => {
           memoizedShowError('Error cargando sistema de pagos con tarjeta');
         }, 100);
@@ -360,17 +355,17 @@ const CheckoutPage = () => {
     initializeStripe();
   }, []); // Array vacío - no depende de funciones externas
 
-  // ✅ FIX: GUATEMALA - EFECTO para municipios con mejores controles
+  // Guatemala - Efecto para municipios con mejores controles
   const updateMunicipalities = useCallback((departmentName) => {
-    console.log('🏛️ Actualizando municipios para:', departmentName);
+    console.log('Actualizando municipios para:', departmentName);
     
     if (departmentName && DEPARTMENTS.includes(departmentName)) {
       const municipalities = getMunicipalitiesByDepartment(departmentName);
-      console.log('🏘️ Municipios encontrados:', municipalities.length);
+      console.log('Municipios encontrados:', municipalities.length);
       setAvailableMunicipalities(municipalities);
       
       const postalCode = getPostalCode(departmentName);
-      console.log('📮 Código postal asignado:', postalCode);
+      console.log('Código postal asignado:', postalCode);
       
       setShippingAddress(prev => {
         if (prev.zipCode !== postalCode) {
@@ -379,7 +374,7 @@ const CheckoutPage = () => {
         return prev;
       });
     } else {
-      console.log('🧹 Limpiando municipios - no hay departamento válido');
+      console.log('Limpiando municipios - no hay departamento válido');
       setAvailableMunicipalities([]);
     }
   }, []);
@@ -392,7 +387,7 @@ const CheckoutPage = () => {
     if (shippingAddress.state && shippingAddress.municipality) {
       const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
       if (!municipalities.includes(shippingAddress.municipality)) {
-        console.log('🔄 Reseteando municipio porque no pertenece al nuevo departamento');
+        console.log('Reseteando municipio porque no pertenece al nuevo departamento');
         setShippingAddress(prev => ({
           ...prev,
           municipality: '',
@@ -402,7 +397,7 @@ const CheckoutPage = () => {
     }
   }, [shippingAddress.state]);
 
-  // FUNCIÓN MEJORADA: Validar un campo específico
+  // Función mejorada: Validar un campo específico
   const validateField = (name, value) => {
     const fieldErrors = {};
 
@@ -475,9 +470,9 @@ const CheckoutPage = () => {
     return fieldErrors;
   };
 
-  // ✅ GUATEMALA: Función mejorada para manejar cambio de input
+  // Guatemala: Función mejorada para manejar cambio de input
   const handleInputChange = useCallback((section, field, value) => {
-    console.log(`📝 Cambiando ${section}.${field} a:`, value);
+    console.log(`Cambiando ${section}.${field} a:`, value);
     
     if (section === 'customerInfo') {
       setCustomerInfo(prev => ({ ...prev, [field]: value }));
@@ -486,7 +481,7 @@ const CheckoutPage = () => {
         const newAddress = { ...prev, [field]: value };
         
         if (field === 'municipality' && value) {
-          console.log('🏘️ Cambiando municipio a:', value);
+          console.log('Cambiando municipio a:', value);
           newAddress.city = value;
         }
         
@@ -504,7 +499,7 @@ const CheckoutPage = () => {
     }));
   }, [deliveryMethod, shippingAddress.state]);
 
-  // FUNCIÓN MEJORADA: Filtrar caracteres
+  // Función mejorada: Filtrar caracteres
   const handleKeyPress = (e, type) => {
     const char = e.key;
     
@@ -530,7 +525,7 @@ const CheckoutPage = () => {
     }
   };
 
-  // FUNCIÓN MEJORADA: Validar todo el formulario
+  // Función mejorada: Validar todo el formulario
   const validateForm = () => {
     const newErrors = {};
 
@@ -539,7 +534,7 @@ const CheckoutPage = () => {
     Object.assign(newErrors, validateField('email', customerInfo.email));
     Object.assign(newErrors, validateField('phone', customerInfo.phone));
 
-    // Validar dirección solo si NO es recoger en tienda
+    // Validar dirección solo si no es recoger en tienda
     if (deliveryMethod !== 'pickup_store') {
       Object.assign(newErrors, validateField('street', shippingAddress.street));
       Object.assign(newErrors, validateField('state', shippingAddress.state));
@@ -559,15 +554,15 @@ const CheckoutPage = () => {
     const isValid = Object.keys(newErrors).filter(key => newErrors[key]).length === 0;
     
     if (!isValid) {
-      console.log('❌ Form validation failed:', newErrors);
+      console.log('Validación de formulario falló:', newErrors);
     } else {
-      console.log('✅ Form validation passed');
+      console.log('Validación de formulario exitosa');
     }
 
     return isValid;
   };
 
-  // FUNCIÓN: Calcular costo de envío según método
+  // Función: Calcular costo de envío según método
   const calculateShippingCost = () => {
     const selectedOption = deliveryOptions[deliveryMethod];
     if (!selectedOption) return 0;
@@ -585,11 +580,11 @@ const CheckoutPage = () => {
     return selectedOption.cost;
   };
 
-  // ➡️ FUNCIÓN: Continuar al siguiente paso
+  // Función: Continuar al siguiente paso
   const handleContinue = () => {
     if (validateForm()) {
       setStep(2);
-      console.log('✅ Moving to payment step with data:', {
+      console.log('Moviéndose al paso de pago con datos:', {
         customerInfo,
         deliveryMethod,
         shippingAddress: deliveryMethod !== 'pickup_store' ? {
@@ -602,7 +597,7 @@ const CheckoutPage = () => {
       
       const errorList = Object.values(errors).filter(Boolean);
       if (errorList.length > 0) {
-        console.log('📝 Specific errors:', errorList);
+        console.log('Errores específicos:', errorList);
         setTimeout(() => {
           memoizedShowInfo(`Errores encontrados: ${errorList.join(', ')}`);
         }, 1000);
@@ -610,7 +605,7 @@ const CheckoutPage = () => {
     }
   };
 
-  // ⬅️ FUNCIÓN: Volver al paso anterior
+  // Función: Volver al paso anterior
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
@@ -640,7 +635,7 @@ const CheckoutPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* 🔝 HEADER */}
+      {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -669,7 +664,7 @@ const CheckoutPage = () => {
         </div>
       </div>
 
-      {/* 📊 PROGRESS BAR */}
+      {/* Barra de progreso */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-4">
@@ -699,13 +694,13 @@ const CheckoutPage = () => {
         </div>
       </div>
 
-      {/* 📱 CONTENIDO PRINCIPAL */}
+      {/* Contenido principal */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ✅ FIX: Layout diferente para step 3 (confirmación) */}
+        {/* Layout diferente para step 3 (confirmación) */}
         {step === 3 ? (
-          // Layout especial para confirmación - CENTRADO Y SIN RESUMEN
+          // Layout especial para confirmación - Centrado y sin resumen
           <div className="max-w-4xl mx-auto">
-            {console.log('🎊 Renderizando ConfirmationStep con orden:', orderCreated)}
+            {console.log('Renderizando ConfirmationStep con orden:', orderCreated)}
             <ConfirmationStep
               order={orderCreated}
               customerInfo={customerInfo}
@@ -713,10 +708,10 @@ const CheckoutPage = () => {
             />
           </div>
         ) : (
-          // Layout normal para steps 1 y 2 - CON RESUMEN
+          // Layout normal para steps 1 y 2 - Con resumen
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* 📝 FORMULARIO PRINCIPAL */}
+            {/* Formulario principal */}
             <div className="lg:col-span-2">
               {step === 1 && (
                 <CustomerInfoStep
@@ -756,28 +751,28 @@ const CheckoutPage = () => {
                     isAuthenticated={isAuthenticated}
                     sessionInfo={sessionInfo}
                     onSuccess={(order) => {
-                      console.log('🎯 onSuccess llamado con orden:', order);
+                      console.log('onSuccess llamado con orden:', order);
                       setOrderCreated(order);
                       setStep(3);
                       
-                      // ✅ FIX CRÍTICO: NO limpiar carrito inmediatamente
-                      // clearCart(); // ❌ COMENTADO para evitar redirección
+                      // No limpiar carrito inmediatamente
+                      // clearCart(); // Comentado para evitar redirección
                       
-                      console.log('✅ Estado actualizado - Step:', 3, 'Orden guardada:', order.id);
+                      console.log('Estado actualizado - Step:', 3, 'Orden guardada:', order.id);
                       
-                      // ✅ Mostrar éxito inmediatamente
+                      // Mostrar éxito inmediatamente
                       setTimeout(() => {
                         memoizedShowSuccess('¡Compra realizada exitosamente! Recibirás un email de confirmación.');
                       }, 100);
                       
-                      // ✅ FIX: Limpiar carrito DESPUÉS de mostrar confirmación (opcional)
+                      // Limpiar carrito después de mostrar confirmación (opcional)
                       setTimeout(() => {
-                        console.log('🧹 Limpiando carrito después de mostrar confirmación...');
+                        console.log('Limpiando carrito después de mostrar confirmación...');
                         clearCart();
                       }, 10000); // 10 segundos para que el usuario vea la confirmación
                     }}
                     onError={(error) => {
-                      console.error('❌ onError llamado:', error);
+                      console.error('onError llamado:', error);
                       memoizedShowError(error);
                     }}
                     isProcessing={isProcessing}
@@ -790,7 +785,7 @@ const CheckoutPage = () => {
               )}
             </div>
 
-            {/* 📋 RESUMEN DEL PEDIDO - SOLO EN STEPS 1 Y 2 */}
+            {/* Resumen del pedido - Solo en steps 1 y 2 */}
             <div className="lg:col-span-1">
               <OrderSummary
                 items={items}
@@ -813,7 +808,7 @@ const CheckoutPage = () => {
   );
 };
 
-// ✅ CORREGIDO: COMPONENTE - Paso 1 con datos REALES del backend
+// Componente - Paso 1 con datos reales del backend
 const CustomerInfoStep = ({ 
   customerInfo, 
   shippingAddress, 
@@ -837,7 +832,7 @@ const CustomerInfoStep = ({
   return (
     <div className="space-y-8">
       
-      {/* 👤 INFORMACIÓN DEL CLIENTE */}
+      {/* Información del cliente */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <User className="w-5 h-5 text-primary-600 mr-2" />
@@ -931,7 +926,7 @@ const CustomerInfoStep = ({
         </div>
       </div>
 
-      {/* ✅ CORREGIDO: OPCIONES DE ENTREGA - Solo si hay datos del backend */}
+      {/* Opciones de entrega - Solo si hay datos del backend */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Truck className="w-5 h-5 text-primary-600 mr-2" />
@@ -940,7 +935,7 @@ const CustomerInfoStep = ({
           </h2>
         </div>
 
-        {/* ✅ MOSTRAR LOADING si aún está cargando la configuración */}
+        {/* Mostrar loading si aún está cargando la configuración */}
         {isLoadingConfig ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary-600 mr-2" />
@@ -990,24 +985,24 @@ const CustomerInfoStep = ({
                         
                         <div className="text-sm space-y-1">
                           <div className="flex items-center text-gray-700">
-                            <span className="font-medium">⏱️ {option.timeframe}</span>
+                            <span className="font-medium">{option.timeframe}</span>
                           </div>
                           
                           {option.address && (
                             <div className="text-gray-600">
-                              📍 {option.address}
+                              {option.address}
                             </div>
                           )}
                           
                           {option.hours && (
                             <div className="text-gray-600">
-                              🕒 {option.hours}
+                              {option.hours}
                             </div>
                           )}
                           
                           {option.coverage && (
                             <div className="text-gray-600">
-                              📦 {option.coverage}
+                              {option.coverage}
                             </div>
                           )}
                         </div>
@@ -1037,7 +1032,7 @@ const CustomerInfoStep = ({
             <div className="text-sm text-gray-700">
               {deliveryMethod === 'pickup_store' && (
                 <>
-                  <p className="font-medium mb-1">📋 Instrucciones de recogida:</p>
+                  <p className="font-medium mb-1">Instrucciones de recogida:</p>
                   <ul className="space-y-1 text-xs">
                     <li>• Recibirás un SMS cuando tu pedido esté listo</li>
                     <li>• Presenta tu número de pedido o documento de identidad</li>
@@ -1049,7 +1044,7 @@ const CustomerInfoStep = ({
               
               {deliveryMethod === 'local_delivery' && (
                 <>
-                  <p className="font-medium mb-1">📦 Entrega local:</p>
+                  <p className="font-medium mb-1">Entrega local:</p>
                   <ul className="space-y-1 text-xs">
                     <li>• Cobertura en Ciudad de Guatemala y municipios cercanos</li>
                     <li>• Entrega en 1-2 días hábiles</li>
@@ -1061,7 +1056,7 @@ const CustomerInfoStep = ({
               
               {deliveryMethod === 'national_delivery' && (
                 <>
-                  <p className="font-medium mb-1">🚚 Entrega nacional:</p>
+                  <p className="font-medium mb-1">Entrega nacional:</p>
                   <ul className="space-y-1 text-xs">
                     <li>• Entrega a todos los departamentos de Guatemala</li>
                     <li>• Tiempo de entrega: 3-5 días hábiles</li>
@@ -1075,13 +1070,13 @@ const CustomerInfoStep = ({
         )}
       </div>
 
-      {/* ✅ GUATEMALA: DIRECCIÓN DE ENVÍO - Solo si NO es recoger en tienda */}
+      {/* Guatemala: Dirección de envío - Solo si no es recoger en tienda */}
       {deliveryMethod !== 'pickup_store' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex items-center mb-4">
             <MapPin className="w-5 h-5 text-primary-600 mr-2" />
             <h2 className="text-lg font-semibold text-gray-900">
-              Dirección de entrega - Guatemala 🇬🇹
+              Dirección de entrega - Guatemala
             </h2>
           </div>
 
@@ -1111,17 +1106,17 @@ const CustomerInfoStep = ({
               </p>
             </div>
 
-            {/* ✅ GUATEMALA: País, Departamento, Municipio */}
+            {/* Guatemala: País, Departamento, Municipio */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* País (fijo) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
                 <div className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-gray-600">
-                  🇬🇹 Guatemala
+                  Guatemala
                 </div>
               </div>
 
-              {/* ✅ GUATEMALA: Departamento */}
+              {/* Guatemala: Departamento */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Departamento *
@@ -1132,7 +1127,7 @@ const CustomerInfoStep = ({
                 <select
                   value={shippingAddress.state}
                   onChange={(e) => {
-                    console.log('🏛️ Seleccionando departamento:', e.target.value);
+                    console.log('Seleccionando departamento:', e.target.value);
                     onInputChange('shippingAddress', 'state', e.target.value);
                   }}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
@@ -1154,7 +1149,7 @@ const CustomerInfoStep = ({
                 )}
               </div>
 
-              {/* ✅ GUATEMALA: Municipio */}
+              {/* Guatemala: Municipio */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Municipio *
@@ -1165,7 +1160,7 @@ const CustomerInfoStep = ({
                 <select
                   value={shippingAddress.municipality}
                   onChange={(e) => {
-                    console.log('🏘️ Seleccionando municipio:', e.target.value);
+                    console.log('Seleccionando municipio:', e.target.value);
                     onInputChange('shippingAddress', 'municipality', e.target.value);
                   }}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
@@ -1193,7 +1188,7 @@ const CustomerInfoStep = ({
 
             {/* Código postal y referencias */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* ✅ GUATEMALA: Código postal automático */}
+              {/* Guatemala: Código postal automático */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Código postal
@@ -1209,7 +1204,7 @@ const CustomerInfoStep = ({
                 />
                 {shippingAddress.state && shippingAddress.zipCode && (
                   <p className="text-xs text-green-600 mt-1">
-                    📮 Código asignado para {shippingAddress.state}
+                    Código asignado para {shippingAddress.state}
                   </p>
                 )}
               </div>
@@ -1228,11 +1223,11 @@ const CustomerInfoStep = ({
               </div>
             </div>
 
-            {/* ✅ GUATEMALA: Resumen de dirección seleccionada */}
+            {/* Guatemala: Resumen de dirección seleccionada */}
             {shippingAddress.state && shippingAddress.municipality && (
               <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div className="text-sm">
-                  <p className="font-medium text-green-800 mb-1">📍 Dirección seleccionada:</p>
+                  <p className="font-medium text-green-800 mb-1">Dirección seleccionada:</p>
                   <p className="text-green-700">
                     {shippingAddress.municipality}, {shippingAddress.state}, Guatemala
                     {shippingAddress.zipCode && ` (${shippingAddress.zipCode})`}
@@ -1244,7 +1239,7 @@ const CustomerInfoStep = ({
         </div>
       )}
 
-      {/* 📝 NOTAS ADICIONALES */}
+      {/* Notas adicionales */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Package className="w-5 h-5 text-primary-600 mr-2" />
@@ -1275,7 +1270,7 @@ const CustomerInfoStep = ({
   );
 };
 
-// PaymentStep component - CORREGIDO SIN LLAMADAS A ENDPOINTS DE STAFF
+// PaymentStep component - Sin llamadas a endpoints de staff
 const PaymentStep = ({ 
   paymentMethod, 
   setPaymentMethod,
@@ -1299,9 +1294,7 @@ const PaymentStep = ({
   const elements = useElements();
   const [cardError, setCardError] = useState('');
 
-
-
-  // ✅ REPARACIÓN CRÍTICA: Pago con tarjeta CON manejo correcto de errores
+  // Pago con tarjeta con manejo correcto de errores
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -1312,7 +1305,7 @@ const PaymentStep = ({
       setIsProcessing(true);
       setCardError('');
 
-      console.log('💳 Iniciando flujo de pago con tarjeta...');
+      console.log('Iniciando flujo de pago con tarjeta...');
 
       // 1. Crear orden
       const orderData = {
@@ -1329,7 +1322,7 @@ const PaymentStep = ({
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // ✅ Configurar dirección según método de entrega
+      // Configurar dirección según método de entrega
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
@@ -1351,7 +1344,7 @@ const PaymentStep = ({
         };
       }
 
-      console.log('📦 Creando orden...', orderData);
+      console.log('Creando orden...', orderData);
       const orderResponse = await apiService.createOrder(orderData);
       
       if (!orderResponse.success) {
@@ -1359,10 +1352,10 @@ const PaymentStep = ({
       }
 
       const order = orderResponse.data.order;
-      console.log('✅ Orden creada:', order);
+      console.log('Orden creada:', order);
 
       // 2. Crear Payment Intent
-      console.log('💳 Creando payment intent...');
+      console.log('Creando payment intent...');
       const paymentIntentResponse = await apiService.createStorePaymentIntent({
         orderId: order.id
       });
@@ -1372,10 +1365,10 @@ const PaymentStep = ({
       }
 
       const { clientSecret } = paymentIntentResponse.data;
-      console.log('✅ Payment intent creado');
+      console.log('Payment intent creado');
 
       // 3. Confirmar con Stripe
-      console.log('💳 Confirmando pago con Stripe...');
+      console.log('Confirmando pago con Stripe...');
       const cardElement = elements.getElement(CardElement);
 
       const billingAddress = deliveryMethod !== 'pickup_store' ? {
@@ -1411,40 +1404,40 @@ const PaymentStep = ({
       }
 
       if (paymentIntent.status === 'succeeded') {
-        console.log('✅ Pago confirmado con Stripe');
+        console.log('Pago confirmado con Stripe');
         
-        // 4. ✅ REPARACIÓN CRÍTICA: Confirmar pago en backend CON manejo correcto de errores
+        // 4. Confirmar pago en backend con manejo correcto de errores
         try {
-          console.log('💳 Confirmando pago en backend...');
+          console.log('Confirmando pago en backend...');
           
           const confirmResponse = await apiService.confirmStripePayment({
             paymentIntentId: paymentIntent.id
           });
 
           if (!confirmResponse.success) {
-            // ✅ REPARACIÓN: Si falla la confirmación, es un ERROR CRÍTICO
-            console.error('❌ Error crítico confirmando pago en backend:', confirmResponse.message);
+            // Si falla la confirmación, es un error crítico
+            console.error('Error crítico confirmando pago en backend:', confirmResponse.message);
             throw new Error(`Error al registrar el pago: ${confirmResponse.message || 'Error del servidor'}`);
           }
 
-          console.log('✅ Pago confirmado exitosamente en backend');
+          console.log('Pago confirmado exitosamente en backend');
           
-          // ✅ ÉXITO COMPLETO: Todo el proceso exitoso
+          // Éxito completo: Todo el proceso exitoso
           const successOrder = {
             ...order,
             paymentIntent: paymentIntent.id,
             paid: true,
             paymentMethod: 'online_card',
             cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4 || '****',
-            backendConfirmed: true // ✅ NUEVO: Indicador de confirmación completa
+            backendConfirmed: true // Indicador de confirmación completa
           };
 
-          console.log('🎉 Llamando onSuccess con orden completamente exitosa...');
+          console.log('Llamando onSuccess con orden completamente exitosa...');
           onSuccess(successOrder);
 
         } catch (confirmError) {
-          // ✅ REPARACIÓN CRÍTICA: Error de confirmación es CRÍTICO, no continuar
-          console.error('❌ Error CRÍTICO al confirmar pago en backend:', confirmError.message);
+          // Error de confirmación es crítico, no continuar
+          console.error('Error crítico al confirmar pago en backend:', confirmError.message);
           
           // El pago se procesó en Stripe pero falló en nuestro sistema
           onError(`El pago se procesó correctamente, pero hubo un error al registrarlo en nuestro sistema. 
@@ -1458,19 +1451,19 @@ const PaymentStep = ({
       }
 
     } catch (error) {
-      console.error('❌ Payment process failed:', error);
+      console.error('Payment process failed:', error);
       onError(error.message || 'Error al procesar el pago');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // ✅ REPARACIÓN CRÍTICA: Pago contra entrega SIN llamadas a staff endpoints
+  // Pago contra entrega sin llamadas a staff endpoints
   const handleCashOnDelivery = async () => {
     try {
       setIsProcessing(true);
 
-      console.log('💰 Iniciando flujo de pago contra entrega...');
+      console.log('Iniciando flujo de pago contra entrega...');
 
       // 1. Crear orden
       const orderData = {
@@ -1487,7 +1480,7 @@ const PaymentStep = ({
         sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
       };
 
-      // ✅ Configurar dirección
+      // Configurar dirección
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
@@ -1509,7 +1502,7 @@ const PaymentStep = ({
         };
       }
 
-      console.log('📦 Creando orden...', orderData);
+      console.log('Creando orden...', orderData);
       const orderResponse = await apiService.createOrder(orderData);
 
       if (!orderResponse.success) {
@@ -1517,9 +1510,9 @@ const PaymentStep = ({
       }
 
       const order = orderResponse.data.order;
-      console.log('✅ Orden creada exitosamente:', order);
+      console.log('Orden creada exitosamente:', order);
 
-      // ✅ ÉXITO INMEDIATO: No necesitamos registros de pago adicionales
+      // Éxito inmediato: No necesitamos registros de pago adicionales
       // La orden ya está creada y es válida para pago contra entrega
       const successOrder = {
         ...order,
@@ -1527,11 +1520,11 @@ const PaymentStep = ({
         paymentMethod: 'cash_on_delivery'
       };
 
-      console.log('🎉 Llamando onSuccess con orden contra entrega...');
+      console.log('Llamando onSuccess con orden contra entrega...');
       onSuccess(successOrder);
 
     } catch (error) {
-      console.error('❌ Cash on delivery process failed:', error);
+      console.error('Cash on delivery process failed:', error);
       onError(error.message || 'Error al crear la orden');
     } finally {
       setIsProcessing(false);
@@ -1708,12 +1701,12 @@ const PaymentStep = ({
         </div>
       )}
 
-      {/* ✅ INFORMACIÓN ADICIONAL: Email automático */}
+      {/* Información adicional: Email automático */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <div className="flex items-start">
           <Mail className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
           <div className="text-sm">
-            <p className="text-green-800 font-medium mb-1">📧 Confirmación automática</p>
+            <p className="text-green-800 font-medium mb-1">Confirmación automática</p>
             <p className="text-green-700">
               Recibirás un email con los detalles de tu pedido a <strong>{customerInfo.email}</strong> 
               inmediatamente después de completar la compra.
@@ -1738,7 +1731,7 @@ const PaymentStep = ({
               <Lock className="w-5 h-5" />
               <span>
                 {paymentMethod === 'online_card' 
-                  ? `Pagar ${((summary?.subtotal || 0) + shippingCost)?.toFixed(2)} GTQ`
+                  ? `Pagar Q${((summary?.subtotal || 0) + shippingCost)?.toFixed(2)}`
                   : 'Confirmar pedido'
                 }
               </span>
@@ -1755,31 +1748,31 @@ const PaymentStep = ({
   );
 };
 
-// ✅ COMPONENTE COMPLETAMENTE NUEVO: Paso 3 - Confirmación compacta y bien organizada
+// Componente completamente nuevo: Paso 3 - Confirmación compacta y bien organizada
 const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   const navigate = useNavigate();
   const { clearCart } = useCart();
 
-  console.log('🎊 ConfirmationStep renderizado con orden:', order);
-  console.log('📧 Customer info:', customerInfo);
+  console.log('ConfirmationStep renderizado con orden:', order);
+  console.log('Customer info:', customerInfo);
 
   useEffect(() => {
-    console.log('🎉 ConfirmationStep montado - paso completado exitosamente');
+    console.log('ConfirmationStep montado - paso completado exitosamente');
     setTimeout(() => {
-      console.log('✅ ConfirmationStep completamente montado y funcional');
+      console.log('ConfirmationStep completamente montado y funcional');
     }, 500);
   }, [order]);
 
-  // ✅ Función para continuar comprando
+  // Función para continuar comprando
   const handleContinueShopping = () => {
-    console.log('🛒 Usuario eligió continuar comprando - limpiando carrito...');
+    console.log('Usuario eligió continuar comprando - limpiando carrito...');
     clearCart();
     navigate('/store');
   };
 
-  // ✅ Función para ir al inicio  
+  // Función para ir al inicio  
   const handleGoHome = () => {
-    console.log('🏠 Usuario eligió ir al inicio - limpiando carrito...');
+    console.log('Usuario eligió ir al inicio - limpiando carrito...');
     clearCart();
     navigate('/');
   };
@@ -1787,14 +1780,14 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   return (
     <div className="space-y-8">
       
-      {/* ✅ BANNER DE ÉXITO COMPACTO Y ATRACTIVO */}
+      {/* Banner de éxito compacto y atractivo */}
       <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl p-8 text-center shadow-xl">
         <div className="flex flex-col items-center">
           <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold mb-3">
-            🎉 ¡COMPRA EXITOSA!
+            ¡COMPRA EXITOSA!
           </h1>
           <p className="text-green-100 text-lg md:text-xl mb-4">
             Tu pedido ha sido confirmado y procesado correctamente
@@ -1807,7 +1800,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
-      {/* ✅ RESUMEN COMPACTO EN TARJETAS */}
+      {/* Resumen compacto en tarjetas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* Detalles del pedido */}
@@ -1880,7 +1873,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
-      {/* ✅ ESTADO DE CONFIRMACIÓN COMPACTO */}
+      {/* Estado de confirmación compacto */}
       <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
           <div className="flex flex-col items-center">
@@ -1909,7 +1902,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
-      {/* ✅ BOTONES DE ACCIÓN COMPACTOS */}
+      {/* Botones de acción compactos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
           onClick={handleContinueShopping}
@@ -1928,7 +1921,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </button>
       </div>
 
-      {/* ✅ INFORMACIÓN ADICIONAL COMPACTA */}
+      {/* Información adicional compacta */}
       {(gymConfig.contact.email || gymConfig.contact.phone) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
           <p className="text-blue-800 font-medium mb-2">
@@ -1937,12 +1930,12 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
           <div className="flex justify-center space-x-4 text-sm">
             {gymConfig.contact.email && (
               <span className="text-blue-600">
-                📧 {gymConfig.contact.email}
+                {gymConfig.contact.email}
               </span>
             )}
             {gymConfig.contact.phone && (
               <span className="text-blue-600">
-                📞 {gymConfig.contact.phone}
+                {gymConfig.contact.phone}
               </span>
             )}
           </div>
@@ -1952,7 +1945,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   );
 };
 
-// ✅ COMPONENTE ACTUALIZADO: Resumen del pedido con opciones dinámicas
+// Componente actualizado: Resumen del pedido con opciones dinámicas
 const OrderSummary = ({ 
   items, 
   summary, 
@@ -1969,7 +1962,7 @@ const OrderSummary = ({
   const hasErrors = Object.keys(errors).filter(key => errors[key]).length > 0;
   const errorCount = Object.keys(errors).filter(key => errors[key]).length;
 
-  // ✅ Obtener información de la opción de entrega seleccionada
+  // Obtener información de la opción de entrega seleccionada
   const selectedDeliveryOption = deliveryOptions[deliveryMethod];
 
   return (
@@ -2115,3 +2108,130 @@ const OrderSummary = ({
 };
 
 export default CheckoutPage;
+
+/*
+=============================================================================
+PROPÓSITO DEL COMPONENTE
+=============================================================================
+
+Este componente CheckoutPage es el núcleo del proceso de compra del sistema 
+Elite Fitness Club. Maneja todo el flujo de checkout desde la información 
+del cliente hasta la confirmación final del pedido, integrando múltiples 
+sistemas de pago y opciones de entrega.
+
+FUNCIONALIDADES PRINCIPALES:
+- Proceso de checkout en 3 pasos (Información → Pago → Confirmación)
+- Integración completa con datos geográficos de Guatemala
+- Validación estricta de formularios en tiempo real
+- Múltiples métodos de pago (Stripe y contra entrega)
+- Opciones de entrega dinámicas basadas en configuración del backend
+- Cálculo automático de costos de envío con promociones
+- Soporte para usuarios invitados y autenticados
+- Confirmación por email automática
+- Manejo robusto de errores y estados de carga
+
+LO QUE VE EL USUARIO:
+- Header con navegación y indicador de seguridad
+- Barra de progreso visual de 3 pasos
+- Paso 1 - Información del cliente:
+  * Formulario de datos personales (nombre, email, teléfono)
+  * Selector de método de entrega con precios dinámicos
+  * Formulario de dirección para Guatemala (departamentos/municipios)
+  * Campo de instrucciones especiales
+- Paso 2 - Método de pago:
+  * Opción tarjeta de crédito/débito con Stripe
+  * Opción pago contra entrega o al recoger
+  * Campos seguros para información de tarjeta
+  * Confirmación de email automático
+- Paso 3 - Confirmación:
+  * Banner de éxito con número de pedido
+  * Resumen compacto en tarjetas
+  * Estado de confirmación visual
+  * Botones para continuar comprando o ir al inicio
+- Resumen del pedido lateral:
+  * Lista de productos con imágenes
+  * Desglose de precios (subtotal, envío, total)
+  * Información de método de entrega seleccionado
+  * Validación de errores en tiempo real
+
+ARCHIVOS Y COMPONENTES CONECTADOS:
+=============================================================================
+
+CONTEXTOS UTILIZADOS:
+- CartContext (../../contexts/CartContext)
+  * Gestión del carrito de compras (items, summary, formatCurrency)
+  * Función clearCart() para limpiar después de compra exitosa
+  * sessionInfo para usuarios invitados
+
+- AuthContext (../../contexts/AuthContext)
+  * Verificación de autenticación (isAuthenticated, user)
+  * Datos del usuario para pre-llenar formularios
+
+- AppContext (../../contexts/AppContext)
+  * Notificaciones globales (showSuccess, showError, showInfo)
+  * Detección de dispositivo móvil (isMobile)
+
+SERVICIOS DE API:
+- apiService (../../services/apiService)
+  * getGymConfig() - Configuración del gimnasio
+  * createOrder() - Crear orden de compra
+  * createStorePaymentIntent() - Crear intención de pago Stripe
+  * confirmStripePayment() - Confirmar pago procesado
+  * getStripeConfig() - Configuración de Stripe
+
+DATOS GEOGRÁFICOS:
+- guatemalaLocations (../../data/guatemalaLocations)
+  * DEPARTMENTS - Lista de departamentos de Guatemala
+  * getMunicipalitiesByDepartment() - Municipios por departamento
+  * getPostalCode() - Códigos postales automáticos
+  * isValidMunicipality() - Validación de municipios
+
+INTEGRACIÓN STRIPE:
+- @stripe/stripe-js - Carga del SDK de Stripe
+- @stripe/react-stripe-js - Componentes React para Stripe
+- Elements, CardElement - Elementos de formulario de tarjeta
+- useStripe, useElements - Hooks para interactuar con Stripe
+
+COMPONENTES INTERNOS:
+- CustomerInfoStep - Paso 1 del proceso de checkout
+- PaymentStep - Paso 2 con métodos de pago
+- ConfirmationStep - Paso 3 de confirmación exitosa
+- OrderSummary - Resumen lateral del pedido
+
+RUTAS DE NAVEGACIÓN:
+- "/store" - Tienda de productos (redirige si carrito vacío)
+- "/login" - Página de inicio de sesión para invitados
+- "/" - Página principal del sitio
+
+VALIDACIONES IMPLEMENTADAS:
+- Nombres: solo letras, espacios, acentos (2-50 caracteres)
+- Email: formato válido requerido
+- Teléfono: números, espacios, guiones (7-15 dígitos)
+- Dirección: campos requeridos según método de entrega
+- Departamento/Municipio: validación contra datos de Guatemala
+- Código postal: asignación automática por departamento
+
+FLUJO DE PROCESAMIENTO:
+1. Validación de formulario completa
+2. Creación de orden en backend con todos los datos
+3. Para tarjeta: Creación de PaymentIntent y confirmación con Stripe
+4. Para efectivo: Confirmación directa de orden
+5. Actualización de estado y mostrar confirmación
+6. Envío de email automático al cliente
+7. Limpieza de carrito después de confirmación
+
+CARACTERÍSTICAS ESPECIALES:
+- Carga dinámica de configuración desde backend
+- Opciones de entrega configurables por administrador
+- Cálculo inteligente de envío gratis por monto mínimo
+- Soporte completo para Guatemala (22 departamentos, 340+ municipios)
+- Filtrado de caracteres en tiempo real
+- Validación visual inmediata con iconos
+- Manejo robusto de errores de pago
+- Estados de carga optimizados para UX
+- Modo invitado con sesión temporal
+
+Este componente es crítico para la conversión de ventas y representa
+la culminación del proceso de compra, integrando múltiples sistemas
+para proporcionar una experiencia fluida y segura al usuario.
+*/

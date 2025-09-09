@@ -1,7 +1,5 @@
 // Autor: Alexander Echeverria
 // src/components/common/GymLogo.js
-// CONECTA CON: useGymConfig hook
-
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dumbbell } from 'lucide-react';
@@ -62,7 +60,7 @@ const GymLogo = ({
         timestamp: Date.now()
       }));
     } catch {
-      // Ignorar errores de storage
+      // Ignorar errores de almacenamiento
     }
   }, []);
   
@@ -73,22 +71,22 @@ const GymLogo = ({
     // Verificar cache primero
     const cached = getCachedImageStatus(url);
     if (cached && cached.status === 'loaded') {
-      // Cache hit - imagen ya verificada
-      console.log('GymLogo: Using cached image status');
+      // Cache encontrado - imagen ya verificada
+      console.log('GymLogo: Usando estado de imagen desde cache');
       setImageState({ loaded: true, error: false, loading: false });
       return;
     }
     
-    console.group('GymLogo Image Verification');
-    console.log('Image URL:', url);
-    console.log('Cache status:', cached ? 'miss' : 'empty');
+    console.group('Verificación de Imagen del Logo');
+    console.log('URL de imagen:', url);
+    console.log('Estado del cache:', cached ? 'no encontrado' : 'vacío');
     
     setImageState(prev => ({ ...prev, loading: true, error: false }));
     
     const img = new Image();
     
     img.onload = () => {
-      console.log('Logo loaded successfully');
+      console.log('Logo cargado exitosamente');
       console.groupEnd();
       
       const newState = { loaded: true, error: false, loading: false };
@@ -97,9 +95,9 @@ const GymLogo = ({
     };
     
     img.onerror = () => {
-      console.warn('Failed to load logo');
-      console.log('Solution: Check if the image exists at:', url);
-      console.log('Fallback: Using dumbbell icon instead');
+      console.warn('Error al cargar el logo');
+      console.log('Solución: Verificar si la imagen existe en:', url);
+      console.log('Respaldo: Usando icono de mancuernas en su lugar');
       console.groupEnd();
       
       const newState = { loaded: false, error: true, loading: false };
@@ -109,7 +107,7 @@ const GymLogo = ({
       // Re-intentar después de 5 segundos si es alta prioridad
       if (priority === 'high') {
         setTimeout(() => {
-          console.log('Retrying logo load...');
+          console.log('Reintentando cargar logo...');
           setImageState(prev => ({ ...prev, error: false }));
           verifyImage(url);
         }, 5000);
@@ -141,7 +139,7 @@ const GymLogo = ({
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && imageUrl && imageState.error) {
-        console.log('Page became visible, retrying logo load...');
+        console.log('Página visible nuevamente, reintentando cargar logo...');
         setTimeout(() => {
           verifyImage(imageUrl);
         }, 1000);
@@ -198,7 +196,7 @@ const GymLogo = ({
     }
   }), []);
   
-  // CONFIGURACIÓN DE VARIANTES
+  // CONFIGURACIÓN DE VARIANTES VISUALES
   const variantConfig = useMemo(() => ({
     professional: { 
       container: 'bg-primary-600', 
@@ -279,10 +277,10 @@ const GymLogo = ({
         <div className={containerClasses}>
           <img 
             src={imageUrl}
-            alt={config?.logo?.alt || config?.name || 'Logo'}
+            alt={config?.logo?.alt || config?.name || 'Logo del gimnasio'}
             className={`${getResponsiveSize('container')} object-contain`}
             onError={() => {
-              console.log('Image error during render, retrying...');
+              console.log('Error de imagen durante renderizado, reintentando...');
               setImageState(prev => ({ ...prev, error: true, loaded: false }));
               // Re-intentar inmediatamente
               setTimeout(() => verifyImage(imageUrl), 100);
@@ -305,7 +303,7 @@ const GymLogo = ({
       );
     }
     
-    // Fallback: Icono de mancuernas
+    // Respaldo: Icono de mancuernas
     return (
       <div className={`
         ${containerClasses}
@@ -333,7 +331,7 @@ const GymLogo = ({
   const logoText = useMemo(() => {
     if (!showText) return null;
     
-    const text = config?.name || 'Elite Fitness Club';
+    const text = config?.name || 'Gimnasio Elite Fitness';
     
     // Texto compacto en móvil si es necesario
     const displayText = isMobile && text.length > 15 
@@ -408,7 +406,7 @@ const GymLogo = ({
   );
 };
 
-// VARIANTES ESPECÍFICAS MEJORADAS
+// VARIANTES ESPECÍFICAS MEJORADAS PARA DIFERENTES SECCIONES
 export const NavbarLogo = React.memo(() => {
   const [isMobile, setIsMobile] = useState(false);
   
@@ -517,115 +515,133 @@ export const MinimalLogo = React.memo(() => (
 export default React.memo(GymLogo);
 
 /*
+==========================================
 DOCUMENTACIÓN DEL COMPONENTE GymLogo
+==========================================
 
-PROPÓSITO:
-Este componente proporciona un logo flexible y optimizado del gimnasio que puede mostrar
-tanto una imagen personalizada como un icono de respaldo. Incluye sistema de cache,
-reintentos automáticos, múltiples variantes y optimizaciones para móvil.
+PROPÓSITO GENERAL:
+Este componente proporciona el logo oficial del gimnasio de forma flexible y optimizada,
+con capacidad de mostrar tanto una imagen personalizada como un icono de respaldo (mancuernas).
+Incluye sistema de cache inteligente, reintentos automáticos, múltiples variantes visuales
+y optimizaciones específicas para dispositivos móviles.
 
-FUNCIONALIDADES PRINCIPALES:
-- Carga dinámica de logo desde configuración del gimnasio
-- Sistema de cache en sessionStorage para persistencia
-- Reintentos automáticos en caso de fallo de carga
-- Múltiples tamaños y variantes visuales
-- Diseño responsivo optimizado para móvil
-- Fallback automático a icono de mancuernas
-- Lazy loading con prioridades configurables
-- Texto truncado automático en pantallas pequeñas
+QUÉ MUESTRA AL USUARIO:
+El componente presenta el logo del gimnasio de diferentes maneras según el contexto:
+- Logo personalizado del gimnasio (imagen) cuando está disponible y carga correctamente
+- Icono de mancuernas como respaldo elegante cuando la imagen no está disponible
+- Nombre del gimnasio junto al logo (configurable)
+- Diferentes tamaños según la sección: navbar, footer, autenticación, dashboard
+- Animaciones suaves durante la carga y al hacer hover
+- Versión responsive que se adapta automáticamente a móvil y escritorio
+- Estado de carga con skeleton animado mientras se verifica la imagen
 
-CONEXIONES CON OTROS ARCHIVOS:
+VARIANTES DISPONIBLES PARA EL USUARIO:
+1. NavbarLogo: Para la barra de navegación superior (responsive)
+2. FooterLogo: Para el pie de página (tamaño grande, fondo blanco)
+3. AuthLogo: Para páginas de login/registro (tamaño extra grande, degradado)
+4. MobileLogo: Específico para navegación móvil (pequeño, minimalista)
+5. DashboardLogo: Para paneles de administración (profesional, con texto)
+6. HeroLogo: Para secciones principales (muy grande, impactante)
+7. CompactLogo: Para espacios muy reducidos (extra pequeño)
+8. MinimalLogo: Versión simple y limpia
+
+ARCHIVOS A LOS QUE SE CONECTA:
 
 HOOKS REQUERIDOS:
-- useGymConfig (../../hooks/useGymConfig): Obtiene configuración del gimnasio
+- ../../hooks/useGymConfig: Hook personalizado para obtener configuración del gimnasio
+  * Proporciona config.logo.url (URL de la imagen del logo)
+  * Proporciona config.logo.alt (texto alternativo)
+  * Proporciona config.name (nombre del gimnasio)
+  * Proporciona isLoaded (estado de carga de la configuración)
 
 COMPONENTES IMPORTADOS:
-- Dumbbell (lucide-react): Icono de respaldo
+- 'lucide-react': Biblioteca de iconos
+  * Dumbbell: Icono de mancuernas usado como respaldo visual
 
-CONFIGURACIÓN UTILIZADA:
-- config.logo.url: URL de la imagen del logo
-- config.logo.alt: Texto alternativo de la imagen
-- config.name: Nombre del gimnasio
+SERVICIOS Y CONTEXTOS RELACIONADOS:
+- src/contexts/GymContext.js: Contexto que maneja la configuración del gimnasio
+- src/services/configService.js: Servicio que obtiene configuración desde el backend
+- src/hooks/useGymConfig.js: Hook que centraliza el acceso a la configuración
 
-ARCHIVOS QUE USAN ESTE COMPONENTE:
-- Layout principal: Navbar y footer
-- Páginas de autenticación: Login, registro
-- Dashboards: Administración, personal, clientes
-- Páginas públicas: Homepage, servicios
-- Componentes de navegación móvil
+ARCHIVOS QUE UTILIZAN ESTE COMPONENTE:
+- src/components/layout/Navbar.js: Navegación principal
+- src/components/layout/Footer.js: Pie de página
+- src/components/layout/MobileNav.js: Navegación móvil
+- src/pages/auth/Login.js: Página de inicio de sesión
+- src/pages/auth/Register.js: Página de registro
+- src/pages/admin/AdminDashboard.js: Panel de administración
+- src/pages/client/ClientDashboard.js: Panel del cliente
+- src/pages/staff/StaffDashboard.js: Panel del personal
+- src/pages/public/HomePage.js: Página principal pública
+- src/components/common/LoadingPage.js: Páginas de carga
 
-VARIANTES ESPECIALIZADAS EXPORTADAS:
-- NavbarLogo: Para barra de navegación (responsive)
-- FooterLogo: Para pie de página
-- AuthLogo: Para páginas de autenticación
-- MobileLogo: Específico para móvil
-- DashboardLogo: Para paneles de administración
-- HeroLogo: Para secciones hero principales
-- CompactLogo: Versión muy pequeña
-- MinimalLogo: Versión minimalista
+CONFIGURACIÓN DE TAMAÑOS DISPONIBLES:
+- xs: 24x24px (6x6) - Para elementos muy pequeños
+- sm: 32x32px (8x8) - Para elementos compactos
+- md: 40x40px (10x10) - Tamaño estándar
+- lg: 48x48px (12x12) - Para destacar
+- xl: 64x64px (16x16) - Para páginas importantes
+- 2xl: 80x80px (20x20) - Para secciones hero
 
-PROPS DEL COMPONENTE BASE:
-- size: Tamaño ('xs', 'sm', 'md', 'lg', 'xl', '2xl')
-- variant: Estilo visual ('professional', 'dark', 'light', 'white', 'gradient', 'minimal', 'compact')
-- showText: Mostrar nombre del gimnasio
-- textSize: Tamaño personalizado del texto
-- className: Clases CSS adicionales
-- onClick: Función de click
-- priority: Prioridad de carga ('high', 'normal', 'low')
-- breakpoint: Punto de quiebre responsivo
+CONFIGURACIÓN DE VARIANTES VISUALES:
+- professional: Fondo azul primario, formal y elegante
+- dark: Fondo oscuro para headers con tema oscuro
+- light: Fondo claro con bordes suaves
+- white: Fondo blanco para máximo contraste
+- gradient: Degradado atractivo para páginas especiales
+- minimal: Transparente y minimalista
+- compact: Fondo sutil para espacios reducidos
 
-CONFIGURACIÓN DE TAMAÑOS:
-Cada tamaño incluye configuración para:
-- Contenedor principal
-- Icono de respaldo
-- Texto
-- Espaciado
-- Versión móvil específica
+FUNCIONALIDADES TÉCNICAS AVANZADAS:
+- Sistema de cache en sessionStorage para evitar recargas innecesarias
+- Reintentos automáticos en caso de fallo de carga de imagen
+- Detección de cambios de visibilidad para recargar automáticamente
+- Lazy loading con diferentes prioridades (high, normal, low)
+- Memoización React para optimizar renderizado
+- Responsive design con detección automática de móvil
+- Texto truncado automático en pantallas pequeñas
 
-CONFIGURACIÓN DE VARIANTES:
-- professional: Colores primarios, formal
-- dark: Fondo oscuro para headers oscuros
-- light: Fondo claro con bordes
-- white: Fondo blanco para contraste
-- gradient: Degradado atractivo
-- minimal: Transparente, minimalista
-- compact: Compacto con fondo sutil
+SISTEMA DE PRIORIDADES DE CARGA:
+- high: Carga inmediata, ideal para navbar y elementos críticos
+- normal: Carga con 100ms de delay, para elementos importantes
+- low: Carga con 500ms de delay, para elementos no críticos
 
-SISTEMA DE CACHE:
-- Utiliza sessionStorage para persistir estado de imágenes
-- Evita recargas innecesarias entre navegaciones
-- Incluye timestamp para invalidación
+CARACTERÍSTICAS DE ACCESIBILIDAD:
+- ARIA labels descriptivos para lectores de pantalla
+- Navegación por teclado (Enter y Space) cuando es clickeable
+- Roles semánticos apropiados (button o img)
+- Texto alternativo configurable para la imagen
+- Estados de focus visuales
 
 OPTIMIZACIONES DE RENDIMIENTO:
-- Lazy loading con prioridades
-- Memoización de contenido pesado
-- Cache de verificación de imágenes
-- Detección de cambios de visibilidad
-- Reintentos inteligentes
+- Cache inteligente que persiste entre navegaciones
+- Verificación previa de imágenes antes de mostrarlas
+- Memoización de contenido pesado para evitar re-renderizados
+- Lazy loading configurable según importancia
+- Cleanup automático de event listeners
+- Detección eficiente de cambios de tamaño de ventana
 
-CARACTERÍSTICAS RESPONSIVAS:
-- Tamaños específicos para móvil
-- Texto truncado automático
-- Detección de resize de ventana
-- Adaptación de espaciado
-- Optimización de carga de imágenes
+MANEJO DE ERRORES Y RESPALDOS:
+- Fallback automático a icono de mancuernas si la imagen falla
+- Reintentos automáticos con diferentes estrategias según prioridad
+- Logging detallado para debugging en desarrollo
+- Estado de carga visible mientras se verifica la imagen
+- Cache de errores para evitar reintentos innecesarios
 
-ACCESIBILIDAD:
-- ARIA labels apropiados
-- Navegación por teclado
-- Roles semánticos
-- Texto alternativo
-- Estados de focus visibles
+INTEGRACIÓN CON LA IDENTIDAD DEL GIMNASIO:
+Este componente es fundamental para mantener la coherencia visual del gimnasio en toda
+la aplicación. Se adapta automáticamente al logo personalizado del gimnasio cuando está
+disponible, o proporciona un respaldo profesional con el icono de mancuernas. Es el
+elemento central de la identidad de marca que los usuarios ven en cada página.
 
-ESTADOS MANEJADOS:
-- Carga inicial con skeleton
-- Error con fallback a icono
-- Carga exitosa con imagen
-- Reintentos automáticos
-- Cache hit/miss
+CONFIGURACIÓN POR DEFECTO:
+- Nombre del gimnasio: "Gimnasio Elite Fitness" (cuando no hay configuración)
+- Icono de respaldo: Mancuernas (Dumbbell) de Lucide React
+- Tamaño por defecto: md (40x40px)
+- Variante por defecto: professional (azul primario)
+- Prioridad por defecto: normal (100ms delay)
 
-INTEGRACIÓN CON EL SISTEMA:
-Este componente es fundamental para la identidad visual del gimnasio en toda la aplicación,
-proporcionando consistencia de marca y experiencia de usuario optimizada tanto en desktop
-como en dispositivos móviles.
+El componente garantiza que el gimnasio siempre tenga una representación visual
+profesional y consistente, independientemente de si tienen un logo personalizado
+configurado o no.
 */

@@ -1,6 +1,8 @@
 // src/pages/error/NotFoundPage.js
-// UBICACIÓN: /gym-frontend/src/pages/error/NotFoundPage.js
-// FUNCIÓN: Página 404 personalizada para Elite Fitness Club
+// Autor: Alexander Echeverria
+// Archivo: src/pages/error/NotFoundPage.js
+
+// FUNCION: Página 404 personalizada para Elite Fitness Club
 // CONECTA CON: Navegación general del sitio
 
 import React, { useState, useEffect } from 'react';
@@ -25,7 +27,7 @@ const NotFoundPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   
-  // 🏠 Obtener ruta del dashboard según rol
+  // Obtener ruta del dashboard según rol
   const getDashboardPath = () => {
     if (!isAuthenticated) return '/';
     
@@ -41,7 +43,7 @@ const NotFoundPage = () => {
     }
   };
   
-  // 🔍 Páginas sugeridas según el estado del usuario
+  // Páginas sugeridas según el estado del usuario
   const getSuggestedPages = () => {
     const baseSuggestions = [
       { 
@@ -115,7 +117,7 @@ const NotFoundPage = () => {
   
   const suggestedPages = getSuggestedPages();
   
-  // 🔍 Simulación de búsqueda
+  // Simulación de búsqueda
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
@@ -130,7 +132,7 @@ const NotFoundPage = () => {
     }, 1500);
   };
   
-  // 🎨 Elementos animados
+  // Elementos animados
   const [floatingElements, setFloatingElements] = useState([]);
   
   useEffect(() => {
@@ -148,7 +150,7 @@ const NotFoundPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-primary-50 flex flex-col items-center justify-center px-4 relative overflow-hidden">
       
-      {/* 🎨 Elementos decorativos flotantes */}
+      {/* Elementos decorativos flotantes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {floatingElements.map((element) => (
           <div
@@ -167,14 +169,14 @@ const NotFoundPage = () => {
       
       <div className="max-w-4xl w-full text-center relative z-10">
         
-        {/* 🏋️ Logo Elite Fitness */}
+        {/* Logo Elite Fitness */}
         <div className="flex justify-center mb-8">
           <div className="w-20 h-20 bg-elite-gradient rounded-3xl flex items-center justify-center shadow-elite animate-pulse-elite">
             <Dumbbell className="w-10 h-10 text-white" />
           </div>
         </div>
         
-        {/* 🔢 Error 404 */}
+        {/* Error 404 */}
         <div className="mb-8">
           <h1 className="text-8xl md:text-9xl font-display font-bold text-gradient-elite mb-4">
             404
@@ -190,7 +192,7 @@ const NotFoundPage = () => {
           </p>
         </div>
         
-        {/* 🔍 Barra de búsqueda */}
+        {/* Barra de búsqueda */}
         <div className="mb-12 max-w-md mx-auto">
           <form onSubmit={handleSearch} className="relative">
             <div className="relative">
@@ -219,7 +221,7 @@ const NotFoundPage = () => {
           </form>
         </div>
         
-        {/* 🎯 Botones de acción principales */}
+        {/* Botones de acción principales */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
           <button
             onClick={() => navigate(-1)}
@@ -238,7 +240,7 @@ const NotFoundPage = () => {
           </Link>
         </div>
         
-        {/* 📋 Páginas sugeridas */}
+        {/* Páginas sugeridas */}
         <div className="mb-12">
           <h3 className="text-2xl font-semibold text-gray-800 mb-8">
             Páginas que podrían interesarte
@@ -268,7 +270,7 @@ const NotFoundPage = () => {
           </div>
         </div>
         
-        {/* 🏋️ Información del gimnasio */}
+        {/* Información del gimnasio */}
         <div className="bg-white bg-opacity-80 backdrop-blur-lg rounded-3xl p-8 shadow-xl border border-white border-opacity-50">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
             <div className="space-y-2">
@@ -297,7 +299,7 @@ const NotFoundPage = () => {
           </div>
         </div>
         
-        {/* 💡 Ayuda adicional */}
+        {/* Ayuda adicional */}
         <div className="mt-12 text-center">
           <p className="text-gray-600 mb-4">
             ¿Necesitas ayuda? Nuestro equipo está aquí para apoyarte.
@@ -307,18 +309,18 @@ const NotFoundPage = () => {
               href="tel:+50223456789" 
               className="btn-ghost hover-scale"
             >
-              📞 +502 2345-6789
+              +502 2345-6789
             </a>
             <a 
               href="mailto:info@elitefitness.com" 
               className="btn-ghost hover-scale"
             >
-              ✉️ info@elitefitness.com
+              info@elitefitness.com
             </a>
           </div>
         </div>
         
-        {/* 🔗 Enlaces útiles del footer */}
+        {/* Enlaces útiles del footer */}
         <div className="mt-12 pt-8 border-t border-gray-200">
           <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
             <Link to="/" className="hover:text-primary-600 transition-colors">
@@ -351,3 +353,64 @@ const NotFoundPage = () => {
 };
 
 export default NotFoundPage;
+
+/*
+=== COMENTARIOS FINALES ===
+
+PROPOSITO DEL ARCHIVO:
+Esta página de error NotFoundPage proporciona una experiencia elegante y útil cuando los usuarios
+acceden a URLs que no existen (Error 404). Está diseñada específicamente para Elite Fitness Club
+con elementos visuales atractivos, navegación contextual y información útil del gimnasio.
+
+FUNCIONALIDAD PRINCIPAL:
+- Página 404 personalizada con diseño moderno y elementos animados
+- Navegación contextual basada en el estado de autenticación del usuario
+- Barra de búsqueda integrada para ayudar a encontrar contenido
+- Páginas sugeridas específicas según el rol del usuario
+- Información del gimnasio (ubicación, horarios, miembros)
+- Enlaces de contacto y navegación útiles
+- Elementos decorativos flotantes para mejorar la experiencia visual
+
+ARCHIVOS A LOS QUE SE CONECTA:
+- ../../contexts/AuthContext: Contexto de autenticación para determinar estado del usuario
+- react-router-dom: Para navegación y enlaces entre páginas
+- lucide-react: Biblioteca de iconos para elementos visuales
+- Sistema de rutas de la aplicación (dashboard, login, register, etc.)
+
+EXPERIENCIA POR TIPO DE USUARIO:
+- Usuario no autenticado: Sugerencias para inicio, login y registro
+- Cliente: Acceso a dashboard personal y perfil
+- Colaborador: Acceso a gestión de membresías y pagos
+- Administrador: Acceso a gestión de usuarios y reportes
+
+ELEMENTOS VISUALES:
+- Logo animado del gimnasio con icono de pesas
+- Número 404 grande con gradiente elegante
+- Elementos flotantes decorativos con animaciones
+- Tarjetas de páginas sugeridas con efectos hover
+- Sección de información del gimnasio con iconos
+- Barra de búsqueda funcional con indicador de carga
+
+FUNCIONALIDAD DE BUSQUEDA:
+- Búsqueda simulada con indicador de carga
+- Placeholder que sugiere tipos de contenido buscable
+- Validación de entrada y estados de carga
+- Preparado para implementar búsqueda real
+
+INFORMACION DEL GIMNASIO:
+- Ubicación: Zona 10, Ciudad de Guatemala
+- Horarios detallados de operación
+- Cantidad de miembros activos
+- Información de contacto (teléfono y email)
+
+NAVEGACION Y ACCESIBILIDAD:
+- Botones claramente etiquetados para volver atrás
+- Enlaces contextuales según permisos del usuario
+- Footer con enlaces útiles y legales
+- Diseño responsivo para diferentes dispositivos
+- Efectos hover y transiciones suaves
+
+Esta página transforma un error común en una oportunidad de engagement,
+proporcionando valor al usuario incluso cuando no encuentra lo que buscaba,
+y mantiene la imagen profesional y moderna de Elite Fitness Club.
+*/

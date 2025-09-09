@@ -1,7 +1,6 @@
 // Autor: Alexander Echeverria
 // src/components/cart/GlobalCart.js
 
-
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ShoppingCart, Plus, Zap, Eye, Bug } from 'lucide-react';
@@ -33,22 +32,22 @@ const GlobalCart = () => {
   const [previousItemCount, setPreviousItemCount] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
 
-  // NUEVO: Detectar si estamos en página de checkout
+  // Detectar si estamos en página de pago
   const isCheckoutPage = location.pathname === '/checkout';
 
-  // EFECTO: Detectar cuando se agrega un item y animar
+  // EFECTO: Detectar cuando se agrega un producto y animar
   useEffect(() => {
     if (itemCount > previousItemCount && previousItemCount >= 0) {
-      // Se agregó un item al carrito
+      // Se agregó un producto al carrito
       const difference = itemCount - previousItemCount;
       
-      console.log('Item added to cart - triggering animation');
+      console.log('Producto agregado al carrito - activando animación');
       
       // Animación del icono
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 600);
       
-      // MEJORADO: Feedback específico para invitados
+      // Feedback específico para invitados
       if (!isAuthenticated) {
         setFeedbackText(difference === 1 ? 'Agregado como invitado' : `+${difference} productos (invitado)`);
         showSuccess('Producto agregado al carrito (puedes comprar sin registro)');
@@ -64,15 +63,15 @@ const GlobalCart = () => {
     setPreviousItemCount(itemCount);
   }, [itemCount, previousItemCount, isAuthenticated, showSuccess]);
 
-  // NUEVO: Efecto para debug en desarrollo
+  // Efecto para debug en desarrollo
   useEffect(() => {
     if (process.env.NODE_ENV === 'development' && !isAuthenticated && itemCount > 0) {
       const interval = setInterval(() => {
-        console.log('Cart persistence check:', {
-          itemsInState: itemCount,
+        console.log('Verificación de persistencia del carrito:', {
+          productosEnEstado: itemCount,
           sessionId: sessionInfo?.sessionId,
-          hasLocalStorage: !!localStorage.getItem('elite_fitness_cart'),
-          isCheckoutPage: isCheckoutPage
+          tieneLocalStorage: !!localStorage.getItem('elite_fitness_cart'),
+          esPaginaPago: isCheckoutPage
         });
       }, 30000); // Cada 30 segundos
 
@@ -80,36 +79,36 @@ const GlobalCart = () => {
     }
   }, [itemCount, isAuthenticated, sessionInfo, isCheckoutPage]);
 
-  // CRÍTICO: NO RENDERIZAR CARRITO FLOTANTE EN CHECKOUT
+  // NO RENDERIZAR CARRITO FLOTANTE EN PAGO
   if (isEmpty || itemCount === 0) {
     return (
       <>
         <CartSidebar />
         
-        {/* Debug button para desarrollo - Solo si NO estamos en checkout */}
+        {/* Botón de debug para desarrollo - Solo si NO estamos en pago */}
         {process.env.NODE_ENV === 'development' && !isCheckoutPage && (
           <div className="fixed bottom-4 left-4 z-50">
             <button
               onClick={() => setShowDebug(!showDebug)}
               className="w-8 h-8 bg-gray-600 text-white rounded-full flex items-center justify-center text-xs hover:bg-gray-700 transition-colors"
-              title="Debug Cart"
+              title="Debug del Carrito"
             >
               <Bug className="w-4 h-4" />
             </button>
             
             {showDebug && (
               <div className="absolute bottom-10 left-0 bg-black text-white p-3 rounded-lg text-xs w-72 max-h-48 overflow-y-auto">
-                <div className="font-bold mb-2">Cart Debug Info</div>
-                <div>Items: {itemCount}</div>
-                <div>Is Authenticated: {isAuthenticated ? 'Yes' : 'No'}</div>
-                <div>Session ID: {sessionInfo?.sessionId || 'None'}</div>
-                <div>Is Checkout Page: {isCheckoutPage ? 'Yes' : 'No'}</div>
-                <div>Local Storage: {localStorage.getItem('elite_fitness_cart') ? 'Has data' : 'Empty'}</div>
+                <div className="font-bold mb-2">Información de Debug del Carrito</div>
+                <div>Productos: {itemCount}</div>
+                <div>Autenticado: {isAuthenticated ? 'Sí' : 'No'}</div>
+                <div>ID de Sesión: {sessionInfo?.sessionId || 'Ninguno'}</div>
+                <div>Es Página de Pago: {isCheckoutPage ? 'Sí' : 'No'}</div>
+                <div>Almacenamiento Local: {localStorage.getItem('elite_fitness_cart') ? 'Tiene datos' : 'Vacío'}</div>
                 <button
                   onClick={debugGuestCart}
                   className="mt-2 bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
                 >
-                  Full Debug
+                  Debug Completo
                 </button>
               </div>
             )}
@@ -119,9 +118,9 @@ const GlobalCart = () => {
     );
   }
 
-  // CRÍTICO: NO MOSTRAR CARRITO FLOTANTE EN CHECKOUT
+  // NO MOSTRAR CARRITO FLOTANTE EN PAGO
   if (isCheckoutPage) {
-    console.log('Hiding cart on checkout page (data preserved)');
+    console.log('Ocultando carrito en página de pago (datos preservados)');
     return <CartSidebar />; // Solo sidebar disponible, no carrito flotante
   }
 
@@ -130,7 +129,7 @@ const GlobalCart = () => {
       {/* CartSidebar - Mantiene toda la funcionalidad */}
       <CartSidebar />
       
-      {/* CARRITO FLOTANTE - Solo visible FUERA de checkout */}
+      {/* CARRITO FLOTANTE - Solo visible FUERA de pago */}
       <div className={`fixed z-50 transition-all duration-300 ${
         isMobile 
           ? 'bottom-4 right-4' 
@@ -178,7 +177,7 @@ const GlobalCart = () => {
             ${isAnimating ? 'animate-pulse' : ''}
           `} />
           
-          {/* CONTADOR DE ITEMS */}
+          {/* CONTADOR DE PRODUCTOS */}
           {itemCount > 0 && (
             <div className={`
               absolute text-white rounded-full font-bold
@@ -199,13 +198,13 @@ const GlobalCart = () => {
             }`}></div>
           )}
           
-          {/* RING DE HOVER */}
+          {/* ANILLO DE HOVER */}
           <div className={`absolute inset-0 rounded-full border-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse ${
             !isAuthenticated ? 'border-blue-300' : 'border-primary-300'
           }`}></div>
         </button>
         
-        {/* PREVIEW DEL TOTAL - Solo en desktop cuando no está vacío */}
+        {/* VISTA PREVIA DEL TOTAL - Solo en escritorio cuando no está vacío */}
         {!isMobile && !isEmpty && (
           <div className={`
             absolute bottom-0 right-20 bg-white text-gray-900 px-3 py-2 rounded-lg shadow-lg 
@@ -267,29 +266,29 @@ const GlobalCart = () => {
         </div>
       )}
       
-      {/* Debug panel para desarrollo - Solo si NO estamos en checkout */}
+      {/* Panel de debug para desarrollo - Solo si NO estamos en pago */}
       {process.env.NODE_ENV === 'development' && (
         <div className="fixed bottom-4 left-4 z-50">
           <button
             onClick={() => setShowDebug(!showDebug)}
             className="w-8 h-8 bg-gray-600 text-white rounded-full flex items-center justify-center text-xs hover:bg-gray-700 transition-colors"
-            title="Debug Cart"
+            title="Debug del Carrito"
           >
             <Bug className="w-4 h-4" />
           </button>
           
           {showDebug && (
             <div className="absolute bottom-10 left-0 bg-black text-white p-3 rounded-lg text-xs w-80 max-h-64 overflow-y-auto">
-              <div className="font-bold mb-2">Cart Debug Info</div>
+              <div className="font-bold mb-2">Información de Debug del Carrito</div>
               
               <div className="space-y-1">
-                <div>Items: {itemCount}</div>
-                <div>Authenticated: {isAuthenticated ? 'Yes' : 'No'}</div>
-                <div>Session ID: {sessionInfo?.sessionId || 'None'}</div>
-                <div>Current Page: {location.pathname}</div>
-                <div>Is Checkout: {isCheckoutPage ? 'Yes (Cart Hidden)' : 'No'}</div>
-                <div>LocalStorage Cart: {
-                  localStorage.getItem('elite_fitness_cart') ? 'Has data' : 'Empty'
+                <div>Productos: {itemCount}</div>
+                <div>Autenticado: {isAuthenticated ? 'Sí' : 'No'}</div>
+                <div>ID de Sesión: {sessionInfo?.sessionId || 'Ninguno'}</div>
+                <div>Página Actual: {location.pathname}</div>
+                <div>Es Pago: {isCheckoutPage ? 'Sí (Carrito Oculto)' : 'No'}</div>
+                <div>Carrito LocalStorage: {
+                  localStorage.getItem('elite_fitness_cart') ? 'Tiene datos' : 'Vacío'
                 }</div>
                 <div>Total: {formatCurrency(total)}</div>
               </div>
@@ -299,23 +298,23 @@ const GlobalCart = () => {
                   onClick={debugGuestCart}
                   className="w-full bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700 transition-colors"
                 >
-                  Full Debug Console
+                  Debug Completo en Consola
                 </button>
                 
                 <button
                   onClick={() => {
                     const cartData = localStorage.getItem('elite_fitness_cart');
                     const sessionId = localStorage.getItem('elite_fitness_session_id');
-                    console.log('Raw LocalStorage Data:', {
-                      cartData: cartData ? JSON.parse(cartData) : null,
+                    console.log('Datos Crudos de LocalStorage:', {
+                      datosCarrito: cartData ? JSON.parse(cartData) : null,
                       sessionId: sessionId,
-                      currentRoute: location.pathname,
-                      isCheckoutPage: isCheckoutPage
+                      rutaActual: location.pathname,
+                      esPaginaPago: isCheckoutPage
                     });
                   }}
                   className="w-full bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition-colors"
                 >
-                  Show Raw Data
+                  Mostrar Datos Crudos
                 </button>
                 
                 <button
@@ -326,7 +325,7 @@ const GlobalCart = () => {
                   }}
                   className="w-full bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors"
                 >
-                  Clear & Reload
+                  Limpiar y Recargar
                 </button>
               </div>
             </div>
@@ -343,70 +342,73 @@ export default GlobalCart;
 DOCUMENTACIÓN DEL COMPONENTE GlobalCart
 
 PROPÓSITO:
-Este componente implementa un wrapper global para el carrito de compras que maneja la visualización
-del carrito flotante y el sidebar del carrito en toda la aplicación. Incluye lógica especial para
-ocultar el carrito flotante en la página de checkout mientras mantiene los datos persistentes.
+Este componente implementa un contenedor global para el carrito de compras que maneja la visualización
+del carrito flotante y el panel lateral del carrito en toda la aplicación. El usuario ve un botón
+flotante del carrito que permanece accesible desde cualquier página, excepto durante el proceso de pago
+donde se oculta automáticamente para evitar distracciones.
 
-FUNCIONALIDADES PRINCIPALES:
-- Carrito flotante con animaciones y feedback visual
-- Contador de productos con indicadores visuales
-- Manejo diferenciado para usuarios autenticados e invitados
-- Ocultación automática del carrito flotante en checkout
-- Animaciones de celebración al agregar productos
-- Sistema de debug para desarrollo
-- Preview de totales en hover (desktop)
-- Persistencia de datos del carrito entre páginas
+FUNCIONALIDADES QUE VE EL USUARIO:
+- Botón de carrito flotante circular en la esquina inferior derecha
+- Contador de productos visible en el botón con animación
+- Animaciones de celebración cuando agrega productos al carrito
+- Mensaje de confirmación temporal al agregar productos
+- Colores diferentes para usuarios registrados (verde/primario) vs invitados (azul/naranja)
+- Vista previa del total en hover en dispositivos de escritorio
+- Indicador "como invitado" para usuarios no registrados
+- Ocultación automática del carrito flotante en la página de pago
+- Partículas de celebración animadas al agregar productos
+- Acceso al panel lateral completo del carrito al hacer clic
 
 CONEXIONES CON OTROS ARCHIVOS:
 
-COMPONENTS IMPORTADOS:
-- CartSidebar (./CartSidebar): Componente del sidebar del carrito
+COMPONENTES IMPORTADOS:
+- CartSidebar (./CartSidebar): Panel lateral completo del carrito con toda la funcionalidad de compra
 
 CONTEXTS REQUERIDOS:
-- CartContext (../../contexts/CartContext): Estado global del carrito
-- AuthContext (../../contexts/AuthContext): Estado de autenticación
-- AppContext (../../contexts/AppContext): Configuración de la aplicación
+- CartContext (../../contexts/CartContext): Estado global del carrito, productos, totales, persistencia
+- AuthContext (../../contexts/AuthContext): Estado de autenticación para personalización visual
+- AppContext (../../contexts/AppContext): Configuración global, notificaciones y detección de dispositivo
 
-DEPENDENCIAS REACT:
-- useLocation de react-router-dom: Para detectar la ruta actual
+DEPENDENCIAS DE NAVEGACIÓN:
+- useLocation de react-router-dom: Para detectar la página actual y ocultar carrito en checkout
 
 RUTAS SENSIBLES:
-- /checkout: Página donde se oculta el carrito flotante
+- /checkout: Página donde el carrito flotante se oculta automáticamente para mejorar la experiencia
 
-COMPORTAMIENTO POR RUTA:
-- Rutas normales: Muestra carrito flotante + sidebar disponible
-- Ruta /checkout: Solo sidebar disponible, carrito flotante oculto
-- Datos del carrito se preservan en todas las rutas
+COMPORTAMIENTO POR PÁGINA:
+- Páginas normales: Carrito flotante visible y funcional
+- Página de pago (/checkout): Solo panel lateral disponible, carrito flotante oculto
+- Datos del carrito se mantienen intactos en todas las páginas
 
 ESTADOS LOCALES MANEJADOS:
-- isAnimating: Control de animaciones al agregar productos
-- showFeedback: Mostrar mensaje de confirmación
-- feedbackText: Texto del mensaje de feedback
-- previousItemCount: Para detectar cambios en cantidad
-- showDebug: Panel de debugging en desarrollo
+- isAnimating: Control de animaciones de celebración
+- showFeedback: Mostrar mensaje de confirmación temporal
+- feedbackText: Contenido del mensaje de confirmación
+- previousItemCount: Para detectar cuando se agregan productos
+- showDebug: Panel de herramientas de desarrollo (solo en development)
 
-FUNCIONES DE CALLBACK:
-- toggleCart: Abre/cierra el sidebar del carrito
-- debugGuestCart: Función de debug para desarrollo
+ESTILOS Y EXPERIENCIA VISUAL:
+- Diseño responsivo que se adapta a móvil y escritorio
+- Animaciones suaves de bounce, ping y pulse
+- Colores diferenciados por tipo de usuario
+- Efectos de hover y escalado
+- Partículas de celebración dinámicas
+- Sombras y transiciones elegantes
 
-ESTILOS Y ANIMACIONES:
-- Tailwind CSS para diseño responsivo
-- Animaciones de bounce, ping y pulse
-- Efectos de hover y transiciones
-- Partículas de celebración al agregar productos
-
-MONEDA:
-- Configurado para mostrar totales en quetzales (Q)
-- Formateo manejado por CartContext
+MONEDA Y PRECIOS:
+- Configurado para mostrar totales en quetzales guatemaltecos (Q)
+- Formateo de precios manejado centralmente por CartContext
+- Vista previa de totales en tiempo real
 
 CARACTERÍSTICAS ESPECIALES:
-- Indicadores visuales diferentes para usuarios autenticados vs invitados
-- Colores azules para invitados, primarios para autenticados
-- Sistema de localStorage para persistencia de datos
-- Debugging tools solo en modo desarrollo
-- Responsivo para móvil y desktop
+- Persistencia de datos entre páginas usando localStorage
+- Sistema de sesiones para usuarios invitados
+- Herramientas de debugging solo visibles en desarrollo
+- Optimización para no interferir con el proceso de pago
+- Feedback visual inmediato para todas las acciones
 
 USO EN LA APLICACIÓN:
-Este componente debe estar incluido en el layout principal de la aplicación para
-proporcionar acceso global al carrito desde cualquier página.
+Este componente debe incluirse en el layout principal de la aplicación para proporcionar
+acceso global al carrito desde cualquier página. Mantiene la funcionalidad completa del
+carrito mientras optimiza la experiencia del usuario en diferentes contextos de navegación.
 */

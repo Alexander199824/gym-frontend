@@ -28,7 +28,7 @@ const ExpiredMemberships = ({ memberships = [], showActions = false }) => {
                 {membership.type === 'monthly' ? 'Membresía Mensual' : 'Pago Diario'}
               </p>
               <p className="text-xs text-red-600">
-                Venció: {new Date(membership.endDate).toLocaleDateString()}
+                Venció: {new Date(membership.endDate).toLocaleDateString('es-GT')}
               </p>
             </div>
             
@@ -37,12 +37,14 @@ const ExpiredMemberships = ({ memberships = [], showActions = false }) => {
                 <Link
                   to={`/dashboard/memberships/${membership.id}`}
                   className="text-xs bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700"
+                  title="Ver detalles"
                 >
                   <Eye className="w-3 h-3" />
                 </Link>
                 <Link
                   to={`/dashboard/memberships/${membership.id}/renew`}
                   className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                  title="Renovar membresía"
                 >
                   <RefreshCw className="w-3 h-3" />
                 </Link>
@@ -64,20 +66,33 @@ Recibe como props un array de membresías y un booleano para mostrar acciones ad
 
 CARACTERÍSTICAS:
 - Muestra mensaje positivo cuando no hay membresías vencidas
-- Lista las membresías vencidas con información del usuario (nombre, apellido)
+- Lista las membresías vencidas con información del usuario (nombre y apellido)
 - Indica el tipo de membresía (mensual o diario)
-- Muestra la fecha de vencimiento
+- Muestra la fecha de vencimiento en formato guatemalteco
 - Incluye acciones opcionales para ver detalles y renovar membresía
+- Utiliza iconos descriptivos para mejorar la experiencia del usuario
 
-CONEXIONES:
+CONEXIONES CON OTROS ARCHIVOS:
 - Importa desde 'react' para la funcionalidad del componente
 - Importa 'Link' desde 'react-router-dom' para navegación entre rutas
 - Importa iconos desde 'lucide-react' (AlertCircle, Eye, RefreshCw)
-- Se conecta con rutas del dashboard: /dashboard/memberships/{id} y /dashboard/memberships/{id}/renew
+- Se conecta con rutas del dashboard: 
+  * /dashboard/memberships/{id} (ver detalles de membresía)
+  * /dashboard/memberships/{id}/renew (renovar membresía)
 - Utilizado en componentes padre del dashboard que manejan el estado de las membresías
 - Recibe datos de membresías desde componentes superiores que consultan la API del backend
+
+LO QUE VE EL USUARIO:
+- Cuando no hay membresías vencidas: "Excelente! No hay membresías vencidas." con icono verde
+- Para cada membresía vencida muestra:
+  * Nombre completo del miembro
+  * Tipo de membresía (Membresía Mensual o Pago Diario)
+  * Fecha de vencimiento con formato "Venció: [fecha]"
+  * Botones de acción (si están habilitados): Ver detalles y Renovar membresía
+- Todo presentado en tarjetas con fondo rojo claro para indicar urgencia
 
 PROPÓSITO:
 Facilitar la gestión y visualización de membresías vencidas para que el personal del gimnasio 
 pueda identificar rápidamente clientes que necesitan renovar su membresía y tomar acciones correspondientes.
+Mejora la experiencia del usuario con mensajes claros y acciones directas.
 */

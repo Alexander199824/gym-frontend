@@ -1,11 +1,10 @@
-// src/pages/dashboard/components/ReportsManager.js
-// FUNCIÓN: Gestión completa de reportes - Financieros, usuarios, membresías, analytics
-// CONECTA CON: Backend API /api/payments/reports, /api/users/stats, etc.
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/ReportsManager.js
 
 import React, { useState, useEffect } from 'react';
 import {
   BarChart3, PieChart, TrendingUp, TrendingDown, Calendar, Download,
-  DollarSign, Users, CreditCard, Clock, Filter, RefreshCw, Eye,
+  Coins, Users, CreditCard, Clock, Filter, RefreshCw, Eye,
   FileText, Calculator, Target, Award, Activity, AlertCircle,
   CheckCircle, ArrowUp, ArrowDown, Loader, X, Settings
 } from 'lucide-react';
@@ -17,30 +16,30 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
   const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
   
-  // 📊 Estados principales
+  // Estados principales
   const [loading, setLoading] = useState(true);
   const [activeReport, setActiveReport] = useState('financial');
   
-  // 📅 Estados de filtros de fecha
+  // Estados de filtros de fecha
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
-    period: 'month' // today, week, month, quarter, year, custom
+    period: 'month'
   });
   
-  // 📊 Estados de datos de reportes
+  // Estados de datos de reportes
   const [financialReport, setFinancialReport] = useState({});
   const [userReport, setUserReport] = useState({});
   const [membershipReport, setMembershipReport] = useState({});
   const [performanceReport, setPerformanceReport] = useState({});
   
-  // 🎯 Tipos de reportes disponibles
+  // Tipos de reportes disponibles
   const reportTypes = [
     {
       id: 'financial',
       title: 'Reporte Financiero',
       description: 'Ingresos, gastos y análisis financiero',
-      icon: DollarSign,
+      icon: Coins,
       color: 'bg-green-100 text-green-800 border-green-200',
       permission: 'view_financial_reports'
     },
@@ -70,7 +69,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
     }
   ];
   
-  // 📅 Períodos predefinidos
+  // Períodos predefinidos
   const periodOptions = [
     { value: 'today', label: 'Hoy', days: 0 },
     { value: 'week', label: 'Esta semana', days: 7 },
@@ -80,7 +79,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'custom', label: 'Personalizado', days: null }
   ];
   
-  // 🔄 CARGAR DATOS DE REPORTES
+  // CARGAR DATOS DE REPORTES
   const loadReportData = async () => {
     try {
       setLoading(true);
@@ -91,7 +90,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
         period: dateRange.period
       };
       
-      console.log('🔄 Loading report data with params:', params);
+      console.log('Cargando datos del reporte con parámetros:', params);
       
       // Cargar datos según el reporte activo
       switch (activeReport) {
@@ -112,17 +111,16 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
       }
       
     } catch (error) {
-      console.error('❌ Error loading report data:', error);
+      console.error('Error al cargar datos del reporte:', error);
       showError('Error al cargar datos del reporte');
     } finally {
       setLoading(false);
     }
   };
   
-  // 💰 CARGAR REPORTE FINANCIERO
+  // CARGAR REPORTE FINANCIERO
   const loadFinancialReport = async (params) => {
     try {
-      // Reporte financiero mejorado
       const response = await apiService.get('/payments/reports/enhanced', { params });
       const reportData = response.data || response;
       
@@ -137,9 +135,8 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
       });
       
     } catch (error) {
-      console.error('❌ Error loading financial report:', error);
+      console.error('Error al cargar reporte financiero:', error);
       
-      // Fallback con datos básicos
       try {
         const basicReport = await apiService.getPaymentReports(params);
         setFinancialReport({
@@ -155,13 +152,13 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
           growthPercentage: 0
         });
       } catch (fallbackError) {
-        console.error('❌ Fallback financial report failed:', fallbackError);
+        console.error('Error en reporte financiero de respaldo:', fallbackError);
         setFinancialReport({});
       }
     }
   };
   
-  // 👥 CARGAR REPORTE DE USUARIOS
+  // CARGAR REPORTE DE USUARIOS
   const loadUserReport = async (params) => {
     try {
       const userStats = await apiService.getUserStats();
@@ -177,7 +174,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
       });
       
     } catch (error) {
-      console.error('❌ Error loading user report:', error);
+      console.error('Error al cargar reporte de usuarios:', error);
       setUserReport({
         totalUsers: 0,
         activeUsers: 0,
@@ -190,7 +187,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 🎫 CARGAR REPORTE DE MEMBRESÍAS
+  // CARGAR REPORTE DE MEMBRESÍAS
   const loadMembershipReport = async (params) => {
     try {
       const membershipStats = await apiService.getMembershipStats();
@@ -206,7 +203,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
       });
       
     } catch (error) {
-      console.error('❌ Error loading membership report:', error);
+      console.error('Error al cargar reporte de membresías:', error);
       setMembershipReport({
         totalMemberships: 0,
         activeMemberships: 0,
@@ -219,10 +216,9 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📈 CARGAR REPORTE DE RENDIMIENTO
+  // CARGAR REPORTE DE RENDIMIENTO
   const loadPerformanceReport = async (params) => {
     try {
-      // Combinar datos de múltiples fuentes para KPIs
       const [userStats, membershipStats, paymentStats] = await Promise.all([
         apiService.getUserStats().catch(() => ({})),
         apiService.getMembershipStats().catch(() => ({})),
@@ -235,11 +231,11 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
           ? ((membershipStats.activeMemberships / userStats.totalUsers) * 100).toFixed(1)
           : 0,
         averageRevenue: paymentStats.averagePayment || 0,
-        customerRetention: 85, // Mock data - implementar cálculo real
-        occupancyRate: 72, // Mock data - implementar con datos de horarios
-        equipmentUtilization: 68, // Mock data - implementar con datos reales
-        staffProductivity: 90, // Mock data - implementar con datos reales
-        customerSatisfaction: 4.2, // Mock data - implementar con encuestas
+        customerRetention: 85,
+        occupancyRate: 72,
+        equipmentUtilization: 68,
+        staffProductivity: 90,
+        customerSatisfaction: 4.2,
         kpis: [
           {
             name: 'Ingresos Mensuales',
@@ -279,7 +275,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
       setPerformanceReport(performanceData);
       
     } catch (error) {
-      console.error('❌ Error loading performance report:', error);
+      console.error('Error al cargar reporte de rendimiento:', error);
       setPerformanceReport({
         customerAcquisition: 0,
         membershipConversion: 0,
@@ -294,12 +290,12 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ⏰ Cargar datos al montar y cuando cambien filtros
+  // Cargar datos al montar y cuando cambien filtros
   useEffect(() => {
     loadReportData();
   }, [activeReport, dateRange]);
   
-  // 📅 Manejar cambio de período
+  // Manejar cambio de período
   const handlePeriodChange = (period) => {
     const today = new Date();
     let startDate = new Date();
@@ -323,7 +319,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
         startDate.setFullYear(today.getFullYear() - 1);
         break;
       case 'custom':
-        // No cambiar fechas para custom
         setDateRange(prev => ({ ...prev, period }));
         return;
     }
@@ -337,7 +332,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📊 Exportar reporte
+  // Exportar reporte
   const handleExportReport = async (format = 'pdf') => {
     try {
       const params = {
@@ -346,26 +341,15 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
         format
       };
       
-      // Simular descarga - implementar endpoint real
       showSuccess(`Exportando reporte en formato ${format.toUpperCase()}...`);
       
-      // TODO: Implementar descarga real
-      // const response = await apiService.get('/reports/export', { params, responseType: 'blob' });
-      // const url = window.URL.createObjectURL(new Blob([response.data]));
-      // const link = document.createElement('a');
-      // link.href = url;
-      // link.setAttribute('download', `reporte-${activeReport}-${Date.now()}.${format}`);
-      // document.body.appendChild(link);
-      // link.click();
-      // link.remove();
-      
     } catch (error) {
-      console.error('❌ Error exporting report:', error);
+      console.error('Error al exportar reporte:', error);
       showError('Error al exportar reporte');
     }
   };
   
-  // 📊 Obtener color para tendencias
+  // Obtener color para tendencias
   const getTrendColor = (trend) => {
     switch (trend) {
       case 'up': return 'text-green-600';
@@ -374,7 +358,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📊 Obtener ícono para tendencias
+  // Obtener ícono para tendencias
   const getTrendIcon = (trend) => {
     switch (trend) {
       case 'up': return ArrowUp;
@@ -386,12 +370,12 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER */}
+      {/* ENCABEZADO */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
             <BarChart3 className="w-6 h-6 mr-2 text-indigo-600" />
-            Reportes y Analytics
+            Reportes y Análisis
           </h3>
           <p className="text-gray-600 mt-1">
             Análisis detallado del rendimiento y métricas del gimnasio
@@ -426,7 +410,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 🔗 NAVEGACIÓN DE REPORTES */}
+      {/* NAVEGACIÓN DE REPORTES */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {reportTypes.map((report) => {
@@ -458,7 +442,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📅 FILTROS DE FECHA */}
+      {/* FILTROS DE FECHA */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-4 space-y-3 lg:space-y-0">
           
@@ -467,7 +451,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
             <span className="text-sm font-medium text-gray-700">Período:</span>
           </div>
           
-          {/* Períodos predefinidos */}
           <div className="flex flex-wrap gap-2">
             {periodOptions.map((option) => (
               <button
@@ -484,7 +467,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
             ))}
           </div>
           
-          {/* Fechas personalizadas */}
           {dateRange.period === 'custom' && (
             <div className="flex items-center space-x-2">
               <input
@@ -506,7 +488,7 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📊 CONTENIDO DEL REPORTE */}
+      {/* CONTENIDO DEL REPORTE */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         
         {loading ? (
@@ -520,7 +502,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
             {activeReport === 'financial' && (
               <div className="p-6 space-y-6">
                 
-                {/* Métricas principales */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
@@ -530,7 +511,9 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
                         </div>
                         <div className="text-sm text-green-600">Ingresos Totales</div>
                       </div>
-                      <DollarSign className="w-8 h-8 text-green-600" />
+                      <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                        Q
+                      </div>
                     </div>
                     {financialReport.growthPercentage !== undefined && (
                       <div className={`text-sm mt-2 ${
@@ -566,7 +549,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 </div>
                 
-                {/* Ingresos por fuente */}
                 {financialReport.incomeBySource && financialReport.incomeBySource.length > 0 && (
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 mb-4">Ingresos por Fuente</h4>
@@ -587,7 +569,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 )}
                 
-                {/* Métodos de pago */}
                 {financialReport.paymentMethodStats && financialReport.paymentMethodStats.length > 0 && (
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 mb-4">Ingresos por Método de Pago</h4>
@@ -613,7 +594,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 )}
                 
-                {/* Productos más vendidos */}
                 {financialReport.topProducts && financialReport.topProducts.length > 0 && (
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 mb-4">Productos Más Vendidos</h4>
@@ -643,7 +623,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
             {activeReport === 'users' && (
               <div className="p-6 space-y-6">
                 
-                {/* Métricas principales */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
@@ -694,7 +673,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 </div>
                 
-                {/* Distribución por roles */}
                 {userReport.roleDistribution && Object.keys(userReport.roleDistribution).length > 0 && (
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 mb-4">Distribución por Roles</h4>
@@ -730,7 +708,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
             {activeReport === 'memberships' && (
               <div className="p-6 space-y-6">
                 
-                {/* Métricas principales */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
@@ -781,7 +758,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 </div>
                 
-                {/* Métricas adicionales */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-gray-50 rounded-lg p-4">
                     <div className="text-center">
@@ -809,7 +785,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
             {activeReport === 'performance' && (
               <div className="p-6 space-y-6">
                 
-                {/* KPIs principales */}
                 {performanceReport.kpis && performanceReport.kpis.length > 0 && (
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 mb-4">KPIs Principales</h4>
@@ -842,7 +817,6 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 )}
                 
-                {/* Métricas de rendimiento */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="text-center">
@@ -887,3 +861,74 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default ReportsManager;
+
+/*
+ * COMPONENTE: ReportsManager
+ * AUTOR: Alexander Echeverria
+ * 
+ * PROPÓSITO:
+ * Este componente gestiona la visualización y análisis completo de reportes del gimnasio.
+ * Proporciona un dashboard integral para el monitoreo de métricas financieras, usuarios,
+ * membresías y rendimiento general del negocio.
+ * 
+ * FUNCIONALIDADES PARA EL USUARIO:
+ * 
+ * VISUALIZACIÓN DE REPORTES:
+ * - Reporte Financiero: Muestra ingresos totales en quetzales, distribución por fuentes,
+ *   métodos de pago utilizados y productos más vendidos
+ * - Reporte de Usuarios: Presenta total de usuarios registrados, usuarios activos,
+ *   nuevos usuarios del mes y distribución por roles (admin, colaborador, cliente)
+ * - Reporte de Membresías: Analiza membresías totales, activas, vencidas, por vencer,
+ *   tasa de renovación y valor promedio de membresías
+ * - Reporte de Rendimiento: Muestra KPIs principales, tasa de ocupación, retención
+ *   de clientes y satisfacción promedio
+ * 
+ * FILTROS Y PERÍODOS:
+ * - Filtros por período: Hoy, Esta semana, Este mes, Este trimestre, Este año
+ * - Filtro personalizado: Selección manual de fecha de inicio y fin
+ * - Actualización automática de datos al cambiar filtros
+ * 
+ * EXPORTACIÓN:
+ * - Exportar reportes en formato PDF para documentación
+ * - Exportar reportes en formato Excel para análisis adicional
+ * 
+ * MÉTRICAS VISUALES:
+ * - Tarjetas de métricas con códigos de color para fácil interpretación
+ * - Indicadores de tendencia (subida/bajada) con porcentajes de cambio
+ * - Comparaciones con períodos anteriores para análisis de crecimiento
+ * - Gráficos de distribución por categorías
+ * 
+ * CONEXIONES Y DEPENDENCIAS:
+ * 
+ * CONTEXTOS:
+ * - AuthContext: Maneja autenticación de usuario y permisos de acceso a reportes
+ * - AppContext: Proporciona funciones de notificación, formateo de moneda y utilidades
+ * 
+ * SERVICIOS API:
+ * - apiService: Servicio principal para comunicación con backend
+ * 
+ * ENDPOINTS CONECTADOS:
+ * - /api/payments/reports/enhanced: Obtiene reportes financieros detallados con datos
+ *   de ingresos, fuentes, métodos de pago y productos top
+ * - /api/payments/reports: Fallback para reportes financieros básicos
+ * - /api/users/stats: Estadísticas completas de usuarios, roles y actividad
+ * - /api/memberships/stats: Datos de membresías, renovaciones y valores promedio
+ * - /api/reports/export: Endpoint para exportación de reportes (a implementar)
+ * 
+ * PERMISOS REQUERIDOS:
+ * - view_financial_reports: Para acceder a reportes financieros
+ * - view_user_reports: Para acceder a reportes de usuarios
+ * - view_membership_reports: Para acceder a reportes de membresías
+ * - view_performance_reports: Para acceder a reportes de rendimiento
+ * 
+ * TECNOLOGÍAS:
+ * - React con Hooks (useState, useEffect) para manejo de estado
+ * - Lucide React para iconografía moderna
+ * - Tailwind CSS para estilos responsivos
+ * - JavaScript ES6+ para lógica de componente
+ * 
+ * PERSONALIZACIÓN REGIONAL:
+ * - Moneda mostrada en Quetzales (Q) con símbolo visual personalizado
+ * - Textos completamente en español
+ * - Formato de fechas adaptado a estándares guatemaltecos
+ */

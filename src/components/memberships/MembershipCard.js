@@ -1,5 +1,5 @@
+// Autor: Alexander Echeverria
 // src/components/memberships/MembershipCard.js
-// UBICACIÓN: /gym-frontend/src/components/memberships/MembershipCard.js
 // FUNCIÓN: Componente para mostrar información de membresías
 // USADO EN: ClientDashboard, páginas de membresías
 
@@ -16,7 +16,8 @@ import {
   Eye,
   Edit,
   Trash2,
-  User
+  User,
+  Bird
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 
@@ -31,7 +32,7 @@ const MembershipCard = ({
 }) => {
   const { formatCurrency, formatDate } = useApp();
   
-  // 📅 Calcular días hasta vencimiento
+  // Calcular días hasta vencimiento
   const getDaysUntilExpiry = (endDate) => {
     const today = new Date();
     const expiry = new Date(endDate);
@@ -42,7 +43,7 @@ const MembershipCard = ({
   
   const daysUntilExpiry = getDaysUntilExpiry(membership.endDate);
   
-  // 🎯 Estado de la membresía
+  // Estado de la membresía
   const getStatusConfig = () => {
     switch (membership.status) {
       case 'active':
@@ -124,7 +125,7 @@ const MembershipCard = ({
   
   const statusConfig = getStatusConfig();
   
-  // 📊 Progreso de la membresía
+  // Progreso de la membresía
   const calculateProgress = () => {
     const start = new Date(membership.startDate);
     const end = new Date(membership.endDate);
@@ -145,7 +146,7 @@ const MembershipCard = ({
       ${className}
     `}>
       
-      {/* 📊 HEADER */}
+      {/* ENCABEZADO */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <div className={`
@@ -176,7 +177,7 @@ const MembershipCard = ({
         </div>
       </div>
       
-      {/* 👤 INFORMACIÓN DEL USUARIO (si no es owner) */}
+      {/* INFORMACIÓN DEL USUARIO (si no es owner) */}
       {!isOwner && membership.user && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <div className="flex items-center">
@@ -191,7 +192,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* 📅 INFORMACIÓN DE FECHAS */}
+      {/* INFORMACIÓN DE FECHAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <div className="flex items-center text-sm text-gray-600 mb-1">
@@ -214,17 +215,20 @@ const MembershipCard = ({
         </div>
       </div>
       
-      {/* 💰 PRECIO */}
+      {/* PRECIO EN QUETZALES */}
       <div className="mb-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Precio:</span>
+          <div className="flex items-center">
+            <Bird className="w-4 h-4 text-green-600 mr-2" />
+            <span className="text-sm text-gray-600">Precio:</span>
+          </div>
           <span className="text-lg font-bold text-gray-900">
             {formatCurrency(membership.price)}
           </span>
         </div>
       </div>
       
-      {/* 📊 PROGRESO */}
+      {/* PROGRESO */}
       {membership.status === 'active' && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
@@ -247,7 +251,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* ⏰ TIEMPO RESTANTE */}
+      {/* TIEMPO RESTANTE */}
       {membership.status === 'active' && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <div className="text-center">
@@ -276,7 +280,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* 🔄 RENOVACIÓN AUTOMÁTICA */}
+      {/* RENOVACIÓN AUTOMÁTICA */}
       {membership.autoRenew && (
         <div className="mb-4 p-2 bg-blue-50 rounded-lg">
           <div className="flex items-center">
@@ -288,7 +292,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* 📝 NOTAS */}
+      {/* NOTAS */}
       {membership.notes && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <p className="text-sm text-gray-700">
@@ -297,7 +301,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* 🎯 ACCIONES */}
+      {/* ACCIONES */}
       {showActions && (
         <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
           
@@ -349,7 +353,7 @@ const MembershipCard = ({
   );
 };
 
-// 📊 VARIANTE: Tarjeta compacta
+// VARIANTE: Tarjeta compacta
 export const CompactMembershipCard = ({ 
   membership, 
   onClick = null,
@@ -390,9 +394,12 @@ export const CompactMembershipCard = ({
         </div>
         
         <div className="text-right">
-          <p className="text-sm font-medium text-gray-900">
-            {formatCurrency(membership.price)}
-          </p>
+          <div className="flex items-center justify-end mb-1">
+            <Bird className="w-3 h-3 text-green-600 mr-1" />
+            <p className="text-sm font-medium text-gray-900">
+              {formatCurrency(membership.price)}
+            </p>
+          </div>
           <p className={`text-xs font-medium ${getStatusColor()}`}>
             {membership.status === 'active' ? 
               (daysUntilExpiry < 0 ? 'Vencida' : 
@@ -407,3 +414,134 @@ export const CompactMembershipCard = ({
 };
 
 export default MembershipCard;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE MembershipCard
+
+PROPÓSITO:
+Este componente proporciona una interfaz visual completa para mostrar información
+detallada de membresías del gimnasio. Presenta de manera clara el estado, progreso,
+fechas importantes y acciones disponibles para cada membresía, facilitando la
+gestión tanto para usuarios como para administradores.
+
+FUNCIONALIDADES PRINCIPALES:
+- Visualización completa de información de membresías
+- Cálculo automático de días hasta vencimiento
+- Indicadores visuales de estado con códigos de color
+- Barra de progreso para membresías activas
+- Sección de acciones configurables
+- Información del usuario asociado (cuando aplica)
+- Variante compacta para vistas de lista
+- Indicadores de renovación automática
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+CONTEXTS REQUERIDOS:
+- AppContext (../../contexts/AppContext): Contexto principal de la aplicación
+  - formatCurrency(): Formatea precios en quetzales
+  - formatDate(): Formatea fechas en formato local
+
+RUTAS DE NAVEGACIÓN:
+- Link to="/dashboard/memberships/${membership.id}": Navegación a detalles de membresía
+- Utiliza React Router para navegación entre páginas
+
+COMPONENTES IMPORTADOS:
+- Iconos de Lucide React: Calendar, Clock, CreditCard, AlertCircle, CheckCircle, 
+  XCircle, RefreshCw, Eye, Edit, Trash2, User, Bird
+
+ARCHIVOS QUE LO UTILIZAN:
+- ClientDashboard: Panel principal de clientes
+- Páginas de membresías: Listados y gestión de membresías
+- Componentes de administración: Gestión administrativa
+
+QUE MUESTRA AL USUARIO:
+- Encabezado con icono de tarjeta de crédito y tipo de membresía (Mensual/Diaria)
+- ID de membresía (últimos 8 caracteres)
+- Estado visual con icono y etiqueta de color:
+  - Verde: "Activa" (más de 7 días restantes)
+  - Naranja: "Vence pronto" (7 días o menos)
+  - Amarillo: "Por vencer" (3 días o menos)
+  - Rojo: "Vencida" (fecha pasada)
+  - Gris: "Suspendida" o "Cancelada"
+- Información del usuario (nombre y email) cuando no es el propietario
+- Sección de fechas mostrando:
+  - Fecha de inicio con icono de calendario
+  - Fecha de vencimiento con icono de reloj
+- Precio en quetzales con icono de ave quetzal
+- Barra de progreso visual para membresías activas
+- Contador de días restantes con formato:
+  - "X días restantes" (verde si >7, amarillo si ≤7, rojo si ≤3)
+  - "¡Membresía vencida! Venció hace X días" (rojo)
+- Indicador de renovación automática (azul) cuando está activada
+- Sección de notas adicionales cuando existen
+- Botones de acción disponibles:
+  - "Ver detalles" con icono de ojo
+  - "Renovar" con icono de refresh (membresías activas/vencidas)
+  - "Editar" con icono de lápiz (membresías no canceladas)
+  - "Cancelar" con icono de X (solo membresías activas)
+
+VARIANTE COMPACTA:
+- Versión reducida para listas con información esencial
+- Muestra tipo de membresía, fecha de vencimiento y precio
+- Incluye información del usuario cuando se solicita
+- Estado simplificado con colores
+- Precio con icono de quetzal en formato compacto
+
+CÁLCULOS AUTOMÁTICOS:
+- Días hasta vencimiento: Diferencia entre fecha actual y fecha de fin
+- Progreso de membresía: Porcentaje de tiempo transcurrido
+- Estado dinámico: Basado en días restantes y estado de la membresía
+
+ESTADOS DE MEMBRESÍA SOPORTADOS:
+- active: Membresía activa (con sub-estados por días restantes)
+- expired: Membresía vencida
+- suspended: Membresía suspendida temporalmente
+- cancelled: Membresía cancelada permanentemente
+
+PROPS CONFIGURABLES:
+- membership: Objeto con datos de la membresía
+- showActions: Mostrar botones de acción (boolean)
+- isOwner: Si el usuario actual es el dueño (boolean)
+- onRenew: Función callback para renovación
+- onCancel: Función callback para cancelación
+- onEdit: Función callback para edición
+- className: Clases CSS adicionales
+
+CASOS DE USO EN EL GIMNASIO:
+- Dashboard de clientes: Visualización de membresía actual
+- Panel administrativo: Gestión de membresías de usuarios
+- Listados de membresías: Vista de múltiples membresías
+- Procesamiento de renovaciones: Gestión de pagos en quetzales
+- Seguimiento de vencimientos: Alertas y notificaciones
+- Gestión de suspensiones: Control de acceso al gimnasio
+
+CARACTERÍSTICAS VISUALES:
+- Diseño responsivo con grid adaptativo
+- Animaciones suaves en hover y transiciones
+- Códigos de color intuitivos para estados
+- Tipografía clara y jerarquizada
+- Espaciado consistente y legible
+
+INTEGRACIÓN FINANCIERA:
+- Formateo de precios en quetzales guatemaltecos
+- Icono de ave quetzal para identificar moneda local
+- Compatibilidad con sistema de pagos del gimnasio
+- Seguimiento de transacciones y renovaciones
+
+ACCESIBILIDAD:
+- Iconos descriptivos para cada sección
+- Colores con suficiente contraste
+- Estructura semántica clara
+- Información textual complementaria
+
+MANEJO DE ERRORES:
+- Estado "Desconocido" para casos no contemplados
+- Validación de fechas y cálculos
+- Fallbacks para datos faltantes
+- Manejo graceful de props opcionales
+
+Este componente es fundamental para la experiencia de usuario en la gestión
+de membresías del gimnasio, proporcionando toda la información necesaria de
+manera clara y accesible, con énfasis especial en el manejo de la moneda
+local (quetzales) y los flujos típicos de un gimnasio guatemalteco.
+*/

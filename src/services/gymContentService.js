@@ -1,5 +1,8 @@
 // src/services/gymContentService.js
-// FUNCIÓN: Servicio para contenido dinámico COMPLETO con soporte para video y móvil
+// Autor: Alexander Echeverria
+// Archivo: src/services/gymContentService.js
+
+// FUNCION: Servicio para contenido dinámico COMPLETO con soporte para video y móvil
 // MEJORAS: Video, optimización móvil, mejor cache, monitoreo avanzado
 
 import apiService from './apiService';
@@ -10,12 +13,12 @@ class GymContentService {
     this.baseUrl = '/api/gym/content';
     this.cache = new Map();
     
-    // 📱 Configuración adaptativa según dispositivo
+    // Configuración adaptativa según dispositivo
     this.isMobile = this.detectMobile();
     this.cacheTimeout = this.isMobile ? 3 * 60 * 1000 : 5 * 60 * 1000; // Menos cache en móvil
     this.maxCacheSize = this.isMobile ? 15 : 30; // Límite de cache según dispositivo
     
-    // 🎬 Configuración específica para diferentes tipos de contenido
+    // Configuración específica para diferentes tipos de contenido
     this.contentConfig = {
       video: {
         ttl: 20 * 60 * 1000,     // 20 min - video cambia poco
@@ -43,7 +46,7 @@ class GymContentService {
       }
     };
     
-    // 📊 Estadísticas del servicio
+    // Estadísticas del servicio
     this.stats = {
       totalRequests: 0,
       cacheHits: 0,
@@ -55,22 +58,22 @@ class GymContentService {
       lastCleanup: Date.now()
     };
     
-    // 🔧 Setup automático
+    // Setup automático
     this.setupAutoCleanup();
     
-    console.log(`🏢 GYM CONTENT SERVICE INITIALIZED ${this.isMobile ? '📱 (Mobile)' : '🖥️ (Desktop)'}`);
+    console.log(`GYM CONTENT SERVICE INITIALIZED ${this.isMobile ? '(Móvil)' : '(Escritorio)'}`);
   }
 
-  // 📱 Detectar dispositivo móvil
+  // Detectar dispositivo móvil
   detectMobile() {
     if (typeof navigator === 'undefined') return false;
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
            (typeof window !== 'undefined' && window.innerWidth < 768);
   }
 
-  // 🏢 MÉTODOS PRINCIPALES DE CONTENIDO
+  // METODOS PRINCIPALES DE CONTENIDO
 
-  // 🔍 Obtener todo el contenido del gimnasio OPTIMIZADO
+  // Obtener todo el contenido del gimnasio OPTIMIZADO
   async getGymContent(options = {}) {
     const {
       forceRefresh = false,
@@ -82,8 +85,8 @@ class GymContentService {
       this.stats.totalRequests++;
       if (this.isMobile) this.stats.mobileRequests++;
       
-      console.group('🏢 FETCHING GYM CONTENT (Complete)');
-      console.log('📊 Options:', { forceRefresh, includeVideo, mobileOptimized, isMobile: this.isMobile });
+      console.group('OBTENIENDO CONTENIDO COMPLETO DEL GIMNASIO');
+      console.log('Opciones:', { forceRefresh, includeVideo, mobileOptimized, isMobile: this.isMobile });
       
       // Verificar cache primero
       const cacheKey = `gym_content_all_${includeVideo ? 'with_video' : 'no_video'}`;
@@ -91,14 +94,14 @@ class GymContentService {
       
       if (cached && !forceRefresh) {
         this.stats.cacheHits++;
-        console.log('✅ RETURNING CACHED COMPLETE CONTENT');
+        console.log('RETORNANDO CONTENIDO COMPLETO CACHEADO');
         console.groupEnd();
         return cached;
       }
       
       this.stats.cacheMisses++;
       
-      // 🚀 Usar RequestManager para optimización
+      // Usar RequestManager para optimización
       const config = this.contentConfig.config;
       const response = await requestManager.executeRequest(
         this.baseUrl,
@@ -111,9 +114,9 @@ class GymContentService {
       );
       
       if (response.success && response.data) {
-        console.log('✅ COMPLETE CONTENT RECEIVED FROM BACKEND');
+        console.log('CONTENIDO COMPLETO RECIBIDO DEL BACKEND');
         
-        // 🎬 Agregar video si está solicitado y disponible
+        // Agregar video si está solicitado y disponible
         let finalContent = response.data;
         if (includeVideo) {
           try {
@@ -123,10 +126,10 @@ class GymContentService {
                 ...finalContent,
                 video: videoContent.data
               };
-              console.log('🎬 VIDEO CONTENT MERGED INTO COMPLETE CONTENT');
+              console.log('CONTENIDO DE VIDEO AGREGADO AL CONTENIDO COMPLETO');
             }
           } catch (videoError) {
-            console.log('⚠️ VIDEO CONTENT FAILED, CONTINUING WITHOUT VIDEO:', videoError.message);
+            console.log('CONTENIDO DE VIDEO FALLÓ, CONTINUANDO SIN VIDEO:', videoError.message);
             // No fallar por video - es opcional
           }
         }
@@ -139,7 +142,7 @@ class GymContentService {
           includesVideo: includeVideo
         });
         
-        console.log('✅ COMPLETE CONTENT PROCESSED AND CACHED');
+        console.log('CONTENIDO COMPLETO PROCESADO Y CACHEADO');
         console.groupEnd();
         
         return {
@@ -151,21 +154,21 @@ class GymContentService {
       }
       
       // Sin datos del backend
-      console.log('⚠️ NO COMPLETE CONTENT FROM BACKEND');
+      console.log('NO HAY CONTENIDO COMPLETO DEL BACKEND');
       console.groupEnd();
       
       return this.createNotFoundResponse('gym_content', 'Contenido completo no encontrado en el servidor');
       
     } catch (error) {
       this.stats.errors++;
-      console.error('❌ Error fetching complete gym content:', error);
+      console.error('Error obteniendo contenido completo del gimnasio:', error);
       console.groupEnd();
       
       return this.createErrorResponse('gym_content', error.message);
     }
   }
 
-  // 🎬 Obtener contenido de video específicamente
+  // Obtener contenido de video específicamente
   async getVideoContent(options = {}) {
     const {
       forceRefresh = false,
@@ -178,8 +181,8 @@ class GymContentService {
       this.stats.videoRequests++;
       if (this.isMobile) this.stats.mobileRequests++;
       
-      console.group('🎬 FETCHING VIDEO CONTENT');
-      console.log('📊 Options:', { forceRefresh, fallbackOnError, priority });
+      console.group('OBTENIENDO CONTENIDO DE VIDEO');
+      console.log('Opciones:', { forceRefresh, fallbackOnError, priority });
       
       // Verificar cache
       const cacheKey = 'gym_video_content';
@@ -187,14 +190,14 @@ class GymContentService {
       
       if (cached && !forceRefresh) {
         this.stats.cacheHits++;
-        console.log('✅ RETURNING CACHED VIDEO CONTENT');
+        console.log('RETORNANDO CONTENIDO DE VIDEO CACHEADO');
         console.groupEnd();
         return cached;
       }
       
       this.stats.cacheMisses++;
       
-      // 🚀 Usar RequestManager con configuración de video
+      // Usar RequestManager con configuración de video
       const config = this.contentConfig.video;
       const response = await requestManager.executeRequest(
         '/api/gym/video',
@@ -207,8 +210,8 @@ class GymContentService {
       );
       
       if (response && response.success && response.data) {
-        console.log('✅ VIDEO CONTENT RECEIVED FROM BACKEND');
-        console.log('🎬 Video details:', {
+        console.log('CONTENIDO DE VIDEO RECIBIDO DEL BACKEND');
+        console.log('Detalles del video:', {
           hasHeroVideo: !!response.data.heroVideo,
           hasPoster: !!response.data.poster,
           hasTitle: !!response.data.title,
@@ -224,21 +227,21 @@ class GymContentService {
         
         this.setCachedData(cacheKey, videoContent);
         
-        console.log('✅ VIDEO CONTENT CACHED');
+        console.log('CONTENIDO DE VIDEO CACHEADO');
         console.groupEnd();
         
         return videoContent;
       }
       
       // Sin video disponible
-      console.log('ℹ️ NO VIDEO CONTENT AVAILABLE FROM BACKEND');
+      console.log('NO HAY CONTENIDO DE VIDEO DISPONIBLE DEL BACKEND');
       console.groupEnd();
       
       if (fallbackOnError) {
         this.stats.fallbacksUsed++;
         return {
           status: 'not_found',
-          message: 'Video content not available',
+          message: 'Contenido de video no disponible',
           data: null,
           fallback: true
         };
@@ -248,16 +251,16 @@ class GymContentService {
       
     } catch (error) {
       this.stats.errors++;
-      console.error('❌ Error fetching video content:', error);
+      console.error('Error obteniendo contenido de video:', error);
       console.groupEnd();
       
-      // 🎬 Manejo especial para errores de video
+      // Manejo especial para errores de video
       if (fallbackOnError) {
         this.stats.fallbacksUsed++;
-        console.log('🔄 VIDEO ERROR: Using fallback (video is optional)');
+        console.log('ERROR DE VIDEO: Usando fallback (video es opcional)');
         return {
           status: 'error_fallback',
-          message: 'Video content failed to load, using fallback',
+          message: 'Contenido de video falló al cargar, usando fallback',
           error: error.message,
           data: null,
           fallback: true
@@ -268,7 +271,7 @@ class GymContentService {
     }
   }
 
-  // 🔍 Obtener contenido de una sección específica MEJORADO
+  // Obtener contenido de una sección específica MEJORADO
   async getSectionContent(section, options = {}) {
     const {
       forceRefresh = false,
@@ -280,7 +283,7 @@ class GymContentService {
       this.stats.totalRequests++;
       if (this.isMobile) this.stats.mobileRequests++;
       
-      console.group(`🔍 FETCHING SECTION CONTENT: ${section}`);
+      console.group(`OBTENIENDO CONTENIDO DE SECCION: ${section}`);
       
       // Verificar cache
       const cacheKey = `gym_section_${section}`;
@@ -288,7 +291,7 @@ class GymContentService {
       
       if (cached && !forceRefresh) {
         this.stats.cacheHits++;
-        console.log(`✅ RETURNING CACHED SECTION: ${section}`);
+        console.log(`RETORNANDO SECCION CACHEADA: ${section}`);
         console.groupEnd();
         return cached;
       }
@@ -301,7 +304,7 @@ class GymContentService {
       else if (section === 'stats') config = this.contentConfig.stats;
       else if (section === 'video') config = this.contentConfig.video;
       
-      // 🚀 Usar RequestManager
+      // Usar RequestManager
       const response = await requestManager.executeRequest(
         `${this.baseUrl}/${section}`,
         () => apiService.get(`${this.baseUrl}/${section}`),
@@ -313,7 +316,7 @@ class GymContentService {
       );
       
       if (response.success && response.data) {
-        console.log(`✅ SECTION CONTENT RECEIVED: ${section}`);
+        console.log(`CONTENIDO DE SECCION RECIBIDO: ${section}`);
         
         const sectionContent = {
           status: 'loaded',
@@ -328,21 +331,21 @@ class GymContentService {
         return sectionContent;
       }
       
-      console.log(`⚠️ NO SECTION CONTENT: ${section}`);
+      console.log(`NO HAY CONTENIDO DE SECCION: ${section}`);
       console.groupEnd();
       
       return this.createNotFoundResponse(section, `Contenido de la sección "${section}" no encontrado`);
       
     } catch (error) {
       this.stats.errors++;
-      console.error(`❌ Error fetching section ${section}:`, error);
+      console.error(`Error obteniendo sección ${section}:`, error);
       console.groupEnd();
       
       return this.createErrorResponse(section, error.message);
     }
   }
 
-  // ✏️ MÉTODOS DE ACTUALIZACIÓN (mantenidos)
+  // METODOS DE ACTUALIZACION (mantenidos)
 
   async updateSection(section, data) {
     try {
@@ -352,14 +355,14 @@ class GymContentService {
         this.invalidateCache(`gym_section_${section}`);
         this.invalidateCache('gym_content_all_true');
         this.invalidateCache('gym_content_all_false');
-        console.log(`✅ SECTION UPDATED AND CACHE INVALIDATED: ${section}`);
+        console.log(`SECCION ACTUALIZADA Y CACHE INVALIDADO: ${section}`);
         return response.data;
       }
       
-      throw new Error('Failed to update content');
+      throw new Error('Falló al actualizar contenido');
       
     } catch (error) {
-      console.error(`❌ Error updating ${section} content:`, error);
+      console.error(`Error actualizando contenido de ${section}:`, error);
       throw error;
     }
   }
@@ -370,19 +373,19 @@ class GymContentService {
       
       if (response.success) {
         this.clearCache();
-        console.log('✅ ALL CONTENT UPDATED AND CACHE CLEARED');
+        console.log('TODO EL CONTENIDO ACTUALIZADO Y CACHE LIMPIADO');
         return response.data;
       }
       
-      throw new Error('Failed to update content');
+      throw new Error('Falló al actualizar contenido');
       
     } catch (error) {
-      console.error('❌ Error updating all content:', error);
+      console.error('Error actualizando todo el contenido:', error);
       throw error;
     }
   }
 
-  // 💾 MÉTODOS DE CACHE MEJORADOS
+  // METODOS DE CACHE MEJORADOS
 
   getCachedData(key) {
     const cached = this.cache.get(key);
@@ -395,7 +398,7 @@ class GymContentService {
     const ttl = cached.ttl || this.cacheTimeout;
     
     if (age > ttl) {
-      console.log(`🗑️ CACHE EXPIRED: ${key} | Age: ${age}ms > TTL: ${ttl}ms`);
+      console.log(`CACHE EXPIRADO: ${key} | Edad: ${age}ms > TTL: ${ttl}ms`);
       this.cache.delete(key);
       return null;
     }
@@ -413,7 +416,7 @@ class GymContentService {
       key
     });
     
-    console.log(`💾 CACHED: ${key} | TTL: ${ttl}ms | Cache size: ${this.cache.size}/${this.maxCacheSize}`);
+    console.log(`CACHEADO: ${key} | TTL: ${ttl}ms | Tamaño cache: ${this.cache.size}/${this.maxCacheSize}`);
     
     // Limpiar si excede el límite
     if (this.cache.size > this.maxCacheSize) {
@@ -421,7 +424,7 @@ class GymContentService {
     }
   }
 
-  // 🧹 Limpieza de cache optimizada
+  // Limpieza de cache optimizada
   cleanupCache() {
     const now = Date.now();
     let cleaned = 0;
@@ -453,13 +456,13 @@ class GymContentService {
     }
     
     if (cleaned > 0) {
-      console.log(`🧹 CACHE CLEANUP: Removed ${cleaned} entries | Remaining: ${this.cache.size}`);
+      console.log(`LIMPIEZA DE CACHE: Eliminadas ${cleaned} entradas | Restantes: ${this.cache.size}`);
     }
     
     this.stats.lastCleanup = Date.now();
   }
 
-  // 🔧 Setup automático
+  // Setup automático
   setupAutoCleanup() {
     const interval = this.isMobile ? 2 * 60 * 1000 : 5 * 60 * 1000; // Más frecuente en móvil
     
@@ -467,10 +470,10 @@ class GymContentService {
       this.cleanupCache();
     }, interval);
     
-    console.log(`🔧 AUTO-CLEANUP SETUP: Every ${interval / 1000}s (Mobile: ${this.isMobile})`);
+    console.log(`AUTO-LIMPIEZA CONFIGURADA: Cada ${interval / 1000}s (Móvil: ${this.isMobile})`);
   }
 
-  // 📊 MÉTODOS DE MONITOREO MEJORADOS
+  // METODOS DE MONITOREO MEJORADOS
 
   getStats() {
     const cacheHitRate = this.stats.totalRequests > 0 
@@ -496,25 +499,25 @@ class GymContentService {
   logStats() {
     const stats = this.getStats();
     
-    console.group(`📊 GYM CONTENT SERVICE STATS ${this.isMobile ? '📱' : '🖥️'}`);
-    console.log('📈 Total Requests:', stats.totalRequests);
-    console.log('💾 Cache Hit Rate:', stats.cacheHitRate);
-    console.log('📦 Cache Usage:', `${stats.cacheSize}/${stats.maxCacheSize}`);
-    console.log('🎬 Video Requests:', `${stats.videoRequests} (${stats.videoRequestsPercent})`);
-    console.log('📱 Mobile Requests:', `${stats.mobileRequests} (${stats.mobileRequestsPercent})`);
-    console.log('🔄 Fallbacks Used:', `${stats.fallbacksUsed} (${stats.fallbacksUsedPercent})`);
-    console.log('❌ Errors:', stats.errors);
-    console.log('🧹 Last Cleanup:', stats.lastCleanup);
+    console.group(`ESTADISTICAS GYM CONTENT SERVICE ${this.isMobile ? '(Móvil)' : '(Escritorio)'}`);
+    console.log('Total Peticiones:', stats.totalRequests);
+    console.log('Tasa Cache Hit:', stats.cacheHitRate);
+    console.log('Uso de Cache:', `${stats.cacheSize}/${stats.maxCacheSize}`);
+    console.log('Peticiones Video:', `${stats.videoRequests} (${stats.videoRequestsPercent})`);
+    console.log('Peticiones Móvil:', `${stats.mobileRequests} (${stats.mobileRequestsPercent})`);
+    console.log('Fallbacks Usados:', `${stats.fallbacksUsed} (${stats.fallbacksUsedPercent})`);
+    console.log('Errores:', stats.errors);
+    console.log('Última Limpieza:', stats.lastCleanup);
     console.groupEnd();
   }
 
-  // 🛠️ MÉTODOS DE UTILIDAD MEJORADOS
+  // METODOS DE UTILIDAD MEJORADOS
 
   // Invalidar cache específico
   invalidateCache(key) {
     const deleted = this.cache.delete(key);
     if (deleted) {
-      console.log(`🗑️ CACHE INVALIDATED: ${key}`);
+      console.log(`CACHE INVALIDADO: ${key}`);
     }
     return deleted;
   }
@@ -523,7 +526,7 @@ class GymContentService {
   clearCache() {
     const size = this.cache.size;
     this.cache.clear();
-    console.log(`🗑️ CACHE CLEARED | Removed ${size} entries`);
+    console.log(`CACHE LIMPIADO | Eliminadas ${size} entradas`);
   }
 
   // Verificar disponibilidad de contenido
@@ -536,7 +539,7 @@ class GymContentService {
     }
   }
 
-  // 📊 Obtener estadísticas de contenido
+  // Obtener estadísticas de contenido
   async getContentStats() {
     try {
       const response = await apiService.get(`${this.baseUrl}/stats`);
@@ -552,50 +555,50 @@ class GymContentService {
       return this.createNotFoundResponse('content_stats', 'Estadísticas de contenido no encontradas');
       
     } catch (error) {
-      console.error('❌ Error fetching content stats:', error);
+      console.error('Error obteniendo estadísticas de contenido:', error);
       return this.createErrorResponse('content_stats', error.message);
     }
   }
 
-  // 🔄 Crear contenido inicial
+  // Crear contenido inicial
   async createInitialContent() {
     try {
       const response = await apiService.post(`${this.baseUrl}/initialize`);
       
       if (response.success) {
         this.clearCache();
-        console.log('✅ INITIAL CONTENT CREATED');
+        console.log('CONTENIDO INICIAL CREADO');
         return response.data;
       }
       
-      throw new Error('Failed to create initial content');
+      throw new Error('Falló al crear contenido inicial');
       
     } catch (error) {
-      console.error('❌ Error creating initial content:', error);
+      console.error('Error creando contenido inicial:', error);
       throw error;
     }
   }
 
-  // 🔄 Reiniciar contenido
+  // Reiniciar contenido
   async resetContent() {
     try {
       const response = await apiService.post(`${this.baseUrl}/reset`);
       
       if (response.success) {
         this.clearCache();
-        console.log('✅ CONTENT RESET');
+        console.log('CONTENIDO REINICIADO');
         return response.data;
       }
       
-      throw new Error('Failed to reset content');
+      throw new Error('Falló al reiniciar contenido');
       
     } catch (error) {
-      console.error('❌ Error resetting content:', error);
+      console.error('Error reiniciando contenido:', error);
       throw error;
     }
   }
 
-  // 🛠️ MÉTODOS UTILITARIOS DE ESTADOS (mantenidos)
+  // METODOS UTILITARIOS DE ESTADOS (mantenidos)
 
   isNotFound(response) {
     return response && (response.status === 'not_found' || response.status === 'error_fallback');
@@ -661,20 +664,98 @@ if (process.env.NODE_ENV === 'development') {
 
 export default gymContentService;
 
-// 📝 MEJORAS IMPLEMENTADAS:
-// ✅ Soporte completo para contenido de video con fallbacks
-// ✅ Detección automática de dispositivos móviles
-// ✅ Configuración adaptativa de cache según dispositivo
-// ✅ Sistema de prioridades para diferentes tipos de contenido
-// ✅ Integración completa con RequestManager mejorado
-// ✅ Manejo de errores específico para video (no crítico)
-// ✅ Estadísticas ampliadas con métricas de video y móvil
-// ✅ Sistema de fallbacks para contenido opcional
-// ✅ Cache más inteligente con límites según dispositivo
-// ✅ Auto-limpieza más frecuente en móvil
-// ✅ Método getGymContent que incluye video opcionalmente
-// ✅ Método getVideoContent específico con manejo de errores
-// ✅ Configuración específica por tipo de contenido
-// ✅ Monitoreo avanzado con logging detallado
-// ✅ Invalidación inteligente de cache relacionado
-// ✅ Mantiene TODA la funcionalidad original del servicio
+/*
+=== COMENTARIOS FINALES ===
+
+PROPOSITO DEL ARCHIVO:
+Este GymContentService es un servicio especializado para gestionar todo el contenido
+dinámico del gimnasio Elite Fitness. Maneja desde información básica como horarios y
+servicios hasta contenido multimedia como videos promocionales, todo optimizado para
+dispositivos móviles y con un sistema inteligente de cache para mejorar el rendimiento.
+
+FUNCIONALIDAD PRINCIPAL:
+- Gestión completa de contenido dinámico del gimnasio
+- Soporte especializado para contenido de video con fallbacks
+- Detección automática de dispositivos móviles con optimizaciones específicas
+- Sistema de cache inteligente con límites adaptativos según dispositivo
+- Priorización de contenido (crítico vs opcional)
+- Sistema de fallbacks para contenido no esencial
+- Invalidación inteligente de cache relacionado
+- Monitoreo avanzado con estadísticas detalladas
+
+ARCHIVOS A LOS QUE SE CONECTA:
+- ./apiService: Servicio principal de API para peticiones HTTP
+- ./RequestManager: Gestor de peticiones optimizado con cache
+- Hooks personalizados: useGymConfig, useGymStats, useTestimonials
+- Componentes React que muestran contenido dinámico
+- Contextos de aplicación que consumen contenido del gimnasio
+
+ENDPOINTS DEL BACKEND UTILIZADOS:
+- GET /api/gym/content: Obtener todo el contenido del gimnasio
+- GET /api/gym/content/{section}: Obtener contenido de sección específica
+- GET /api/gym/video: Obtener contenido de video específicamente
+- PUT /api/gym/content/{section}: Actualizar contenido de sección
+- PUT /api/gym/content: Actualizar todo el contenido
+- GET /api/gym/content/health: Verificar disponibilidad
+- GET /api/gym/content/stats: Obtener estadísticas de contenido
+- POST /api/gym/content/initialize: Crear contenido inicial
+- POST /api/gym/content/reset: Reiniciar contenido
+
+TIPOS DE CONTENIDO GESTIONADOS:
+- Config: Configuración básica del gimnasio (horarios, contacto, ubicación)
+- Stats: Estadísticas dinámicas (miembros activos, clases hoy, equipos)
+- Video: Contenido multimedia (videos promocionales, tours virtuales)
+- Dynamic: Contenido que cambia frecuentemente (ofertas, noticias)
+- Services: Servicios del gimnasio (entrenamientos, clases, facilidades)
+- Testimonials: Testimonios de clientes y reseñas
+
+OPTIMIZACIONES PARA MOVIL:
+- Cache reducido de 15 entradas vs 30 en desktop
+- TTL reducido para datos más frescos en móvil
+- Limpieza de cache cada 2 minutos vs 5 en desktop
+- Detección automática de capacidades del dispositivo
+- Priorización de contenido crítico en conexiones lentas
+
+SISTEMA DE PRIORIDADES:
+- High: Contenido crítico (configuración básica del gimnasio)
+- Normal: Contenido importante (estadísticas, servicios)
+- Low: Contenido opcional (videos, contenido dinámico)
+
+SISTEMA DE FALLBACKS:
+- Video: Si falla, la aplicación continúa sin video
+- Dynamic: Si falla, usa contenido por defecto
+- Config: Si falla, se considera error crítico
+- Stats: Si falla, muestra mensaje informativo
+
+BENEFICIOS PARA EL USUARIO FINAL:
+- Carga rápida de información del gimnasio
+- Experiencia fluida en dispositivos móviles
+- Contenido siempre actualizado (horarios, clases, ofertas)
+- Videos promocionales para mejor presentación
+- Información detallada de servicios y facilidades
+- Testimonios reales de otros miembros
+- Menor consumo de datos en móviles
+- Funcionamiento sin interrupciones aunque falle contenido opcional
+
+CASOS DE USO PRINCIPALES:
+- Mostrar horarios actualizados del gimnasio
+- Presentar servicios y clases disponibles
+- Reproducir videos promocionales y tours
+- Mostrar estadísticas en tiempo real
+- Presentar testimonios de clientes satisfechos
+- Gestionar ofertas y promociones dinámicas
+- Proporcionar información de contacto actualizada
+
+MONITOREO Y ESTADISTICAS:
+- Tracking de peticiones totales y por tipo
+- Métricas de cache hit/miss rate
+- Porcentaje de peticiones desde móvil
+- Seguimiento de uso de fallbacks
+- Monitoreo específico de peticiones de video
+- Estadísticas de limpieza de cache
+- Detección de errores por tipo de contenido
+
+Este servicio es fundamental para mantener la información del gimnasio
+actualizada y presentarla de manera eficiente, especialmente en dispositivos
+móviles donde la optimización es crucial para una buena experiencia de usuario.
+*/

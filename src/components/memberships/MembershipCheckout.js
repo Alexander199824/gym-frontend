@@ -1,7 +1,7 @@
+// Autor: Alexander Echeverria
 // src/components/memberships/MembershipCheckout.js
 // FUNCIÓN: Checkout completo para membresías - Tarjeta y Transferencia
 // INTEGRA: Con Stripe Elements y upload de comprobantes
-// BASADO EN: Guía de adquisición de membresías del backend
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -16,7 +16,7 @@ import {
   Loader2,
   Shield,
   Calendar,
-  DollarSign,
+  Bird,
   Clock,
   FileText,
   AlertTriangle,
@@ -53,10 +53,10 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   // Estados de pago
   const [paymentMethod, setPaymentMethod] = useState('stripe'); // 'stripe' o 'transfer'
   
-  // ✅ Ref para prevenir múltiples inicializaciones de Stripe
+  // Ref para prevenir múltiples inicializaciones de Stripe
   const stripeInitialized = useRef(false);
   
-  // 🔍 EFECTO: Verificar autenticación
+  // EFECTO: Verificar autenticación
   useEffect(() => {
     if (!isAuthenticated) {
       showError('Debes iniciar sesión para adquirir una membresía');
@@ -64,13 +64,13 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   }, [isAuthenticated, onBack, showError]);
   
-  // 🔍 EFECTO: Inicializar Stripe
+  // EFECTO: Inicializar Stripe
   useEffect(() => {
     const initializeStripe = async () => {
       if (stripeInitialized.current) return;
       
       try {
-        console.log('💳 Inicializando Stripe para membresías...');
+        console.log('Inicializando Stripe para membresías...');
         
         // Usar servicio de membresías
         const stripeConfig = await membershipService.checkStripeConfig();
@@ -79,9 +79,9 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
           const publishableKey = stripeConfig.publishableKey;
           const stripe = await loadStripe(publishableKey);
           setStripePromise(Promise.resolve(stripe));
-          console.log('✅ Stripe inicializado para membresías');
+          console.log('Stripe inicializado para membresías');
         } else {
-          console.warn('⚠️ Stripe no habilitado - solo transferencias');
+          console.warn('Stripe no habilitado - solo transferencias');
           setPaymentMethod('transfer');
           showInfo('Solo pagos por transferencia disponibles');
         }
@@ -89,7 +89,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
         stripeInitialized.current = true;
         
       } catch (error) {
-        console.error('❌ Error inicializando Stripe:', error);
+        console.error('Error inicializando Stripe:', error);
         setPaymentMethod('transfer');
         showError('Error cargando sistema de pagos. Solo transferencias disponibles.');
       }
@@ -98,14 +98,14 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     initializeStripe();
   }, [showError, showInfo]);
   
-  // ➡️ FUNCIÓN: Continuar al siguiente paso
+  // FUNCIÓN: Continuar al siguiente paso
   const handleContinue = () => {
     if (step < 3) {
       setStep(step + 1);
     }
   };
   
-  // ⬅️ FUNCIÓN: Volver al paso anterior
+  // FUNCIÓN: Volver al paso anterior
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
@@ -121,7 +121,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       
-      {/* 🔝 HEADER */}
+      {/* HEADER */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -147,7 +147,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
         </div>
       </div>
 
-      {/* 📊 PROGRESS BAR */}
+      {/* BARRA DE PROGRESO */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-4">
@@ -177,7 +177,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
         </div>
       </div>
 
-      {/* 📱 CONTENIDO PRINCIPAL */}
+      {/* CONTENIDO PRINCIPAL */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {step === 3 ? (
@@ -191,7 +191,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
           // Pasos 1 y 2: Layout con resumen lateral
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* 📝 CONTENIDO PRINCIPAL */}
+            {/* CONTENIDO PRINCIPAL */}
             <div className="lg:col-span-2">
               {step === 1 && (
                 <MembershipInfoStep
@@ -210,7 +210,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
                     setPaymentMethod={setPaymentMethod}
                     isProcessing={isProcessing}
                     setIsProcessing={setIsProcessing}
-                    stripePromise={stripePromise} // ✅ AGREGAR: Pasar stripePromise como prop
+                    stripePromise={stripePromise}
                     onSuccess={(membership) => {
                       setCompletedMembership(membership);
                       setStep(3);
@@ -222,7 +222,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
               )}
             </div>
 
-            {/* 📋 RESUMEN DE LA MEMBRESÍA */}
+            {/* RESUMEN DE LA MEMBRESÍA */}
             <div className="lg:col-span-1">
               <MembershipSummary
                 plan={selectedPlan}
@@ -240,13 +240,13 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   );
 };
 
-// ✅ COMPONENTE: Paso 1 - Información de la membresía
+// COMPONENTE: Paso 1 - Información de la membresía
 const MembershipInfoStep = ({ plan, user, onContinue }) => {
   
   return (
     <div className="space-y-6">
       
-      {/* 👤 INFORMACIÓN DEL CLIENTE */}
+      {/* INFORMACIÓN DEL CLIENTE */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <User className="w-5 h-5 text-primary-600 mr-2" />
@@ -270,7 +270,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              Correo electrónico
             </label>
             <input
               type="email"
@@ -292,14 +292,14 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
             />
             {!user.phone && (
               <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Te recomendamos actualizar tu teléfono en tu perfil
+                Te recomendamos actualizar tu teléfono en tu perfil
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* 🎫 DETALLES DE LA MEMBRESÍA SELECCIONADA */}
+      {/* DETALLES DE LA MEMBRESÍA SELECCIONADA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Crown className="w-5 h-5 text-primary-600 mr-2" />
@@ -312,7 +312,8 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
             <div className="text-right">
-              <div className="text-2xl font-bold text-primary-600">
+              <div className="flex items-center text-2xl font-bold text-primary-600">
+                <Bird className="w-6 h-6 mr-1" />
                 Q{plan.price}
               </div>
               <div className="text-sm text-gray-600">
@@ -344,7 +345,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
         </div>
       </div>
 
-      {/* ℹ️ INFORMACIÓN IMPORTANTE */}
+      {/* INFORMACIÓN IMPORTANTE */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
         <div className="flex items-start">
           <AlertCircle className="w-6 h-6 text-blue-500 mr-3 mt-0.5" />
@@ -354,7 +355,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
             </h3>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• La membresía se activará inmediatamente después del pago exitoso</li>
-              <li>• Recibirás un email de confirmación con todos los detalles</li>
+              <li>• Recibirás un correo de confirmación con todos los detalles</li>
               <li>• Podrás usar todas las instalaciones desde el momento de activación</li>
               <li>• El pago es seguro y está protegido con encriptación SSL</li>
             </ul>
@@ -365,7 +366,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
   );
 };
 
-// ✅ COMPONENTE: Paso 2 - Métodos de pago
+// COMPONENTE: Paso 2 - Métodos de pago
 const MembershipPaymentStep = ({ 
   plan, 
   user,
@@ -373,7 +374,7 @@ const MembershipPaymentStep = ({
   setPaymentMethod,
   isProcessing,
   setIsProcessing,
-  stripePromise, // ✅ AGREGAR: Recibir stripePromise como prop
+  stripePromise,
   onSuccess,
   onError
 }) => {
@@ -383,7 +384,7 @@ const MembershipPaymentStep = ({
   const [transferProof, setTransferProof] = useState(null);
   const [uploadingProof, setUploadingProof] = useState(false);
   
-  // 💳 FUNCIÓN: Procesar pago con Stripe - SEGÚN GUÍA
+  // FUNCIÓN: Procesar pago con Stripe
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -394,24 +395,23 @@ const MembershipPaymentStep = ({
       setIsProcessing(true);
       setCardError('');
 
-      console.log('💳 Iniciando flujo de pago de membresía con Stripe...');
-      console.log('📋 Plan seleccionado:', plan);
+      console.log('Iniciando flujo de pago de membresía con Stripe...');
+      console.log('Plan seleccionado:', plan);
 
-      // ✅ DEBUG: Preparar datos para Payment Intent
+      // Preparar datos para Payment Intent
       const membershipData = {
         type: plan.type || plan.duration,
         price: plan.price,
         id: plan.id
       };
       
-      console.log('📤 Datos que se enviarán al backend:', membershipData);
-      console.log('📤 Plan original completo:', JSON.stringify(plan, null, 2));
+      console.log('Datos que se enviarán al backend:', membershipData);
 
-      // 1. Crear Payment Intent para membresía - USANDO SERVICIO
+      // 1. Crear Payment Intent para membresía
       const paymentIntentData = await membershipService.createMembershipPaymentIntent(membershipData);
 
       const { clientSecret, paymentIntentId } = paymentIntentData;
-      console.log('✅ Payment Intent creado para membresía');
+      console.log('Payment Intent creado para membresía');
 
       // 2. Confirmar con Stripe
       const cardElement = elements.getElement(CardElement);
@@ -433,12 +433,12 @@ const MembershipPaymentStep = ({
       }
 
       if (paymentIntent.status === 'succeeded') {
-        console.log('✅ Pago de membresía confirmado con Stripe');
+        console.log('Pago de membresía confirmado con Stripe');
         
-        // 3. Confirmar pago en backend - USANDO SERVICIO
+        // 3. Confirmar pago en backend
         const confirmResult = await membershipService.confirmStripePayment(paymentIntent.id);
 
-        console.log('✅ Pago de membresía confirmado en backend');
+        console.log('Pago de membresía confirmado en backend');
         
         // Éxito completo
         const membership = {
@@ -455,39 +455,39 @@ const MembershipPaymentStep = ({
       }
 
     } catch (error) {
-      console.error('❌ Error en pago de membresía:', error);
-      console.error('❌ Error completo:', error.response?.data || error.message);
+      console.error('Error en pago de membresía:', error);
+      console.error('Error completo:', error.response?.data || error.message);
       onError(error.message || 'Error al procesar el pago');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // 🏦 FUNCIÓN: Crear pago por transferencia - SEGÚN GUÍA
+  // FUNCIÓN: Crear pago por transferencia
   const handleTransferPayment = async () => {
     try {
       setIsProcessing(true);
 
-      console.log('🏦 Iniciando flujo de pago por transferencia...');
+      console.log('Iniciando flujo de pago por transferencia...');
 
-      // 1. Crear pago con transferencia - USANDO SERVICIO
+      // 1. Crear pago con transferencia
       const payment = await membershipService.createTransferPayment({
         id: plan.id,
         name: plan.name,
         price: plan.price
       }, user.id);
 
-      console.log('✅ Pago por transferencia creado:', payment.id);
+      console.log('Pago por transferencia creado:', payment.id);
 
-      // 2. Subir comprobante si se seleccionó - USANDO SERVICIO
+      // 2. Subir comprobante si se seleccionó
       if (transferProof) {
         setUploadingProof(true);
         
         try {
           await membershipService.uploadTransferProof(payment.id, transferProof);
-          console.log('✅ Comprobante subido exitosamente');
+          console.log('Comprobante subido exitosamente');
         } catch (uploadError) {
-          console.warn('⚠️ Error subiendo comprobante:', uploadError.message);
+          console.warn('Error subiendo comprobante:', uploadError.message);
           // No fallar completamente si el upload falla
         }
         
@@ -510,7 +510,7 @@ const MembershipPaymentStep = ({
       onSuccess(membership);
 
     } catch (error) {
-      console.error('❌ Error en pago por transferencia:', error);
+      console.error('Error en pago por transferencia:', error);
       onError(error.message || 'Error al procesar la transferencia');
     } finally {
       setIsProcessing(false);
@@ -529,7 +529,7 @@ const MembershipPaymentStep = ({
   return (
     <div className="space-y-6">
       
-      {/* 💳 SELECCIÓN DE MÉTODO DE PAGO */}
+      {/* SELECCIÓN DE MÉTODO DE PAGO */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <CreditCard className="w-5 h-5 text-primary-600 mr-2" />
@@ -590,7 +590,7 @@ const MembershipPaymentStep = ({
         </div>
       </div>
 
-      {/* 💳 FORMULARIO DE TARJETA */}
+      {/* FORMULARIO DE TARJETA */}
       {paymentMethod === 'stripe' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4">
@@ -640,7 +640,7 @@ const MembershipPaymentStep = ({
         </div>
       )}
 
-      {/* 🏦 FORMULARIO DE TRANSFERENCIA */}
+      {/* FORMULARIO DE TRANSFERENCIA */}
       {paymentMethod === 'transfer' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4">
@@ -650,14 +650,15 @@ const MembershipPaymentStep = ({
           {/* Datos bancarios */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
             <h4 className="font-medium text-gray-900 mb-3">
-              📋 Datos para transferencia:
+              Datos para transferencia:
             </h4>
             <div className="space-y-2 text-sm">
               <div><strong>Banco:</strong> Banco Industrial</div>
               <div><strong>Cuenta:</strong> 123-456789-0</div>
               <div><strong>Nombre:</strong> Elite Fitness Club S.A.</div>
               <div><strong>Tipo:</strong> Cuenta Monetaria</div>
-              <div className="text-primary-600 font-semibold">
+              <div className="text-primary-600 font-semibold flex items-center">
+                <Bird className="w-4 h-4 mr-1" />
                 <strong>Monto exacto:</strong> Q{plan.price.toFixed(2)}
               </div>
             </div>
@@ -724,7 +725,7 @@ const MembershipPaymentStep = ({
         </div>
       )}
 
-      {/* 🔒 BOTÓN DE PAGAR */}
+      {/* BOTÓN DE PAGAR */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <button
           onClick={handlePayment}
@@ -760,7 +761,7 @@ const MembershipPaymentStep = ({
   );
 };
 
-// ✅ COMPONENTE: Resumen de la membresía
+// COMPONENTE: Resumen de la membresía
 const MembershipSummary = ({ 
   plan, 
   user, 
@@ -820,7 +821,8 @@ const MembershipSummary = ({
         <div className="border-t pt-3">
           <div className="flex justify-between font-bold text-lg">
             <span>Total:</span>
-            <span className="text-primary-600">
+            <span className="text-primary-600 flex items-center">
+              <Bird className="w-4 h-4 mr-1" />
               {formatCurrency(plan.price)}
             </span>
           </div>
@@ -862,7 +864,7 @@ const MembershipSummary = ({
         
         <div className="flex items-center">
           <Wifi className="w-4 h-4 mr-2 text-blue-500" />
-          <span>Confirmación por email</span>
+          <span>Confirmación por correo</span>
         </div>
         
         <div className="flex items-center">
@@ -874,20 +876,20 @@ const MembershipSummary = ({
   );
 };
 
-// ✅ COMPONENTE: Paso 3 - Confirmación
+// COMPONENTE: Paso 3 - Confirmación
 const MembershipConfirmationStep = ({ membership, user, onBack }) => {
   
   return (
     <div className="space-y-8">
       
-      {/* 🎉 BANNER DE ÉXITO */}
+      {/* BANNER DE ÉXITO */}
       <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl p-8 text-center shadow-xl">
         <div className="flex flex-col items-center">
           <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold mb-3">
-            {membership?.paymentMethod === 'stripe' ? '🎉 ¡MEMBRESÍA ACTIVADA!' : '📋 ¡SOLICITUD ENVIADA!'}
+            {membership?.paymentMethod === 'stripe' ? '¡MEMBRESÍA ACTIVADA!' : '¡SOLICITUD ENVIADA!'}
           </h1>
           <p className="text-green-100 text-lg md:text-xl mb-4">
             {membership?.paymentMethod === 'stripe' 
@@ -906,7 +908,7 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
         </div>
       </div>
 
-      {/* 📊 DETALLES */}
+      {/* DETALLES */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* Información de la membresía */}
@@ -924,7 +926,10 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
             
             <div className="flex justify-between">
               <span className="text-gray-600">Monto:</span>
-              <span className="font-bold text-xl text-green-600">Q{membership?.amount || '0.00'}</span>
+              <span className="font-bold text-xl text-green-600 flex items-center">
+                <Bird className="w-5 h-5 mr-1" />
+                Q{membership?.amount || '0.00'}
+              </span>
             </div>
             
             <div className="flex justify-between">
@@ -969,7 +974,7 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
               <>
                 <div className="flex items-center text-sm">
                   <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span>Email de confirmación enviado a <strong>{user.email}</strong></span>
+                  <span>Correo de confirmación enviado a <strong>{user.email}</strong></span>
                 </div>
                 
                 <div className="flex items-center text-sm">
@@ -991,7 +996,7 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
                 
                 <div className="flex items-center text-sm">
                   <Mail className="w-4 h-4 text-blue-500 mr-2" />
-                  <span>Te notificaremos por email cuando esté lista</span>
+                  <span>Te notificaremos por correo cuando esté lista</span>
                 </div>
                 
                 {membership?.proofUploaded && (
@@ -1006,14 +1011,14 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
         </div>
       </div>
 
-      {/* 🔄 BOTONES DE ACCIÓN */}
+      {/* BOTONES DE ACCIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
           onClick={onBack}
           className="w-full bg-primary-600 text-white py-4 rounded-xl text-lg font-semibold hover:bg-primary-700 transition-colors flex items-center justify-center"
         >
           <Crown className="w-5 h-5 mr-2" />
-          Ir a mi dashboard
+          Ir a mi panel
         </button>
         
         <button
@@ -1025,17 +1030,17 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
         </button>
       </div>
 
-      {/* ℹ️ INFORMACIÓN ADICIONAL */}
+      {/* INFORMACIÓN ADICIONAL */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
         <p className="text-blue-800 font-medium mb-2">
           ¿Necesitas ayuda?
         </p>
         <div className="flex justify-center space-x-4 text-sm">
           <span className="text-blue-600">
-            📧 soporte@elitefitness.com
+            soporte@elitefitness.com
           </span>
           <span className="text-blue-600">
-            📞 2234-5678
+            2234-5678
           </span>
         </div>
       </div>
@@ -1044,3 +1049,185 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
 };
 
 export default MembershipCheckout;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE MembershipCheckout
+
+PROPÓSITO:
+Este componente proporciona un flujo completo de checkout para la adquisición de membresías
+del gimnasio, integrando tanto pagos con tarjeta (Stripe) como transferencias bancarias.
+Maneja todo el proceso desde la confirmación del plan hasta la activación de la membresía,
+con soporte completo para pagos en quetzales guatemaltecos.
+
+FUNCIONALIDADES PRINCIPALES:
+- Flujo de checkout en 3 pasos progresivos
+- Integración completa con Stripe Elements
+- Sistema de transferencias bancarias con upload de comprobantes
+- Validación de datos de usuario y plan seleccionado
+- Confirmación inmediata para pagos con tarjeta
+- Proceso de validación manual para transferencias
+- Notificaciones por correo electrónico
+- Interfaz responsiva y accesible
+
+CONEXIONES CON OTROS ARCHIVOS:
+
+CONTEXTS REQUERIDOS:
+- AuthContext (../../contexts/AuthContext): Manejo de autenticación
+  - user: Datos del usuario autenticado
+  - isAuthenticated: Estado de autenticación
+- AppContext (../../contexts/AppContext): Funciones de la aplicación
+  - showSuccess(), showError(), showInfo(): Notificaciones
+  - formatCurrency(): Formateo de precios en quetzales
+  - isMobile: Detección de dispositivos móviles
+
+SERVICIOS CONECTADOS:
+- membershipService (../../services/membershipService): Servicio de membresías
+  - checkStripeConfig(): Verificar configuración de Stripe
+  - createMembershipPaymentIntent(): Crear intención de pago
+  - confirmStripePayment(): Confirmar pago con Stripe
+  - createTransferPayment(): Crear pago por transferencia
+  - uploadTransferProof(): Subir comprobante de transferencia
+
+LIBRERÍAS EXTERNAS:
+- Stripe (@stripe/stripe-js, @stripe/react-stripe-js)
+  - loadStripe: Cargar SDK de Stripe
+  - Elements: Proveedor de elementos Stripe
+  - CardElement: Elemento de tarjeta
+  - useStripe, useElements: Hooks de Stripe
+
+COMPONENTES IMPORTADOS:
+- Iconos de Lucide React: CreditCard, Upload, User, Crown, ArrowLeft, Lock,
+  CheckCircle, AlertCircle, Loader2, Shield, Calendar, Bird, Clock, FileText,
+  AlertTriangle, X, Check, Wifi, Phone, Mail
+
+QUE MUESTRA AL USUARIO:
+
+PASO 1 - CONFIRMACIÓN DE INFORMACIÓN:
+- Header con navegación y título "Confirmar Membresía"
+- Barra de progreso visual de 3 pasos
+- Sección "Información del titular" mostrando:
+  - Nombre completo (deshabilitado)
+  - Correo electrónico (deshabilitado)
+  - Teléfono (con advertencia si no está registrado)
+- Sección "Membresía seleccionada" con:
+  - Nombre del plan
+  - Precio con icono de quetzal
+  - Duración del plan
+  - Lista de beneficios incluidos con checkmarks
+- Panel lateral "Resumen de tu membresía" con:
+  - Detalles del plan seleccionado
+  - Desglose de precios con descuentos si aplican
+  - Total con icono de quetzal
+  - Información del titular
+  - Garantías (Pago seguro, Activación inmediata, etc.)
+- Información importante con políticas y términos
+
+PASO 2 - MÉTODO DE PAGO:
+- Header con título "Método de Pago"
+- Selección de método de pago:
+  - Tarjeta de crédito/débito (con badge "Seguro")
+  - Transferencia bancaria (con badge "1-2 días")
+- Para pago con tarjeta:
+  - Formulario de Stripe Elements
+  - Información de prueba para desarrollo
+  - Validación en tiempo real
+- Para transferencia bancaria:
+  - Datos bancarios completos incluyendo monto exacto en quetzales
+  - Upload de comprobante opcional
+  - Instrucciones paso a paso
+- Botón de pago dinámico según método seleccionado
+- Indicador de seguridad SSL
+
+PASO 3 - CONFIRMACIÓN:
+- Banner de éxito diferenciado por método de pago:
+  - "¡MEMBRESÍA ACTIVADA!" para pagos con tarjeta
+  - "¡SOLICITUD ENVIADA!" para transferencias
+- Detalles de la transacción:
+  - Información del plan
+  - Monto con icono de quetzal
+  - Estado (Activa/Pendiente validación)
+  - Método de pago utilizado
+- Próximos pasos específicos:
+  - Para tarjeta: Acceso inmediato, confirmación por correo
+  - Para transferencia: Proceso de validación, notificación por correo
+- Botones de navegación al panel o inicio
+- Información de contacto para soporte
+
+CARACTERÍSTICAS TÉCNICAS:
+- Estado de procesamiento con indicadores visuales
+- Manejo de errores con mensajes descriptivos
+- Validación de Stripe Elements en tiempo real
+- Upload de archivos con preview y validación
+- Prevención de múltiples inicializaciones
+- Limpieza automática de efectos
+- Estados de carga granulares
+
+FLUJOS DE PAGO SOPORTADOS:
+
+PAGO CON TARJETA (STRIPE):
+1. Verificación de configuración de Stripe
+2. Creación de Payment Intent para membresía
+3. Captura de datos de tarjeta con Stripe Elements
+4. Confirmación del pago con Stripe
+5. Validación en backend
+6. Activación inmediata de membresía
+7. Notificación por correo
+
+PAGO POR TRANSFERENCIA:
+1. Registro del pago pendiente en backend
+2. Upload opcional de comprobante
+3. Notificación al equipo administrativo
+4. Validación manual de transferencia
+5. Activación de membresía tras validación
+6. Notificación al usuario por correo
+
+CASOS DE USO EN EL GIMNASIO:
+- Adquisición de membresías mensuales y diarias
+- Procesamiento de pagos en quetzales guatemaltecos
+- Renovaciones de membresías existentes
+- Upgrades de planes de membresía
+- Manejo de promociones y descuentos
+- Integración con sistema contable del gimnasio
+- Seguimiento de transacciones financieras
+
+MANEJO DE ERRORES:
+- Validación de autenticación de usuario
+- Verificación de disponibilidad de Stripe
+- Manejo de errores de tarjeta
+- Validación de archivos uploadados
+- Timeouts de red y conectividad
+- Estados de falla graceful
+
+NOTIFICACIONES DE USUARIO:
+- Confirmaciones de pago exitoso
+- Alertas de errores en procesamiento
+- Información sobre tiempos de validación
+- Recordatorios de datos faltantes
+- Confirmaciones de uploads
+
+SEGURIDAD:
+- Encriptación SSL en todas las transacciones
+- Validación de tokens de Stripe
+- Sanitización de uploads de archivos
+- Protección contra múltiples submissions
+- Validación de datos en frontend y backend
+
+RESPONSIVE DESIGN:
+- Adaptación a dispositivos móviles
+- Grid responsivo para layouts
+- Botones y formularios touch-friendly
+- Imágenes y iconos escalables
+- Navegación optimizada para mobile
+
+INTEGRACIÓN CON BACKEND:
+- API REST para manejo de membresías
+- Webhooks de Stripe para confirmaciones
+- Sistema de notificaciones por correo
+- Base de datos de transacciones
+- Logs de auditoría financiera
+
+Este componente es crítico para las operaciones financieras del gimnasio,
+manejando tanto la experiencia de usuario como la integración con sistemas
+de pago locales e internacionales, con énfasis especial en el manejo de
+quetzales guatemaltecos y las particularidades del mercado local.
+*/

@@ -1,7 +1,5 @@
-// src/pages/dashboard/LandingPage.js
-// FUNCIÓN: Landing page COMPLETA - Sin icono de carrito en navbar, usa carrito flotante
-// CAMBIOS: ✅ Removido icono carrito del navbar ✅ Usa carrito flotante ✅ Mantiene todas las funcionalidades
-// 🔧 FIX: Corregida la lógica para mostrar la sección de tienda
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/LandingPage.js
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -12,15 +10,15 @@ import {
   ChevronRight, ShoppingCart, Package, Truck, CreditCard, Eye,
   Filter, Search, Plus, Minus, AlertTriangle, Loader, Wifi, WifiOff,
   Calendar, ChevronLeft, Pause, Volume2, VolumeX, Maximize, PlayCircle,
-  Loader2
+  Loader2, Coins
 } from 'lucide-react';
 
-// 🎣 Hooks del sistema
+// Hooks del sistema
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useApp } from '../../contexts/AppContext';
 
-// 🏋️ Hooks optimizados del backend
+// Hooks optimizados del backend
 import useGymConfig from '../../hooks/useGymConfig';
 import useGymStats from '../../hooks/useGymStats';
 import useGymServices from '../../hooks/useGymServices';
@@ -28,11 +26,20 @@ import useTestimonials from '../../hooks/useTestimonials';
 import useFeaturedProducts from '../../hooks/useFeaturedProducts';
 import useMembershipPlans from '../../hooks/useMembershipPlans';
 
-// 🎨 Componentes
+// Componentes
 import GymLogo from '../../components/common/GymLogo';
 import ConnectionIndicator from '../../components/common/ConnectionIndicator';
 
-// 🔧 DATOS POR DEFECTO MÍNIMOS
+// Función auxiliar para formatear en Quetzales
+const formatQuetzales = (amount) => {
+  if (!amount || isNaN(amount)) return 'Q 0.00';
+  return `Q ${parseFloat(amount).toLocaleString('es-GT', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+};
+
+// Datos por defecto mínimos
 const MINIMAL_FALLBACK = {
   name: "Elite Fitness Club",
   description: "Tu transformación comienza aquí.",
@@ -42,13 +49,13 @@ const MINIMAL_FALLBACK = {
 };
 
 const LandingPage = () => {
-  // 🎣 Hooks del sistema
+  // Hooks del sistema
   const { isAuthenticated } = useAuth();
-  const { addItem } = useCart(); // ✅ Removido toggleCart e itemCount (ya no se usan en navbar)
+  const { addItem } = useCart();
   const { isMobile, showSuccess, showError } = useApp();
   const navigate = useNavigate();
   
-  // 🏗️ Estados locales
+  // Estados locales
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
@@ -56,7 +63,7 @@ const LandingPage = () => {
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
   const [initialLoadCompleted, setInitialLoadCompleted] = useState(false);
   
-  // 🎬 Estados para video - CORREGIDOS Y MEJORADOS
+  // Estados para video
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [showVideoControls, setShowVideoControls] = useState(false);
@@ -64,12 +71,12 @@ const LandingPage = () => {
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef(null);
   
-  // 🔄 Referencias para carousels automáticos
+  // Referencias para carousels automáticos
   const testimonialIntervalRef = useRef(null);
   const serviceIntervalRef = useRef(null);
   const productIntervalRef = useRef(null);
   
-  // 🏋️ Hooks del backend optimizados
+  // Hooks del backend optimizados
   const { config, isLoaded: configLoaded, error: configError } = useGymConfig();
   const { stats, isLoaded: statsLoaded } = useGymStats();
   const { services, isLoaded: servicesLoaded } = useGymServices();
@@ -77,14 +84,14 @@ const LandingPage = () => {
   const { products, isLoaded: productsLoaded, error: productsError } = useFeaturedProducts();
   const { plans, isLoaded: plansLoaded } = useMembershipPlans();
   
-  // 🔄 Redirigir si ya está autenticado
+  // Redirigir si ya está autenticado
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
   
-  // 📱 Detectar scroll para navbar
+  // Detectar scroll para navbar
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -94,33 +101,33 @@ const LandingPage = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 🐛 DEBUG DETALLADO PARA PRODUCTOS - NUEVO
+  // Debug detallado para productos
   useEffect(() => {
-    console.group('🛍️ STORE SECTION DEBUG - DETAILED');
-    console.log('🔍 Products state check:');
-    console.log('  - products variable:', products);
-    console.log('  - products type:', typeof products);
-    console.log('  - products is null:', products === null);
-    console.log('  - products is undefined:', products === undefined);
-    console.log('  - products is array:', Array.isArray(products));
-    console.log('  - products length:', products?.length);
-    console.log('  - productsLoaded:', productsLoaded);
-    console.log('  - productsError:', productsError);
+    console.group('Verificación detallada de la sección de tienda');
+    console.log('Estado de productos:');
+    console.log('  - variable productos:', products);
+    console.log('  - tipo de productos:', typeof products);
+    console.log('  - productos es null:', products === null);
+    console.log('  - productos es undefined:', products === undefined);
+    console.log('  - productos es array:', Array.isArray(products));
+    console.log('  - longitud de productos:', products?.length);
+    console.log('  - productos cargados:', productsLoaded);
+    console.log('  - error de productos:', productsError);
     
     // Verificar la condición exacta que usa el renderizado
     const condition1 = products && products.length > 0;
     const condition2 = products && Array.isArray(products) && products.length > 0;
     
-    console.log('🧮 Render conditions:');
+    console.log('Condiciones de renderizado:');
     console.log('  - products && products.length > 0:', condition1);
     console.log('  - products && Array.isArray(products) && products.length > 0:', condition2);
-    console.log('  - Should render store section:', condition1 || condition2);
+    console.log('  - Debería renderizar sección de tienda:', condition1 || condition2);
     
     // Si hay productos, mostrar detalles
     if (products && Array.isArray(products) && products.length > 0) {
-      console.log('📦 Products details:');
+      console.log('Detalles de productos:');
       products.forEach((product, index) => {
-        console.log(`  Product ${index + 1}:`, {
+        console.log(`  Producto ${index + 1}:`, {
           id: product.id,
           name: product.name,
           price: product.price,
@@ -133,7 +140,7 @@ const LandingPage = () => {
     console.groupEnd();
   }, [products, productsLoaded, productsError]);
   
-  // 💬 TESTIMONIOS AUTOMÁTICOS - CORREGIDO
+  // Testimonios automáticos
   useEffect(() => {
     // Limpiar interval anterior
     if (testimonialIntervalRef.current) {
@@ -143,17 +150,17 @@ const LandingPage = () => {
     
     // Solo crear interval si hay testimonios y están cargados
     if (testimonialsLoaded && testimonials && Array.isArray(testimonials) && testimonials.length > 1) {
-      console.log('🎭 Starting testimonial auto-carousel:', testimonials.length, 'testimonials');
+      console.log('Iniciando carousel automático de testimonios:', testimonials.length, 'testimonios');
       
       testimonialIntervalRef.current = setInterval(() => {
         setCurrentTestimonialIndex((prevIndex) => {
           const nextIndex = prevIndex >= testimonials.length - 1 ? 0 : prevIndex + 1;
-          console.log(`🎭 Testimonial carousel: ${prevIndex} → ${nextIndex}`);
+          console.log(`Carousel de testimonios: ${prevIndex} → ${nextIndex}`);
           return nextIndex;
         });
       }, 5000); // Cada 5 segundos
     } else {
-      console.log('🎭 Testimonial carousel not started:', {
+      console.log('Carousel de testimonios no iniciado:', {
         loaded: testimonialsLoaded,
         hasTestimonials: !!testimonials,
         isArray: Array.isArray(testimonials),
@@ -170,7 +177,7 @@ const LandingPage = () => {
     };
   }, [testimonialsLoaded, testimonials]);
   
-  // 🏋️ SERVICIOS AUTO-CAROUSEL EN MÓVIL - CORREGIDO
+  // Servicios auto-carousel en móvil
   useEffect(() => {
     // Limpiar interval anterior
     if (serviceIntervalRef.current) {
@@ -180,17 +187,17 @@ const LandingPage = () => {
     
     // Solo en móvil y si hay servicios
     if (isMobile && servicesLoaded && services && Array.isArray(services) && services.length > 1) {
-      console.log('🏋️ Starting services auto-carousel on mobile:', services.length, 'services');
+      console.log('Iniciando carousel automático de servicios en móvil:', services.length, 'servicios');
       
       serviceIntervalRef.current = setInterval(() => {
         setCurrentServiceIndex((prevIndex) => {
           const nextIndex = prevIndex >= services.length - 1 ? 0 : prevIndex + 1;
-          console.log(`🏋️ Services carousel: ${prevIndex} → ${nextIndex}`);
+          console.log(`Carousel de servicios: ${prevIndex} → ${nextIndex}`);
           return nextIndex;
         });
       }, 4000); // Cada 4 segundos
     } else {
-      console.log('🏋️ Services carousel not started:', {
+      console.log('Carousel de servicios no iniciado:', {
         isMobile,
         loaded: servicesLoaded,
         hasServices: !!services,
@@ -208,7 +215,7 @@ const LandingPage = () => {
     };
   }, [isMobile, servicesLoaded, services]);
   
-  // 🛍️ PRODUCTOS AUTO-CAROUSEL EN MÓVIL - CORREGIDO
+  // Productos auto-carousel en móvil
   useEffect(() => {
     // Limpiar interval anterior
     if (productIntervalRef.current) {
@@ -218,17 +225,17 @@ const LandingPage = () => {
     
     // Solo en móvil y si hay productos
     if (isMobile && productsLoaded && products && Array.isArray(products) && products.length > 1) {
-      console.log('🛍️ Starting products auto-carousel on mobile:', products.length, 'products');
+      console.log('Iniciando carousel automático de productos en móvil:', products.length, 'productos');
       
       productIntervalRef.current = setInterval(() => {
         setCurrentProductIndex((prevIndex) => {
           const nextIndex = prevIndex >= products.length - 1 ? 0 : prevIndex + 1;
-          console.log(`🛍️ Products carousel: ${prevIndex} → ${nextIndex}`);
+          console.log(`Carousel de productos: ${prevIndex} → ${nextIndex}`);
           return nextIndex;
         });
       }, 4500); // Cada 4.5 segundos
     } else {
-      console.log('🛍️ Products carousel not started:', {
+      console.log('Carousel de productos no iniciado:', {
         isMobile,
         loaded: productsLoaded,
         hasProducts: !!products,
@@ -246,7 +253,7 @@ const LandingPage = () => {
     };
   }, [isMobile, productsLoaded, products]);
   
-  // ⏰ CONTROL DE CARGA INICIAL
+  // Control de carga inicial
   useEffect(() => {
     if (configLoaded && !initialLoadCompleted) {
       setInitialLoadCompleted(true);
@@ -261,7 +268,7 @@ const LandingPage = () => {
     return () => clearTimeout(timer);
   }, [configLoaded, config, initialLoadCompleted]);
   
-  // 🧹 CLEANUP GENERAL
+  // Cleanup general
   useEffect(() => {
     return () => {
       // Limpiar todos los intervals al desmontar
@@ -277,7 +284,7 @@ const LandingPage = () => {
     };
   }, []);
 
-  // 🧹 FUNCIÓN PARA LIMPIAR CACHE - NUEVA
+  // Función para limpiar cache
   const clearAppCache = useCallback(() => {
     try {
       // Guardar datos del carrito antes de limpiar
@@ -294,20 +301,20 @@ const LandingPage = () => {
       // Limpiar sessionStorage también
       sessionStorage.clear();
       
-      console.log('🧹 Cache cleared successfully (cart preserved)');
+      console.log('Cache limpiado exitosamente (carrito preservado)');
       
       // Recargar la página para refrescar todos los hooks
       window.location.reload();
       
     } catch (error) {
-      console.error('Error clearing cache:', error);
+      console.error('Error limpiando cache:', error);
     }
   }, []);
   
-  // ✅ USAR DATOS REALES DEL BACKEND
+  // Usar datos reales del backend
   const gymConfig = config || MINIMAL_FALLBACK;
   
-  // 🎬 EXTRAER DATOS DE VIDEO DEL CONFIG - MEJORADO
+  // Extraer datos de video del config
   const videoData = React.useMemo(() => {
     if (!config) return null;
     
@@ -315,7 +322,7 @@ const LandingPage = () => {
     const videoUrl = config.hero?.videoUrl || config.videoUrl || '';
     const imageUrl = config.hero?.imageUrl || config.imageUrl || '';
     
-    console.log('🎬 Video data extracted from config:', { 
+    console.log('Datos de video extraídos del config:', { 
       videoUrl, 
       imageUrl,
       hasHeroSection: !!config.hero,
@@ -333,7 +340,7 @@ const LandingPage = () => {
     };
   }, [config]);
   
-  // 📊 Procesar estadísticas
+  // Procesar estadísticas
   const formattedStats = React.useMemo(() => {
     if (!statsLoaded || !stats) return [];
     
@@ -355,7 +362,7 @@ const LandingPage = () => {
     return statsArray;
   }, [statsLoaded, stats]);
   
-  // 🏋️ Servicios activos
+  // Servicios activos
   const displayServices = React.useMemo(() => {
     if (!servicesLoaded || !services || !Array.isArray(services)) {
       return [];
@@ -363,15 +370,15 @@ const LandingPage = () => {
     return services.filter(service => service.active !== false);
   }, [servicesLoaded, services]);
   
-  // 🎬 FUNCIONES DE CONTROL DE VIDEO - CORREGIDAS
+  // Funciones de control de video
   const handleVideoLoad = () => {
-    console.log('🎬 Video loaded successfully');
+    console.log('Video cargado exitosamente');
     setVideoLoaded(true);
     setVideoError(false);
   };
   
   const handleVideoError = (error) => {
-    console.error('🎬 Video error:', error);
+    console.error('Error de video:', error);
     setVideoError(true);
     setVideoLoaded(false);
   };
@@ -381,11 +388,11 @@ const LandingPage = () => {
     
     try {
       if (isVideoPlaying) {
-        console.log('⏸️ Pausing video');
+        console.log('Pausando video');
         videoRef.current.pause();
         setIsVideoPlaying(false);
       } else {
-        console.log('▶️ Playing video');
+        console.log('Reproduciendo video');
         const playPromise = videoRef.current.play();
         if (playPromise !== undefined) {
           playPromise
@@ -393,7 +400,7 @@ const LandingPage = () => {
               setIsVideoPlaying(true);
             })
             .catch((error) => {
-              console.error('🎬 Play failed:', error);
+              console.error('Fallo al reproducir:', error);
               setVideoError(true);
             });
         } else {
@@ -401,7 +408,7 @@ const LandingPage = () => {
         }
       }
     } catch (error) {
-      console.error('🎬 Toggle play error:', error);
+      console.error('Error al alternar reproducción:', error);
       setVideoError(true);
     }
   };
@@ -413,13 +420,13 @@ const LandingPage = () => {
       const newMutedState = !isVideoMuted;
       videoRef.current.muted = newMutedState;
       setIsVideoMuted(newMutedState);
-      console.log('🔊 Video muted:', newMutedState);
+      console.log('Video silenciado:', newMutedState);
     } catch (error) {
-      console.error('🎬 Toggle mute error:', error);
+      console.error('Error al alternar silencio:', error);
     }
   };
   
-  // 🔗 Función para obtener icono de red social
+  // Función para obtener icono de red social
   const getSocialIcon = (platform) => {
     const icons = {
       instagram: Instagram,
@@ -431,7 +438,7 @@ const LandingPage = () => {
     return icons[platform] || MessageCircle;
   };
   
-  // 🛍️ Manejar agregar al carrito - CORREGIDO PARA SER ASYNC
+  // Manejar agregar al carrito
   const handleAddToCart = async (product, options = {}) => {
     try {
       if (!product || !product.id) {
@@ -439,19 +446,19 @@ const LandingPage = () => {
         return;
       }
       
-      console.log('🛒 Adding product to cart from landing:', product.name);
+      console.log('Agregando producto al carrito desde landing:', product.name);
       await addItem(product, options);
       showSuccess(`${product.name} agregado al carrito`);
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      console.error('Error agregando al carrito:', error);
       showError('Error al agregar al carrito');
     }
   };
   
-  // 🖼️ Log del logo para debug
+  // Log del logo para debug
   useEffect(() => {
     if (config && config.logo) {
-      console.log('🖼️ LOGO DEBUG:', {
+      console.log('Logo Debug:', {
         hasLogo: !!config.logo,
         logoUrl: config.logo.url,
         logoAlt: config.logo.alt,
@@ -461,7 +468,7 @@ const LandingPage = () => {
     }
   }, [config]);
   
-  // ⏰ LOADING SCREEN
+  // Pantalla de carga
   if (!initialLoadCompleted) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -485,12 +492,10 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-white">
       
-
-      
-      {/* 🔴 INDICADOR DE CONEXIÓN */}
+      {/* Indicador de conexión */}
       <ConnectionIndicator show={process.env.NODE_ENV === 'development'} />
       
-      {/* 🔝 NAVBAR FLOTANTE SIN ICONO DE CARRITO */}
+      {/* Navbar flotante sin icono de carrito */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
           ? 'bg-white bg-opacity-95 backdrop-blur-lg shadow-lg border-b border-gray-200' 
@@ -499,7 +504,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             
-            {/* Logo - CORREGIDO PARA USAR CONFIG DEL BACKEND */}
+            {/* Logo */}
             <div className="flex items-center">
               {config && config.logo && config.logo.url ? (
                 <div className="flex items-center space-x-3">
@@ -508,7 +513,7 @@ const LandingPage = () => {
                     alt={config.logo.alt || gymConfig.name}
                     className={`object-contain ${isMobile ? 'h-8 w-auto' : 'h-10 w-auto'}`}
                     onError={(e) => {
-                      console.error('🖼️ Logo failed to load:', config.logo.url);
+                      console.error('Fallo al cargar logo:', config.logo.url);
                       e.target.style.display = 'none';
                       e.target.nextSibling.style.display = 'flex';
                     }}
@@ -526,12 +531,11 @@ const LandingPage = () => {
                   )}
                 </div>
               ) : (
-                /* Fallback cuando no hay logo del backend */
                 <GymLogo size={isMobile ? "sm" : "md"} variant="professional" showText={!isMobile} priority="high" />
               )}
             </div>
             
-            {/* Navigation Desktop */}
+            {/* Navegación Desktop */}
             <div className="hidden md:flex items-center space-x-8">
               <a href="#inicio" className="font-medium text-gray-600 hover:text-primary-600 transition-colors">
                 Inicio
@@ -556,7 +560,7 @@ const LandingPage = () => {
               </a>
             </div>
             
-            {/* Botones de acción - SIN ICONO DE CARRITO */}
+            {/* Botones de acción sin icono de carrito */}
             <div className="hidden md:flex items-center space-x-3">
               <Link to="/login" className="btn-secondary py-2 px-4 text-sm">
                 Entrar
@@ -567,7 +571,7 @@ const LandingPage = () => {
               </Link>
             </div>
             
-            {/* Mobile Actions - SIN ICONO DE CARRITO */}
+            {/* Acciones móviles sin icono de carrito */}
             <div className="md:hidden flex items-center">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -579,30 +583,30 @@ const LandingPage = () => {
           </div>
         </div>
         
-        {/* Mobile Menu - Mejorado */}
+        {/* Menú móvil */}
         {isMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
             <div className="px-4 py-4 space-y-3">
               <a href="#inicio" className="block text-gray-600 hover:text-primary-600 font-medium py-2" onClick={() => setIsMenuOpen(false)}>
-                🏠 Inicio
+                Inicio
               </a>
               {displayServices.length > 0 && (
                 <a href="#servicios" className="block text-gray-600 hover:text-primary-600 font-medium py-2" onClick={() => setIsMenuOpen(false)}>
-                  🏋️ Servicios
+                  Servicios
                 </a>
               )}
               {plans && plans.length > 0 && (
                 <a href="#planes" className="block text-gray-600 hover:text-primary-600 font-medium py-2" onClick={() => setIsMenuOpen(false)}>
-                  🎫 Planes
+                  Planes
                 </a>
               )}
               {products && Array.isArray(products) && products.length > 0 && (
                 <a href="#tienda" className="block text-gray-600 hover:text-primary-600 font-medium py-2" onClick={() => setIsMenuOpen(false)}>
-                  🛍️ Tienda
+                  Tienda
                 </a>
               )}
               <a href="#contacto" className="block text-gray-600 hover:text-primary-600 font-medium py-2" onClick={() => setIsMenuOpen(false)}>
-                📞 Contacto
+                Contacto
               </a>
               <div className="pt-3 border-t border-gray-200 grid grid-cols-2 gap-2">
                 <Link to="/login" className="btn-secondary text-center py-2 px-3 text-sm" onClick={() => setIsMenuOpen(false)}>
@@ -617,9 +621,9 @@ const LandingPage = () => {
         )}
       </nav>
       
-      {/* 🏠 HERO SECTION - VIDEO FORZADO HORIZONTAL */}
+      {/* Hero Section con video horizontal forzado */}
       <section id="inicio" className="relative pt-20 pb-16 min-h-screen flex items-center bg-gradient-to-br from-gray-50 via-white to-blue-50">
-        {/* Elementos decorativos - Adaptados para móvil */}
+        {/* Elementos decorativos */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className={`absolute bg-primary-500 bg-opacity-5 rounded-full blur-3xl ${
             isMobile 
@@ -638,7 +642,7 @@ const LandingPage = () => {
             
             {/* Contenido Hero */}
             <div className={`space-y-6 ${isMobile ? 'text-center' : ''}`}>
-              {/* Título principal - Responsive */}
+              {/* Título principal */}
               <h1 className={`font-bold text-gray-900 leading-tight ${
                 isMobile 
                   ? 'text-3xl sm:text-4xl' 
@@ -650,7 +654,7 @@ const LandingPage = () => {
                 </span>
               </h1>
               
-              {/* Descripción - Responsive */}
+              {/* Descripción */}
               <p className={`text-gray-600 leading-relaxed max-w-2xl ${
                 isMobile 
                   ? 'text-lg mx-auto' 
@@ -668,7 +672,7 @@ const LandingPage = () => {
                 </p>
               )}
               
-              {/* CTAs principales - Stack en móvil */}
+              {/* CTAs principales */}
               <div className={`flex gap-3 ${
                 isMobile 
                   ? 'flex-col' 
@@ -691,10 +695,9 @@ const LandingPage = () => {
               </div>
             </div>
             
-            {/* Video/Imagen Hero - SIEMPRE HORIZONTAL 16:9 */}
+            {/* Video/Imagen Hero siempre horizontal 16:9 */}
             <div className="relative">
               {videoData?.hasVideo ? (
-                /* 🎬 VIDEO SIEMPRE HORIZONTAL 16:9 */
                 <div className={`relative rounded-3xl overflow-hidden shadow-2xl ${
                   isMobile ? 'aspect-[16/9]' : 'aspect-[16/9]'
                 }`}>
@@ -720,7 +723,7 @@ const LandingPage = () => {
                     Tu navegador no soporta video HTML5.
                   </video>
                   
-                  {/* Controles de video - MEJORADOS */}
+                  {/* Controles de video */}
                   <div className={`absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center transition-opacity duration-300 ${
                     showVideoControls || !isVideoPlaying || videoError ? 'opacity-100' : 'opacity-0'
                   }`}>
@@ -763,7 +766,6 @@ const LandingPage = () => {
                   )}
                 </div>
               ) : (
-                /* 🖼️ Imagen fallback - HORIZONTAL 16:9 */
                 <div className="aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl relative">
                   <img 
                     src={videoData?.imageUrl || "/api/placeholder/800/450"}
@@ -775,7 +777,7 @@ const LandingPage = () => {
                   {/* Indicador de video próximamente */}
                   {process.env.NODE_ENV === 'development' && (
                     <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium">
-                      🎬 Video próximamente
+                      Video próximamente
                     </div>
                   )}
                 </div>
@@ -783,7 +785,7 @@ const LandingPage = () => {
             </div>
           </div>
           
-          {/* 📊 Estadísticas - DISEÑO MEJORADO PARA MÓVIL */}
+          {/* Estadísticas */}
           {formattedStats.length > 0 && (
             <div className={`mt-12 pt-8 border-t border-gray-200 ${
               isMobile 
@@ -821,12 +823,11 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 🛍️ SECCIÓN DE TIENDA - LÓGICA CORREGIDA */}
+      {/* Sección de tienda con lógica corregida */}
       {(() => {
-        // Debug en tiempo real del renderizado
         const hasProducts = products && Array.isArray(products) && products.length > 0;
         
-        console.log('🛍️ Store render decision:', {
+        console.log('Decisión de renderizado de tienda:', {
           products: !!products,
           isArray: Array.isArray(products),
           length: products?.length || 0,
@@ -839,7 +840,6 @@ const LandingPage = () => {
         <section id="tienda" className="py-16 bg-gradient-to-br from-primary-50 to-secondary-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
-   
             {/* Header de tienda */}
             <div className="text-center mb-12">
               <div className="inline-flex items-center px-4 py-2 bg-primary-100 rounded-full mb-4">
@@ -860,7 +860,7 @@ const LandingPage = () => {
                 Descubre nuestra selección de productos de alta calidad
               </p>
               
-              {/* Benefits - Adaptado para móvil */}
+              {/* Beneficios */}
               <div className={`flex justify-center gap-3 mb-8 ${
                 isMobile ? 'flex-wrap' : 'gap-6'
               }`}>
@@ -883,7 +883,7 @@ const LandingPage = () => {
               </div>
             </div>
             
-            {/* MÓVIL: Carousel automático de productos */}
+            {/* Móvil: Carousel automático de productos */}
             {isMobile ? (
               <div className="relative">
                 <div className="overflow-hidden">
@@ -937,7 +937,7 @@ const LandingPage = () => {
                 </button>
               </div>
             ) : (
-              /* DESKTOP: Grid normal */
+              /* Desktop: Grid normal */
               <div className={`grid gap-8 mb-12 ${
                 products.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
                 products.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
@@ -969,7 +969,7 @@ const LandingPage = () => {
         </section>
       )}
       
-      {/* 🏋️ SERVICIOS - CAROUSEL AUTOMÁTICO EN MÓVIL */}
+      {/* Servicios - Carousel automático en móvil */}
       {displayServices.length > 0 && (
         <section id="servicios" className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -993,7 +993,7 @@ const LandingPage = () => {
               </p>
             </div>
             
-            {/* MÓVIL: Carousel automático de servicios */}
+            {/* Móvil: Carousel automático de servicios */}
             {isMobile ? (
               <div className="space-y-6">
                 {displayServices[currentServiceIndex] && (
@@ -1016,7 +1016,7 @@ const LandingPage = () => {
                 </div>
               </div>
             ) : (
-              /* DESKTOP: Grid normal */
+              /* Desktop: Grid normal */
               <div className={`grid gap-12 ${
                 displayServices.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
                 displayServices.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
@@ -1063,7 +1063,7 @@ const LandingPage = () => {
         </section>
       )}
       
-      {/* 💳 PLANES - SCROLL HORIZONTAL EN MÓVIL */}
+      {/* Planes - Scroll horizontal en móvil */}
       {plans && plans.length > 0 && (
         <section id="planes" className="py-16 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1087,7 +1087,7 @@ const LandingPage = () => {
               </p>
             </div>
             
-            {/* MÓVIL: Scroll horizontal */}
+            {/* Móvil: Scroll horizontal */}
             {isMobile ? (
               <div className="overflow-x-auto pb-4">
                 <div className="flex space-x-4" style={{ width: `${plans.length * 280}px` }}>
@@ -1097,7 +1097,7 @@ const LandingPage = () => {
                 </div>
               </div>
             ) : (
-              /* DESKTOP: Grid normal */
+              /* Desktop: Grid normal */
               <div className={`grid gap-8 max-w-6xl mx-auto ${
                 plans.length === 1 ? 'grid-cols-1 max-w-md' :
                 plans.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
@@ -1119,7 +1119,7 @@ const LandingPage = () => {
                       {plan.popular && (
                         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                           <span className="bg-primary-600 text-white px-6 py-2 rounded-full text-sm font-bold">
-                            🔥 Más Popular
+                            Más Popular
                           </span>
                         </div>
                       )}
@@ -1170,7 +1170,7 @@ const LandingPage = () => {
                             ${plan.popular ? 'btn-primary' : 'btn-secondary'}
                           `}
                         >
-                          {plan.popular ? '🔥 Elegir Plan Popular' : 'Elegir Plan'}
+                          {plan.popular ? 'Elegir Plan Popular' : 'Elegir Plan'}
                         </Link>
                       </div>
                     </div>
@@ -1191,7 +1191,7 @@ const LandingPage = () => {
         </section>
       )}
       
-      {/* 💬 TESTIMONIOS - CAROUSEL AUTOMÁTICO MEJORADO */}
+      {/* Testimonios - Carousel automático mejorado */}
       {testimonials && testimonials.length > 0 && (
         <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1265,7 +1265,7 @@ const LandingPage = () => {
         </section>
       )}
       
-      {/* 📞 CONTACTO - STACK EN MÓVIL */}
+      {/* Contacto - Stack en móvil */}
       <section id="contacto" className="py-16 bg-gray-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={`${isMobile ? 'space-y-12' : 'grid grid-cols-1 lg:grid-cols-2 gap-16'} items-center`}>
@@ -1284,7 +1284,7 @@ const LandingPage = () => {
                 </p>
               </div>
               
-              {/* Información de contacto - Grid en móvil */}
+              {/* Información de contacto */}
               <div className={`space-y-4 ${isMobile ? 'grid grid-cols-1 gap-4' : 'space-y-6'}`}>
                 {gymConfig.contact?.address && gymConfig.contact.address !== "Guatemala" && (
                   <div className="flex items-center">
@@ -1335,7 +1335,7 @@ const LandingPage = () => {
                 )}
               </div>
               
-              {/* Redes sociales - Compactas en móvil */}
+              {/* Redes sociales */}
               {gymConfig.social && Object.keys(gymConfig.social).length > 0 && (
                 <div className={`flex space-x-3 ${isMobile ? 'justify-center' : ''}`}>
                   {Object.entries(gymConfig.social).map(([platform, data]) => {
@@ -1361,14 +1361,14 @@ const LandingPage = () => {
               )}
             </div>
             
-            {/* CTA Card - Adaptada para móvil */}
+            {/* CTA Card */}
             <div className={`bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl border border-white border-opacity-20 ${
               isMobile ? 'p-6' : 'p-10'
             }`}>
               <h3 className={`font-bold mb-6 ${
                 isMobile ? 'text-2xl' : 'text-3xl'
               }`}>
-                🎉 Únete Ahora
+                Únete Ahora
               </h3>
               
               <div className="space-y-3 mb-8">
@@ -1394,7 +1394,7 @@ const LandingPage = () => {
                 <Link to="/register" className={`w-full btn bg-white text-gray-900 hover:bg-gray-100 font-bold ${
                   isMobile ? 'py-3 text-base' : 'py-4 text-lg'
                 }`}>
-                  🚀 Únete Ahora
+                  Únete Ahora
                 </Link>
                 <Link to="/login" className={`w-full btn btn-secondary border-white text-white hover:bg-white hover:text-gray-900 ${
                   isMobile ? 'py-3' : 'py-4'
@@ -1408,7 +1408,7 @@ const LandingPage = () => {
         </div>
       </section>
       
-      {/* 🔽 FOOTER - ADAPTADO PARA MÓVIL */}
+      {/* Footer adaptado para móvil */}
       <footer className="bg-gray-800 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className={`grid gap-8 ${
@@ -1545,7 +1545,7 @@ const LandingPage = () => {
   );
 };
 
-// 🛍️ COMPONENTE: Tarjeta de producto para móvil - CORREGIDA CON ESTADO DE LOADING
+// Componente: Tarjeta de producto para móvil
 const MobileProductCard = ({ product, onAddToCart }) => {
   const [isAdding, setIsAdding] = useState(false);
   
@@ -1556,7 +1556,7 @@ const MobileProductCard = ({ product, onAddToCart }) => {
       setIsAdding(true);
       await onAddToCart(product);
     } catch (error) {
-      console.error('Error in mobile product card:', error);
+      console.error('Error en tarjeta de producto móvil:', error);
     } finally {
       setIsAdding(false);
     }
@@ -1596,7 +1596,7 @@ const MobileProductCard = ({ product, onAddToCart }) => {
   );
 };
 
-// 🏋️ COMPONENTE: Tarjeta de servicio para móvil
+// Componente: Tarjeta de servicio para móvil
 const MobileServiceCard = ({ service }) => {
   const IconComponent = service.icon === 'user-check' ? Target : 
                       service.icon === 'users' ? Users : 
@@ -1631,7 +1631,7 @@ const MobileServiceCard = ({ service }) => {
   );
 };
 
-// 💳 COMPONENTE: Tarjeta de plan para móvil
+// Componente: Tarjeta de plan para móvil
 const MobilePlanCard = ({ plan }) => {
   const IconComponent = plan.iconName === 'crown' ? Crown : 
                       plan.iconName === 'calendar-days' ? Calendar : 
@@ -1648,7 +1648,7 @@ const MobilePlanCard = ({ plan }) => {
       {plan.popular && (
         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
           <span className="bg-primary-600 text-white px-4 py-1 rounded-full text-xs font-bold">
-            🔥 Popular
+            Popular
           </span>
         </div>
       )}
@@ -1699,14 +1699,14 @@ const MobilePlanCard = ({ plan }) => {
             ${plan.popular ? 'btn-primary' : 'btn-secondary'}
           `}
         >
-          {plan.popular ? '🔥 Elegir' : 'Elegir Plan'}
+          {plan.popular ? 'Elegir' : 'Elegir Plan'}
         </Link>
       </div>
     </div>
   );
 };
 
-// 🛍️ COMPONENTE: Tarjeta de producto estándar (desktop) - CORREGIDA CON ESTADO DE LOADING
+// Componente: Tarjeta de producto estándar (desktop)
 const ProductPreviewCard = ({ product, onAddToCart }) => {
   const [isAdding, setIsAdding] = useState(false);
   
@@ -1717,7 +1717,7 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
       setIsAdding(true);
       await onAddToCart(product);
     } catch (error) {
-      console.error('Error in product preview card:', error);
+      console.error('Error en tarjeta de vista previa de producto:', error);
     } finally {
       setIsAdding(false);
     }
@@ -1759,29 +1759,44 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
 
 export default LandingPage;
 
-// 📝 CAMBIOS PARA USAR CARRITO FLOTANTE:
-// 
-// ✅ NAVBAR LIMPIO:
-// - Removido completamente el icono del carrito del navbar
-// - Eliminadas las variables toggleCart e itemCount del navbar
-// - Solo mantiene botones de Login y Register
-// - Navbar más limpio y enfocado en navegación
-// 
-// ✅ MANTIENE TODAS LAS FUNCIONALIDADES:
-// - addItem preservado para agregar productos
-// - handleAddToCart sigue funcionando igual
-// - Componentes MobileProductCard y ProductPreviewCard intactos
-// - Video player, carousels, testimonios, etc. funcionando
-// - Responsive design preservado
-// - Estados de carga y animaciones intactos
-// 
-// ✅ DEPENDENCIA DEL CARRITO FLOTANTE:
-// - El carrito flotante (GlobalCart) maneja toda la UI del carrito
-// - Acceso al carrito desde cualquier lugar de la página
-// - Animaciones y feedback visual en el carrito flotante
-// - No hay duplicación de funcionalidad
-// 
-// 🛒 RESULTADO:
-// - UI más limpia sin iconos duplicados
-// - Carrito siempre accesible desde el botón flotante
-// - Experiencia unificada en toda la aplicación
+/*
+EXPLICACIÓN DEL ARCHIVO:
+
+Este archivo define el componente LandingPage, que es la página principal y punto de entrada 
+para visitantes no autenticados del sitio web del gimnasio. Proporciona una experiencia 
+completa de presentación del negocio y captación de clientes potenciales.
+
+FUNCIONALIDADES PRINCIPALES:
+- Hero section con video o imagen adaptativo que funciona horizontal en todas las pantallas
+- Navegación limpia sin icono de carrito (depende del carrito flotante global)
+- Sección de productos con carousel automático en móvil y grid responsivo en desktop
+- Carousel automático de servicios en dispositivos móviles para mejor experiencia
+- Planes de membresía con scroll horizontal en móvil y grid en desktop
+- Testimonios con rotación automática cada 5 segundos
+- Sistema de estadísticas dinámicas del gimnasio
+- Información de contacto completa con integración de redes sociales
+- Footer responsivo con enlaces organizados
+
+CONEXIONES CON OTROS ARCHIVOS:
+- useAuth, useCart, useApp: Contextos principales de la aplicación
+- useGymConfig, useGymStats, useGymServices, useTestimonials, useFeaturedProducts, useMembershipPlans: 
+  Hooks especializados para cargar datos del backend
+- GymLogo, ConnectionIndicator: Componentes reutilizables de UI
+- React Router: Para navegación entre páginas
+
+CARACTERÍSTICAS ESPECIALES:
+- Formateo automático de precios en Quetzales guatemaltecos
+- Video player con controles personalizados y manejo de errores
+- Carousels automáticos que se adaptan al dispositivo del usuario
+- Sistema de fallback para cuando no hay datos del backend
+- Integración completa con el sistema de carrito flotante
+- Responsive design optimizado específicamente para móviles guatemaltecos
+- Limpieza automática de intervals para prevenir memory leaks
+- Debug detallado para troubleshooting de productos y contenido
+
+PROPÓSITO:
+Servir como la cara principal del gimnasio en línea, capturando la atención de visitantes
+potenciales y convirtiendo su interés en membresías y ventas. La página está optimizada
+para la experiencia guatemalteca con precios en Quetzales, diseño mobile-first, y 
+presentación profesional que inspira confianza y motivación para unirse al gimnasio.
+*/

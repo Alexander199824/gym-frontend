@@ -1,6 +1,5 @@
-// src/pages/dashboard/components/ContentEditor.js
-// FUNCIÓN: Editor MEJORADO - Guardado independiente por secciones + Horarios flexibles
-// CAMBIOS: Horarios vienen del backend, múltiples franjas por día, guardado por sección
+// Autor: Alexander Echeverria
+// Archivo: src/pages/dashboard/components/ContentEditor.js
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -15,7 +14,7 @@ import { useApp } from '../../../contexts/AppContext';
 const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, isMobile } = useApp();
   
-  // 📱 Estados locales MEJORADOS
+  // Estados locales mejorados
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
@@ -34,7 +33,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       youtube: { url: '', active: true },
       whatsapp: { url: '', active: true }
     },
-    // 🆕 HORARIOS FLEXIBLES - Vienen del backend tal como están
+    // Horarios flexibles - Vienen del backend tal como están
     hours: {
       monday: {
         isOpen: false,
@@ -73,7 +72,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   });
   
-  // 🆕 Estados de cambios por sección
+  // Estados de cambios por sección
   const [sectionChanges, setSectionChanges] = useState({
     basic: false,
     contact: false,
@@ -88,7 +87,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const [savingSection, setSavingSection] = useState(null);
   const [lastChangedCapacity, setLastChangedCapacity] = useState(null); // Para botón "aplicar a todos"
   
-  // 📅 Días de la semana
+  // Días de la semana
   const daysOfWeek = [
     { key: 'monday', label: 'Lunes', shortLabel: 'Lun' },
     { key: 'tuesday', label: 'Martes', shortLabel: 'Mar' },
@@ -99,7 +98,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     { key: 'sunday', label: 'Domingo', shortLabel: 'Dom' }
   ];
   
-  // 🔗 Secciones del editor
+  // Secciones del editor
   const sections = [
     { id: 'basic', label: 'Información Básica', icon: Target },
     { id: 'contact', label: 'Contacto', icon: Phone },
@@ -108,7 +107,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     { id: 'stats', label: 'Estadísticas', icon: Award }
   ];
   
-  // 🌐 Redes sociales disponibles
+  // Redes sociales disponibles
   const socialPlatforms = [
     { key: 'facebook', label: 'Facebook', icon: Facebook, color: 'blue-600', placeholder: 'https://facebook.com/tugimnasio' },
     { key: 'instagram', label: 'Instagram', icon: Instagram, color: 'pink-600', placeholder: 'https://instagram.com/tugimnasio' },
@@ -117,9 +116,9 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     { key: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, color: 'green-600', placeholder: 'https://wa.me/502XXXXXXXX' }
   ];
   
-  // 🔄 INICIALIZAR CON DATOS DEL BACKEND
+  // Inicializar con datos del backend
   useEffect(() => {
-    console.log('🔄 ContentEditor - Checking for gym config data:', {
+    console.log('ContentEditor - Verificando datos de configuración:', {
       hasGymConfig: !!gymConfig,
       isLoading: gymConfig?.isLoading,
       hasData: !!gymConfig?.data,
@@ -127,11 +126,11 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     });
     
     if (gymConfig?.data && !gymConfig.isLoading) {
-      console.log('📥 ContentEditor - Loading data from backend:', gymConfig.data);
+      console.log('ContentEditor - Cargando datos desde backend:', gymConfig.data);
       
       const backendData = gymConfig.data;
       
-      // 🆕 MAPEAR HORARIOS FLEXIBLES - CONVERTIR DATOS EXISTENTES
+      // Mapear horarios flexibles - Convertir datos existentes
       const mapFlexibleHours = (backendHours) => {
         const mappedHours = {};
         
@@ -175,7 +174,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           }
         });
         
-        console.log('🔄 Mapped hours from backend:', {
+        console.log('Horarios mapeados desde backend:', {
           original: backendHours,
           mapped: mappedHours
         });
@@ -220,7 +219,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           }
         },
         
-        // 🆕 HORARIOS FLEXIBLES DEL BACKEND
+        // Horarios flexibles del backend
         hours: mapFlexibleHours(backendData.hours),
         
         stats: {
@@ -231,7 +230,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         }
       };
       
-      console.log('✅ ContentEditor - Data mapped successfully:', {
+      console.log('ContentEditor - Datos mapeados exitosamente:', {
         name: newFormData.name,
         hasContact: !!newFormData.contact.phone,
         socialPlatforms: Object.keys(newFormData.social).filter(key => newFormData.social[key].url),
@@ -261,13 +260,13 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   }, [gymConfig]);
   
-  // 🔔 Notificar cambios sin guardar
+  // Notificar cambios sin guardar
   useEffect(() => {
     const hasAnyChanges = Object.values(sectionChanges).some(changed => changed);
     onUnsavedChanges(hasAnyChanges);
   }, [sectionChanges, onUnsavedChanges]);
   
-  // 📊 CALCULAR MÉTRICAS DE CAPACIDAD
+  // Calcular métricas de capacidad
   const capacityMetrics = React.useMemo(() => {
     const openDays = daysOfWeek.filter(day => formData.hours[day.key]?.isOpen);
     
@@ -316,7 +315,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     };
   }, [formData.hours]);
   
-  // 🆕 Marcar sección como modificada
+  // Marcar sección como modificada
   const markSectionAsChanged = (section) => {
     setSectionChanges(prev => ({
       ...prev,
@@ -324,7 +323,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }));
   };
   
-  // 📝 Manejar cambios en campos simples (información básica)
+  // Manejar cambios en campos simples (información básica)
   const handleBasicChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -333,7 +332,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     markSectionAsChanged('basic');
   };
   
-  // 📝 Manejar cambios de contacto
+  // Manejar cambios de contacto
   const handleContactChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -345,7 +344,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     markSectionAsChanged('contact');
   };
   
-  // 📝 Manejar cambios de redes sociales
+  // Manejar cambios de redes sociales
   const handleSocialChange = (platform, field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -360,7 +359,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     markSectionAsChanged('social');
   };
   
-  // 📝 Manejar cambios de estadísticas
+  // Manejar cambios de estadísticas
   const handleStatsChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -372,7 +371,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     markSectionAsChanged('stats');
   };
   
-  // 🆕 FUNCIONES PARA HORARIOS FLEXIBLES
+  // Funciones para horarios flexibles
   
   // Toggle día abierto/cerrado
   const toggleDayOpen = (day) => {
@@ -473,7 +472,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     markSectionAsChanged('schedule');
   };
   
-  // 🆕 Aplicar capacidad a todas las franjas activas
+  // Aplicar capacidad a todas las franjas activas
   const applyCapacityToAllSlots = (capacity) => {
     if (!capacity || capacity <= 0) return;
     
@@ -498,7 +497,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     setLastChangedCapacity(null); // Limpiar después de aplicar
   };
   
-  // 💾 Guardar cambios de una sección específica
+  // Guardar cambios de una sección específica
   const handleSectionSave = async (section) => {
     try {
       setSavingSection(section);
@@ -577,7 +576,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           break;
       }
       
-      console.log(`💾 Saving ${section} section:`, dataToSave);
+      console.log(`Guardando sección ${section}:`, dataToSave);
       
       // Llamar al onSave con la sección específica
       await onSave({ section, data: dataToSave });
@@ -606,7 +605,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 📅 Generar string completo de horarios
+  // Generar string completo de horarios
   const generateFullScheduleString = (hours) => {
     const openDays = daysOfWeek.filter(day => hours[day.key]?.isOpen);
     
@@ -631,7 +630,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     return scheduleStrings.join(' | ');
   };
   
-  // 🆕 Obtener color según ocupación
+  // Obtener color según ocupación
   const getOccupancyColor = (reservations, capacity) => {
     if (capacity === 0) return 'gray';
     const percentage = (reservations / capacity) * 100;
@@ -642,7 +641,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     return 'green';
   };
 
-  // 🔄 Mostrar loading mientras se cargan los datos
+  // Mostrar loading mientras se cargan los datos
   if (gymConfig?.isLoading || !isDataLoaded) {
     return (
       <div className="space-y-6">
@@ -659,7 +658,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* 🔝 HEADER MEJORADO */}
+      {/* Header mejorado */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900">
@@ -673,17 +672,17 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           {isDataLoaded && formData.name && (
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                ✅ {formData.name}
+                {formData.name}
               </span>
               <span className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                👥 Capacidad total: {capacityMetrics.totalCapacity}
+                Capacidad total: {capacityMetrics.totalCapacity}
               </span>
               <span className="text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
-                📊 Ocupación: {capacityMetrics.averageOccupancy}%
+                Ocupación: {capacityMetrics.averageOccupancy}%
               </span>
               {Object.values(formData.hours).some(day => day.isOpen) && (
                 <span className="text-xs text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
-                  🕒 {Object.values(formData.hours).filter(day => day.isOpen).length} días configurados
+                  {Object.values(formData.hours).filter(day => day.isOpen).length} días configurados
                 </span>
               )}
             </div>
@@ -716,7 +715,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* ⚠️ INDICADOR DE CAMBIOS POR SECCIÓN */}
+      {/* Indicador de cambios por sección */}
       {Object.values(sectionChanges).some(changed => changed) && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
           <div className="flex">
@@ -734,7 +733,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* 🔗 NAVEGACIÓN POR SECCIONES */}
+      {/* Navegación por secciones */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex space-x-1 overflow-x-auto">
           {sections.map((section) => (
@@ -759,10 +758,10 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* 📋 CONTENIDO SEGÚN SECCIÓN ACTIVA */}
+      {/* Contenido según sección activa */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         
-        {/* SECCIÓN: Información Básica */}
+        {/* Sección: Información Básica */}
         {activeSection === 'basic' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -840,7 +839,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* SECCIÓN: Información de Contacto */}
+        {/* Sección: Información de Contacto */}
         {activeSection === 'contact' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -934,7 +933,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* SECCIÓN: Redes Sociales */}
+        {/* Sección: Redes Sociales */}
         {activeSection === 'social' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -1002,7 +1001,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* 🆕 SECCIÓN: Horarios Flexibles y Capacidad */}
+        {/* Sección: Horarios Flexibles y Capacidad */}
         {activeSection === 'schedule' && (
           <div className="space-y-8">
             
@@ -1024,13 +1023,13 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                   if (openDays.length > 0) {
                     return (
                       <div className="mt-2 text-sm text-green-700 bg-green-50 px-3 py-1 rounded-full inline-block">
-                        📅 Cargados: {openDays.length} días con {totalSlots} franjas horarias
+                        Cargados: {openDays.length} días con {totalSlots} franjas horarias
                       </div>
                     );
                   } else {
                     return (
                       <div className="mt-2 text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded-full inline-block">
-                        🆕 Sin horarios configurados - Empezar desde cero
+                        Sin horarios configurados - Empezar desde cero
                       </div>
                     );
                   }
@@ -1346,7 +1345,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* SECCIÓN: Estadísticas */}
+        {/* Sección: Estadísticas */}
         {activeSection === 'stats' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -1491,3 +1490,113 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
 };
 
 export default ContentEditor;
+
+/*
+=============================================================================
+PROPÓSITO DEL COMPONENTE
+=============================================================================
+
+El componente ContentEditor es una herramienta completa de administración 
+que permite a los administradores del gimnasio editar y gestionar toda la 
+información visible en su página web pública. Funciona como un CMS 
+(Sistema de Gestión de Contenido) específicamente diseñado para gimnasios.
+
+FUNCIONALIDADES PRINCIPALES:
+- Editor multi-sección con guardado independiente por área
+- Gestión de horarios flexibles con múltiples franjas por día
+- Configuración de redes sociales con activación/desactivación
+- Edición de información básica (nombre, eslogan, descripción)
+- Gestión de datos de contacto (teléfono, email, dirección)
+- Control de estadísticas destacadas (miembros, entrenadores, etc.)
+- Sistema de capacidad y ocupación por franja horaria
+- Validación en tiempo real con indicadores visuales
+- Vista previa de cambios antes de publicar
+
+LO QUE VE EL USUARIO ADMINISTRADOR:
+- Header con métricas rápidas de capacidad y ocupación
+- Navegación por pestañas para 5 secciones principales:
+  * Información Básica: Nombre, eslogan, descripción del gimnasio
+  * Contacto: Teléfono, email, dirección, ciudad
+  * Redes Sociales: Facebook, Instagram, Twitter, YouTube, WhatsApp
+  * Horarios y Capacidad: Configuración flexible de horarios por día
+  * Estadísticas: Números destacados que aparecen en la web
+- Alertas de cambios sin guardar con indicadores visuales
+- Botones de guardado independiente por sección
+- Estados de carga durante el proceso de guardado
+
+SISTEMA DE HORARIOS FLEXIBLES:
+- Cada día puede estar abierto o cerrado independientemente
+- Múltiples franjas horarias por día (ej: mañana, tarde, noche)
+- Capacidad individual para cada franja horaria
+- Simulador de ocupación en tiempo real
+- Etiquetas opcionales para identificar franjas especiales
+- Herramientas para duplicar, eliminar y aplicar capacidad masiva
+- Vista previa del string de horarios que aparece en la web
+- Métricas globales: capacidad total, espacios libres, día más ocupado
+
+REDES SOCIALES:
+- 5 plataformas principales: Facebook, Instagram, Twitter, YouTube, WhatsApp
+- Activación/desactivación individual por plataforma
+- Validación de URLs con placeholders específicos de Guatemala
+- Vista previa de configuración activa
+- Integración automática con el footer de la página web
+
+ARCHIVOS Y COMPONENTES CONECTADOS:
+=============================================================================
+
+CONTEXTO UTILIZADO:
+- AppContext (../../../contexts/AppContext)
+  * showSuccess, showError: Notificaciones de éxito y error
+  * isMobile: Detección de dispositivo móvil para UI responsiva
+
+PROPS RECIBIDAS:
+- gymConfig: Configuración actual del gimnasio desde el backend
+  * Incluye todos los datos existentes (horarios, contacto, redes sociales)
+  * Estados de carga (isLoading) para mostrar spinners apropiados
+- onSave: Función callback para guardar cambios por sección
+  * Recibe { section, data } para guardado independiente
+- onUnsavedChanges: Callback para notificar cambios sin guardar
+  * Permite al componente padre manejar navegación y advertencias
+
+ESTADOS INTERNOS:
+- formData: Objeto completo con toda la información editable
+- sectionChanges: Tracking de cambios por sección para guardado selectivo
+- activeSection: Sección actualmente visible en la interfaz
+- savingSection: Control de estados de carga durante guardado
+- lastChangedCapacity: Para función "aplicar capacidad a todas las franjas"
+
+VALIDACIONES IMPLEMENTADAS:
+- Información básica: Nombre y descripción obligatorios
+- Horarios: Días abiertos deben tener al menos una franja horaria
+- Capacidad: Entre 1 y 500 usuarios por franja
+- URLs de redes sociales: Formato válido cuando están activas
+- Datos de contacto: Formatos apropiados para teléfono y email
+
+INTEGRACIÓN CON BACKEND:
+- Carga datos existentes desde gymConfig prop
+- Mapea horarios flexibles desde formato backend
+- Convierte formatos simples a timeSlots cuando es necesario
+- Guarda cambios por sección específica para eficiencia
+- Genera string de horarios para mostrar en página web pública
+
+MÉTRICAS Y ANÁLISIS:
+- Capacidad total calculada automáticamente
+- Porcentaje de ocupación promedio
+- Identificación de día más ocupado
+- Espacios disponibles en tiempo real
+- Indicadores visuales de nivel de ocupación por franja
+
+CARACTERÍSTICAS ESPECIALES:
+- Guardado independiente por sección para evitar pérdida de datos
+- Sistema de horarios altamente flexible (madrugada, eventos especiales)
+- Herramientas de gestión masiva (aplicar capacidad a todas las franjas)
+- Simulador de ocupación para pruebas y planificación
+- Vista previa en tiempo real de cómo se verá en la página web
+- Interfaz intuitiva con indicadores visuales de estado
+- Soporte para múltiples tipos de gimnasios y horarios especiales
+
+Este componente es fundamental para que los administradores mantengan 
+actualizada la información pública de su gimnasio sin necesidad de 
+conocimientos técnicos, proporcionando una experiencia de edición 
+visual y amigable similar a plataformas CMS profesionales.
+*/

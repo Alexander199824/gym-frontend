@@ -1,10 +1,10 @@
+// Autor: Alexander Echeverria
 // src/hooks/useDebounced.js
-// FUNCIÓN: Sistema de hooks con DEBOUNCING para evitar rate limiting
-// PREVIENE: Múltiples peticiones simultáneas al backend
+// FUNCIÓN: Sistema de hooks con debouncing para evitar rate limiting del backend
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-// 🚦 COORDINADOR GLOBAL DE PETICIONES
+// Coordinador global de peticiones
 class RequestCoordinator {
   constructor() {
     this.activeRequests = new Map(); // endpoint -> Promise
@@ -18,7 +18,7 @@ class RequestCoordinator {
   async coordinateRequest(endpoint, requestFn) {
     // Si ya hay una petición activa para este endpoint, reutilizar
     if (this.activeRequests.has(endpoint)) {
-      console.log(`🔄 Reutilizando petición activa: ${endpoint}`);
+      console.log(`Reutilizando petición activa: ${endpoint}`);
       return this.activeRequests.get(endpoint);
     }
 
@@ -44,7 +44,7 @@ class RequestCoordinator {
     // Si es muy pronto, esperar
     if (timeSinceLastRequest < this.minDelay) {
       const delay = this.minDelay - timeSinceLastRequest;
-      console.log(`⏰ Esperando ${delay}ms antes de hacer petición: ${endpoint}`);
+      console.log(`Esperando ${delay}ms antes de hacer petición: ${endpoint}`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
     
@@ -52,10 +52,10 @@ class RequestCoordinator {
     
     try {
       const result = await requestFn();
-      console.log(`✅ Petición exitosa: ${endpoint}`);
+      console.log(`Petición exitosa: ${endpoint}`);
       return result;
     } catch (error) {
-      console.warn(`⚠️ Error en petición: ${endpoint}`, error.message);
+      console.warn(`Error en petición: ${endpoint}`, error.message);
       throw error;
     }
   }
@@ -73,7 +73,7 @@ class RequestCoordinator {
 // Instancia global del coordinador
 const requestCoordinator = new RequestCoordinator();
 
-// 🎣 HOOK PRINCIPAL CON DEBOUNCING
+// Hook principal con debouncing
 export const useDebounced = (endpoint, requestFn, options = {}) => {
   const {
     fallbackData = null,
@@ -128,7 +128,7 @@ export const useDebounced = (endpoint, requestFn, options = {}) => {
     } catch (error) {
       if (!mountedRef.current) return;
 
-      console.warn(`⚠️ Error en useDebounced (${endpoint}):`, error.message);
+      console.warn(`Error en useDebounced (${endpoint}):`, error.message);
       
       // Determinar si debemos reintentar
       const shouldRetry = attempt < retryCount && (
@@ -139,7 +139,7 @@ export const useDebounced = (endpoint, requestFn, options = {}) => {
       );
 
       if (shouldRetry) {
-        console.log(`🔄 Reintentando ${endpoint} en ${retryDelay * attempt}ms... (${attempt}/${retryCount})`);
+        console.log(`Reintentando ${endpoint} en ${retryDelay * attempt}ms... (${attempt}/${retryCount})`);
         retryTimer.current = setTimeout(() => {
           if (mountedRef.current) {
             fetchData(attempt + 1);
@@ -242,7 +242,7 @@ export const useDebounced = (endpoint, requestFn, options = {}) => {
   };
 };
 
-// 🎣 HOOK ESPECÍFICO PARA GYM CONFIG
+// Hook específico para configuración del gimnasio
 export const useGymConfigDebounced = () => {
   const fallback = {
     name: 'Elite Fitness',
@@ -274,7 +274,7 @@ export const useGymConfigDebounced = () => {
   );
 };
 
-// 🎣 HOOK ESPECÍFICO PARA STATS
+// Hook específico para estadísticas
 export const useGymStatsDebounced = () => {
   const fallback = {
     members: 500,
@@ -294,7 +294,7 @@ export const useGymStatsDebounced = () => {
   );
 };
 
-// 🎣 HOOK ESPECÍFICO PARA SERVICIOS
+// Hook específico para servicios
 export const useGymServicesDebounced = () => {
   const fallback = [
     {
@@ -328,13 +328,14 @@ export const useGymServicesDebounced = () => {
   );
 };
 
-// 🎣 HOOK ESPECÍFICO PARA PRODUCTOS DESTACADOS
+// Hook específico para productos destacados
 export const useFeaturedProductsDebounced = () => {
   const fallback = [
     {
       id: 1,
       name: 'Proteína Whey Premium',
       price: 250,
+      currency: 'Q',
       image: '/api/placeholder/300/300',
       category: 'Suplementos'
     },
@@ -342,6 +343,7 @@ export const useFeaturedProductsDebounced = () => {
       id: 2,
       name: 'Camiseta Elite Fitness',
       price: 80,
+      currency: 'Q',
       image: '/api/placeholder/300/300',
       category: 'Ropa'
     },
@@ -349,6 +351,7 @@ export const useFeaturedProductsDebounced = () => {
       id: 3,
       name: 'Shaker Premium',
       price: 35,
+      currency: 'Q',
       image: '/api/placeholder/300/300',
       category: 'Accesorios'
     }
@@ -365,13 +368,14 @@ export const useFeaturedProductsDebounced = () => {
   );
 };
 
-// 🎣 HOOK ESPECÍFICO PARA PLANES
+// Hook específico para planes de membresía
 export const useMembershipPlansDebounced = () => {
   const fallback = [
     {
       id: 1,
       name: 'Básico',
       price: 200,
+      currency: 'Q',
       duration: 'mes',
       features: ['Acceso al gimnasio', 'Área de cardio']
     },
@@ -379,6 +383,7 @@ export const useMembershipPlansDebounced = () => {
       id: 2,
       name: 'Premium',
       price: 350,
+      currency: 'Q',
       duration: 'mes',
       popular: true,
       features: ['Todo lo del básico', 'Clases grupales', 'Entrenamiento personal']
@@ -396,7 +401,7 @@ export const useMembershipPlansDebounced = () => {
   );
 };
 
-// 🔧 HOOK PARA COORDINADOR STATUS
+// Hook para estado del coordinador de peticiones
 export const useRequestCoordinatorStatus = () => {
   const [status, setStatus] = useState(requestCoordinator.getStatus());
 
@@ -413,35 +418,204 @@ export const useRequestCoordinatorStatus = () => {
 
 export default useDebounced;
 
-// ✅ SISTEMA IMPLEMENTADO:
-//
-// 🚦 COORDINADOR DE PETICIONES:
-// ✅ Evita peticiones duplicadas al mismo endpoint
-// ✅ Reutiliza promesas activas
-// ✅ Timing controlado entre peticiones
-// ✅ Estado global compartido
-//
-// ⏰ DEBOUNCING INTELIGENTE:
-// ✅ 200-600ms de delay entre hooks
-// ✅ Cancela peticiones anteriores
-// ✅ Retry con exponential backoff
-// ✅ Cache configurable por hook
-//
-// 🛡️ FALLBACKS ROBUSTOS:
-// ✅ Datos por defecto para cada hook
-// ✅ Manejo silencioso de errores 429
-// ✅ Cleanup apropiado al desmontar
-// ✅ Estado consistente siempre
-//
-// 📊 HOOKS ESPECÍFICOS:
-// ✅ useGymConfigDebounced - 500ms delay, 10min cache
-// ✅ useGymStatsDebounced - 400ms delay, 15min cache  
-// ✅ useGymServicesDebounced - 350ms delay, 20min cache
-// ✅ useFeaturedProductsDebounced - 600ms delay, 30min cache
-// ✅ useMembershipPlansDebounced - 450ms delay, 25min cache
-//
-// 🔧 UTILIDADES:
-// ✅ useRequestCoordinatorStatus - para debugging
-// ✅ refetch manual para cada hook
-// ✅ needsRefresh para validar cache
-// ✅ Estados claros (loading, loaded, error)
+/*
+DOCUMENTACIÓN DEL SISTEMA useDebounced
+
+PROPÓSITO:
+Este sistema de hooks implementa debouncing inteligente y coordinación de peticiones para prevenir
+rate limiting del backend y optimizar el rendimiento de la aplicación del gimnasio. Proporciona
+una capa de gestión robusta que evita peticiones duplicadas, implementa reintentos automáticos
+y mantiene cache de datos para mejorar la experiencia del usuario.
+
+FUNCIONALIDADES PRINCIPALES:
+- Coordinación global de peticiones para evitar duplicados al mismo endpoint
+- Sistema de debouncing configurable por hook específico
+- Cache inteligente con tiempos personalizables por tipo de dato
+- Reintentos automáticos con backoff exponencial
+- Fallbacks robustos con datos por defecto
+- Cleanup automático de recursos al desmontar componentes
+- Logging detallado para debugging y monitoreo
+
+ARCHIVOS Y CONEXIONES:
+
+SERVICIOS UTILIZADOS:
+- ../services/apiService: Importación dinámica para evitar circular dependencies
+  * getGymConfig(): Configuración básica del gimnasio
+  * getGymStats(): Estadísticas de miembros y rendimiento
+  * getGymServices(): Servicios ofrecidos por el gimnasio
+  * getFeaturedProducts(): Productos destacados de la tienda
+  * getMembershipPlans(): Planes de membresía disponibles
+
+DEPENDENCIAS DE REACT:
+- useState: Gestión de estados de datos, carga y errores
+- useEffect: Efectos para fetch automático y cleanup
+- useCallback: Optimización de funciones para evitar re-renders
+- useRef: Referencias para timers y estado de montaje
+
+QUE PROPORCIONA AL SISTEMA:
+
+COORDINADOR GLOBAL DE PETICIONES:
+El sistema incluye una clase RequestCoordinator que gestiona todas las peticiones:
+
+**Prevención de Duplicados**:
+- Detecta peticiones activas al mismo endpoint
+- Reutiliza promesas existentes en lugar de crear nuevas
+- Evita sobrecarga del backend con múltiples requests idénticos
+- Mantiene un mapa global de peticiones activas
+
+**Control de Timing**:
+- Tiempo mínimo de 200ms entre peticiones
+- Coordinación inteligente para espaciar requests
+- Prevención de rate limiting del servidor
+- Logging de delays aplicados automáticamente
+
+**Estado Global Compartido**:
+- Información en tiempo real de peticiones activas
+- Cola de peticiones pendientes
+- Métricas de rendimiento y uso
+- Estado de procesamiento global
+
+HOOK PRINCIPAL useDebounced:
+Proporciona la funcionalidad base para todos los hooks específicos:
+
+**Configuración Flexible**:
+- `fallbackData`: Datos por defecto mientras carga o en caso de error
+- `debounceMs`: Tiempo de debounce personalizable (300ms por defecto)
+- `retryCount`: Número de reintentos automáticos (2 por defecto)
+- `retryDelay`: Delay base entre reintentos (1000ms por defecto)
+- `cacheMs`: Tiempo de vida del cache (5 minutos por defecto)
+- `enabled`: Control para habilitar/deshabilitar el hook
+- `onSuccess/onError`: Callbacks para manejo de eventos
+
+**Estados Proporcionados**:
+- `data`: Datos actuales (fallback o datos del servidor)
+- `isLoading`: Indica si hay una petición en curso
+- `isLoaded`: Indica si se han cargado datos al menos una vez
+- `error`: Error actual si la petición falló
+- `refetch`: Función para forzar nueva petición
+- `needsRefresh`: Indica si el cache ha expirado
+- `lastFetch`: Timestamp de última petición exitosa
+- `retryCount`: Número de reintentos realizados
+
+**Manejo de Errores Inteligente**:
+- Reintentos automáticos para errores temporales (429, 5xx, red)
+- Backoff exponencial para espaciar reintentos
+- Fallback a datos por defecto cuando fallan todos los reintentos
+- Logging detallado de errores para debugging
+
+HOOKS ESPECÍFICOS DEL GIMNASIO:
+
+**useGymConfigDebounced**:
+- **Datos**: Configuración básica del gimnasio guatemalteco
+- **Fallback**: Información por defecto de Elite Fitness Guatemala
+- **Debounce**: 500ms (configuración cambia poco)
+- **Cache**: 10 minutos (datos muy estables)
+- **Contenido**: Nombre, descripción, contacto, horarios, redes sociales
+
+**useGymStatsDebounced**:
+- **Datos**: Estadísticas del gimnasio (miembros, entrenadores, etc.)
+- **Fallback**: 500 miembros, 12 entrenadores, 8 años experiencia, 95% satisfacción
+- **Debounce**: 400ms
+- **Cache**: 15 minutos (estadísticas cambian gradualmente)
+- **Contenido**: Métricas clave para mostrar credibilidad
+
+**useGymServicesDebounced**:
+- **Datos**: Servicios ofrecidos por el gimnasio
+- **Fallback**: Entrenamiento personal, clases grupales, área de pesas
+- **Debounce**: 350ms
+- **Cache**: 20 minutos (servicios son relativamente estables)
+- **Contenido**: Lista de servicios con descripciones e iconos
+
+**useFeaturedProductsDebounced**:
+- **Datos**: Productos destacados de la tienda del gimnasio
+- **Fallback**: Proteína Whey (Q250), Camiseta (Q80), Shaker (Q35)
+- **Debounce**: 600ms (mayor delay para evitar sobrecarga)
+- **Cache**: 30 minutos (productos cambian ocasionalmente)
+- **Contenido**: Productos con precios en quetzales guatemaltecos
+
+**useMembershipPlansDebounced**:
+- **Datos**: Planes de membresía disponibles
+- **Fallback**: Plan Básico (Q200/mes), Plan Premium (Q350/mes)
+- **Debounce**: 450ms
+- **Cache**: 25 minutos (planes son bastante estables)
+- **Contenido**: Planes con precios en quetzales y características
+
+CARACTERÍSTICAS TÉCNICAS:
+
+**Sistema de Cache Inteligente**:
+- Cache independiente por hook con tiempos optimizados
+- Verificación automática de expiración
+- Invalidación manual disponible con refetch()
+- Persistencia durante la sesión del usuario
+
+**Optimizaciones de Rendimiento**:
+- Importación dinámica de servicios para evitar dependencias circulares
+- Referencias useRef para evitar re-renders innecesarios
+- Cleanup automático de timers al desmontar componentes
+- Debouncing configurable según criticidad de datos
+
+**Manejo de Estados del Componente**:
+- Verificación de montaje antes de actualizar estados
+- Prevención de memory leaks con cleanup apropiado
+- Estados consistentes incluso durante errores
+- Transiciones suaves entre estados de carga
+
+ESTRATEGIAS DE RECUPERACIÓN:
+
+**Criterios de Reintento**:
+- Error 429 (Too Many Requests): Reintento automático
+- Errores 5xx (Server Error): Reintento con backoff
+- ERR_NETWORK (Network Error): Reintento para problemas de red
+- ECONNABORTED (Timeout): Reintento para timeouts
+
+**Fallbacks Robustos**:
+- Datos por defecto específicos para cada hook
+- Información contextual del gimnasio guatemalteco
+- Precios en quetzales para productos y membresías
+- Contenido funcional incluso sin backend
+
+INTEGRACIÓN CON EL GIMNASIO:
+
+**Datos Específicos de Guatemala**:
+- Precios en quetzales guatemaltecos (Q)
+- Información de contacto local
+- Horarios adaptados al mercado guatemalteco
+- Servicios típicos de gimnasios locales
+
+**Productos de la Tienda**:
+- Suplementos con precios en moneda local
+- Equipos y accesorios del gimnasio
+- Ropa deportiva con marca del gimnasio
+- Precios competitivos para el mercado guatemalteco
+
+**Planes de Membresía**:
+- Estructura de precios en quetzales
+- Planes adaptados al poder adquisitivo local
+- Características diferenciadas por nivel
+- Promociones y ofertas especiales
+
+BENEFICIOS DEL SISTEMA:
+
+**Para el Rendimiento**:
+- Reducción significativa de peticiones al backend
+- Menor latencia percibida por el usuario
+- Uso eficiente del ancho de banda
+- Prevención de sobrecarga del servidor
+
+**Para la Experiencia de Usuario**:
+- Carga más rápida de contenido
+- Disponibilidad de datos incluso con problemas de red
+- Transiciones suaves sin pantallas de carga excesivas
+- Información siempre disponible con fallbacks
+
+**Para el Desarrollo**:
+- Hooks especializados para cada tipo de dato
+- Manejo automático de errores y reintentos
+- Debugging facilitado con logging detallado
+- Coordinación automática sin configuración manual
+
+Este sistema es fundamental para mantener un rendimiento óptimo de la aplicación
+del gimnasio, proporcionando una experiencia fluida para los usuarios mientras
+protege el backend de sobrecarga y asegura la disponibilidad de información
+crítica del negocio en Guatemala.
+*/
