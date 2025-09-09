@@ -1,5 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/ClientDashboard.js
+// ACTUALIZADO: Para integrar con el nuevo sistema de compra de membresías
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -30,11 +31,15 @@ import {
   Gift,
   ArrowRight,
   AlertTriangle,
-  Loader2
+  Loader2,
+  MapPin,
+  DollarSign,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
+import membershipService from '../../services/membershipService';
 
 // Componentes existentes
 import DashboardCard from '../../components/common/DashboardCard';
@@ -43,14 +48,11 @@ import PaymentHistoryCard from '../../components/payments/PaymentHistoryCard';
 import ScheduleCard from '../../components/memberships/ScheduleCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
-// Componente de checkout de membresías
+// Componente de checkout actualizado
 import MembershipCheckout from '../../components/memberships/MembershipCheckout';
 
 // Componente de testimonios
 import TestimonialManager from './components/TestimonialManager';
-
-// Hook para planes de membresía
-import useMembershipPlans from '../../hooks/useMembershipPlans';
 
 // Función auxiliar para formatear en Quetzales
 const formatQuetzales = (amount) => {
@@ -63,20 +65,33 @@ const formatQuetzales = (amount) => {
 
 const ClientDashboard = () => {
   const { user } = useAuth();
-  const { formatDate, showError, showSuccess, isMobile } = useApp();
+  const { formatDate, showError, showSuccess, showInfo, isMobile } = useApp();
   
-  // Estado para navegación entre secciones (incluyendo membresías)
+  // Estado para navegación entre secciones
   const [activeSection, setActiveSection] = useState('dashboard');
-  const [selectedPlan, setSelectedPlan] = useState(null); // Plan seleccionado para checkout
+  const [selectedPlan, setSelectedPlan] = useState(null);
   
-  // QUERIES PARA DATOS DEL CLIENTE
+  // QUERIES PARA DATOS DEL CLIENTE - USANDO SERVICIOS ACTUALIZADOS
   
-  // Membresías del cliente
-  const { data: memberships, isLoading: membershipsLoading, refetch: refetchMemberships } = useQuery({
-    queryKey: ['userMemberships', user?.id],
-    queryFn: () => apiService.getMemberships({ userId: user?.id }),
+  // Membresía actual del cliente
+  const { data: currentMembership, isLoading: membershipLoading, refetch: refetchMembership } = useQuery({
+    queryKey: ['currentMembership', user?.id],
+    queryFn: () => membershipService.getCurrentMembership(),
     staleTime: 5 * 60 * 1000,
-    onError: (error) => showError('Error al cargar tus membresías')
+    retry: 1,
+    onError: (error) => {
+      if (error.response?.status !== 404) {
+        showError('Error al cargar tu membresía actual');
+      }
+    }
+  });
+  
+  // Historial de membresías
+  const { data: memberships, isLoading: membershipsLoading } = useQuery({
+    queryKey: ['userMemberships', user?.id],
+    queryFn: () => membershipService.getUserMemberships(),
+    staleTime: 5 * 60 * 1000,
+    onError: (error) => showError('Error al cargar tu historial de membresías')
   });
   
   // Historial de pagos
@@ -87,11 +102,12 @@ const ClientDashboard = () => {
     onError: (error) => showError('Error al cargar tu historial de pagos')
   });
   
-  // Perfil del usuario
-  const { data: profile } = useQuery({
-    queryKey: ['userProfile'],
-    queryFn: () => apiService.getProfile(),
-    staleTime: 10 * 60 * 1000
+  // Planes de membresía disponibles - USANDO NUEVO SERVICIO
+  const { data: plans, isLoading: plansLoading, refetch: refetchPlans } = useQuery({
+    queryKey: ['membershipPlans'],
+    queryFn: () => membershipService.getPlans(),
+    staleTime: 10 * 60 * 1000,
+    onError: (error) => showError('Error al cargar planes de membresía')
   });
   
   // Testimonios del usuario
@@ -107,11 +123,7 @@ const ClientDashboard = () => {
     }
   });
 
-  // Planes de membresía disponibles
-  const { plans, isLoaded: plansLoaded, isLoading: plansLoading } = useMembershipPlans();
-  
-  // Procesar datos existentes
-  const activeMembership = memberships?.data?.memberships?.find(m => m.status === 'active');
+  // Procesar datos de pagos
   const recentPayments = payments?.data?.payments || [];
   const totalPaid = recentPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
   
@@ -122,15 +134,7 @@ const ClientDashboard = () => {
   const publishedCount = testimonialData.publishedCount || 0;
   const pendingCount = testimonialData.pendingCount || 0;
   
-  // Detectar si necesita membresía y redirigir automáticamente
-  useEffect(() => {
-    if (!membershipsLoading && !activeMembership && activeSection === 'dashboard') {
-      // Solo mostrar alerta prominente, no redirigir automáticamente
-      console.log('Cliente sin membresía activa detectado');
-    }
-  }, [membershipsLoading, activeMembership, activeSection]);
-  
-  // Calcular días hasta vencimiento (existente)
+  // Calcular días hasta vencimiento
   const getDaysUntilExpiry = (endDate) => {
     if (!endDate) return null;
     const today = new Date();
@@ -140,11 +144,16 @@ const ClientDashboard = () => {
     return diffDays;
   };
   
-  const daysUntilExpiry = activeMembership ? getDaysUntilExpiry(activeMembership.endDate) : null;
+  const daysUntilExpiry = currentMembership ? getDaysUntilExpiry(currentMembership.endDate) : null;
   
-  // Estado de la membresía
+  // Estado de la membresía mejorado
   const getMembershipStatus = () => {
-    if (!activeMembership) return { status: 'none', message: 'Sin membresía activa', color: 'red' };
+    if (!currentMembership) return { status: 'none', message: 'Sin membresía activa', color: 'red' };
+    
+    // Verificar si está pendiente de validación
+    if (currentMembership.status === 'pending_validation') {
+      return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
+    }
     
     if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
     
@@ -164,19 +173,21 @@ const ClientDashboard = () => {
     setActiveSection('checkout');
   };
 
-  // Manejar éxito de compra
+  // Manejar éxito de compra - ACTUALIZADO
   const handleMembershipSuccess = (membership) => {
     console.log('Membresía adquirida exitosamente:', membership);
     
-    // Mostrar mensaje de éxito
-    if (membership.paymentMethod === 'stripe') {
+    // Mostrar mensaje según método de pago
+    if (membership.paymentMethod === 'card') {
       showSuccess('¡Membresía activada exitosamente! Ya puedes usar todas nuestras instalaciones.');
-    } else {
+    } else if (membership.paymentMethod === 'transfer') {
       showSuccess('Solicitud de membresía enviada. Te notificaremos cuando se valide tu transferencia.');
+    } else if (membership.paymentMethod === 'cash') {
+      showSuccess('Membresía registrada. Visita el gimnasio para completar tu pago en efectivo.');
     }
     
-    // Refrescar datos de membresías
-    refetchMemberships();
+    // Refrescar datos
+    refetchMembership();
     
     // Volver al dashboard
     setSelectedPlan(null);
@@ -187,6 +198,16 @@ const ClientDashboard = () => {
   const handleBackFromCheckout = () => {
     setSelectedPlan(null);
     setActiveSection('memberships');
+  };
+
+  // Función para refrescar estado de pagos pendientes
+  const handleRefreshPaymentStatus = async () => {
+    try {
+      await refetchMembership();
+      showInfo('Estado actualizado');
+    } catch (error) {
+      showError('Error actualizando estado');
+    }
   };
 
   // Si está en la sección de testimonios
@@ -224,21 +245,29 @@ const ClientDashboard = () => {
     return (
       <div className="space-y-6">
         {/* Navegación de regreso */}
-        <div className="flex items-center">
+        <div className="flex items-center justify-between">
           <button
             onClick={() => setActiveSection('dashboard')}
-            className="btn-secondary btn-sm mr-4 flex items-center"
+            className="btn-secondary btn-sm flex items-center"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Volver al Panel
           </button>
           <h2 className="text-xl font-semibold text-gray-900">
-            {activeMembership ? 'Cambiar Plan' : 'Obtener Membresía'}
+            {currentMembership ? 'Cambiar Plan' : 'Obtener Membresía'}
           </h2>
+          <button
+            onClick={() => refetchPlans()}
+            className="btn-outline btn-sm flex items-center"
+            disabled={plansLoading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-1 ${plansLoading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </button>
         </div>
 
         {/* Alerta de estado actual */}
-        {!activeMembership && (
+        {!currentMembership && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <div className="flex items-center">
               <AlertTriangle className="w-6 h-6 text-red-500 mr-3" />
@@ -251,6 +280,31 @@ const ClientDashboard = () => {
                   Elige el plan que mejor se adapte a tus necesidades.
                 </p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {membershipStatus.status === 'pending' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Clock className="w-6 h-6 text-yellow-500 mr-3" />
+                <div>
+                  <h3 className="text-lg font-semibold text-yellow-800">
+                    Membresía pendiente de validación
+                  </h3>
+                  <p className="text-yellow-700 mt-1">
+                    Tu membresía está siendo validada por nuestro equipo. Te notificaremos cuando esté lista.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleRefreshPaymentStatus}
+                className="btn-warning btn-sm flex items-center"
+              >
+                <RefreshCw className="w-4 h-4 mr-1" />
+                Actualizar estado
+              </button>
             </div>
           </div>
         )}
@@ -271,12 +325,11 @@ const ClientDashboard = () => {
           </div>
         )}
 
-        {/* Componente de planes de membresía */}
+        {/* Componente de planes de membresía actualizado */}
         <MembershipPlansSection 
-          plans={plans} 
-          isLoaded={plansLoaded}
+          plans={plans || []} 
           isLoading={plansLoading}
-          currentMembership={activeMembership}
+          currentMembership={currentMembership}
           isMobile={isMobile}
           onSelectPlan={handleSelectPlan}
         />
@@ -284,7 +337,7 @@ const ClientDashboard = () => {
     );
   }
 
-  // Vista principal del dashboard
+  // Vista principal del dashboard actualizada
   return (
     <div className="space-y-6">
       
@@ -310,44 +363,56 @@ const ClientDashboard = () => {
         </div>
       </div>
       
-      {/* MÉTRICAS PERSONALES CON TESTIMONIOS Y MEMBRESÍA */}
+      {/* MÉTRICAS PERSONALES ACTUALIZADAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* Estado de membresía con click */}
+        {/* Estado de membresía con indicador de pago pendiente */}
         <div 
           className={`cursor-pointer transition-transform hover:scale-105 ${
-            !activeMembership ? 'ring-2 ring-red-500 ring-opacity-50' : ''
+            !currentMembership || membershipStatus.status === 'pending' ? 'ring-2 ring-opacity-50' : ''
+          } ${
+            !currentMembership ? 'ring-red-500' : 
+            membershipStatus.status === 'pending' ? 'ring-yellow-500' : ''
           }`}
-          onClick={() => !activeMembership && setActiveSection('memberships')}
+          onClick={() => {
+            if (!currentMembership || membershipStatus.status === 'pending') {
+              setActiveSection('memberships');
+            }
+          }}
         >
           <DashboardCard
             title="Mi Membresía"
             value={membershipStatus.message}
             icon={CreditCard}
             color={membershipStatus.color}
-            isLoading={membershipsLoading}
-            subtitle={activeMembership ? 
-              `${activeMembership.type === 'monthly' ? 'Mensual' : 'Diaria'}` : 
-              'Haz clic para obtener una'
+            isLoading={membershipLoading}
+            subtitle={
+              currentMembership ? 
+                (currentMembership.plan?.name || currentMembership.type || 'Membresía activa') :
+                'Haz clic para obtener una'
             }
-            alert={!activeMembership}
+            alert={!currentMembership || membershipStatus.status === 'pending'}
           />
         </div>
         
-        {/* Días restantes */}
+        {/* Días restantes con estado de validación */}
         <DashboardCard
           title="Días restantes"
-          value={daysUntilExpiry !== null ? 
-            (daysUntilExpiry < 0 ? 'Vencida' : `${daysUntilExpiry} días`) : 
-            'N/A'
+          value={
+            membershipStatus.status === 'pending' ? 'Validando...' :
+            daysUntilExpiry !== null ? 
+              (daysUntilExpiry < 0 ? 'Vencida' : `${daysUntilExpiry} días`) : 
+              'N/A'
           }
           icon={Clock}
-          color={daysUntilExpiry !== null ? 
-            (daysUntilExpiry < 0 ? 'red' : 
-             daysUntilExpiry <= 3 ? 'yellow' : 'green') : 
-            'gray'
+          color={
+            membershipStatus.status === 'pending' ? 'yellow' :
+            daysUntilExpiry !== null ? 
+              (daysUntilExpiry < 0 ? 'red' : 
+               daysUntilExpiry <= 3 ? 'yellow' : 'green') : 
+              'gray'
           }
-          isLoading={membershipsLoading}
+          isLoading={membershipLoading}
           alert={daysUntilExpiry !== null && daysUntilExpiry <= 3}
         />
         
@@ -389,8 +454,8 @@ const ClientDashboard = () => {
         
       </div>
       
-      {/* ALERTAS IMPORTANTES - PRIORIDAD A MEMBRESÍA */}
-      {!activeMembership && (
+      {/* ALERTAS IMPORTANTES ACTUALIZADAS */}
+      {!currentMembership && (
         <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 shadow-lg">
           <div className="flex items-center">
             <AlertTriangle className="w-8 h-8 text-red-500 mr-4" />
@@ -400,7 +465,7 @@ const ClientDashboard = () => {
               </h3>
               <p className="text-red-700 mt-2">
                 Para disfrutar de todas nuestras instalaciones y servicios exclusivos, 
-                necesitas obtener una membresía.
+                necesitas obtener una membresía. Elige entre pago con tarjeta, transferencia o efectivo.
               </p>
               {plans && plans.length > 0 && plans[0].features && (
                 <ul className="mt-3 text-sm text-red-600 space-y-1">
@@ -418,6 +483,48 @@ const ClientDashboard = () => {
                 <Gift className="w-5 h-5 mr-2" />
                 Obtener Membresía
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta para membresía pendiente de validación */}
+      {membershipStatus.status === 'pending' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Clock className="w-5 h-5 text-yellow-500 mr-3" />
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Tu membresía está siendo validada
+                </h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  {currentMembership?.payment?.paymentMethod === 'transfer' && 
+                    'Validando transferencia bancaria - Te notificaremos cuando esté lista'
+                  }
+                  {currentMembership?.payment?.paymentMethod === 'cash' && 
+                    'Visita el gimnasio para completar tu pago en efectivo'
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleRefreshPaymentStatus}
+                className="btn-warning btn-sm"
+              >
+                <RefreshCw className="w-4 h-4 mr-1" />
+                Actualizar
+              </button>
+              {currentMembership?.payment?.paymentMethod === 'cash' && (
+                <button
+                  onClick={() => window.open('https://maps.google.com/?q=Elite+Fitness+Club', '_blank')}
+                  className="btn-outline btn-sm"
+                >
+                  <MapPin className="w-4 h-4 mr-1" />
+                  Ver ubicación
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -468,7 +575,7 @@ const ClientDashboard = () => {
       )}
       
       {/* Alerta para testimonios */}
-      {canSubmitTestimonial && activeMembership && (
+      {canSubmitTestimonial && currentMembership && membershipStatus.status !== 'pending' && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
             <MessageSquare className="w-5 h-5 text-blue-500 mr-3" />
@@ -482,7 +589,7 @@ const ClientDashboard = () => {
               <p className="text-sm text-blue-700 mt-1">
                 {userTestimonials.length === 0 ? 
                   'Tu opinión es muy valiosa. Ayuda a otros miembros compartiendo tu experiencia en el gimnasio.' :
-                  `Ya tienes ${userTestimonials.length} testimonio${userTestimonials.length !== 1 ? 's' : ''}. ¿Tienes más experiencias que compartir sobre diferentes aspectos del gimnasio?`
+                  `Ya tienes ${userTestimonials.length} testimonio${userTestimonials.length !== 1 ? 's' : ''}. ¿Tienes más experiencias que compartir?`
                 }
               </p>
             </div>
@@ -496,22 +603,32 @@ const ClientDashboard = () => {
         </div>
       )}
       
-      {/* CONTENIDO PRINCIPAL CON ACCESO A MEMBRESÍAS */}
+      {/* CONTENIDO PRINCIPAL ACTUALIZADO */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* MI MEMBRESÍA con botón de compra */}
+        {/* MI MEMBRESÍA con estados actualizados */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
               Mi Membresía
             </h3>
-            {activeMembership ? (
-              <Link 
-                to={`/dashboard/memberships/${activeMembership.id}`}
-                className="text-primary-600 hover:text-primary-500 text-sm font-medium"
-              >
-                Ver detalles
-              </Link>
+            {currentMembership ? (
+              <div className="flex space-x-2">
+                {membershipStatus.status === 'pending' && (
+                  <button
+                    onClick={handleRefreshPaymentStatus}
+                    className="text-yellow-600 hover:text-yellow-500 text-sm font-medium"
+                  >
+                    Actualizar estado
+                  </button>
+                )}
+                <Link 
+                  to={`/dashboard/memberships/${currentMembership.id}`}
+                  className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+                >
+                  Ver detalles
+                </Link>
+              </div>
             ) : (
               <button
                 onClick={() => setActiveSection('memberships')}
@@ -522,14 +639,37 @@ const ClientDashboard = () => {
             )}
           </div>
           
-          {membershipsLoading ? (
+          {membershipLoading ? (
             <LoadingSpinner />
-          ) : activeMembership ? (
-            <MembershipCard 
-              membership={activeMembership}
-              showActions={true}
-              isOwner={true}
-            />
+          ) : currentMembership ? (
+            <div>
+              <MembershipCard 
+                membership={currentMembership}
+                showActions={true}
+                isOwner={true}
+              />
+              
+              {/* Información adicional para membresías pendientes */}
+              {membershipStatus.status === 'pending' && currentMembership.payment && (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h4 className="font-medium text-yellow-800 mb-2">Estado del pago</h4>
+                  <div className="text-sm text-yellow-700 space-y-1">
+                    <div>Método: {
+                      currentMembership.payment.paymentMethod === 'transfer' ? 'Transferencia bancaria' :
+                      currentMembership.payment.paymentMethod === 'cash' ? 'Efectivo en gimnasio' :
+                      currentMembership.payment.paymentMethod
+                    }</div>
+                    <div>Estado: Pendiente de validación</div>
+                    {currentMembership.payment.paymentMethod === 'cash' && (
+                      <div className="flex items-center mt-2">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        <span>Visita el gimnasio para completar tu pago</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="text-center py-8">
               <CreditCard className="w-12 h-12 text-red-500 mx-auto mb-4" />
@@ -548,17 +688,17 @@ const ClientDashboard = () => {
                   <Gift className="w-4 h-4 mr-2" />
                   Obtener Membresía Ahora
                 </button>
-                {plans && plans.length > 0 && (
-                  <p className="text-xs text-gray-500">
-                    Planes desde Q{Math.min(...plans.map(p => p.price))}/mes • Beneficios incluidos
-                  </p>
-                )}
+                <div className="text-xs text-gray-500 space-y-1">
+                  <div>💳 Pago con tarjeta - Activación inmediata</div>
+                  <div>🏦 Transferencia bancaria - Validación 1-2 días</div>
+                  <div>💵 Efectivo en gimnasio - Pago en sucursal</div>
+                </div>
               </div>
             </div>
           )}
         </div>
         
-        {/* MI TESTIMONIO - Resumen */}
+        {/* MI TESTIMONIO - Sin cambios mayores */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
@@ -678,10 +818,12 @@ const ClientDashboard = () => {
               <button
                 onClick={() => setActiveSection('testimonials')}
                 className="btn-primary"
-                disabled={!activeMembership}
+                disabled={!currentMembership || membershipStatus.status === 'pending'}
               >
                 <Plus className="w-4 h-4 mr-2" />
-                {!activeMembership ? 'Obtén membresía primero' : 'Escribir testimonio'}
+                {!currentMembership ? 'Obtén membresía primero' : 
+                 membershipStatus.status === 'pending' ? 'Espera validación' :
+                 'Escribir testimonio'}
               </button>
             </div>
           )}
@@ -693,10 +835,9 @@ const ClientDashboard = () => {
   );
 };
 
-// Componente para mostrar planes de membresía con callback de selección
+// COMPONENTE: Planes de membresía actualizado para producción
 const MembershipPlansSection = ({ 
   plans, 
-  isLoaded, 
   isLoading, 
   currentMembership, 
   isMobile, 
@@ -704,7 +845,6 @@ const MembershipPlansSection = ({
 }) => {
   const { showSuccess, showError } = useApp();
 
-  // Usar callback en lugar de navegación directa
   const handleSelectPlan = async (plan) => {
     try {
       console.log(`Plan ${plan.name} seleccionado para checkout`);
@@ -713,17 +853,6 @@ const MembershipPlansSection = ({
       showError('Error al seleccionar el plan');
     }
   };
-
-  // Obtener beneficios únicos de todos los planes
-  const getAllBenefits = () => {
-    if (!plans || plans.length === 0) return [];
-    
-    const allFeatures = plans.flatMap(plan => plan.features || []);
-    const uniqueFeatures = [...new Set(allFeatures)];
-    return uniqueFeatures.slice(0, 4); // Mostrar máximo 4
-  };
-
-  const globalBenefits = getAllBenefits();
 
   if (isLoading) {
     return (
@@ -734,7 +863,7 @@ const MembershipPlansSection = ({
     );
   }
 
-  if (!isLoaded || !plans || plans.length === 0) {
+  if (!plans || plans.length === 0) {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -751,22 +880,35 @@ const MembershipPlansSection = ({
   return (
     <div className="space-y-8">
       
-      {/* Header de beneficios - DINÁMICO */}
-      {globalBenefits.length > 0 && (
-        <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
-            Beneficios de ser miembro
-          </h3>
-          <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-4'}`}>
-            {globalBenefits.map((benefit, index) => (
-              <div key={index} className="flex items-center">
-                <Check className="w-5 h-5 text-primary-600 mr-2 flex-shrink-0" />
-                <span className="text-sm font-medium">{benefit}</span>
-              </div>
-            ))}
+      {/* Header de métodos de pago */}
+      <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6">
+        <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
+          Múltiples opciones de pago
+        </h3>
+        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
+          <div className="flex items-center">
+            <CreditCard className="w-5 h-5 text-green-600 mr-2 flex-shrink-0" />
+            <div>
+              <span className="text-sm font-medium">Tarjeta de crédito/débito</span>
+              <div className="text-xs text-gray-600">Activación inmediata</div>
+            </div>
+          </div>
+          <div className="flex items-center">
+            <Upload className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0" />
+            <div>
+              <span className="text-sm font-medium">Transferencia bancaria</span>
+              <div className="text-xs text-gray-600">Validación 1-2 días</div>
+            </div>
+          </div>
+          <div className="flex items-center">
+            <DollarSign className="w-5 h-5 text-purple-600 mr-2 flex-shrink-0" />
+            <div>
+              <span className="text-sm font-medium">Efectivo en gimnasio</span>
+              <div className="text-xs text-gray-600">Pago en sucursal</div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Grid de planes */}
       <div className={`grid gap-6 ${
@@ -787,11 +929,11 @@ const MembershipPlansSection = ({
           return (
             <div key={plan.id} className={`
               relative bg-white rounded-3xl shadow-xl p-8 transition-all duration-300 hover:scale-105
-              ${plan.popular ? 'ring-2 ring-primary-500 scale-105' : ''}
+              ${plan.isPopular ? 'ring-2 ring-primary-500 scale-105' : ''}
               ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}
             `}>
               
-              {plan.popular && (
+              {plan.isPopular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                   <span className="bg-primary-600 text-white px-6 py-2 rounded-full text-sm font-bold">
                     Más Popular
@@ -822,7 +964,7 @@ const MembershipPlansSection = ({
                       Q{plan.price}
                     </span>
                     <span className="text-gray-600 ml-2">
-                      /{plan.duration}
+                      /{plan.durationType}
                     </span>
                   </div>
                   {plan.originalPrice && plan.originalPrice > plan.price && (
@@ -833,7 +975,18 @@ const MembershipPlansSection = ({
                       </span>
                     </div>
                   )}
+                  {plan.availability && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {plan.availability.availableSpaces} espacios disponibles
+                    </div>
+                  )}
                 </div>
+                
+                {plan.description && (
+                  <p className="text-gray-600 text-sm mb-6">
+                    {plan.description}
+                  </p>
+                )}
                 
                 {plan.features && Array.isArray(plan.features) && plan.features.length > 0 && (
                   <ul className="space-y-4 mb-8 text-left">
@@ -846,23 +999,30 @@ const MembershipPlansSection = ({
                   </ul>
                 )}
                 
-                {/* Botón que llama al callback de selección */}
                 <button 
                   onClick={() => handleSelectPlan(plan)}
-                  disabled={isCurrentPlan}
+                  disabled={isCurrentPlan || plan.availability?.availableSpaces === 0}
                   className={`
                     w-full btn text-center font-semibold py-4 transition-all
                     ${isCurrentPlan ? 'btn-secondary opacity-50 cursor-not-allowed' :
-                      plan.popular ? 'btn-primary hover:scale-105' : 'btn-secondary hover:scale-105'}
+                      plan.availability?.availableSpaces === 0 ? 'btn-secondary opacity-50 cursor-not-allowed' :
+                      plan.isPopular ? 'btn-primary hover:scale-105' : 'btn-secondary hover:scale-105'}
                   `}
                 >
                   {isCurrentPlan ? 'Plan Actual' :
-                   plan.popular ? 'Adquirir Plan Popular' : 'Adquirir Plan'}
+                   plan.availability?.availableSpaces === 0 ? 'Sin disponibilidad' :
+                   plan.isPopular ? 'Adquirir Plan Popular' : 'Adquirir Plan'}
                 </button>
 
-                {!currentMembership && plan.popular && (
+                {!currentMembership && plan.isPopular && (
                   <p className="text-xs text-green-600 font-medium mt-2">
                     ¡Oferta especial para nuevos miembros!
+                  </p>
+                )}
+                
+                {plan.availability?.availableSpaces === 0 && (
+                  <p className="text-xs text-red-600 font-medium mt-2">
+                    Sin espacios disponibles actualmente
                   </p>
                 )}
               </div>
@@ -871,27 +1031,18 @@ const MembershipPlansSection = ({
         })}
       </div>
 
-      {/* Información adicional - COMPLETAMENTE DINÁMICO */}
-      {plans && plans.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-6">
-          <div className="flex items-center justify-center mb-4">
-            <Shield className="w-6 h-6 text-green-500 mr-2" />
-            <span className="font-semibold text-gray-900">
-              {/* Buscar garantía en la descripción de algún plan */}
-              {plans.find(p => p.description?.toLowerCase().includes('garantía'))?.description?.match(/\d+\s*días?/)?.[0] 
-                ? `Garantía de satisfacción ${plans.find(p => p.description?.toLowerCase().includes('garantía'))?.description?.match(/\d+\s*días?/)?.[0]}`
-                : 'Garantía de satisfacción'
-              }
-            </span>
-          </div>
-          {/* Buscar política de reembolso en algún plan */}
-          {plans.find(p => p.description?.toLowerCase().includes('reembolso') || p.description?.toLowerCase().includes('devolu'))?.description && (
-            <p className="text-center text-gray-600 text-sm">
-              {plans.find(p => p.description?.toLowerCase().includes('reembolso') || p.description?.toLowerCase().includes('devolu'))?.description}
-            </p>
-          )}
+      {/* Información adicional */}
+      <div className="bg-gray-50 rounded-lg p-6">
+        <div className="flex items-center justify-center mb-4">
+          <Shield className="w-6 h-6 text-green-500 mr-2" />
+          <span className="font-semibold text-gray-900">
+            Garantía de satisfacción
+          </span>
         </div>
-      )}
+        <div className="text-center text-gray-600 text-sm">
+          <p>Proceso de compra 100% seguro • Múltiples métodos de pago • Soporte 24/7</p>
+        </div>
+      </div>
 
     </div>
   );
@@ -900,44 +1051,46 @@ const MembershipPlansSection = ({
 export default ClientDashboard;
 
 /*
-EXPLICACIÓN DEL ARCHIVO:
+=== ACTUALIZACIONES PARA SISTEMA DE PRODUCCIÓN ===
 
-Este archivo define el componente ClientDashboard, que es el panel personal para clientes 
-del gimnasio. Proporciona una interfaz completa y personalizada para que los miembros 
-gestionen su experiencia en el gimnasio.
+INTEGRACIÓN CON SERVICIOS ACTUALIZADOS:
+- membershipService.getCurrentMembership() para obtener membresía actual
+- membershipService.getUserMemberships() para historial completo
+- membershipService.getPlans() para planes con el nuevo formato de datos
 
-FUNCIONALIDADES PRINCIPALES:
-- Panel personalizado con métricas del cliente (membresía, días restantes, pagos, testimonios)
-- Sistema completo de compra y gestión de membresías con checkout integrado
-- Gestión de testimonios para compartir experiencias con otros miembros
-- Alertas inteligentes sobre el estado de membresía y vencimientos
-- Historial de pagos y transacciones en Quetzales guatemaltecos
-- Navegación intuitiva entre diferentes secciones del dashboard
+ESTADOS DE MEMBRESÍA MEJORADOS:
+- 'none': Sin membresía activa
+- 'pending': Pendiente de validación (transferencia/efectivo)
+- 'active': Membresía activa y validada
+- 'expired': Membresía vencida
+- 'expiring': Por vencer (≤7 días)
 
-CONEXIONES CON OTROS ARCHIVOS:
-- useAuth (../../contexts/AuthContext): Información del usuario autenticado
-- useApp (../../contexts/AppContext): Funciones globales como formateo de fechas y notificaciones
-- apiService (../../services/apiService): Comunicación con el backend para datos del cliente
-- @tanstack/react-query: Gestión de estado y cache para consultas de API
-- MembershipCheckout: Componente especializado para proceso de compra de membresías
-- TestimonialManager: Gestión completa de testimonios del usuario
-- useMembershipPlans: Hook personalizado para cargar planes disponibles
-- Componentes de UI: DashboardCard, MembershipCard, LoadingSpinner, etc.
+ALERTAS INTELIGENTES:
+- Sin membresía: CTA prominente para obtener una
+- Pendiente validación: Opciones para actualizar estado o ver ubicación
+- Por vencer: Recordatorios de renovación
+- Testimonios: Solo para miembros con membresía validada
 
-CARACTERÍSTICAS ESPECIALES:
-- Formateo automático de precios en Quetzales guatemaltecos
-- Sistema de alertas progresivas basado en el estado de membresía del cliente
-- Integración completa con Stripe y transferencias bancarias para pagos
-- Navegación entre secciones sin perder el contexto del usuario
-- Testimonios con sistema de calificaciones y estados de publicación
-- Responsive design optimizado para dispositivos móviles y desktop
-- Métricas personalizadas que muestran el progreso y participación del cliente
+INFORMACIÓN DE MÉTODOS DE PAGO:
+- Tarjeta: Activación inmediata con Stripe
+- Transferencia: Validación manual 1-2 días
+- Efectivo: Pago en sucursal del gimnasio
 
-PROPÓSITO:
-Servir como el centro de control personal para cada cliente del gimnasio, proporcionando
-una experiencia personalizada que incluye gestión de membresías, seguimiento de pagos,
-compartir testimonios y acceso a todas las funcionalidades relevantes para el miembro.
-El dashboard está diseñado para fomentar la participación del cliente y facilitar
-la gestión de su relación con el gimnasio, con especial énfasis en la experiencia
-del usuario guatemalteco.
+FUNCIONALIDADES NUEVAS:
+- Botón "Actualizar estado" para pagos pendientes
+- Enlaces a ubicación del gimnasio para pagos en efectivo
+- Información detallada del estado de cada pago
+- Restricciones para testimonios hasta validar membresía
+
+EXPERIENCIA DE USUARIO:
+- Feedback claro sobre el estado de cada proceso
+- Instrucciones específicas según método de pago elegido
+- Actualizaciones en tiempo real del estado de membresía
+- Navegación intuitiva entre secciones relacionadas
+
+SEGURIDAD Y VALIDACIÓN:
+- Verificación de disponibilidad antes de mostrar planes
+- Estados consistentes entre frontend y backend
+- Manejo de errores específico por tipo de operación
+- Protección contra acciones no permitidas según estado
 */
