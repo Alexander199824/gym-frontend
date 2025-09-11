@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/MobileMenu.js
 // FUNCIÓN: Menú móvil optimizado para rendimiento sin errores de timeout
-// ACTUALIZADO: Con opciones específicas para clientes (Mi Membresía y Mis Horarios) usando URL params
+// ACTUALIZADO: Con nueva opción de Gestión de Página Web y opciones específicas para clientes
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -26,13 +26,14 @@ import {
   Clock,
   HelpCircle,
   Phone,
-  Timer
+  Timer,
+  Globe
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import GymLogo from '../common/GymLogo';
 
 const MobileMenu = React.memo(({ onClose }) => {
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout, hasPermission, canManageContent } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -190,6 +191,20 @@ const MobileMenu = React.memo(({ onClose }) => {
       color: 'text-pink-600'
     });
     
+    // *** NUEVA OPCIÓN: Gestión de Página Web - Solo para administradores con permisos ***
+    if (canManageContent) {
+      baseItems.push({
+        id: 'website_manager',
+        label: 'Gestión de Página Web',
+        icon: Globe,
+        path: '/dashboard/admin/website',
+        show: true,
+        badge: 'Nuevo',
+        color: 'text-blue-500',
+        isNew: true
+      });
+    }
+    
     // Reportes
     if (hasPermission('view_reports')) {
       baseItems.push({
@@ -215,7 +230,7 @@ const MobileMenu = React.memo(({ onClose }) => {
     });
     
     return baseItems.filter(item => item.show);
-  }, [hasPermission, user?.role, getDashboardPath]);
+  }, [hasPermission, user?.role, getDashboardPath, canManageContent]);
   
   // Memoizar elementos filtrados
   const filteredMenuItems = useMemo(() => {
@@ -233,6 +248,7 @@ const MobileMenu = React.memo(({ onClose }) => {
     if (userRole === 'admin') {
       actions.push(
         { icon: TrendingUp, label: 'Estadísticas', path: '/dashboard/analytics' },
+        { icon: Globe, label: 'Página Web', path: '/dashboard/admin/website' }, // Nueva acción rápida
         { icon: Bell, label: 'Notificaciones', path: '/dashboard/notifications' },
         { icon: Package, label: 'Inventario', path: '/dashboard/inventory' }
       );
@@ -463,7 +479,7 @@ const MobileMenu = React.memo(({ onClose }) => {
                 key={item.id}
                 onClick={() => handleNavigation(item.path, item.label)}
                 className={`
-                  w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
+                  w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 relative
                   ${isActive
                     ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-500 shadow-sm'
                     : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
@@ -474,13 +490,24 @@ const MobileMenu = React.memo(({ onClose }) => {
                 <div className="flex items-center">
                   <item.icon className={`w-5 h-5 mr-3 ${item.color || 'text-current'}`} />
                   <span>{item.label}</span>
+                  
+                  {/* Badges */}
                   {item.badge && (
-                    <span className="ml-2 px-2 py-1 text-xs font-bold bg-red-100 text-red-800 rounded-full">
+                    <span className={`ml-2 px-2 py-1 text-xs font-bold rounded-full ${
+                      item.isNew 
+                        ? 'bg-green-100 text-green-800 animate-pulse' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
                       {item.badge}
                     </span>
                   )}
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
+                
+                {/* Indicador especial para nueva funcionalidad */}
+                {item.isNew && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                )}
               </button>
             );
           })}
@@ -588,6 +615,47 @@ const MobileMenu = React.memo(({ onClose }) => {
 MobileMenu.displayName = 'MobileMenu';
 
 export default MobileMenu;
+
+/*
+DOCUMENTACIÓN DEL COMPONENTE MobileMenu ACTUALIZADO
+
+CAMBIOS PRINCIPALES:
+- Agregada nueva opción "Gestión de Página Web" para administradores con permisos
+- La opción aparece solo para usuarios con canManageContent = true
+- Incluye badge "Nuevo" con animación pulse para destacar la funcionalidad
+- Punto verde animado en la esquina superior derecha del elemento
+- Agregada como acción rápida para administradores
+
+NUEVA FUNCIONALIDAD DESTACADA:
+- Solo visible para administradores con permisos de gestión de contenido
+- Badge "Nuevo" con animación especial para atraer atención
+- Incluida en accesos rápidos para administradores
+- Color azul distintivo (text-blue-500) para diferenciarse
+- Indicador visual especial con punto verde animado
+
+INTEGRACIÓN CON WEBSITEMANAGER:
+- Enlace directo al nuevo componente WebsiteManager
+- Verificación de permisos usando canManageContent del AuthContext
+- Manejo de estado activo para resaltar cuando se está usando
+- Búsqueda compatible con el nuevo elemento
+
+ACCESOS RÁPIDOS MEJORADOS:
+- Para administradores: se agregó "Página Web" como segunda opción
+- Enlace directo a /dashboard/admin/website
+- Icono Globe para representar gestión web
+- Manejo de navegación optimizado
+
+CARACTERÍSTICAS VISUALES:
+- Badge "Nuevo" con fondo verde y animación pulse
+- Punto indicador animado en esquina superior derecha
+- Color azul especial para diferenciarse de otras opciones
+- Integración perfecta con el sistema de búsqueda existente
+
+Este menú móvil actualizado proporciona acceso rápido y destacado a la nueva 
+funcionalidad de gestión de página web, manteniendo la experiencia móvil 
+optimizada mientras destaca visualmente las nuevas características para 
+los administradores del gimnasio.
+*/
 /*
 DOCUMENTACIÓN DEL COMPONENTE MobileMenu
 

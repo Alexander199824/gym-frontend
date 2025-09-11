@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/Sidebar.js
 // FUNCIÓN: Sidebar solo para desktop con navegación colapsable
-// ACTUALIZADO: Con opciones específicas para clientes (Mi Membresía y Mis Horarios)
+// ACTUALIZADO: Con opción de Gestión de Página Web y opciones específicas para clientes
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -18,14 +18,16 @@ import {
   ChevronRight,
   ShoppingBag,
   Timer,
-  Calendar
+  Calendar,
+  Globe,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import GymLogo from '../common/GymLogo';
 
 const Sidebar = ({ collapsed }) => {
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout, hasPermission, canManageContent } = useAuth();
   const { toggleSidebar, showSuccess, showError } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
@@ -120,6 +122,18 @@ const Sidebar = ({ collapsed }) => {
       show: true
     });
     
+    // *** NUEVA OPCIÓN: Gestión de Página Web - Solo para administradores con permisos ***
+    if (canManageContent) {
+      baseItems.push({
+        id: 'website_manager',
+        label: 'Gestión de Página Web',
+        icon: Globe,
+        path: '/dashboard/admin/website',
+        show: true,
+        isNew: true // Marcar como nueva para destacar visualmente
+      });
+    }
+    
     // Reportes - Solo admin y colaboradores con permisos
     if (hasPermission('view_reports')) {
       baseItems.push({
@@ -127,6 +141,17 @@ const Sidebar = ({ collapsed }) => {
         label: 'Reportes Financieros',
         icon: BarChart3,
         path: '/dashboard/reports',
+        show: true
+      });
+    }
+    
+    // Configuración del Sistema - Solo para administradores
+    if (hasPermission('manage_system_settings')) {
+      baseItems.push({
+        id: 'system_settings',
+        label: 'Configuración del Sistema',
+        icon: Settings,
+        path: '/dashboard/admin/settings',
         show: true
       });
     }
@@ -304,7 +329,7 @@ const Sidebar = ({ collapsed }) => {
               key={item.id}
               to={item.path}
               className={`
-                flex items-center rounded-xl transition-all duration-300
+                flex items-center rounded-xl transition-all duration-300 relative
                 ${isActive
                   ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-500'
                   : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
@@ -321,6 +346,18 @@ const Sidebar = ({ collapsed }) => {
                 <span className="text-sm font-medium transition-opacity duration-300">
                   {item.label}
                 </span>
+              )}
+              
+              {/* Indicador de nueva funcionalidad */}
+              {item.isNew && !collapsed && (
+                <span className="ml-2 px-2 py-1 text-xs font-bold bg-green-100 text-green-800 rounded-full">
+                  Nuevo
+                </span>
+              )}
+              
+              {/* Punto indicador para nueva funcionalidad cuando está colapsado */}
+              {item.isNew && collapsed && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
               )}
             </Link>
           );
@@ -388,6 +425,37 @@ const Sidebar = ({ collapsed }) => {
 
 export default Sidebar;
 
+/*
+DOCUMENTACIÓN DEL COMPONENTE Sidebar ACTUALIZADO
+
+CAMBIOS PRINCIPALES:
+- Agregada nueva opción "Gestión de Página Web" para administradores con permisos
+- La opción aparece solo para usuarios con canManageContent = true
+- Incluye indicador visual "Nuevo" para destacar la nueva funcionalidad
+- Punto verde animado cuando el sidebar está colapsado
+- Ruta: /dashboard/admin/website para acceder al WebsiteManager
+
+NUEVA FUNCIONALIDAD DESTACADA:
+- Solo visible para administradores con permisos de gestión de contenido
+- Ubicada estratégicamente entre la Tienda y los Reportes
+- Indicador "Nuevo" para atraer atención a la nueva funcionalidad
+- Animación sutil cuando está colapsado para mantener visibilidad
+
+INTEGRACIÓN CON WEBSITEMANAGER:
+- Enlace directo al nuevo componente WebsiteManager
+- Verificación de permisos usando canManageContent del AuthContext
+- Manejo de estado activo para resaltar cuando se está usando
+- Tooltip descriptivo cuando el sidebar está colapsado
+
+ORGANIZACIÓN MEJORADA:
+- Configuración del Sistema agregada para administradores
+- Separación clara entre funciones operativas y administrativas
+- Mantiene toda la funcionalidad existente sin cambios
+
+Este sidebar actualizado proporciona acceso directo y prominente a la nueva 
+funcionalidad de gestión de página web, facilitando el flujo de trabajo de 
+los administradores para gestionar el contenido web del gimnasio.
+*/
 /*
 DOCUMENTACIÓN DEL COMPONENTE Sidebar
 

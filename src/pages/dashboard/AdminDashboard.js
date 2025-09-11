@@ -1,5 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/AdminDashboard.js
+// ACTUALIZADO: Sin pestaña de gestión web (movida al sidebar)
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -7,7 +8,7 @@ import {
   Users, CreditCard, TrendingUp, AlertCircle,
   Calendar, Clock, ArrowRight, RefreshCw, Download,
   BarChart3, PieChart, Activity, Target, Zap, Crown, Save,
-  Globe, Image, ShoppingBag, Info, CheckCircle, Package,
+  Globe, ShoppingBag, Info, CheckCircle, Package,
   Truck, Plus, Loader, Bug, Coins
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,13 +19,6 @@ import apiService from '../../services/apiService';
 import DashboardCard from '../../components/common/DashboardCard';
 import QuickActionCard from '../../components/common/QuickActionCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-
-// Componentes para gestión de contenido con horarios flexibles
-import ContentEditor from './components/ContentEditor';
-import ServicesManager from './components/ServicesManager';
-import PlansManager from './components/PlansManager';
-import ProductsManager from './components/ProductsManager';
-import MediaUploader from './components/MediaUploader';
 
 // Función auxiliar para formatear en Quetzales
 const formatQuetzales = (amount) => {
@@ -47,10 +41,6 @@ const AdminDashboard = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('overview');
   
-  // Estados para gestión de contenido
-  const [activeContentTab, setActiveContentTab] = useState('general');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  
   // Estado para debug info
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   
@@ -63,13 +53,7 @@ const AdminDashboard = () => {
   const [pendingTransfers, setPendingTransfers] = useState({ data: null, isLoading: false, error: null });
   const [todayPayments, setTodayPayments] = useState({ data: null, isLoading: false, error: null });
   
-  // Estados para datos de contenido con soporte para horarios flexibles
-  const [gymConfigData, setGymConfigData] = useState({ data: null, isLoading: false, error: null });
-  const [servicesData, setServicesData] = useState({ data: null, isLoading: false, error: null });
-  const [membershipPlansData, setMembershipPlansData] = useState({ data: null, isLoading: false, error: null });
-  const [featuredProductsData, setFeaturedProductsData] = useState({ data: null, isLoading: false, error: null });
-  
-  // Estados específicos para horarios flexibles
+  // Estados para métricas de capacidad (solo para mostrar info general)
   const [capacityMetrics, setCapacityMetrics] = useState({ data: null, isLoading: false, error: null });
   
   // Estados para gestión de inventario
@@ -100,100 +84,7 @@ const AdminDashboard = () => {
         setMembershipStats({ data: null, isLoading: false, error });
       }
       
-    } catch (error) {
-      console.error('Error cargando datos del dashboard:', error);
-    }
-  };
-  
-  // Cargar datos de contenido con soporte para horarios flexibles
-  const loadContentData = async () => {
-    if (!canManageContent) return;
-    
-    console.log('Cargando datos de gestión de contenido...');
-    
-    try {
-      // Usar el endpoint específico para ContentEditor que incluye horarios flexibles
-      setGymConfigData({ data: null, isLoading: true, error: null });
-      try {
-        console.log('Cargando configuración del gimnasio usando endpoint del editor...');
-        const gymConfigResponse = await apiService.getGymConfigEditor();
-        const configData = gymConfigResponse?.data || gymConfigResponse;
-        setGymConfigData({ data: configData, isLoading: false, error: null });
-        
-        console.log('Configuración del gimnasio cargada para AdminDashboard con horarios flexibles:', {
-          hasConfig: !!configData,
-          hasName: !!configData?.name,
-          hasHours: !!configData?.hours,
-          hasFlexibleStructure: configData?.hours ? 
-            Object.values(configData.hours).some(day => day?.timeSlots?.length > 0) : false
-        });
-        
-        // Mostrar estructura de horarios cargados para debug
-        if (configData?.hours) {
-          const openDays = Object.keys(configData.hours).filter(day => configData.hours[day]?.isOpen);
-          const totalSlots = openDays.reduce((sum, day) => {
-            return sum + (configData.hours[day]?.timeSlots?.length || 0);
-          }, 0);
-          
-          console.log('Horarios flexibles cargados:', {
-            openDays: openDays.length,
-            totalSlots: totalSlots,
-            hasMultipleSlots: openDays.some(day => configData.hours[day]?.timeSlots?.length > 1)
-          });
-        }
-        
-      } catch (error) {
-        console.log('Editor de configuración del gimnasio no disponible, intentando respaldo:', error.message);
-        
-        // Fallback al endpoint regular
-        try {
-          const gymConfigResponse = await apiService.getGymConfig();
-          const configData = gymConfigResponse?.data || gymConfigResponse;
-          setGymConfigData({ data: configData, isLoading: false, error: null });
-          console.log('Configuración del gimnasio cargada usando endpoint de respaldo:', configData);
-        } catch (fallbackError) {
-          console.log('Ambos endpoints de configuración del gimnasio fallaron:', fallbackError.message);
-          setGymConfigData({ data: null, isLoading: false, error: fallbackError });
-        }
-      }
-      
-      // Servicios
-      setServicesData({ data: null, isLoading: true, error: null });
-      try {
-        const servicesResponse = await apiService.getGymServices();
-        const services = servicesResponse?.data || servicesResponse;
-        setServicesData({ data: services, isLoading: false, error: null });
-        console.log('Servicios cargados para AdminDashboard:', services);
-      } catch (error) {
-        console.log('Servicios no disponibles:', error.message);
-        setServicesData({ data: null, isLoading: false, error });
-      }
-      
-      // Planes de membresía
-      setMembershipPlansData({ data: null, isLoading: true, error: null });
-      try {
-        const plansResponse = await apiService.getMembershipPlans();
-        const plans = plansResponse?.data || plansResponse;
-        setMembershipPlansData({ data: plans, isLoading: false, error: null });
-        console.log('Planes cargados para AdminDashboard:', plans);
-      } catch (error) {
-        console.log('Planes no disponibles:', error.message);
-        setMembershipPlansData({ data: null, isLoading: false, error });
-      }
-      
-      // Productos destacados
-      setFeaturedProductsData({ data: null, isLoading: true, error: null });
-      try {
-        const productsResponse = await apiService.getFeaturedProducts();
-        const products = productsResponse?.data || productsResponse;
-        setFeaturedProductsData({ data: products, isLoading: false, error: null });
-        console.log('Productos cargados para AdminDashboard:', products);
-      } catch (error) {
-        console.log('Productos no disponibles:', error.message);
-        setFeaturedProductsData({ data: null, isLoading: false, error });
-      }
-      
-      // Cargar métricas de capacidad para horarios flexibles
+      // Cargar métricas de capacidad solo para mostrar información general
       setCapacityMetrics({ data: null, isLoading: true, error: null });
       try {
         const capacityResponse = await apiService.getCapacityMetrics();
@@ -206,7 +97,7 @@ const AdminDashboard = () => {
       }
       
     } catch (error) {
-      console.error('Error cargando datos de contenido:', error);
+      console.error('Error cargando datos del dashboard:', error);
     }
   };
   
@@ -229,13 +120,10 @@ const AdminDashboard = () => {
     }
   };
   
-  // Refrescar datos con soporte para horarios flexibles
+  // Refrescar datos
   const refreshDashboard = () => {
     setRefreshKey(prev => prev + 1);
     loadDashboardData();
-    if (canManageContent) {
-      loadContentData();
-    }
     if (activeTab === 'inventory') {
       loadInventoryData();
     }
@@ -246,9 +134,6 @@ const AdminDashboard = () => {
   useEffect(() => {
     console.log('AdminDashboard montado, cargando datos...');
     loadDashboardData();
-    if (canManageContent) {
-      loadContentData();
-    }
   }, [refreshKey, selectedPeriod]);
   
   // Auto-refresh para operaciones
@@ -295,214 +180,8 @@ const AdminDashboard = () => {
     { value: 'quarter', label: 'Este trimestre' }
   ];
   
-  // Tabs para gestión de contenido con indicadores de horarios flexibles
-  const contentTabs = [
-    {
-      id: 'general',
-      title: 'Información General',
-      icon: Info,
-      description: 'Nombre, descripción, contacto, horarios flexibles, estadísticas',
-      dataLoaded: !!gymConfigData.data && !gymConfigData.isLoading,
-      hasFlexibleHours: gymConfigData.data?.hours ? 
-        Object.values(gymConfigData.data.hours).some(day => day?.timeSlots?.length > 0) : false
-    },
-    {
-      id: 'services',
-      title: 'Servicios',
-      icon: Target,
-      description: 'Servicios del gimnasio',
-      dataLoaded: !!servicesData.data && !servicesData.isLoading
-    },
-    {
-      id: 'plans',
-      title: 'Planes de Membresía',
-      icon: CreditCard,
-      description: 'Planes y precios',
-      dataLoaded: !!membershipPlansData.data && !membershipPlansData.isLoading
-    },
-    {
-      id: 'products',
-      title: 'Productos',
-      icon: ShoppingBag,
-      description: 'Tienda del gimnasio',
-      dataLoaded: !!featuredProductsData.data && !featuredProductsData.isLoading
-    },
-    {
-      id: 'media',
-      title: 'Multimedia',
-      icon: Image,
-      description: 'Logo, imágenes, videos',
-      dataLoaded: !!gymConfigData.data && !gymConfigData.isLoading
-    }
-  ];
-  
-  // Advertencia de cambios sin guardar
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
-  
   // Estado de carga general
   const isLoading = userStats.isLoading || membershipStats.isLoading;
-
-  // FUNCIONES PARA SISTEMA DE HORARIOS FLEXIBLES
-  
-  // Guardar configuración con soporte para horarios flexibles
-  const handleSaveConfig = async (saveData) => {
-    console.log('AdminDashboard - Guardando configuración del gimnasio con horarios flexibles:', saveData);
-    
-    try {
-      let result;
-      
-      // Verificar si es guardado por secciones (nuevo sistema de horarios flexibles)
-      if (saveData.section && saveData.data) {
-        console.log(`Guardando sección: ${saveData.section}`);
-        
-        // Usar el nuevo método para guardar por secciones
-        if (saveData.section === 'schedule') {
-          // Guardar horarios flexibles
-          result = await apiService.saveFlexibleSchedule(saveData.data.hours);
-        } else {
-          // Guardar otras secciones
-          result = await apiService.saveGymConfigSection(saveData.section, saveData.data);
-        }
-        
-      } else {
-        // Guardado tradicional (mantener compatibilidad)
-        console.log('Usando método de guardado tradicional');
-        result = await apiService.updateGymConfig(saveData);
-      }
-      
-      if (result && result.success) {
-        console.log('Configuración guardada exitosamente:', result);
-        
-        // Actualizar datos locales después del guardado exitoso
-        await loadContentData();
-        
-        // Mostrar mensaje de éxito específico
-        const successMessage = result.message || 'Configuración guardada exitosamente';
-        showSuccess(successMessage);
-        
-        // Si se guardaron horarios, actualizar métricas de capacidad
-        if (saveData.section === 'schedule') {
-          console.log('Refrescando métricas de capacidad después de guardar horarios...');
-          try {
-            const capacityResponse = await apiService.getCapacityMetrics();
-            const capacity = capacityResponse?.data || capacityResponse;
-            setCapacityMetrics({ data: capacity, isLoading: false, error: null });
-            console.log('Métricas de capacidad actualizadas:', capacity);
-          } catch (error) {
-            console.log('No se pudieron actualizar las métricas de capacidad:', error.message);
-          }
-        }
-        
-      } else {
-        console.warn('El resultado del guardado podría ser diferente al esperado:', result);
-        showSuccess('Configuración guardada');
-      }
-      
-    } catch (error) {
-      console.error('AdminDashboard - Fallo al guardar configuración:', error);
-      
-      // Mostrar mensaje de error específico
-      if (error.response?.status === 422) {
-        showError('Error de validación en los datos');
-      } else if (error.response?.status === 403) {
-        showError('Sin permisos para guardar configuración');
-      } else if (error.response?.status === 404) {
-        showError('Función no disponible en el servidor');
-      } else {
-        showError('Error al guardar configuración');
-      }
-    }
-  };
-  
-  // Guardar servicios
-  const handleSaveServices = async (data) => {
-    console.log('AdminDashboard - Guardando servicios:', data);
-    
-    try {
-      const result = await apiService.updateGymServices(data);
-      
-      if (result && result.success) {
-        await loadContentData();
-        showSuccess('Servicios guardados exitosamente');
-      } else {
-        showSuccess('Servicios guardados');
-      }
-      
-    } catch (error) {
-      console.error('AdminDashboard - Fallo al guardar servicios:', error);
-      showError('Error al guardar servicios');
-    }
-  };
-  
-  // Guardar planes
-  const handleSavePlans = async (data) => {
-    console.log('AdminDashboard - Guardando planes:', data);
-    
-    try {
-      const result = await apiService.updateMembershipPlans(data);
-      
-      if (result && result.success) {
-        await loadContentData();
-        showSuccess('Planes guardados exitosamente');
-      } else {
-        showSuccess('Planes guardados');
-      }
-      
-    } catch (error) {
-      console.error('AdminDashboard - Fallo al guardar planes:', error);
-      showError('Error al guardar planes');
-    }
-  };
-  
-  // Guardar productos
-  const handleSaveProducts = async (data) => {
-    console.log('AdminDashboard - Guardando productos:', data);
-    
-    try {
-      const result = await apiService.updateFeaturedProducts(data);
-      
-      if (result && result.success) {
-        await loadContentData();
-        showSuccess('Productos guardados exitosamente');
-      } else {
-        showSuccess('Productos guardados');
-      }
-      
-    } catch (error) {
-      console.error('AdminDashboard - Fallo al guardar productos:', error);
-      showError('Error al guardar productos');
-    }
-  };
-  
-  // Guardar multimedia
-  const handleSaveMedia = async (data) => {
-    console.log('AdminDashboard - Guardando multimedia:', data);
-    
-    try {
-      const result = await apiService.updateGymMedia(data);
-      
-      if (result && result.success) {
-        await loadContentData();
-        showSuccess('Multimedia guardada exitosamente');
-      } else {
-        showSuccess('Multimedia guardada');
-      }
-      
-    } catch (error) {
-      console.error('AdminDashboard - Fallo al guardar multimedia:', error);
-      showError('Error al guardar multimedia');
-    }
-  };
 
   return (
     <div className="space-y-6 relative">
@@ -520,26 +199,16 @@ const AdminDashboard = () => {
           
           {showDebugInfo && (
             <div className="absolute bottom-10 right-0 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 shadow-lg min-w-80">
-              <div className="font-medium mb-2">Información de Debug - Horarios Flexibles</div>
+              <div className="font-medium mb-2">Información de Debug - AdminDashboard</div>
               <div className="space-y-1">
                 <div>Usuario: {user?.firstName} {user?.lastName} ({user?.role})</div>
                 <div>Puede gestionar contenido: {canManageContent ? 'Sí' : 'No'}</div>
                 <div>Pestaña activa: {activeTab}</div>
-                <div>Pestaña de contenido: {activeContentTab}</div>
                 
-                {/* Debug info específico para horarios flexibles */}
+                {/* Info de métricas de capacidad */}
                 <div className="border-t pt-1 mt-1">
-                  <div className="font-medium text-green-700">Estado de Horarios Flexibles:</div>
-                  <div>Configuración cargada: {gymConfigData.data ? 'Sí' : 'No'}</div>
-                  <div>Tiene horarios: {gymConfigData.data?.hours ? 'Sí' : 'No'}</div>
-                  {gymConfigData.data?.hours && (
-                    <>
-                      <div>Días abiertos: {Object.keys(gymConfigData.data.hours).filter(day => gymConfigData.data.hours[day]?.isOpen).length}/7</div>
-                      <div>Total de horarios: {Object.values(gymConfigData.data.hours).reduce((sum, day) => sum + (day?.timeSlots?.length || 0), 0)}</div>
-                      <div>Tiene flexibilidad: {Object.values(gymConfigData.data.hours).some(day => day?.timeSlots?.length > 1) ? 'Sí' : 'No'}</div>
-                    </>
-                  )}
-                  <div>Métricas de capacidad: {capacityMetrics.data ? 'Sí' : 'No'}</div>
+                  <div className="font-medium text-blue-700">Métricas de Capacidad:</div>
+                  <div>Datos disponibles: {capacityMetrics.data ? 'Sí' : 'No'}</div>
                   {capacityMetrics.data && (
                     <>
                       <div>Capacidad total: {capacityMetrics.data.totalCapacity || 0}</div>
@@ -548,9 +217,9 @@ const AdminDashboard = () => {
                   )}
                 </div>
                 
-                <div className="border-t pt-1 mt-1">
-                  <div>Servicios: {servicesData.data ? 'Sí' : 'No'} | Planes: {membershipPlansData.data ? 'Sí' : 'No'}</div>
-                  <div>Cargando: Config {gymConfigData.isLoading ? 'Sí' : 'No'} | Servicios {servicesData.isLoading ? 'Sí' : 'No'}</div>
+                <div className="border-t pt-1 mt-1 text-green-700">
+                  <div>⚠️ Gestión web movida al sidebar</div>
+                  <div>📍 Nueva ruta: /dashboard/admin/website</div>
                 </div>
               </div>
             </div>
@@ -568,8 +237,22 @@ const AdminDashboard = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Bienvenido, {user?.firstName}. Gestiona tu página web y gimnasio con horarios flexibles.
+            Bienvenido, {user?.firstName}. Gestiona las operaciones diarias de tu gimnasio.
           </p>
+          
+          {/* Enlace destacado a gestión web */}
+          {canManageContent && (
+            <div className="mt-3">
+              <Link
+                to="/dashboard/admin/website"
+                className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition-colors"
+              >
+                <Globe className="w-4 h-4 mr-1" />
+                Gestionar Página Web
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Link>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center space-x-4 mt-4 lg:mt-0">
@@ -603,18 +286,10 @@ const AdminDashboard = () => {
             <BarChart3 className="w-4 h-4 mr-2" />
             Reportes
           </Link>
-          
-          {/* Indicador de cambios sin guardar */}
-          {hasUnsavedChanges && (
-            <div className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-              <AlertCircle className="w-4 h-4 mr-1" />
-              Cambios sin guardar
-            </div>
-          )}
         </div>
       </div>
       
-      {/* NAVEGACIÓN POR PESTAÑAS */}
+      {/* NAVEGACIÓN POR PESTAÑAS - SIN GESTIÓN WEB */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto">
           
@@ -643,28 +318,6 @@ const AdminDashboard = () => {
             <Zap className="w-4 h-4 inline mr-2" />
             Operaciones Diarias
           </button>
-          
-          {/* PESTAÑA: Gestión de Página Web con indicador de horarios flexibles */}
-          {canManageContent && (
-            <button
-              onClick={() => setActiveTab('content')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === 'content'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              <Globe className="w-4 h-4 inline mr-2" />
-              Página Web
-              {/* Indicador de horarios flexibles activos */}
-              {contentTabs[0]?.hasFlexibleHours && (
-                <span className="ml-1 w-2 h-2 bg-green-500 rounded-full inline-block" title="Horarios flexibles configurados"></span>
-              )}
-              {hasUnsavedChanges && activeTab === 'content' && (
-                <span className="ml-1 w-2 h-2 bg-yellow-500 rounded-full inline-block"></span>
-              )}
-            </button>
-          )}
           
           {/* PESTAÑA: Gestión de Inventario/Tienda */}
           <button
@@ -760,16 +413,13 @@ const AdminDashboard = () => {
               </div>
               
               <div className="mt-4 text-center">
-                <button
-                  onClick={() => {
-                    setActiveTab('content');
-                    setActiveContentTab('general');
-                  }}
+                <Link
+                  to="/dashboard/admin/website"
                   className="btn-secondary btn-sm"
                 >
-                  <Clock className="w-4 h-4 mr-1" />
-                  Configurar Horarios
-                </button>
+                  <Globe className="w-4 h-4 mr-1" />
+                  Gestionar Horarios
+                </Link>
               </div>
             </div>
           )}
@@ -858,13 +508,13 @@ const AdminDashboard = () => {
             
           </div>
           
-          {/* ACCIONES EJECUTIVAS RÁPIDAS */}
+          {/* ACCIONES EJECUTIVAS RÁPIDAS - ACTUALIZADA */}
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Acciones Ejecutivas
             </h3>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Link
                 to="/dashboard/analytics"
                 className="btn-primary text-center py-3"
@@ -873,13 +523,16 @@ const AdminDashboard = () => {
                 Analíticas
               </Link>
               
-              <button
-                onClick={() => setActiveTab('content')}
-                className="btn-primary text-center py-3"
-              >
-                <Globe className="w-5 h-5 mx-auto mb-1" />
-                Editar Página Web
-              </button>
+              {/* Enlace destacado a gestión web */}
+              {canManageContent && (
+                <Link
+                  to="/dashboard/admin/website"
+                  className="btn-primary text-center py-3 bg-blue-600 hover:bg-blue-700"
+                >
+                  <Globe className="w-5 h-5 mx-auto mb-1" />
+                  Página Web
+                </Link>
+              )}
               
               <Link
                 to="/dashboard/backup"
@@ -887,6 +540,14 @@ const AdminDashboard = () => {
               >
                 <Download className="w-5 h-5 mx-auto mb-1" />
                 Respaldo
+              </Link>
+              
+              <Link
+                to="/dashboard/reports"
+                className="btn-primary text-center py-3"
+              >
+                <BarChart3 className="w-5 h-5 mx-auto mb-1" />
+                Reportes
               </Link>
             </div>
           </div>
@@ -994,114 +655,6 @@ const AdminDashboard = () => {
               <p>Módulo operativo en construcción</p>
               <p className="text-sm">Los datos se cargarán cuando el backend esté listo</p>
             </div>
-          </div>
-          
-        </div>
-      )}
-      
-      {/* PESTAÑA: PÁGINA WEB con soporte completo para horarios flexibles */}
-      {activeTab === 'content' && canManageContent && (
-        <div className="space-y-6">
-          
-          {/* SUB-NAVEGACIÓN PARA GESTIÓN DE PÁGINA WEB */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex space-x-1 overflow-x-auto">
-                {contentTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveContentTab(tab.id)}
-                    className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex items-center ${
-                      activeContentTab === tab.id
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    <tab.icon className="w-4 h-4 mr-2" />
-                    {tab.title}
-                    {/* Indicadores con horarios flexibles */}
-                    {tab.dataLoaded && (
-                      <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
-                    )}
-                    {tab.hasFlexibleHours && (
-                      <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 rounded" title="Horarios flexibles activos">
-                        flex
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Botones de acción */}
-              <div className="flex space-x-2">
-                {hasUnsavedChanges && (
-                  <button
-                    onClick={() => {
-                      setHasUnsavedChanges(false);
-                      showSuccess('Cambios guardados');
-                    }}
-                    className="btn-primary btn-sm"
-                  >
-                    <Save className="w-4 h-4 mr-1" />
-                    Guardar
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* CONTENIDO SEGÚN SUB-PESTAÑA ACTIVA */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            
-            {/* SUB-PESTAÑA: Información General con horarios flexibles */}
-            {activeContentTab === 'general' && (
-              <ContentEditor 
-                gymConfig={gymConfigData}
-                capacityMetrics={capacityMetrics}
-                onSave={handleSaveConfig}
-                onUnsavedChanges={setHasUnsavedChanges}
-              />
-            )}
-            
-            {/* SUB-PESTAÑA: Servicios */}
-            {activeContentTab === 'services' && (
-              <ServicesManager
-                services={servicesData.data}
-                isLoading={servicesData.isLoading}
-                onSave={handleSaveServices}
-                onUnsavedChanges={setHasUnsavedChanges}
-              />
-            )}
-            
-            {/* SUB-PESTAÑA: Planes de Membresía */}
-            {activeContentTab === 'plans' && (
-              <PlansManager
-                plans={membershipPlansData.data}
-                isLoading={membershipPlansData.isLoading}
-                onSave={handleSavePlans}
-                onUnsavedChanges={setHasUnsavedChanges}
-              />
-            )}
-            
-            {/* SUB-PESTAÑA: Productos */}
-            {activeContentTab === 'products' && (
-              <ProductsManager
-                products={featuredProductsData.data}
-                isLoading={featuredProductsData.isLoading}
-                onSave={handleSaveProducts}
-                onUnsavedChanges={setHasUnsavedChanges}
-              />
-            )}
-            
-            {/* SUB-PESTAÑA: Multimedia */}
-            {activeContentTab === 'media' && (
-              <MediaUploader
-                gymConfig={gymConfigData}
-                onSave={handleSaveMedia}
-                onUnsavedChanges={setHasUnsavedChanges}
-              />
-            )}
-            
           </div>
           
         </div>
@@ -1231,8 +784,15 @@ const AdminDashboard = () => {
               
               <div className="mt-8">
                 <p className="text-sm text-gray-500">
-                  Por ahora, los productos se gestionan desde la pestaña "Página Web" → "Productos"
+                  La gestión de productos de la tienda online se realiza desde:
                 </p>
+                <Link
+                  to="/dashboard/admin/website"
+                  className="mt-2 inline-flex items-center text-blue-600 hover:text-blue-800"
+                >
+                  <Globe className="w-4 h-4 mr-1" />
+                  Gestión de Página Web → Productos
+                </Link>
               </div>
             </div>
           </div>
@@ -1245,6 +805,40 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+
+/*
+DOCUMENTACIÓN DE LOS CAMBIOS EN AdminDashboard
+
+CAMBIOS PRINCIPALES:
+1. **Eliminada la pestaña "Página Web"** del sistema de tabs interno
+2. **Agregado enlace destacado** en el header que dirige a la nueva página de gestión web
+3. **Actualizada la sección de acciones ejecutivas** para incluir enlace a gestión web
+4. **Simplificada la navegación** enfocándose en operaciones del gimnasio
+5. **Mantenidas las métricas de capacidad** como información general con enlace a gestión
+
+NUEVAS CARACTERÍSTICAS:
+- Enlace prominente en el header para acceso rápido a gestión web
+- Botón destacado en acciones ejecutivas con color diferenciado
+- Referencias actualizadas en sección de inventario
+- Debug info actualizado para reflejar los cambios
+
+BENEFICIOS DE LA REESTRUCTURACIÓN:
+- **Separación clara** entre operaciones diarias y gestión de contenido web
+- **Acceso directo** desde el sidebar para gestión web
+- **Dashboard más enfocado** en métricas operativas del día a día
+- **Flujo de trabajo mejorado** para administradores
+
+COMPATIBILIDAD:
+- Mantiene toda la funcionalidad operativa existente
+- Conserva acceso a métricas de capacidad como información general
+- Enlaces contextuales para dirigir a la nueva página de gestión web
+- Sistema de debug actualizado para reflejar la nueva estructura
+
+El AdminDashboard ahora se enfoca exclusivamente en la gestión operativa 
+del gimnasio, mientras que la gestión de contenido web tiene su propia 
+página dedicada accesible desde el sidebar, proporcionando una experiencia 
+más organizada y eficiente para los administradores.
+*/
 
 /*
 EXPLICACIÓN DEL ARCHIVO:
