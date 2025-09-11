@@ -63,6 +63,9 @@ const DIAS_ESPANOL = {
   'sunday': 'Domingo'
 };
 
+// Orden correcto de los días
+const ORDEN_DIAS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
 const traducirDia = (dia) => {
   if (!dia) return dia;
   return DIAS_ESPANOL[dia] || dia;
@@ -330,6 +333,15 @@ const ScheduleManager = ({ onBack }) => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // Función para ordenar los días
+  const getOrderedDays = (scheduleData) => {
+    if (!scheduleData) return [];
+    
+    return ORDEN_DIAS
+      .filter(day => scheduleData[day]) // Solo incluir días que existen en los datos
+      .map(day => [day, scheduleData[day]]);
+  };
+
   // Verificaciones
   const hasMembership = currentSchedule?.hasMembership;
   const membership = currentSchedule?.membership;
@@ -343,6 +355,7 @@ const ScheduleManager = ({ onBack }) => {
   }
 
   const autoStats = calculateAutoStats(currentSchedule, membership);
+  const orderedDays = getOrderedDays(currentSchedule.currentSchedule);
 
   return (
     <div className="space-y-6">
@@ -402,7 +415,7 @@ const ScheduleManager = ({ onBack }) => {
         <StatCard title="Días Activos" value={autoStats.daysWithActivity} icon={Target} color="purple" subtitle="de 5 hábiles" />
       </div>
 
-      {/* Cambios pendientes */}
+      {/* Cambios pendientes - mantener arriba también */}
       {Object.keys(selectedChanges).length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
@@ -448,7 +461,7 @@ const ScheduleManager = ({ onBack }) => {
         </div>
       )}
 
-      {/* Calendario semanal */}
+      {/* Calendario semanal - días ordenados */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
@@ -456,9 +469,6 @@ const ScheduleManager = ({ onBack }) => {
               <CalendarIcon className="w-5 h-5 mr-2" />
               Tu Calendario Semanal
             </h3>
-            <span className="text-sm text-gray-600 bg-green-100 px-3 py-1 rounded-full">
-              Edición Siempre Activa
-            </span>
           </div>
         </div>
         
@@ -469,7 +479,7 @@ const ScheduleManager = ({ onBack }) => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {Object.entries(currentSchedule.currentSchedule || {}).map(([day, dayData]) => (
+            {orderedDays.map(([day, dayData]) => (
               <WeekDayRowImproved
                 key={day}
                 day={day}
@@ -483,11 +493,41 @@ const ScheduleManager = ({ onBack }) => {
                 isUpdating={cancelSlotMutation.isLoading}
                 optionsLoading={optionsLoading}
                 optionsError={availableOptions?.error}
+                onApplyChanges={handleApplyChanges}
+                isApplyingChanges={changeScheduleMutation.isLoading}
+                onClearChanges={() => setSelectedChanges({})}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Botón flotante de guardar cuando hay cambios */}
+      {Object.keys(selectedChanges).length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <div className="bg-white rounded-full shadow-2xl border border-gray-200 p-2">
+            <button
+              onClick={handleApplyChanges}
+              disabled={changeScheduleMutation.isLoading}
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-full flex items-center space-x-2 shadow-lg transition-all hover:scale-105 disabled:opacity-50"
+            >
+              {changeScheduleMutation.isLoading ? (
+                <>
+                  <div className="w-5 h-5 animate-spin rounded-full border-b-2 border-white"></div>
+                  <span className="font-medium">Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  <span className="font-medium">
+                    Guardar {Object.values(selectedChanges).reduce((sum, slots) => sum + slots.length, 0)} cambio{Object.values(selectedChanges).reduce((sum, slots) => sum + slots.length, 0) !== 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -507,7 +547,10 @@ const WeekDayRowImproved = ({
   isExpanded,
   isUpdating,
   optionsLoading,
-  optionsError
+  optionsError,
+  onApplyChanges,
+  isApplyingChanges,
+  onClearChanges
 }) => {
   const isToday = () => {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
@@ -516,6 +559,7 @@ const WeekDayRowImproved = ({
 
   const dayNameSpanish = DIAS_ESPANOL[day] || traducirDia(dayData.dayName || day);
   const hasAvailableSlots = availableOptions?.isOpen && availableOptions?.slots?.length > 0;
+  const hasChangesForThisDay = selectedChanges && selectedChanges.length > 0;
 
   return (
     <div className={`${isToday() ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}>
@@ -545,12 +589,21 @@ const WeekDayRowImproved = ({
           {/* Botón para expandir (siempre visible) */}
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => onExpandDay(isExpanded ? null : day)}
+              onClick={() => onExpandDay(day)}
               className="btn-primary btn-sm flex items-center"
               disabled={optionsLoading}
             >
-              <PlusCircle className="w-4 h-4 mr-1" />
-              {isExpanded ? 'Ocultar Opciones' : 'Ver/Cambiar Horarios'}
+              {isExpanded ? (
+                <>
+                  <ChevronUp className="w-4 h-4 mr-1" />
+                  Ocultar Opciones
+                </>
+              ) : (
+                <>
+                  <PlusCircle className="w-4 h-4 mr-1" />
+                  Ver/Cambiar Horarios
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -565,6 +618,7 @@ const WeekDayRowImproved = ({
                 day={day}
                 onCancelSlot={onCancelSlot}
                 isUpdating={isUpdating}
+                dayData={dayData}
               />
             ))}
           </div>
@@ -598,13 +652,61 @@ const WeekDayRowImproved = ({
               <p className="text-sm">Error: {optionsError}</p>
             </div>
           ) : hasAvailableSlots ? (
-            <AvailableSlotOptionsImproved
-              day={day}
-              dayName={dayNameSpanish}
-              availableOptions={availableOptions}
-              selectedChanges={selectedChanges}
-              onSlotSelection={onSlotSelection}
-            />
+            <div>
+              <AvailableSlotOptionsImproved
+                day={day}
+                dayName={dayNameSpanish}
+                availableOptions={availableOptions}
+                selectedChanges={selectedChanges}
+                onSlotSelection={onSlotSelection}
+              />
+              
+              {/* Botón de guardar específico para este día cuando hay cambios */}
+              {hasChangesForThisDay && (
+                <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+                      <div>
+                        <h4 className="font-semibold text-green-900">
+                          Cambios para {dayNameSpanish}
+                        </h4>
+                        <p className="text-green-700 text-sm">
+                          {selectedChanges.length} horario{selectedChanges.length !== 1 ? 's' : ''} seleccionado{selectedChanges.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={onClearChanges}
+                        disabled={isApplyingChanges}
+                        className="btn-outline btn-sm text-gray-600"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Limpiar
+                      </button>
+                      <button
+                        onClick={onApplyChanges}
+                        disabled={isApplyingChanges}
+                        className="btn-primary btn-sm bg-green-600 hover:bg-green-700"
+                      >
+                        {isApplyingChanges ? (
+                          <>
+                            <div className="w-4 h-4 mr-1 animate-spin rounded-full border-b-2 border-white"></div>
+                            Guardando...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4 mr-1" />
+                            Guardar Cambios
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="text-center py-4 text-gray-500">
               <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
@@ -722,7 +824,7 @@ const AvailableSlotOptionsImproved = ({
                   )}
                   {slot.status === 'full' && (
                     <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
-                      Lleno
+                      Ya tienes horarios en este día
                     </span>
                   )}
                   {slot.status === 'available' && (slot.available <= 3) && slot.available > 0 && (
@@ -765,40 +867,42 @@ const AvailableSlotOptionsImproved = ({
 // 🧩 COMPONENTES AUXILIARES MEJORADOS
 // ================================
 
-const CurrentSlotCardImproved = ({ slot, day, onCancelSlot, isUpdating }) => {
-  // Mejorar la información de ocupación
-  const getOccupancyInfo = () => {
-    const current = slot.currentReservations || 0;
-    const capacity = slot.capacity || 1; // Default 1 si no hay capacidad definida
-    
-    // Si hay capacidad específica, usar esa
-    if (slot.capacity && slot.capacity > 0) {
-      return `${current}/${capacity}`;
-    }
-    
-    // Si el slot está ocupado por el usuario actual, mostrar 1/1
-    if (current > 0) {
-      return `1/1`;
-    }
-    
-    // Si no hay ocupación, mostrar 0/1
-    return `0/1`;
-  };
-
-  const getAvailabilityStatus = () => {
+const CurrentSlotCardImproved = ({ slot, day, onCancelSlot, isUpdating, dayData }) => {
+  // Mejorar la información de ocupación - solo mostrar estado de disponibilidad
+  const getSlotStatus = () => {
     const available = slot.availability || 0;
     
+    // Si el usuario ya tiene horarios en este día, mostrar mensaje diferente
+    if (dayData.hasSlots && dayData.slots.length > 0 && available === 0) {
+      return { 
+        class: 'bg-blue-100 text-blue-700', 
+        text: 'Ya tienes horarios en este día',
+        icon: <Info className="w-3 h-3" />
+      };
+    }
+    
     if (available > 5) {
-      return { class: 'bg-green-100 text-green-700', text: `${available} disponibles` };
+      return { 
+        class: 'bg-green-100 text-green-700', 
+        text: `${available} cupos disponibles`,
+        icon: <CheckCircle className="w-3 h-3" />
+      };
     } else if (available > 0) {
-      return { class: 'bg-yellow-100 text-yellow-700', text: `${available} disponibles` };
+      return { 
+        class: 'bg-yellow-100 text-yellow-700', 
+        text: `${available} cupos disponibles`,
+        icon: <AlertTriangle className="w-3 h-3" />
+      };
     } else {
-      return { class: 'bg-red-100 text-red-700', text: 'Lleno' };
+      return { 
+        class: 'bg-red-100 text-red-700', 
+        text: 'Ya tienes horarios en este día',
+        icon: <X className="w-3 h-3" />
+      };
     }
   };
 
-  const occupancyInfo = getOccupancyInfo();
-  const availabilityStatus = getAvailabilityStatus();
+  const slotStatus = getSlotStatus();
 
   return (
     <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all group">
@@ -811,13 +915,10 @@ const CurrentSlotCardImproved = ({ slot, day, onCancelSlot, isUpdating }) => {
           {slot.label && (
             <div className="text-sm text-gray-500 mt-1">{slot.label}</div>
           )}
-          <div className="flex items-center text-xs text-gray-400 mt-2 space-x-4">
-            <div className="flex items-center">
-              <Users className="w-3 h-3 mr-1" />
-              <span>{occupancyInfo} ocupado</span>
-            </div>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${availabilityStatus.class}`}>
-              {availabilityStatus.text}
+          <div className="flex items-center mt-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center ${slotStatus.class}`}>
+              {slotStatus.icon}
+              <span className="ml-1">{slotStatus.text}</span>
             </span>
           </div>
         </div>
