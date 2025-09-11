@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipCard.js
-// FUNCIÓN: Componente para mostrar información de membresías - ARREGLADO PARA PRECIOS
+// FUNCIÓN: Componente para mostrar información de membresías - CON TRADUCCIÓN AUTOMÁTICA
 // USADO EN: ClientDashboard, páginas de membresías
 
 import React from 'react';
@@ -20,6 +20,7 @@ import {
   Banknote
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
+import { useMembershipTranslation } from '../../hooks/useTranslation';
 
 // FUNCIÓN HELPER: Convertir precio a número y formatear de forma segura
 const formatPrice = (price) => {
@@ -42,6 +43,7 @@ const MembershipCard = ({
   className = ''
 }) => {
   const { formatCurrency, formatDate } = useApp();
+  const { translateMembershipType, translateMembershipStatus, translatePaymentMethod } = useMembershipTranslation();
   
   // Calcular días hasta vencimiento
   const getDaysUntilExpiry = (endDate) => {
@@ -54,8 +56,11 @@ const MembershipCard = ({
   
   const daysUntilExpiry = getDaysUntilExpiry(membership.endDate);
   
-  // Estado de la membresía - COMPLETAMENTE EN ESPAÑOL
+  // Estado de la membresía - COMPLETAMENTE EN ESPAÑOL CON TRADUCCIÓN AUTOMÁTICA
   const getStatusConfig = () => {
+    // Traducir el estado automáticamente
+    const translatedStatus = translateMembershipStatus(membership.status);
+    
     switch (membership.status) {
       case 'active':
         if (daysUntilExpiry < 0) {
@@ -140,9 +145,19 @@ const MembershipCard = ({
           border: 'border-yellow-200',
           icon: AlertCircle
         };
-      default:
+      case 'pending_validation':
         return {
-          label: 'Estado desconocido',
+          label: 'Pendiente de validación',
+          color: 'yellow',
+          bg: 'bg-yellow-50',
+          text: 'text-yellow-700',
+          border: 'border-yellow-200',
+          icon: Clock
+        };
+      default:
+        // Usar traducción automática para estados desconocidos
+        return {
+          label: translatedStatus || 'Estado desconocido',
           color: 'gray',
           bg: 'bg-gray-50',
           text: 'text-gray-700',
@@ -168,9 +183,18 @@ const MembershipCard = ({
   
   const progress = calculateProgress();
   
-  // Función para obtener tipo de membresía en español
+  // Función para obtener tipo de membresía en español - CON TRADUCCIÓN AUTOMÁTICA
   const getMembershipTypeName = () => {
-    if (membership.plan) {
+    // Usar el hook de traducción para obtener el nombre en español
+    const translatedType = translateMembershipType(membership);
+    
+    // Si ya tenemos una traducción, usarla
+    if (translatedType && translatedType !== membership.type) {
+      return translatedType;
+    }
+    
+    // Fallback con traducciones manuales para casos específicos
+    if (membership.plan && membership.plan.name) {
       return membership.plan.name;
     }
     
@@ -183,9 +207,50 @@ const MembershipCard = ({
         return 'Membresía Semanal';
       case 'annual':
         return 'Membresía Anual';
+      case 'yearly':
+        return 'Membresía Anual';
+      case 'quarterly':
+        return 'Membresía Trimestral';
+      case 'premium':
+        return 'Membresía Premium';
+      case 'basic':
+        return 'Membresía Básica';
+      case 'vip':
+        return 'Membresía VIP';
+      case 'student':
+        return 'Membresía Estudiantil';
       default:
-        return 'Membresía';
+        // Si no hay traducción específica, usar la traducción automática
+        return translatedType || 'Membresía';
     }
+  };
+
+  // Función para traducir método de pago
+  const getPaymentMethodName = () => {
+    if (!membership.paymentMethod) return 'No especificado';
+    
+    // Usar traducción automática
+    const translated = translatePaymentMethod(membership.paymentMethod);
+    
+    // Si la traducción es diferente al original, usarla
+    if (translated && translated !== membership.paymentMethod) {
+      return translated;
+    }
+    
+    // Fallback manual para casos específicos
+    const methodMap = {
+      'card': 'Tarjeta',
+      'cash': 'Efectivo',
+      'transfer': 'Transferencia',
+      'bank_transfer': 'Transferencia Bancaria',
+      'credit_card': 'Tarjeta de Crédito',
+      'debit_card': 'Tarjeta de Débito',
+      'mobile_payment': 'Pago Móvil',
+      'stripe': 'Tarjeta (Stripe)',
+      'paypal': 'PayPal'
+    };
+    
+    return methodMap[membership.paymentMethod] || translated || membership.paymentMethod;
   };
 
   return (
@@ -195,7 +260,7 @@ const MembershipCard = ({
       ${className}
     `}>
       
-      {/* ENCABEZADO MEJORADO */}
+      {/* ENCABEZADO MEJORADO CON TRADUCCIÓN */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <div className={`
@@ -351,20 +416,13 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* MÉTODO DE PAGO - ESPAÑOL */}
+      {/* MÉTODO DE PAGO - ESPAÑOL CON TRADUCCIÓN AUTOMÁTICA */}
       {membership.paymentMethod && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">Método de pago:</span>
             <span className="text-sm font-medium text-gray-900">
-              {membership.paymentMethod === 'card' && 'Tarjeta'}
-              {membership.paymentMethod === 'cash' && 'Efectivo'}
-              {membership.paymentMethod === 'transfer' && 'Transferencia'}
-              {membership.paymentMethod === 'bank_transfer' && 'Transferencia Bancaria'}
-              {membership.paymentMethod === 'credit_card' && 'Tarjeta de Crédito'}
-              {membership.paymentMethod === 'debit_card' && 'Tarjeta de Débito'}
-              {!['card', 'cash', 'transfer', 'bank_transfer', 'credit_card', 'debit_card'].includes(membership.paymentMethod) 
-                && (membership.paymentMethod || 'No especificado')}
+              {getPaymentMethodName()}
             </span>
           </div>
         </div>
@@ -431,13 +489,14 @@ const MembershipCard = ({
   );
 };
 
-// VARIANTE: Tarjeta compacta - PRECIOS ARREGLADOS
+// VARIANTE: Tarjeta compacta - CON TRADUCCIÓN AUTOMÁTICA
 export const CompactMembershipCard = ({ 
   membership, 
   onClick = null,
   showUser = false 
 }) => {
   const { formatCurrency, formatDate } = useApp();
+  const { translateMembershipType, translateMembershipStatus } = useMembershipTranslation();
   
   const daysUntilExpiry = Math.ceil((new Date(membership.endDate) - new Date()) / (1000 * 60 * 60 * 24));
   
@@ -450,13 +509,8 @@ export const CompactMembershipCard = ({
   
   const getStatusText = () => {
     if (membership.status !== 'active') {
-      switch (membership.status) {
-        case 'expired': return 'Vencida';
-        case 'suspended': return 'Suspendida';
-        case 'cancelled': return 'Cancelada';
-        case 'pending': return 'Pendiente';
-        default: return membership.status;
-      }
+      // Usar traducción automática para el estado
+      return translateMembershipStatus(membership.status);
     }
     if (daysUntilExpiry < 0) return 'Vencida';
     if (daysUntilExpiry <= 3) return 'Por vencer';
@@ -464,6 +518,13 @@ export const CompactMembershipCard = ({
   };
   
   const getMembershipTypeName = () => {
+    // Usar traducción automática
+    const translated = translateMembershipType(membership);
+    if (translated && translated !== membership.type) {
+      return translated;
+    }
+    
+    // Fallback manual
     if (membership.plan) return membership.plan.name;
     
     switch (membership.type) {
@@ -471,7 +532,7 @@ export const CompactMembershipCard = ({
       case 'daily': return 'Diario';
       case 'weekly': return 'Semanal';
       case 'annual': return 'Anual';
-      default: return 'Membresía';
+      default: return translated || 'Membresía';
     }
   };
   
@@ -520,6 +581,8 @@ export const CompactMembershipCard = ({
 };
 
 export default MembershipCard;
+
+
 /*
 DOCUMENTACIÓN DEL COMPONENTE MembershipCard
 

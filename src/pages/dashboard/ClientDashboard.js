@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/ClientDashboard.js
-// ACTUALIZADO: Para integrar con el nuevo sistema de compra de membresías
+// ACTUALIZADO: Para integrar con el nuevo sistema de compra de membresías y traducir tipos de membresía
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -41,6 +41,9 @@ import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 import membershipService from '../../services/membershipService';
 
+// Hook de traducción
+import { useTranslation } from '../../hooks/useTranslation';
+
 // Componentes existentes
 import DashboardCard from '../../components/common/DashboardCard';
 import MembershipCard from '../../components/memberships/MembershipCard';
@@ -66,6 +69,9 @@ const formatQuetzales = (amount) => {
 const ClientDashboard = () => {
   const { user } = useAuth();
   const { formatDate, showError, showSuccess, showInfo, isMobile } = useApp();
+  
+  // Hook de traducción
+  const { translateMembershipType } = useTranslation();
   
   // Estado para navegación entre secciones
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -165,6 +171,12 @@ const ClientDashboard = () => {
   };
   
   const membershipStatus = getMembershipStatus();
+
+  // Función para obtener el tipo de membresía traducido
+  const getTranslatedMembershipType = () => {
+    if (!currentMembership) return null;
+    return translateMembershipType(currentMembership);
+  };
 
   // Manejar selección de plan
   const handleSelectPlan = (plan) => {
@@ -388,7 +400,7 @@ const ClientDashboard = () => {
             isLoading={membershipLoading}
             subtitle={
               currentMembership ? 
-                (currentMembership.plan?.name || currentMembership.type || 'Membresía activa') :
+                getTranslatedMembershipType() || 'Membresía activa' :
                 'Haz clic para obtener una'
             }
             alert={!currentMembership || membershipStatus.status === 'pending'}
@@ -1049,7 +1061,6 @@ const MembershipPlansSection = ({
 };
 
 export default ClientDashboard;
-
 /*
 === ACTUALIZACIONES PARA SISTEMA DE PRODUCCIÓN ===
 

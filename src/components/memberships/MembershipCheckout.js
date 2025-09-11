@@ -2,6 +2,7 @@
 // src/components/memberships/MembershipCheckout.js
 // VERSIÓN COMPLETA: Diseño escalable para muchos horarios + 1 slot por día
 // DISEÑO INTUITIVO TIPO TIMELINE PARA 20+ HORARIOS POR DÍA
+// NUEVA FUNCIONALIDAD: Aplicar mismo horario a todos los días con UX mejorado
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -36,7 +37,13 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
-  Search
+  Search,
+  Copy,
+  RotateCcw,
+  CheckSquare,
+  Square,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -422,6 +429,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
                   availableSchedules={availableSchedules}
                   selectedSchedule={selectedSchedule}
                   onScheduleChange={handleScheduleChange}
+                  setSelectedSchedule={setSelectedSchedule}
                   isProcessing={isProcessing}
                   scheduleVerified={scheduleVerified}
                   onContinue={handleContinue}
@@ -623,7 +631,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
 };
 
 // ========================================
-// PASO 2: SELECCIÓN DE HORARIOS ESCALABLE
+// PASO 2: SELECCIÓN DE HORARIOS ESCALABLE (CON NUEVA FUNCIONALIDAD MEJORADA)
 // ========================================
 
 const ScheduleSelectionStepScalable = ({ 
@@ -631,11 +639,17 @@ const ScheduleSelectionStepScalable = ({
   planInfo, 
   availableSchedules, 
   selectedSchedule, 
-  onScheduleChange, 
+  onScheduleChange,
+  setSelectedSchedule,
   isProcessing,
   scheduleVerified,
   onContinue 
 }) => {
+  
+  // NUEVO: Estado para el modo "mismo horario todos los días"
+  const [sameScheduleForAll, setSameScheduleForAll] = useState(false);
+  const [baseScheduleDay, setBaseScheduleDay] = useState(null);
+  const [baseScheduleSlot, setBaseScheduleSlot] = useState(null);
   
   if (isProcessing) {
     return (
@@ -659,11 +673,78 @@ const ScheduleSelectionStepScalable = ({
 
   const selectedDaysCount = Object.values(selectedSchedule).filter(slots => slots && slots.length > 0).length;
   const maxWeeklySlots = planInfo.maxReservationsPerWeek || 999;
+  
+  // Verificar si es plan de duración extendida (semana, mes o más)
+  const isExtendedPlan = planInfo.durationType && (
+    planInfo.durationType.toLowerCase().includes('semana') ||
+    planInfo.durationType.toLowerCase().includes('mes') ||
+    planInfo.durationType.toLowerCase().includes('año') ||
+    planInfo.durationType.toLowerCase().includes('week') ||
+    planInfo.durationType.toLowerCase().includes('month') ||
+    planInfo.durationType.toLowerCase().includes('year')
+  );
+  
+  // NUEVA FUNCIÓN: Aplicar mismo horario a todos los días disponibles
+  const applyScheduleToAllDays = (sourceDay, slotId) => {
+    const sourceSlot = availableSchedules[sourceDay]?.slots?.find(slot => slot.id === slotId);
+    if (!sourceSlot) return;
+    
+    const newSchedule = {};
+    
+    // Buscar el mismo horario en todos los días disponibles
+    Object.keys(availableSchedules).forEach(day => {
+      const dayData = availableSchedules[day];
+      if (dayData && dayData.isOpen && dayData.slots.length > 0) {
+        // Buscar slot con el mismo tiempo
+        const matchingSlot = dayData.slots.find(slot => 
+          slot.openTime === sourceSlot.openTime && 
+          slot.closeTime === sourceSlot.closeTime &&
+          slot.canReserve
+        );
+        
+        if (matchingSlot) {
+          newSchedule[day] = [matchingSlot.id];
+        }
+      }
+    });
+    
+    setSelectedSchedule(newSchedule);
+    setSameScheduleForAll(true);
+    setBaseScheduleDay(sourceDay);
+    setBaseScheduleSlot(slotId);
+  };
+  
+  // NUEVA FUNCIÓN: Limpiar horarios y volver a selección individual
+  const clearAllSchedules = () => {
+    setSelectedSchedule({});
+    setSameScheduleForAll(false);
+    setBaseScheduleDay(null);
+    setBaseScheduleSlot(null);
+  };
+  
+  // NUEVA FUNCIÓN: Volver a modo de selección individual manteniendo horarios
+  const switchToIndividualMode = () => {
+    setSameScheduleForAll(false);
+    setBaseScheduleDay(null);
+    setBaseScheduleSlot(null);
+  };
+
+  // Manejar selección de horario con la nueva lógica
+  const handleScheduleSelection = (day, slotId) => {
+    if (sameScheduleForAll) {
+      // Si está en modo "mismo horario", desactivar ese modo primero
+      setSameScheduleForAll(false);
+      setBaseScheduleDay(null);
+      setBaseScheduleSlot(null);
+    }
+    
+    onScheduleChange(day, slotId);
+  };
 
   return (
     <div className="space-y-6">
       
-      {/* HEADER COMPACTO */}
+      {/* HEADER MEJORADO CON NUEVA FUNCIONALIDAD */}
       <div className="bg-gradient-to-br from-primary-50 to-blue-50 border-2 border-primary-200 rounded-xl p-6">
         <div className="text-center mb-4">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-600 rounded-full mb-3">
@@ -672,9 +753,30 @@ const ScheduleSelectionStepScalable = ({
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Elige tus horarios de entrenamiento
           </h2>
-          <p className="text-gray-600">
-            Selecciona <strong>1 horario por día</strong> para crear tu rutina perfecta
+          <p className="text-gray-600 mb-4">
+            {sameScheduleForAll ? (
+              <>🔄 <strong>Mismo horario aplicado a todos los días disponibles</strong></>
+            ) : (
+              <>Selecciona <strong>1 horario por día</strong> para crear tu rutina perfecta</>
+            )}
           </p>
+          
+          {/* NUEVA: Guía rápida para planes extendidos */}
+          {!sameScheduleForAll && isExtendedPlan && selectedDaysCount === 0 && (
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-center mb-2">
+                <Sparkles className="w-6 h-6 mr-2" />
+                <strong className="text-lg">¡Función especial disponible!</strong>
+              </div>
+              <p className="text-sm text-center">
+                ¿Siempre entrenas a la misma hora? Selecciona cualquier horario y usa el botón 
+                <span className="bg-white bg-opacity-20 mx-1 px-3 py-1 rounded-lg text-sm font-bold">
+                  📋 Aplicar a todos
+                </span>
+                para programar automáticamente todos los días disponibles.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* CONTADOR Y REGLAS */}
@@ -688,7 +790,7 @@ const ScheduleSelectionStepScalable = ({
           
           <div className="bg-white rounded-lg p-4 text-center shadow-sm">
             <div className="text-3xl font-bold text-blue-600 mb-1">1</div>
-            <div className="text-sm text-gray-600">slot máximo por día</div>
+            <div className="text-sm text-gray-600">horario máximo por día</div>
           </div>
           
           <div className="bg-white rounded-lg p-4 text-center shadow-sm">
@@ -699,16 +801,111 @@ const ScheduleSelectionStepScalable = ({
           </div>
         </div>
 
-        {selectedDaysCount === 0 && (
-          <div className="mt-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3">
-            <div className="flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-              <span className="text-yellow-800 font-medium">
-                👇 Selecciona tus horarios favoritos para continuar
-              </span>
+        {/* CONTROLES DE MODO MEJORADOS CON EXPLICACIONES */}
+        <div className="mt-6 space-y-3">
+          {/* Modo actual */}
+          {sameScheduleForAll ? (
+            <div className="bg-green-100 border border-green-300 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Copy className="w-6 h-6 text-green-600 mr-3" />
+                  <div>
+                    <div className="font-semibold text-green-800 text-lg">
+                      ✅ Mismo horario aplicado a todos los días
+                    </div>
+                    <div className="text-sm text-green-700 mt-1">
+                      {baseScheduleSlot && baseScheduleDay && availableSchedules[baseScheduleDay] && (
+                        (() => {
+                          const slot = availableSchedules[baseScheduleDay].slots.find(s => s.id === baseScheduleSlot);
+                          return slot ? `Horario: ${slot.openTime} - ${slot.closeTime}` : '';
+                        })()
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={switchToIndividualMode}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                  >
+                    <Calendar className="w-4 h-4 mr-1" />
+                    Horarios variados
+                  </button>
+                  <button
+                    onClick={clearAllSchedules}
+                    className="px-4 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors flex items-center"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-1" />
+                    Reiniciar
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          ) : selectedDaysCount === 0 ? (
+            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4">
+              <div className="text-center">
+                <AlertCircle className="w-8 h-8 text-yellow-600 mx-auto mb-3" />
+                <div className="font-medium text-yellow-800 mb-3 text-lg">
+                  👇 Selecciona tus horarios favoritos para continuar
+                </div>
+                {isExtendedPlan && (
+                  <div className="text-sm text-yellow-700 bg-yellow-50 p-4 rounded-lg mt-3 border border-yellow-200">
+                    <div className="flex items-center justify-center mb-3">
+                      <Zap className="w-5 h-5 mr-2" />
+                      <strong>💡 Consejo útil:</strong>
+                    </div>
+                    <p className="mb-2">
+                      ¿Prefieres entrenar siempre a la misma hora? 
+                    </p>
+                    <p>
+                      Selecciona cualquier horario y busca el botón 
+                      <span className="bg-blue-600 text-white mx-2 px-3 py-1 rounded-lg text-xs font-bold inline-flex items-center">
+                        <Copy className="w-3 h-3 mr-1" />
+                        Aplicar a todos
+                      </span>
+                      para programar automáticamente todos los días disponibles.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-blue-100 border border-blue-300 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Calendar className="w-6 h-6 text-blue-600 mr-3" />
+                  <div>
+                    <div className="font-medium text-blue-800 text-lg">
+                      📅 Modo: Horarios personalizados por día
+                    </div>
+                    {isExtendedPlan && (
+                      <div className="text-sm text-blue-700 mt-1">
+                        💡 Puedes usar el botón 
+                        <span className="bg-blue-600 text-white mx-1 px-2 py-1 rounded text-xs font-bold">
+                          📋 Aplicar a todos
+                        </span>
+                        en cualquier horario seleccionado para aplicarlo a todos los días
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Botón para limpiar todo */}
+          {selectedDaysCount > 0 && !sameScheduleForAll && (
+            <div className="text-center">
+              <button
+                onClick={clearAllSchedules}
+                className="inline-flex items-center px-6 py-3 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors shadow-md hover:shadow-lg"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Limpiar todos los horarios
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* GRID DE DÍAS CON DISEÑO ESCALABLE */}
@@ -720,9 +917,14 @@ const ScheduleSelectionStepScalable = ({
               day={day}
               dayData={dayData}
               selectedSlot={selectedSchedule[day]?.[0] || null}
-              onSlotSelect={(slotId) => onScheduleChange(day, slotId)}
+              onSlotSelect={(slotId) => handleScheduleSelection(day, slotId)}
+              onApplyToAll={(slotId) => applyScheduleToAllDays(day, slotId)}
               totalSelected={selectedDaysCount}
               maxTotal={maxWeeklySlots}
+              sameScheduleMode={sameScheduleForAll}
+              isBaseSchedule={baseScheduleDay === day}
+              planDuration={planInfo.durationType}
+              isExtendedPlan={isExtendedPlan}
             />
           ))}
         </div>
@@ -745,7 +947,10 @@ const ScheduleSelectionStepScalable = ({
                 <>
                   <Clock className="w-6 h-6 mr-3 text-blue-600" />
                   <div>
-                    <div className="font-semibold text-blue-700">{selectedDaysCount} días programados</div>
+                    <div className="font-semibold text-blue-700">
+                      {selectedDaysCount} días programados
+                      {sameScheduleForAll && <span className="ml-2 text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">Mismo horario</span>}
+                    </div>
                     <div className="text-sm text-blue-600">Listos para verificar</div>
                   </div>
                 </>
@@ -785,16 +990,21 @@ const ScheduleSelectionStepScalable = ({
 };
 
 // ========================================
-// COMPONENTE: Fila de Día Escalable
+// COMPONENTE: Fila de Día Escalable (CON NUEVA FUNCIONALIDAD MEJORADA)
 // ========================================
 
 const ScheduleDayRowScalable = ({ 
   day, 
   dayData, 
   selectedSlot, 
-  onSlotSelect, 
+  onSlotSelect,
+  onApplyToAll,
   totalSelected,
-  maxTotal
+  maxTotal,
+  sameScheduleMode,
+  isBaseSchedule,
+  planDuration,
+  isExtendedPlan
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [filterFranja, setFilterFranja] = useState('all');
@@ -855,15 +1065,30 @@ const ScheduleDayRowScalable = ({
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg">
+    <div className={`border rounded-lg transition-all ${
+      sameScheduleMode && isBaseSchedule 
+        ? 'border-green-400 bg-green-50 shadow-lg' 
+        : selectedSlot 
+        ? 'border-primary-300 bg-primary-50' 
+        : 'border-gray-200'
+    }`}>
       
       {/* HEADER DEL DÍA */}
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <Calendar className="w-5 h-5 text-primary-600 mr-3" />
+            <Calendar className={`w-5 h-5 mr-3 ${
+              sameScheduleMode && isBaseSchedule ? 'text-green-600' : 'text-primary-600'
+            }`} />
             <div>
-              <h3 className="font-bold text-lg text-gray-900">{dayNameSpanish}</h3>
+              <h3 className="font-bold text-lg text-gray-900 flex items-center">
+                {dayNameSpanish}
+                {sameScheduleMode && isBaseSchedule && (
+                  <span className="ml-3 text-xs bg-green-200 text-green-800 px-3 py-1 rounded-full font-medium">
+                    Horario base
+                  </span>
+                )}
+              </h3>
               <p className="text-sm text-gray-600">{dayData.slots.length} horarios disponibles</p>
             </div>
           </div>
@@ -871,8 +1096,12 @@ const ScheduleDayRowScalable = ({
           {/* ESTADO DE SELECCIÓN */}
           <div className="flex items-center space-x-3">
             {selectedSlot ? (
-              <div className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm font-medium">
-                ✓ Seleccionado
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                sameScheduleMode && isBaseSchedule
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-primary-100 text-primary-700'
+              }`}>
+                {sameScheduleMode && isBaseSchedule ? '✅ Horario base' : '✓ Seleccionado'}
               </div>
             ) : (
               <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
@@ -925,34 +1154,54 @@ const ScheduleDayRowScalable = ({
             const canSelect = slot.canReserve && (totalSelected < maxTotal || isSelected);
             
             return (
-              <button
-                key={slot.id}
-                onClick={() => handleSlotClick(slot.id)}
-                disabled={!slot.canReserve && !isSelected}
-                className={`p-3 rounded-lg text-center transition-all border-2 text-sm ${
-                  isSelected
-                    ? 'bg-primary-600 border-primary-600 text-white shadow-lg transform scale-105'
-                    : canSelect
-                    ? 'bg-white border-gray-200 hover:border-primary-300 hover:bg-primary-50 text-gray-700 shadow-sm hover:shadow-md'
-                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
-                }`}
-              >
-                <div className="font-bold">{slot.label}</div>
-                <div className="text-xs opacity-90 mt-1">
-                  {slot.openTime}-{slot.closeTime}
-                </div>
-                <div className={`text-xs mt-1 px-2 py-0.5 rounded-full ${
-                  isSelected
-                    ? 'bg-white bg-opacity-20 text-white'
-                    : slot.available > 5
-                    ? 'bg-green-100 text-green-700'
-                    : slot.available > 0
-                    ? 'bg-yellow-100 text-yellow-700'
-                    : 'bg-red-100 text-red-700'
-                }`}>
-                  {slot.available}/{slot.capacity}
-                </div>
-              </button>
+              <div key={slot.id} className="relative">
+                <button
+                  onClick={() => handleSlotClick(slot.id)}
+                  disabled={!slot.canReserve && !isSelected}
+                  className={`w-full p-3 rounded-lg text-center transition-all border-2 text-sm ${
+                    isSelected
+                      ? sameScheduleMode && isBaseSchedule
+                        ? 'bg-green-600 border-green-600 text-white shadow-lg transform scale-105'
+                        : 'bg-primary-600 border-primary-600 text-white shadow-lg transform scale-105'
+                      : canSelect
+                      ? 'bg-white border-gray-200 hover:border-primary-300 hover:bg-primary-50 text-gray-700 shadow-sm hover:shadow-md'
+                      : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                  }`}
+                >
+                  <div className="font-bold">{slot.label}</div>
+                  <div className="text-xs opacity-90 mt-1">
+                    {slot.openTime}-{slot.closeTime}
+                  </div>
+                  <div className={`text-xs mt-1 px-2 py-0.5 rounded-full ${
+                    isSelected
+                      ? 'bg-white bg-opacity-20 text-white'
+                      : slot.available > 5
+                      ? 'bg-green-100 text-green-700'
+                      : slot.available > 0
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {slot.available}/{slot.capacity}
+                  </div>
+                </button>
+                
+                {/* NUEVO: Botón mejorado para aplicar a todos los días */}
+                {isSelected && isExtendedPlan && !sameScheduleMode && (
+                  <div className="absolute -top-3 -right-3 z-10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onApplyToAll(slot.id);
+                      }}
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-1 text-xs font-bold"
+                      title="Aplicar este horario a todos los días disponibles"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>Aplicar a todos</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -1850,65 +2099,44 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
 export default MembershipCheckout;
 
 /*
-=== ACTUALIZACIONES PARA PRODUCCIÓN ===
+=== MEJORAS IMPLEMENTADAS EN UX ===
 
-FLUJO ACTUALIZADO BASADO EN TEST EXITOSO:
-1. Paso 1: Información del cliente y plan seleccionado
-2. Paso 2: Selección de horarios disponibles (NUEVO)
-3. Paso 3: Método de pago (tarjeta, transferencia, efectivo)
-4. Paso 4: Confirmación final
+1. **BOTÓN "APLICAR A TODOS" MEJORADO**:
+   - Tamaño más grande y visible
+   - Texto claro "Aplicar a todos" además del ícono
+   - Colores llamativos (gradiente azul)
+   - Hover effects con transformaciones
+   - Posicionamiento más prominente
 
-ENDPOINTS UTILIZADOS:
-- membershipService.getScheduleOptions() -> GET /api/memberships/plans/:id/schedule-options
-- membershipService.checkScheduleAvailability() -> POST /api/memberships/purchase/check-availability
-- membershipService.createMembershipPaymentIntent() -> POST /api/stripe/create-membership-purchase-intent
-- membershipService.purchaseMembership() -> POST /api/memberships/purchase
+2. **GUÍAS Y EXPLICACIONES MEJORADAS**:
+   - Banner especial para planes extendidos explicando la funcionalidad
+   - Tips contextuales con ejemplos visuales del botón
+   - Mensajes claros sobre cómo usar la función
+   - Estados visuales diferenciados según el modo activo
 
-MÉTODOS DE PAGO IMPLEMENTADOS:
+3. **TEXTO COMPLETAMENTE EN ESPAÑOL**:
+   - Todos los mensajes al usuario en español
+   - Días de la semana traducidos correctamente
+   - Etiquetas y botones en español
+   - Mensajes de estado y confirmación en español
 
-1. TARJETA DE CRÉDITO/DÉBITO:
-   - Integración completa con Stripe (sin datos de prueba)
-   - Confirmación inmediata al completar pago
-   - Activación automática de membresía
+4. **INDICADORES VISUALES MEJORADOS**:
+   - Íconos más grandes y descriptivos
+   - Colores diferenciados para cada estado
+   - Transiciones suaves entre modos
+   - Badges explicativos para identificar funciones
 
-2. TRANSFERENCIA BANCARIA:
-   - Datos bancarios reales para transferencia
-   - Upload opcional de comprobante
-   - Validación manual por administradores (1-2 días)
-   - Sistema de notificaciones por correo
+5. **EXPERIENCIA PROGRESIVA**:
+   - Función solo aparece para planes extendidos
+   - Guías contextuales cuando es relevante
+   - Información clara sobre beneficios
+   - Controles intuitivos para cambiar entre modos
 
-3. EFECTIVO EN GIMNASIO:
-   - Registro de solicitud en sistema
-   - Cliente visita gimnasio para pagar
-   - Confirmación manual por colaboradores
-   - Activación inmediata tras confirmar pago
+6. **MENSAJES EDUCATIVOS**:
+   - Explicación clara de para qué sirve la función
+   - Beneficios destacados ("ahorra tiempo")
+   - Ejemplos visuales del botón a buscar
+   - Tips sobre cuándo usar cada modo
 
-CARACTERÍSTICAS NUEVAS:
-- Selección interactiva de horarios con verificación en tiempo real
-- Validación de disponibilidad antes de proceder al pago
-- Resumen detallado incluyendo horarios seleccionados
-- Estados diferenciados para cada método de pago
-- Confirmaciones específicas según método elegido
-- Sistema de seguimiento para pagos pendientes
-
-FLUJO DE HORARIOS:
-- Carga automática de horarios disponibles por plan
-- Selección manual o automática de slots preferidos
-- Verificación de disponibilidad en tiempo real
-- Límites por día y por semana según plan
-- Preview visual de horarios seleccionados
-
-SEGURIDAD Y VALIDACIÓN:
-- Sin datos de prueba de Stripe en producción
-- Validación de disponibilidad antes de cada compra
-- Manejo robusto de errores de pago
-- Estados claros para seguimiento de proceso
-- Confirmaciones por correo para todos los métodos
-
-EXPERIENCIA DE USUARIO:
-- Progreso visual en 4 pasos claros
-- Feedback inmediato sobre acciones
-- Información contextual para cada método de pago
-- Confirmaciones específicas según tipo de pago
-- Instrucciones claras para completar proceso
+La interfaz ahora es mucho más clara y educativa, guiando al usuario paso a paso sobre cómo usar la nueva funcionalidad de aplicar el mismo horario a todos los días.
 */
