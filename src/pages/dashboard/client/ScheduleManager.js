@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/dashboard/client/ScheduleManager.js
-// SIMPLIFICADO: Para usar correctamente la delegación del apiService
+// MEJORADO: Sin modo edición y con información de ocupación corregida
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -46,11 +46,11 @@ import {
 
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
-import apiService from '../../../services/apiService'; // ✅ Solo importar apiService
+import apiService from '../../../services/apiService';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 
 // ================================
-// 🛠️ UTILIDADES (sin cambios)
+// 🛠️ UTILIDADES
 // ================================
 
 const DIAS_ESPANOL = {
@@ -151,22 +151,18 @@ const ScheduleManager = ({ onBack }) => {
   const { showSuccess, showError, showInfo, isMobile } = useApp();
   const queryClient = useQueryClient();
   
-  // Estados
-  const [editMode, setEditMode] = useState(false);
+  // Estados simplificados (sin editMode)
   const [selectedChanges, setSelectedChanges] = useState({});
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [expandedDays, setExpandedDays] = useState(new Set());
 
-  // ✅ Query para horarios actuales - USANDO DELEGACIÓN CORRECTA
+  // Query para horarios actuales
   const { data: currentSchedule, isLoading: scheduleLoading, refetch: refetchSchedule, error: scheduleError } = useQuery({
     queryKey: ['currentSchedule', user?.id, refreshTrigger],
     queryFn: async () => {
       try {
         console.log('📅 Obteniendo horarios actuales via apiService...');
-        
-        // ✅ USAR DELEGACIÓN DEL APISERVICE (no importar scheduleService directamente)
         const response = await apiService.getCurrentSchedule();
-        
         console.log('📅 Horarios actuales recibidos:', response);
         return response?.hasMembership ? response : { hasMembership: false };
       } catch (error) {
@@ -181,9 +177,9 @@ const ScheduleManager = ({ onBack }) => {
     retry: 1
   });
 
-  // ✅ Query para opciones disponibles - USANDO DELEGACIÓN CORRECTA
+  // Query para opciones disponibles (siempre activa)
   const { data: availableOptions, isLoading: optionsLoading, refetch: refetchOptions } = useQuery({
-    queryKey: ['availableScheduleOptions', editMode, refreshTrigger],
+    queryKey: ['availableScheduleOptions', refreshTrigger],
     queryFn: async () => {
       try {
         if (!currentSchedule?.hasMembership) {
@@ -192,13 +188,9 @@ const ScheduleManager = ({ onBack }) => {
         }
 
         console.log('🔍 Obteniendo opciones disponibles via apiService...');
-        
-        // ✅ USAR DELEGACIÓN DEL APISERVICE
         const response = await apiService.getAvailableScheduleOptions();
-        
         console.log('✅ Opciones disponibles recibidas:', response);
 
-        // ✅ EL BACKEND YA DEVUELVE DATOS EN FORMATO CORRECTO
         if (response?.availableOptions) {
           return response;
         }
@@ -215,20 +207,18 @@ const ScheduleManager = ({ onBack }) => {
       }
     },
     staleTime: 2 * 60 * 1000,
-    enabled: editMode && !!currentSchedule?.hasMembership // ✅ Condición simplificada
+    enabled: !!currentSchedule?.hasMembership
   });
 
-  // ✅ Mutación para cambiar horarios - USANDO DELEGACIÓN
+  // Mutación para cambiar horarios
   const changeScheduleMutation = useMutation({
     mutationFn: async (changes) => {
       console.log('📤 Enviando cambios via apiService:', changes);
-      // ✅ USAR DELEGACIÓN DEL APISERVICE
       return apiService.changeClientSchedule(changes);
     },
     onSuccess: () => {
       showSuccess('Horarios actualizados exitosamente');
       setSelectedChanges({});
-      setEditMode(false);
       setExpandedDays(new Set());
       setRefreshTrigger(prev => prev + 1);
       queryClient.invalidateQueries(['currentSchedule']);
@@ -244,13 +234,12 @@ const ScheduleManager = ({ onBack }) => {
     }
   });
 
-  // ✅ Mutación para cancelar horario individual - USANDO DELEGACIÓN
+  // Mutación para cancelar horario individual
   const cancelSlotMutation = useMutation({
     mutationFn: async ({ day, slotId }) => {
       const validSlotId = extractSlotId(slotId);
       if (!validSlotId) throw new Error('ID de slot inválido');
       console.log(`🗑️ Cancelando slot via apiService: ${day}/${validSlotId}`);
-      // ✅ USAR DELEGACIÓN DEL APISERVICE
       return apiService.cancelScheduleSlot(day, validSlotId);
     },
     onSuccess: () => {
@@ -264,7 +253,7 @@ const ScheduleManager = ({ onBack }) => {
     }
   });
 
-  // Handlers (sin cambios)
+  // Handlers
   const handleSlotSelection = (day, slotId) => {
     const validSlotId = extractSlotId(slotId);
     if (!validSlotId) return;
@@ -337,11 +326,11 @@ const ScheduleManager = ({ onBack }) => {
 
   const handleRefresh = () => {
     refetchSchedule();
-    if (editMode) refetchOptions();
+    refetchOptions();
     setRefreshTrigger(prev => prev + 1);
   };
 
-  // Verificaciones (sin cambios)
+  // Verificaciones
   const hasMembership = currentSchedule?.hasMembership;
   const membership = currentSchedule?.membership;
 
@@ -358,7 +347,7 @@ const ScheduleManager = ({ onBack }) => {
   return (
     <div className="space-y-6">
       
-      {/* Header */}
+      {/* Header simplificado */}
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <button onClick={onBack} className="btn-secondary btn-sm mr-4 flex items-center">
@@ -372,24 +361,6 @@ const ScheduleManager = ({ onBack }) => {
         </div>
         
         <div className="flex space-x-2">
-          <button
-            onClick={() => setEditMode(!editMode)}
-            className={`btn-sm flex items-center ${editMode ? 'btn-secondary' : 'btn-primary'}`}
-            disabled={!autoStats.remainingDays}
-          >
-            {editMode ? (
-              <>
-                <X className="w-4 h-4 mr-1" />
-                Cancelar Edición
-              </>
-            ) : (
-              <>
-                <Edit3 className="w-4 h-4 mr-1" />
-                Editar Horarios
-              </>
-            )}
-          </button>
-          
           <button onClick={handleRefresh} className="btn-outline btn-sm flex items-center" disabled={scheduleLoading}>
             <RefreshCw className={`w-4 h-4 mr-1 ${scheduleLoading ? 'animate-spin' : ''}`} />
             Actualizar
@@ -431,23 +402,8 @@ const ScheduleManager = ({ onBack }) => {
         <StatCard title="Días Activos" value={autoStats.daysWithActivity} icon={Target} color="purple" subtitle="de 5 hábiles" />
       </div>
 
-      {/* Debug info para desarrollo */}
-      {process.env.NODE_ENV === 'development' && editMode && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h4 className="font-semibold text-yellow-800 mb-2">🔧 Debug Info</h4>
-          <div className="text-sm text-yellow-700 space-y-1">
-            <p><strong>Has Membership:</strong> {currentSchedule?.hasMembership ? 'Sí' : 'No'}</p>
-            <p><strong>Edit Mode:</strong> {editMode ? 'Activo' : 'Inactivo'}</p>
-            <p><strong>Options Loading:</strong> {optionsLoading ? 'Cargando...' : 'Completado'}</p>
-            <p><strong>Available Options:</strong> {availableOptions ? Object.keys(availableOptions.availableOptions || {}).length : 0} días</p>
-            <p><strong>Selected Changes:</strong> {Object.keys(selectedChanges).length} días modificados</p>
-            <p><strong>Error:</strong> {availableOptions?.error || 'Ninguno'}</p>
-          </div>
-        </div>
-      )}
-
       {/* Cambios pendientes */}
-      {editMode && Object.keys(selectedChanges).length > 0 && (
+      {Object.keys(selectedChanges).length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -492,19 +448,17 @@ const ScheduleManager = ({ onBack }) => {
         </div>
       )}
 
-      {/* Calendario semanal integrado */}
+      {/* Calendario semanal */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
               <CalendarIcon className="w-5 h-5 mr-2" />
-              {editMode ? 'Editar Horarios Semanales' : 'Tu Calendario Semanal'}
+              Tu Calendario Semanal
             </h3>
-            {editMode && (
-              <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full">
-                Modo Edición Activo
-              </span>
-            )}
+            <span className="text-sm text-gray-600 bg-green-100 px-3 py-1 rounded-full">
+              Edición Siempre Activa
+            </span>
           </div>
         </div>
         
@@ -516,11 +470,10 @@ const ScheduleManager = ({ onBack }) => {
         ) : (
           <div className="divide-y divide-gray-200">
             {Object.entries(currentSchedule.currentSchedule || {}).map(([day, dayData]) => (
-              <WeekDayRowSimplified
+              <WeekDayRowImproved
                 key={day}
                 day={day}
                 dayData={dayData}
-                editMode={editMode}
                 availableOptions={availableOptions?.availableOptions?.[day]}
                 selectedChanges={selectedChanges[day] || []}
                 onSlotSelection={handleSlotSelection}
@@ -540,13 +493,12 @@ const ScheduleManager = ({ onBack }) => {
 };
 
 // ================================
-// 🧩 COMPONENTE PARA CADA DÍA - SIMPLIFICADO
+// 🧩 COMPONENTE PARA CADA DÍA - MEJORADO
 // ================================
 
-const WeekDayRowSimplified = ({ 
+const WeekDayRowImproved = ({ 
   day, 
   dayData, 
-  editMode, 
   availableOptions, 
   selectedChanges, 
   onSlotSelection, 
@@ -563,20 +515,7 @@ const WeekDayRowSimplified = ({
   };
 
   const dayNameSpanish = DIAS_ESPANOL[day] || traducirDia(dayData.dayName || day);
-
-  // ✅ VERIFICACIÓN SIMPLIFICADA - EL BACKEND YA DEVUELVE DATOS CORRECTOS
   const hasAvailableSlots = availableOptions?.isOpen && availableOptions?.slots?.length > 0;
-  const canAddSlots = editMode && hasAvailableSlots;
-
-  console.log(`📊 ${dayNameSpanish} - Verificación:`, {
-    hasSlots: dayData.hasSlots,
-    slotsCount: dayData.slots?.length || 0,
-    editMode,
-    hasAvailableSlots,
-    availableSlotsCount: availableOptions?.slots?.length || 0,
-    isExpanded,
-    selectedChanges
-  });
 
   return (
     <div className={`${isToday() ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}>
@@ -603,24 +542,16 @@ const WeekDayRowSimplified = ({
             </div>
           </div>
           
-          {/* Botones de acción */}
+          {/* Botón para expandir (siempre visible) */}
           <div className="flex items-center space-x-2">
-            {editMode && (
-              <button
-                onClick={() => onExpandDay(isExpanded ? null : day)}
-                className="btn-outline btn-sm flex items-center"
-                disabled={optionsLoading}
-              >
-                <PlusCircle className="w-4 h-4 mr-1" />
-                {isExpanded ? 'Ocultar' : 'Cambiar/Agregar'}
-              </button>
-            )}
-            
-            {dayData.hasSlots && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                {dayData.slots.length}/{availableOptions?.slots?.length || '?'} slots
-              </span>
-            )}
+            <button
+              onClick={() => onExpandDay(isExpanded ? null : day)}
+              className="btn-primary btn-sm flex items-center"
+              disabled={optionsLoading}
+            >
+              <PlusCircle className="w-4 h-4 mr-1" />
+              {isExpanded ? 'Ocultar Opciones' : 'Ver/Cambiar Horarios'}
+            </button>
           </div>
         </div>
         
@@ -628,11 +559,10 @@ const WeekDayRowSimplified = ({
         {dayData.hasSlots && (
           <div className="mt-4 space-y-2">
             {dayData.slots.map((slot, index) => (
-              <CurrentSlotCard
+              <CurrentSlotCardImproved
                 key={slot.id || index}
                 slot={slot}
                 day={day}
-                editMode={editMode}
                 onCancelSlot={onCancelSlot}
                 isUpdating={isUpdating}
               />
@@ -640,35 +570,22 @@ const WeekDayRowSimplified = ({
           </div>
         )}
         
-        {/* Sin horarios actuales pero con opción de agregar */}
-        {!dayData.hasSlots && editMode && (
+        {/* Sin horarios actuales */}
+        {!dayData.hasSlots && (
           <div className="mt-4">
-            <button
-              onClick={() => onExpandDay(day)}
-              className="w-full p-4 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 transition-colors group"
-            >
+            <div className="w-full p-4 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-dashed border-green-300 rounded-lg">
               <div className="text-center">
-                <PlusCircle className="w-8 h-8 mx-auto mb-2 text-green-500 group-hover:scale-110 transition-transform" />
-                <p className="text-green-700 font-medium">Agregar horario para {dayNameSpanish}</p>
-                <p className="text-green-600 text-sm">Haz clic para ver horarios disponibles</p>
+                <PlusCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                <p className="text-green-700 font-medium">Sin horarios para {dayNameSpanish}</p>
+                <p className="text-green-600 text-sm">Haz clic en "Ver/Cambiar Horarios" para agregar</p>
               </div>
-            </button>
-          </div>
-        )}
-        
-        {/* Sin horarios y sin opciones de edición */}
-        {!dayData.hasSlots && !editMode && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-            <div className="text-center text-gray-500">
-              <Clock3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Sin horarios configurados</p>
             </div>
           </div>
         )}
       </div>
       
-      {/* Panel expandido para cambiar/agregar horarios */}
-      {editMode && isExpanded && (
+      {/* Panel expandido (siempre disponible) */}
+      {isExpanded && (
         <div className="border-t border-gray-200 bg-gray-50 p-6">
           {optionsLoading ? (
             <div className="text-center py-4">
@@ -681,7 +598,7 @@ const WeekDayRowSimplified = ({
               <p className="text-sm">Error: {optionsError}</p>
             </div>
           ) : hasAvailableSlots ? (
-            <AvailableSlotOptionsSimplified
+            <AvailableSlotOptionsImproved
               day={day}
               dayName={dayNameSpanish}
               availableOptions={availableOptions}
@@ -706,10 +623,10 @@ const WeekDayRowSimplified = ({
 };
 
 // ================================
-// 🎯 OPCIONES DISPONIBLES SIMPLIFICADAS
+// 🎯 OPCIONES DISPONIBLES MEJORADAS
 // ================================
 
-const AvailableSlotOptionsSimplified = ({ 
+const AvailableSlotOptionsImproved = ({ 
   day, 
   dayName, 
   availableOptions, 
@@ -717,13 +634,6 @@ const AvailableSlotOptionsSimplified = ({
   onSlotSelection
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-
-  console.log(`🎮 ${dayName} - Opciones backend:`, {
-    isOpen: availableOptions?.isOpen,
-    slotsCount: availableOptions?.slots?.length || 0,
-    totalAvailable: availableOptions?.totalAvailable || 0,
-    currentlyHas: availableOptions?.currentlyHas || 0
-  });
 
   if (!availableOptions || !availableOptions.slots || availableOptions.slots.length === 0) {
     return (
@@ -749,7 +659,6 @@ const AvailableSlotOptionsSimplified = ({
         </span>
       </div>
 
-      {/* Info adicional */}
       {availableOptions.currentlyHas > 0 && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-700">
@@ -782,7 +691,6 @@ const AvailableSlotOptionsSimplified = ({
                 }
               `}
             >
-              {/* Indicador de selección */}
               {isSelected && (
                 <div className="absolute top-2 right-2">
                   <div className="bg-green-500 text-white rounded-full p-1">
@@ -791,7 +699,6 @@ const AvailableSlotOptionsSimplified = ({
                 </div>
               )}
               
-              {/* Información del slot */}
               <div className="mb-3">
                 <div className="font-semibold text-gray-900 text-lg">{slot.timeRange}</div>
                 {slot.label && (
@@ -799,7 +706,6 @@ const AvailableSlotOptionsSimplified = ({
                 )}
               </div>
               
-              {/* Estado y disponibilidad */}
               <div className="space-y-2">
                 <div className="flex items-center text-xs">
                   <Users className="w-3 h-3 mr-1 text-gray-400" />
@@ -831,7 +737,6 @@ const AvailableSlotOptionsSimplified = ({
         })}
       </div>
 
-      {/* Botón mostrar más */}
       {hasMoreSlots && (
         <div className="mt-4 text-center">
           <button
@@ -857,10 +762,44 @@ const AvailableSlotOptionsSimplified = ({
 };
 
 // ================================
-// 🧩 COMPONENTES AUXILIARES (sin cambios importantes)
+// 🧩 COMPONENTES AUXILIARES MEJORADOS
 // ================================
 
-const CurrentSlotCard = ({ slot, day, editMode, onCancelSlot, isUpdating }) => {
+const CurrentSlotCardImproved = ({ slot, day, onCancelSlot, isUpdating }) => {
+  // Mejorar la información de ocupación
+  const getOccupancyInfo = () => {
+    const current = slot.currentReservations || 0;
+    const capacity = slot.capacity || 1; // Default 1 si no hay capacidad definida
+    
+    // Si hay capacidad específica, usar esa
+    if (slot.capacity && slot.capacity > 0) {
+      return `${current}/${capacity}`;
+    }
+    
+    // Si el slot está ocupado por el usuario actual, mostrar 1/1
+    if (current > 0) {
+      return `1/1`;
+    }
+    
+    // Si no hay ocupación, mostrar 0/1
+    return `0/1`;
+  };
+
+  const getAvailabilityStatus = () => {
+    const available = slot.availability || 0;
+    
+    if (available > 5) {
+      return { class: 'bg-green-100 text-green-700', text: `${available} disponibles` };
+    } else if (available > 0) {
+      return { class: 'bg-yellow-100 text-yellow-700', text: `${available} disponibles` };
+    } else {
+      return { class: 'bg-red-100 text-red-700', text: 'Lleno' };
+    }
+  };
+
+  const occupancyInfo = getOccupancyInfo();
+  const availabilityStatus = getAvailabilityStatus();
+
   return (
     <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all group">
       <div className="flex items-center flex-1">
@@ -872,24 +811,19 @@ const CurrentSlotCard = ({ slot, day, editMode, onCancelSlot, isUpdating }) => {
           {slot.label && (
             <div className="text-sm text-gray-500 mt-1">{slot.label}</div>
           )}
-          <div className="flex items-center text-xs text-gray-400 mt-2">
-            <Users className="w-3 h-3 mr-1" />
-            {slot.currentReservations || 0}/{slot.capacity || 0} ocupado
-            <span className="mx-2">•</span>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-              (slot.availability || 0) > 5 
-                ? 'bg-green-100 text-green-700'
-                : (slot.availability || 0) > 0
-                ? 'bg-yellow-100 text-yellow-700'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              {slot.availability || 0} disponibles
+          <div className="flex items-center text-xs text-gray-400 mt-2 space-x-4">
+            <div className="flex items-center">
+              <Users className="w-3 h-3 mr-1" />
+              <span>{occupancyInfo} ocupado</span>
+            </div>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${availabilityStatus.class}`}>
+              {availabilityStatus.text}
             </span>
           </div>
         </div>
       </div>
       
-      {editMode && slot.canCancel && (
+      {slot.canCancel && (
         <button
           onClick={() => onCancelSlot(day, slot.id)}
           disabled={isUpdating}

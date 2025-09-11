@@ -441,14 +441,7 @@ const MembershipCard = ({
       {showActions && (
         <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
           
-          {/* Ver detalles */}
-          <Link
-            to={`/dashboard/memberships/${membership.id}`}
-            className="btn-secondary btn-sm flex items-center"
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            Ver detalles
-          </Link>
+        
           
           {/* Renovar */}
           {(membership.status === 'active' || membership.status === 'expired') && onRenew && (

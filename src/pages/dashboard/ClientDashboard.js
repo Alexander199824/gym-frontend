@@ -160,10 +160,10 @@ const ClientDashboard = () => {
   const publishedCount = testimonialData.publishedCount || 0;
   const pendingCount = testimonialData.pendingCount || 0;
   
-  // Procesar datos de horarios
+  // Procesar datos de horarios - CORREGIDO
   const scheduleData = currentSchedule?.currentSchedule || {};
   const totalScheduledSlots = Object.values(scheduleData).reduce((sum, day) => 
-    day.hasSlots ? day.slots.length : 0, 0
+    sum + (day.hasSlots ? day.slots.length : 0), 0
   );
   const scheduledDays = Object.values(scheduleData).filter(day => day.hasSlots).length;
   
@@ -261,7 +261,7 @@ const ClientDashboard = () => {
         <div className="flex items-center">
           <button
             onClick={handleBackToDashboard}
-            className="btn-secondary btn-sm mr-4 flex items-center"
+           
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Volver al Panel
@@ -600,12 +600,6 @@ const ClientDashboard = () => {
                     Actualizar estado
                   </button>
                 )}
-                <button 
-                  onClick={() => navigateToSection('membership')}
-                  className="text-primary-600 hover:text-primary-500 text-sm font-medium"
-                >
-                  Ver detalles
-                </button>
               </div>
             ) : (
               <button
@@ -647,6 +641,15 @@ const ClientDashboard = () => {
                   </div>
                 </div>
               )}
+              
+              {/* Botón para ver detalles completos */}
+              <button
+                onClick={() => navigateToSection('membership')}
+                className="w-full mt-4 btn-outline text-center"
+              >
+                <CreditCard className="w-4 h-4 mr-2 inline" />
+                Ver detalles completos de mi membresía
+              </button>
             </div>
           ) : (
             <div className="text-center py-8">
