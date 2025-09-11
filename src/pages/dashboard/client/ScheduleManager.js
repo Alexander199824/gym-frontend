@@ -41,93 +41,22 @@ import LoadingSpinner from '../../../components/common/LoadingSpinner';
 // 🛠️ UTILIDADES PARA MANEJAR DATOS DEL BACKEND
 // ================================
 
-// Normalizar formato de horarios del backend
+// ✅ SIMPLIFICADO: Los datos ya vienen normalizados del backend
 const normalizeScheduleData = (scheduleData) => {
-  if (!scheduleData) {
+  console.log('📅 ScheduleManager: Usando datos ya normalizados del backend');
+  
+  if (!scheduleData || !scheduleData.hasMembership) {
     return {
       hasMembership: false,
       currentSchedule: {},
-      membership: null
+      membership: null,
+      canEditSchedule: false,
+      totalSlotsReserved: 0
     };
   }
 
-  // Si hay errores en los datos, devolver estructura vacía
-  if (scheduleData.error || !scheduleData.hasMembership) {
-    return {
-      hasMembership: false,
-      currentSchedule: {},
-      membership: null
-    };
-  }
-
-  const normalizedSchedule = {};
-  const dayNames = {
-    monday: 'Lunes',
-    tuesday: 'Martes',
-    wednesday: 'Miércoles',
-    thursday: 'Jueves',
-    friday: 'Viernes',
-    saturday: 'Sábado',
-    sunday: 'Domingo'
-  };
-
-  // Normalizar currentSchedule
-  if (scheduleData.currentSchedule) {
-    Object.entries(scheduleData.currentSchedule).forEach(([day, dayData]) => {
-      const normalizedDayData = {
-        dayName: dayNames[day] || day,
-        hasSlots: false,
-        slots: []
-      };
-
-      // Manejar diferentes formatos de dayData
-      if (dayData) {
-        if (typeof dayData === 'object') {
-          // Formato: { dayName, hasSlots, slots }
-          if (dayData.hasSlots && dayData.slots) {
-            normalizedDayData.hasSlots = true;
-            normalizedDayData.slots = normalizeSlots(dayData.slots);
-          }
-          // Formato: { dayName, slots } (sin hasSlots)
-          else if (dayData.slots && Array.isArray(dayData.slots) && dayData.slots.length > 0) {
-            normalizedDayData.hasSlots = true;
-            normalizedDayData.slots = normalizeSlots(dayData.slots);
-          }
-          // Formato directo: [slots]
-          else if (Array.isArray(dayData) && dayData.length > 0) {
-            normalizedDayData.hasSlots = true;
-            normalizedDayData.slots = normalizeSlots(dayData);
-          }
-        }
-        // Si dayData es un array directamente
-        else if (Array.isArray(dayData) && dayData.length > 0) {
-          normalizedDayData.hasSlots = true;
-          normalizedDayData.slots = normalizeSlots(dayData);
-        }
-      }
-
-      normalizedSchedule[day] = normalizedDayData;
-    });
-  }
-
-  // Asegurar que todos los días estén presentes
-  Object.keys(dayNames).forEach(day => {
-    if (!normalizedSchedule[day]) {
-      normalizedSchedule[day] = {
-        dayName: dayNames[day],
-        hasSlots: false,
-        slots: []
-      };
-    }
-  });
-
-  return {
-    hasMembership: scheduleData.hasMembership,
-    currentSchedule: normalizedSchedule,
-    membership: scheduleData.membership || null,
-    canEditSchedule: scheduleData.canEditSchedule || true,
-    totalSlotsReserved: scheduleData.totalSlotsReserved || 0
-  };
+  // Los datos ya vienen procesados correctamente del controller
+  return scheduleData;
 };
 
 // Normalizar slots individuales

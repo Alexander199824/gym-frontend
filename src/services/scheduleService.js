@@ -14,66 +14,16 @@ class ScheduleService extends BaseService {
   // 🛠️ UTILIDADES PARA NORMALIZAR DATOS DEL BACKEND
   // ================================
 
-  // Normalizar respuesta de horarios actuales
-  normalizeCurrentScheduleResponse(response) {
-    console.log('📅 ScheduleService: Normalizando respuesta de horarios actuales:', response);
-
-    if (!response || typeof response !== 'object') {
-      console.warn('⚠️ Respuesta inválida o vacía');
-      return this.getEmptyScheduleStructure();
-    }
-
-    // Manejar diferentes estructuras de respuesta
-    let scheduleData = response;
-    if (response.data) {
-      scheduleData = response.data;
-    }
-
-    // Verificar si tiene estructura mínima válida
-    if (!scheduleData.hasOwnProperty('hasMembership')) {
-      console.warn('⚠️ Respuesta sin campo hasMembership');
-      return this.getEmptyScheduleStructure();
-    }
-
-    // Si no tiene membresía, devolver estructura vacía
-    if (!scheduleData.hasMembership) {
-      console.log('ℹ️ Usuario sin membresía activa');
-      return {
-        hasMembership: false,
-        currentSchedule: {},
-        membership: null,
-        canEditSchedule: false,
-        totalSlotsReserved: 0
-      };
-    }
-
-    // Normalizar horarios actuales
-    const normalizedCurrentSchedule = this.normalizeCurrentScheduleData(scheduleData.currentSchedule);
-
-    // Calcular total de slots
-    const totalSlotsReserved = Object.values(normalizedCurrentSchedule).reduce((total, day) => {
-      return total + (day.hasSlots ? day.slots.length : 0);
-    }, 0);
-
-    const normalized = {
-      hasMembership: true,
-      currentSchedule: normalizedCurrentSchedule,
-      membership: this.normalizeMembershipData(scheduleData.membership),
-      canEditSchedule: scheduleData.canEditSchedule !== false, // Por defecto true
-      totalSlotsReserved
-    };
-
-    console.log('✅ ScheduleService: Horarios normalizados:', {
-      hasMembership: normalized.hasMembership,
-      daysWithSlots: Object.keys(normalized.currentSchedule).filter(day => 
-        normalized.currentSchedule[day].hasSlots
-      ).length,
-      totalSlots: totalSlotsReserved
-    });
-
-    return normalized;
+  // ✅ SIMPLIFICADO: Los datos ya vienen procesados del controller
+normalizeCurrentScheduleResponse(response) {
+  console.log('📅 ScheduleService: Datos ya procesados del controller');
+  
+  if (!response || !response.data) {
+    return this.getEmptyScheduleStructure();
   }
 
+  return response.data;
+}
   // Normalizar datos de horarios actuales por día
   normalizeCurrentScheduleData(currentSchedule) {
     const dayNames = {
@@ -591,24 +541,24 @@ class ScheduleService extends BaseService {
   // 🛠️ MÉTODOS DE VALIDACIÓN Y HELPERS MEJORADOS
   // ================================
 
-  // Extraer ID de slot de forma segura
-  extractSlotId(slot) {
-    if (typeof slot === 'number') {
-      return slot > 0 ? slot : null;
-    }
-    
-    if (typeof slot === 'string') {
-      const parsed = parseInt(slot);
-      return !isNaN(parsed) && parsed > 0 ? parsed : null;
-    }
-    
-    if (typeof slot === 'object' && slot) {
-      const id = slot.id || slot.slotId;
-      return this.extractSlotId(id);
-    }
-    
-    return null;
+ // ✅ Helper simplificado para extraer IDs
+extractSlotId(slot) {
+  if (typeof slot === 'number') {
+    return slot > 0 ? slot : null;
   }
+  
+  if (typeof slot === 'string') {
+    const parsed = parseInt(slot);
+    return !isNaN(parsed) && parsed > 0 ? parsed : null;
+  }
+  
+  if (typeof slot === 'object' && slot) {
+    const id = slot.slotId || slot.id;
+    return this.extractSlotId(id);
+  }
+  
+  return null;
+}
 
   // Validar y limpiar cambios antes de envío
   validateAndCleanChanges(changes) {

@@ -1093,6 +1093,30 @@ class MembershipService {
     console.log('📊 MembershipService: Estadísticas locales calculadas:', stats);
     return stats;
   }
+
+  // ✅ NUEVO: Helper para trabajar con el formato de objetos completos
+  extractSlotIdsFromReservedSchedule(reservedSchedule) {
+    const extractedSchedule = {};
+    
+    if (!reservedSchedule || typeof reservedSchedule !== 'object') {
+      return extractedSchedule;
+    }
+
+    Object.entries(reservedSchedule).forEach(([day, slots]) => {
+      if (Array.isArray(slots)) {
+        extractedSchedule[day] = slots.map(slotObj => {
+          if (typeof slotObj === 'number') return slotObj;
+          if (typeof slotObj === 'object' && slotObj) {
+            return slotObj.slotId || slotObj.id;
+          }
+          return null;
+        }).filter(id => id !== null);
+      }
+    });
+
+    return extractedSchedule;
+  }
+
 }
 
 // Exportar instancia singleton
