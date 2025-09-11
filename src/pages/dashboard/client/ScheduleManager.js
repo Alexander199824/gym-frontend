@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/dashboard/client/ScheduleManager.js
-// SIMPLIFICADO: Vista directa de mis horarios + cambio individual
+// CORREGIDO: Usando exactamente la misma lógica del checkout que funciona
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,41 +13,103 @@ import {
   CheckCircle,
   Plus,
   Edit3,
+  Trash2,
+  Eye,
   Save,
   X,
   Timer,
   Users,
+  TrendingUp,
+  BarChart3,
+  AlertTriangle,
+  Info,
+  Star,
+  Zap,
+  Target,
   Activity,
   Calendar as CalendarIcon,
+  ChevronRight,
   Check,
   Clock3,
-  Target,
-  AlertTriangle,
-  Zap,
+  MapPin,
+  Settings,
+  PlusCircle,
+  MinusCircle,
   ChevronDown,
   ChevronUp,
-  Filter
+  Filter,
+  Copy,
+  RotateCcw,
+  Sparkles,
+  RefreshCw as Refresh
 } from 'lucide-react';
 
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
 import apiService from '../../../services/apiService';
+import membershipService from '../../../services/membershipService'; // IMPORTANTE: Agregar este import
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
 
 // ================================
-// 🛠️ UTILIDADES
+// 🛠️ UTILIDADES IDÉNTICAS AL CHECKOUT
 // ================================
 
+// Diccionario de traducción completo (igual que checkout)
 const DIAS_ESPANOL = {
   'monday': 'Lunes',
-  'tuesday': 'Martes', 
+  'tuesday': 'Martes',
   'wednesday': 'Miércoles',
   'thursday': 'Jueves',
   'friday': 'Viernes',
   'saturday': 'Sábado',
-  'sunday': 'Domingo'
+  'sunday': 'Domingo',
+  'Monday': 'Lunes',
+  'Tuesday': 'Martes',
+  'Wednesday': 'Miércoles',
+  'Thursday': 'Jueves',
+  'Friday': 'Viernes',
+  'Saturday': 'Sábado',
+  'Sunday': 'Domingo'
 };
 
+const traducirDia = (dia) => {
+  if (!dia) return dia;
+  return DIAS_ESPANOL[dia] || dia;
+};
+
+// Función para traducir horarios a español (igual que checkout)
+const traducirHorariosAEspanol = (scheduleData) => {
+  if (!scheduleData) return {};
+  
+  const translated = {};
+  Object.keys(scheduleData).forEach(day => {
+    const dayData = scheduleData[day];
+    if (dayData) {
+      let dayNameSpanish;
+      
+      switch(day.toLowerCase()) {
+        case 'monday': dayNameSpanish = 'Lunes'; break;
+        case 'tuesday': dayNameSpanish = 'Martes'; break;
+        case 'wednesday': dayNameSpanish = 'Miércoles'; break;
+        case 'thursday': dayNameSpanish = 'Jueves'; break;
+        case 'friday': dayNameSpanish = 'Viernes'; break;
+        case 'saturday': dayNameSpanish = 'Sábado'; break;
+        case 'sunday': dayNameSpanish = 'Domingo'; break;
+        default: dayNameSpanish = traducirDia(dayData.dayName || day);
+      }
+      
+      translated[day] = {
+        ...dayData,
+        dayName: dayNameSpanish
+      };
+    } else {
+      translated[day] = dayData;
+    }
+  });
+  return translated;
+};
+
+// Agrupar horarios por franja (igual que checkout)
 const agruparHorariosPorFranja = (slots) => {
   const franjas = {
     morning: { label: '🌅 Mañana', slots: [], range: '6:00 - 12:00' },
@@ -78,6 +140,7 @@ const extractSlotId = (slot) => {
   return null;
 };
 
+// Calcular días restantes reales basado en fechas
 const calculateRealRemainingDays = (membership) => {
   if (!membership) return 0;
   
@@ -101,11 +164,13 @@ const calculateRealRemainingDays = (membership) => {
   return 0;
 };
 
+// Calcular estadísticas automáticas
 const calculateAutoStats = (schedule, membership) => {
   if (!schedule?.currentSchedule || !membership) {
     return {
       totalSlotsReserved: 0,
       weeklySlots: 0,
+      monthlySlots: 0,
       daysWithActivity: 0,
       utilizationRate: 0,
       remainingDays: 0,
@@ -130,6 +195,7 @@ const calculateAutoStats = (schedule, membership) => {
   });
   
   const weeklySlots = totalSlots;
+  const monthlySlots = weeklySlots * 4;
   const utilizationRate = daysWithActivity > 0 ? (daysWithActivity / weekdays.length) * 100 : 0;
   const weeksRemaining = Math.ceil(realRemainingDays / 7);
   const estimatedVisits = weeklySlots * weeksRemaining;
@@ -137,6 +203,7 @@ const calculateAutoStats = (schedule, membership) => {
   return {
     totalSlotsReserved: totalSlots,
     weeklySlots,
+    monthlySlots,
     daysWithActivity,
     utilizationRate: Math.round(utilizationRate),
     remainingDays: realRemainingDays,
@@ -146,12 +213,14 @@ const calculateAutoStats = (schedule, membership) => {
 
 const ScheduleManager = ({ onBack }) => {
   const { user } = useAuth();
-  const { showSuccess, showError, showInfo } = useApp();
+  const { showSuccess, showError, showInfo, isMobile } = useApp();
   const queryClient = useQueryClient();
   
   // Estados
-  const [changingSlot, setChangingSlot] = useState(null); // { day: 'monday', slotId: 123 } o { day: 'monday', slotId: null } para agregar
+  const [editMode, setEditMode] = useState(false);
+  const [selectedChanges, setSelectedChanges] = useState({});
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [expandedDays, setExpandedDays] = useState(new Set());
 
   // Query para horarios actuales
   const { data: currentSchedule, isLoading: scheduleLoading, refetch: refetchSchedule, error: scheduleError } = useQuery({
@@ -159,6 +228,7 @@ const ScheduleManager = ({ onBack }) => {
     queryFn: async () => {
       try {
         const response = await apiService.getCurrentSchedule();
+        console.log('📅 Horarios actuales recibidos:', response);
         return response?.hasMembership ? response : { hasMembership: false };
       } catch (error) {
         if (error.response?.status === 404) {
@@ -171,61 +241,202 @@ const ScheduleManager = ({ onBack }) => {
     retry: 1
   });
 
-  // Query para opciones disponibles (solo cuando estamos cambiando un slot)
-  const { data: availableOptions, isLoading: optionsLoading } = useQuery({
-    queryKey: ['availableScheduleOptions', changingSlot?.day],
+  // Query para opciones disponibles - USANDO LA MISMA LÓGICA DEL CHECKOUT
+  const { data: availableOptions, isLoading: optionsLoading, refetch: refetchOptions } = useQuery({
+    queryKey: ['availableScheduleOptions', editMode, currentSchedule?.membership?.planId],
     queryFn: async () => {
       try {
-        const response = await apiService.getAvailableScheduleOptions(changingSlot.day);
-        return response;
+        if (!currentSchedule?.membership?.planId) {
+          console.warn('❌ No hay planId para obtener opciones');
+          return { availableOptions: {} };
+        }
+
+        console.log('🔍 Obteniendo opciones disponibles para planId:', currentSchedule.membership.planId);
+        
+        // USAR LA MISMA FUNCIÓN QUE FUNCIONA EN EL CHECKOUT
+        const scheduleData = await membershipService.getScheduleOptions(currentSchedule.membership.planId);
+        
+        console.log('✅ Opciones disponibles recibidas:', scheduleData);
+
+        if (!scheduleData.availableOptions) {
+          console.warn('⚠️ No se encontraron availableOptions en la respuesta');
+          return { availableOptions: {} };
+        }
+
+        // Traducir nombres de días al español (igual que en checkout)
+        const translatedSchedules = traducirHorariosAEspanol(scheduleData.availableOptions);
+        
+        console.log('🌍 Horarios traducidos:', translatedSchedules);
+
+        // Procesar cada día para marcar slots que ya están ocupados por el usuario
+        const processedSchedules = {};
+        
+        Object.entries(translatedSchedules).forEach(([day, dayData]) => {
+          if (dayData && dayData.slots) {
+            const processedSlots = dayData.slots.map(slot => {
+              // Verificar si este slot está actualmente ocupado por el usuario
+              const isCurrentlyMine = currentSchedule?.currentSchedule?.[day]?.slots?.some(
+                userSlot => extractSlotId(userSlot) === slot.id
+              ) || false;
+
+              return {
+                ...slot,
+                isCurrentlyMine,
+                canSelect: slot.canReserve || isCurrentlyMine,
+                // Asegurar que tenga la estructura correcta
+                timeRange: slot.timeRange || `${slot.openTime} - ${slot.closeTime}`,
+                status: slot.available > 0 ? 'available' : 'full'
+              };
+            });
+
+            processedSchedules[day] = {
+              ...dayData,
+              slots: processedSlots
+            };
+          } else {
+            processedSchedules[day] = dayData;
+          }
+        });
+
+        console.log('🎮 Horarios procesados:', processedSchedules);
+
+        return {
+          availableOptions: processedSchedules,
+          plan: scheduleData.plan
+        };
+
       } catch (error) {
-        return { availableOptions: {} };
+        console.error('❌ Error obteniendo opciones:', error);
+        return { 
+          availableOptions: {},
+          error: error.message || 'Error desconocido'
+        };
       }
     },
-    enabled: !!changingSlot,
-    staleTime: 1 * 60 * 1000
+    staleTime: 2 * 60 * 1000,
+    enabled: editMode && !!currentSchedule?.membership?.planId
   });
 
-  // Mutación para cambiar horarios
+  // Mutación para cambiar horarios (usando la lógica del checkout)
   const changeScheduleMutation = useMutation({
-    mutationFn: async (newSchedule) => {
-      return apiService.changeClientSchedule(newSchedule);
+    mutationFn: async (changes) => {
+      console.log('📤 Enviando cambios:', changes);
+      return apiService.changeClientSchedule(changes);
     },
     onSuccess: () => {
-      showSuccess('Horario actualizado exitosamente');
-      setChangingSlot(null);
+      showSuccess('Horarios actualizados exitosamente');
+      setSelectedChanges({});
+      setEditMode(false);
+      setExpandedDays(new Set());
       setRefreshTrigger(prev => prev + 1);
       queryClient.invalidateQueries(['currentSchedule']);
+      queryClient.invalidateQueries(['availableScheduleOptions']);
     },
     onError: (error) => {
+      console.error('❌ Error en mutación:', error);
       if (error.unavailableSlots) {
-        showError('El horario seleccionado ya no está disponible');
+        showError('Algunos horarios ya no están disponibles');
       } else {
-        showError('Error cambiando horario: ' + (error.message || 'Error desconocido'));
+        showError('Error cambiando horarios: ' + (error.message || 'Error desconocido'));
       }
     }
   });
 
+  // Mutación para cancelar horario individual
+  const cancelSlotMutation = useMutation({
+    mutationFn: async ({ day, slotId }) => {
+      const validSlotId = extractSlotId(slotId);
+      if (!validSlotId) throw new Error('ID de slot inválido');
+      console.log(`🗑️ Cancelando slot: ${day}/${validSlotId}`);
+      return apiService.cancelScheduleSlot(day, validSlotId);
+    },
+    onSuccess: () => {
+      showSuccess('Horario cancelado exitosamente');
+      setRefreshTrigger(prev => prev + 1);
+      queryClient.invalidateQueries(['currentSchedule']);
+      queryClient.invalidateQueries(['availableScheduleOptions']);
+    },
+    onError: (error) => {
+      showError('Error cancelando horario: ' + (error.message || 'Error desconocido'));
+    }
+  });
+
   // Handlers
-  const handleStartChange = (day, currentSlotId = null) => {
-    setChangingSlot({ day, slotId: currentSlotId });
+  const handleSlotSelection = (day, slotId) => {
+    const validSlotId = extractSlotId(slotId);
+    if (!validSlotId) return;
+
+    console.log('🎯 Seleccionando slot:', { day, validSlotId });
+
+    setSelectedChanges(prev => {
+      const newChanges = { ...prev };
+      
+      if (!newChanges[day]) {
+        newChanges[day] = [];
+      }
+      
+      const index = newChanges[day].findIndex(id => extractSlotId(id) === validSlotId);
+      if (index > -1) {
+        // Deseleccionar
+        newChanges[day].splice(index, 1);
+        if (newChanges[day].length === 0) {
+          delete newChanges[day];
+        }
+      } else {
+        // Seleccionar (máximo 1 por día)
+        newChanges[day] = [validSlotId];
+      }
+      
+      console.log('🔄 Cambios actualizados:', newChanges);
+      return newChanges;
+    });
   };
 
-  const handleSelectNewSlot = (day, newSlotId) => {
-    // Crear el objeto de cambio para el backend
-    const changeData = {
-      [day]: [newSlotId] // Siempre máximo 1 slot por día
-    };
-    
-    changeScheduleMutation.mutate(changeData);
+  const handleApplyChanges = () => {
+    if (Object.keys(selectedChanges).length === 0) {
+      showInfo('No hay cambios para aplicar');
+      return;
+    }
+
+    const validatedChanges = {};
+    Object.entries(selectedChanges).forEach(([day, slots]) => {
+      const validSlots = slots.map(extractSlotId).filter(id => id !== null);
+      if (validSlots.length > 0) {
+        validatedChanges[day] = validSlots;
+      }
+    });
+
+    console.log('✅ Aplicando cambios validados:', validatedChanges);
+    changeScheduleMutation.mutate(validatedChanges);
   };
 
-  const handleCancelChange = () => {
-    setChangingSlot(null);
+  const handleCancelSlot = (day, slotId) => {
+    const validSlotId = extractSlotId(slotId);
+    if (!validSlotId) {
+      showError('ID de horario inválido');
+      return;
+    }
+
+    if (window.confirm('¿Seguro que quieres cancelar este horario?')) {
+      cancelSlotMutation.mutate({ day, slotId: validSlotId });
+    }
+  };
+
+  const toggleDayExpansion = (day) => {
+    setExpandedDays(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(day)) {
+        newSet.delete(day);
+      } else {
+        newSet.add(day);
+      }
+      return newSet;
+    });
   };
 
   const handleRefresh = () => {
     refetchSchedule();
+    if (editMode) refetchOptions();
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -260,10 +471,30 @@ const ScheduleManager = ({ onBack }) => {
           </div>
         </div>
         
-        <button onClick={handleRefresh} className="btn-outline btn-sm flex items-center" disabled={scheduleLoading}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${scheduleLoading ? 'animate-spin' : ''}`} />
-          Actualizar
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setEditMode(!editMode)}
+            className={`btn-sm flex items-center ${editMode ? 'btn-secondary' : 'btn-primary'}`}
+            disabled={!autoStats.remainingDays}
+          >
+            {editMode ? (
+              <>
+                <X className="w-4 h-4 mr-1" />
+                Cancelar Edición
+              </>
+            ) : (
+              <>
+                <Edit3 className="w-4 h-4 mr-1" />
+                Editar Horarios
+              </>
+            )}
+          </button>
+          
+          <button onClick={handleRefresh} className="btn-outline btn-sm flex items-center" disabled={scheduleLoading}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${scheduleLoading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {/* Información de membresía */}
@@ -300,13 +531,66 @@ const ScheduleManager = ({ onBack }) => {
         <StatCard title="Días Activos" value={autoStats.daysWithActivity} icon={Target} color="purple" subtitle="de 5 hábiles" />
       </div>
 
-      {/* Vista principal de horarios */}
+      {/* Cambios pendientes */}
+      {editMode && Object.keys(selectedChanges).length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Info className="w-5 h-5 text-amber-600 mr-2" />
+              <div>
+                <h3 className="font-semibold text-amber-900">Cambios Pendientes</h3>
+                <p className="text-amber-700 text-sm">
+                  {Object.keys(selectedChanges).length} día{Object.keys(selectedChanges).length !== 1 ? 's' : ''} • {
+                    Object.values(selectedChanges).reduce((sum, slots) => sum + slots.length, 0)
+                  } horario{Object.values(selectedChanges).reduce((sum, slots) => sum + slots.length, 0) !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setSelectedChanges({})}
+                disabled={changeScheduleMutation.isLoading}
+                className="btn-outline btn-sm"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Limpiar
+              </button>
+              <button
+                onClick={handleApplyChanges}
+                disabled={changeScheduleMutation.isLoading}
+                className="btn-primary btn-sm"
+              >
+                {changeScheduleMutation.isLoading ? (
+                  <>
+                    <div className="w-4 h-4 mr-1 animate-spin rounded-full border-b-2 border-white"></div>
+                    Aplicando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-1" />
+                    Guardar Cambios
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Calendario semanal integrado */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <CalendarIcon className="w-5 h-5 mr-2" />
-            Mi Calendario Semanal
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <CalendarIcon className="w-5 h-5 mr-2" />
+              {editMode ? 'Editar Horarios Semanales' : 'Tu Calendario Semanal'}
+            </h3>
+            {editMode && (
+              <span className="text-sm text-gray-600 bg-blue-100 px-3 py-1 rounded-full">
+                Modo Edición Activo
+              </span>
+            )}
+          </div>
         </div>
         
         {scheduleLoading ? (
@@ -317,162 +601,278 @@ const ScheduleManager = ({ onBack }) => {
         ) : (
           <div className="divide-y divide-gray-200">
             {Object.entries(currentSchedule.currentSchedule || {}).map(([day, dayData]) => (
-              <SimpleWeekDayRow
+              <WeekDayRowIntegrated
                 key={day}
                 day={day}
                 dayData={dayData}
-                onStartChange={handleStartChange}
-                isChanging={changingSlot?.day === day}
-                canEdit={autoStats.remainingDays > 0}
+                editMode={editMode}
+                availableOptions={availableOptions?.availableOptions?.[day]}
+                selectedChanges={selectedChanges[day] || []}
+                onSlotSelection={handleSlotSelection}
+                onCancelSlot={handleCancelSlot}
+                onExpandDay={toggleDayExpansion}
+                isExpanded={expandedDays.has(day)}
+                isUpdating={cancelSlotMutation.isLoading}
+                optionsLoading={optionsLoading}
+                optionsError={availableOptions?.error}
               />
             ))}
           </div>
         )}
       </div>
+    </div>
+  );
+};
 
-      {/* Modal/Panel para cambiar horario */}
-      {changingSlot && (
-        <ChangeSlotModal
-          day={changingSlot.day}
-          currentSlotId={changingSlot.slotId}
-          availableOptions={availableOptions?.availableOptions?.[changingSlot.day]}
-          isLoading={optionsLoading}
-          onSelectSlot={handleSelectNewSlot}
-          onCancel={handleCancelChange}
-          isUpdating={changeScheduleMutation.isLoading}
-        />
+// ================================
+// 🧩 COMPONENTE INTEGRADO PARA CADA DÍA
+// ================================
+
+const WeekDayRowIntegrated = ({ 
+  day, 
+  dayData, 
+  editMode, 
+  availableOptions, 
+  selectedChanges, 
+  onSlotSelection, 
+  onCancelSlot, 
+  onExpandDay,
+  isExpanded,
+  isUpdating,
+  optionsLoading,
+  optionsError
+}) => {
+  const [filterFranja, setFilterFranja] = useState('all');
+  
+  const isToday = () => {
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    return day === today;
+  };
+
+  // Traducir día
+  const dayNameSpanish = DIAS_ESPANOL[day] || traducirDia(dayData.dayName || day);
+
+  const hasAvailableSlots = availableOptions?.isOpen && availableOptions?.slots?.length > 0;
+  const canAddSlots = editMode && hasAvailableSlots;
+
+  console.log(`📊 ${dayNameSpanish} - Datos:`, {
+    hasSlots: dayData.hasSlots,
+    slotsCount: dayData.slots?.length || 0,
+    editMode,
+    hasAvailableSlots,
+    availableSlotsCount: availableOptions?.slots?.length || 0,
+    isExpanded,
+    selectedChanges
+  });
+
+  return (
+    <div className={`${isToday() ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}>
+      {/* Header del día */}
+      <div className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="mr-4">
+              <h4 className={`text-lg font-semibold ${isToday() ? 'text-blue-900' : 'text-gray-900'}`}>
+                {dayNameSpanish}
+                {isToday() && (
+                  <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                    Hoy
+                  </span>
+                )}
+              </h4>
+              <p className="text-sm text-gray-600 flex items-center">
+                <Clock className="w-4 h-4 mr-1" />
+                {dayData.hasSlots ? 
+                  `${dayData.slots.length} horario${dayData.slots.length !== 1 ? 's' : ''}` : 
+                  'Sin horarios'
+                }
+              </p>
+            </div>
+          </div>
+          
+          {/* Botones de acción */}
+          <div className="flex items-center space-x-2">
+            {editMode && (
+              <button
+                onClick={() => onExpandDay(isExpanded ? null : day)}
+                className="btn-outline btn-sm flex items-center"
+                disabled={optionsLoading}
+              >
+                <PlusCircle className="w-4 h-4 mr-1" />
+                {isExpanded ? 'Ocultar' : 'Cambiar/Agregar'}
+              </button>
+            )}
+            
+            {dayData.hasSlots && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                {dayData.slots.length}/{availableOptions?.slots?.length || '?'} slots
+              </span>
+            )}
+          </div>
+        </div>
+        
+        {/* Horarios actuales */}
+        {dayData.hasSlots && (
+          <div className="mt-4 space-y-2">
+            {dayData.slots.map((slot, index) => (
+              <CurrentSlotCardImproved
+                key={slot.id || index}
+                slot={slot}
+                day={day}
+                editMode={editMode}
+                onCancelSlot={onCancelSlot}
+                isUpdating={isUpdating}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Sin horarios actuales pero con opción de agregar */}
+        {!dayData.hasSlots && editMode && (
+          <div className="mt-4">
+            <button
+              onClick={() => onExpandDay(day)}
+              className="w-full p-4 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 transition-colors group"
+            >
+              <div className="text-center">
+                <PlusCircle className="w-8 h-8 mx-auto mb-2 text-green-500 group-hover:scale-110 transition-transform" />
+                <p className="text-green-700 font-medium">Agregar horario para {dayNameSpanish}</p>
+                <p className="text-green-600 text-sm">Haz clic para ver horarios disponibles</p>
+              </div>
+            </button>
+          </div>
+        )}
+        
+        {/* Sin horarios y sin opciones de edición */}
+        {!dayData.hasSlots && !editMode && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+            <div className="text-center text-gray-500">
+              <Clock3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Sin horarios configurados</p>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Panel expandido para cambiar/agregar horarios */}
+      {editMode && isExpanded && (
+        <div className="border-t border-gray-200 bg-gray-50 p-6">
+          {optionsLoading ? (
+            <div className="text-center py-4">
+              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600">Cargando opciones...</p>
+            </div>
+          ) : optionsError ? (
+            <div className="text-center py-4 text-red-500">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+              <p className="text-sm">Error: {optionsError}</p>
+            </div>
+          ) : hasAvailableSlots ? (
+            <AvailableSlotOptionsImproved
+              day={day}
+              dayName={dayNameSpanish}
+              availableOptions={availableOptions}
+              selectedChanges={selectedChanges}
+              onSlotSelection={onSlotSelection}
+              filterFranja={filterFranja}
+              setFilterFranja={setFilterFranja}
+            />
+          ) : (
+            <div className="text-center py-4 text-gray-500">
+              <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+              <p className="text-sm">No hay horarios disponibles para este día</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 };
 
 // ================================
-// 🧩 COMPONENTE SIMPLE PARA CADA DÍA
+// 🎯 COMPONENTE PARA SLOT ACTUAL
 // ================================
 
-const SimpleWeekDayRow = ({ day, dayData, onStartChange, isChanging, canEdit }) => {
-  const isToday = () => {
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    return day === today;
-  };
-
-  const dayNameSpanish = DIAS_ESPANOL[day] || dayData.dayName || day;
-
+const CurrentSlotCardImproved = ({ slot, day, editMode, onCancelSlot, isUpdating }) => {
   return (
-    <div className={`p-6 ${isToday() ? 'bg-blue-50 border-l-4 border-blue-500' : ''} ${isChanging ? 'bg-yellow-50' : ''}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <div className="mr-4">
-            <h4 className={`text-lg font-semibold ${isToday() ? 'text-blue-900' : 'text-gray-900'}`}>
-              {dayNameSpanish}
-              {isToday() && (
-                <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                  Hoy
-                </span>
-              )}
-            </h4>
+    <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all group">
+      <div className="flex items-center flex-1">
+        <div className="bg-blue-100 p-3 rounded-lg mr-4">
+          <Clock className="w-5 h-5 text-blue-600" />
+        </div>
+        <div className="flex-1">
+          <div className="font-semibold text-gray-900 text-lg">{slot.timeRange}</div>
+          {slot.label && (
+            <div className="text-sm text-gray-500 mt-1">{slot.label}</div>
+          )}
+          <div className="flex items-center text-xs text-gray-400 mt-2">
+            <Users className="w-3 h-3 mr-1" />
+            {slot.currentReservations || 0}/{slot.capacity || 0} ocupado
+            <span className="mx-2">•</span>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              (slot.availability || 0) > 5 
+                ? 'bg-green-100 text-green-700'
+                : (slot.availability || 0) > 0
+                ? 'bg-yellow-100 text-yellow-700'
+                : 'bg-red-100 text-red-700'
+            }`}>
+              {slot.availability || 0} disponibles
+            </span>
           </div>
         </div>
-        
-        <div className="flex-1 mx-6">
-          {dayData.hasSlots ? (
-            <div className="flex flex-wrap gap-2">
-              {dayData.slots.map((slot, index) => (
-                <div key={slot.id || index} className="flex items-center bg-gray-100 rounded-lg px-4 py-3">
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="font-medium text-gray-900">{slot.timeRange}</span>
-                    {slot.label && (
-                      <span className="ml-2 text-gray-500 text-sm">({slot.label})</span>
-                    )}
-                  </div>
-                  
-                  {canEdit && (
-                    <button
-                      onClick={() => onStartChange(day, slot.id)}
-                      disabled={isChanging}
-                      className="ml-3 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50"
-                    >
-                      Cambiar
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center">
-              <span className="text-gray-500 italic mr-4">Sin horarios programados</span>
-              {canEdit && (
-                <button
-                  onClick={() => onStartChange(day, null)}
-                  disabled={isChanging}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Agregar Horario
-                </button>
-              )}
-            </div>
-          )}
-        </div>
       </div>
+      
+      {editMode && slot.canCancel && (
+        <button
+          onClick={() => onCancelSlot(day, slot.id)}
+          disabled={isUpdating}
+          className="bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 ml-4"
+          title="Cancelar este horario"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span className="text-sm font-medium">Cancelar</span>
+        </button>
+      )}
     </div>
   );
 };
 
 // ================================
-// 🎯 MODAL PARA CAMBIAR HORARIO
+// 🎯 OPCIONES DISPONIBLES (ADAPTADO DEL CHECKOUT)
 // ================================
 
-const ChangeSlotModal = ({ 
+const AvailableSlotOptionsImproved = ({ 
   day, 
-  currentSlotId, 
+  dayName, 
   availableOptions, 
-  isLoading, 
-  onSelectSlot, 
-  onCancel, 
-  isUpdating 
+  selectedChanges, 
+  onSlotSelection,
+  filterFranja,
+  setFilterFranja 
 }) => {
-  const [filterFranja, setFilterFranja] = useState('all');
   const [isExpanded, setIsExpanded] = useState(false);
-  
-  const dayNameSpanish = DIAS_ESPANOL[day] || day;
-  const isAdding = currentSlotId === null;
 
-  if (isLoading) {
+  console.log(`🎮 ${dayName} - Opciones disponibles:`, {
+    isOpen: availableOptions?.isOpen,
+    slotsCount: availableOptions?.slots?.length || 0,
+    slots: availableOptions?.slots?.slice(0, 3) || []
+  });
+
+  if (!availableOptions?.slots?.length) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
-          <div className="text-center">
-            <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-gray-600">Cargando horarios disponibles...</p>
-          </div>
-        </div>
+      <div className="text-center py-8 text-gray-500">
+        <Clock3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <p>No hay slots disponibles para este día</p>
       </div>
     );
   }
 
-  if (!availableOptions?.isOpen || !availableOptions?.slots?.length) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
-          <div className="text-center">
-            <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Sin horarios disponibles</h3>
-            <p className="text-gray-600 mb-4">No hay horarios disponibles para {dayNameSpanish}</p>
-            <button onClick={onCancel} className="btn-secondary">Cerrar</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Agrupar horarios por franjas
-  const franjas = agruparHorariosPorFranja(availableOptions.slots);
+  // Agrupar horarios por franjas (igual que en checkout)
+  const franjas = agruparHorariosPorFranja(availableOptions.slots || []);
   
   // Filtrar slots según la franja seleccionada
   const slotsToShow = filterFranja === 'all' 
-    ? availableOptions.slots 
+    ? availableOptions.slots || []
     : franjas[filterFranja]?.slots || [];
 
   // Mostrar solo los primeros 6 si no está expandido
@@ -480,155 +880,149 @@ const ChangeSlotModal = ({
   const hasMoreSlots = slotsToShow.length > 6;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
-        
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {isAdding ? `Agregar horario - ${dayNameSpanish}` : `Cambiar horario - ${dayNameSpanish}`}
-            </h3>
-            <button onClick={onCancel} className="text-gray-400 hover:text-gray-600">
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-sm font-semibold text-gray-900">
+          Horarios Disponibles - {dayName}
+        </h4>
+        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
+          {slotsToShow.length} disponibles
+        </span>
+      </div>
 
-        {/* Filtros */}
-        {availableOptions.slots.length > 6 && (
-          <div className="px-6 py-3 border-b border-gray-100 bg-gray-50">
-            <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <div className="flex space-x-1">
+      {/* Filtros por franja */}
+      {availableOptions.slots && availableOptions.slots.length > 6 && (
+        <div className="flex items-center space-x-2 mb-4">
+          <Filter className="w-4 h-4 text-gray-500" />
+          <div className="flex space-x-1">
+            <button
+              onClick={() => setFilterFranja('all')}
+              className={`px-3 py-1 text-xs rounded-full transition-colors ${
+                filterFranja === 'all'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+            >
+              Todos
+            </button>
+            {Object.entries(franjas).map(([key, franja]) => (
+              franja.slots.length > 0 && (
                 <button
-                  onClick={() => setFilterFranja('all')}
+                  key={key}
+                  onClick={() => setFilterFranja(key)}
                   className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                    filterFranja === 'all'
+                    filterFranja === key
                       ? 'bg-primary-600 text-white'
                       : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                   }`}
                 >
-                  Todos ({availableOptions.slots.length})
+                  {franja.label.split(' ')[1]} ({franja.slots.length})
                 </button>
-                {Object.entries(franjas).map(([key, franja]) => (
-                  franja.slots.length > 0 && (
-                    <button
-                      key={key}
-                      onClick={() => setFilterFranja(key)}
-                      className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                        filterFranja === key
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                      }`}
-                    >
-                      {franja.label.split(' ')[1]} ({franja.slots.length})
-                    </button>
-                  )
-                ))}
-              </div>
-            </div>
+              )
+            ))}
           </div>
-        )}
-
-        {/* Contenido */}
-        <div className="p-6 max-h-96 overflow-y-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {displaySlots.map((slot) => {
-              const canSelect = slot.canReserve || slot.isCurrentlyMine;
-              const isCurrent = slot.isCurrentlyMine;
+        </div>
+      )}
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {displaySlots.map((slot) => {
+          const slotId = extractSlotId(slot.id);
+          const isSelected = selectedChanges.some(id => extractSlotId(id) === slotId);
+          const isCurrentlyMine = slot.isCurrentlyMine;
+          
+          return (
+            <button
+              key={slot.id}
+              onClick={() => onSlotSelection(day, slot.id)}
+              disabled={!slot.canSelect}
+              className={`
+                p-4 rounded-lg border-2 transition-all text-left relative overflow-hidden
+                ${isSelected ? 
+                  'border-green-500 bg-green-50 ring-2 ring-green-200 shadow-lg transform scale-105' :
+                  isCurrentlyMine ?
+                    'border-blue-500 bg-blue-50 ring-1 ring-blue-200' :
+                    slot.canSelect ? 
+                      'border-gray-200 hover:border-blue-300 hover:bg-blue-25 hover:shadow-md' :
+                      'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                }
+              `}
+            >
+              {/* Indicador de selección */}
+              {isSelected && (
+                <div className="absolute top-2 right-2">
+                  <div className="bg-green-500 text-white rounded-full p-1">
+                    <Check className="w-3 h-3" />
+                  </div>
+                </div>
+              )}
               
-              return (
-                <button
-                  key={slot.id}
-                  onClick={() => canSelect && onSelectSlot(day, slot.id)}
-                  disabled={!canSelect || isUpdating}
-                  className={`
-                    p-4 rounded-lg border-2 text-left transition-all
-                    ${isCurrent ? 
-                      'border-blue-500 bg-blue-50 ring-1 ring-blue-200' :
-                      canSelect ? 
-                        'border-gray-200 hover:border-green-400 hover:bg-green-50 hover:shadow-md' :
-                        'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
-                    }
-                  `}
-                >
-                  <div className="mb-2">
-                    <div className="font-semibold text-gray-900">{slot.timeRange}</div>
-                    {slot.label && (
-                      <div className="text-xs text-gray-500 mt-1">{slot.label}</div>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <div className="flex items-center text-xs">
-                      <Users className="w-3 h-3 mr-1 text-gray-400" />
-                      <span className="text-gray-600">
-                        {slot.available} de {slot.capacity} disponibles
-                      </span>
-                    </div>
-                    
-                    <div className="flex space-x-1">
-                      {isCurrent && (
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                          Mi horario actual
-                        </span>
-                      )}
-                      {slot.status === 'full' && (
-                        <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-                          Lleno
-                        </span>
-                      )}
-                      {slot.status === 'available' && slot.available <= 3 && slot.available > 0 && (
-                        <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs">
-                          Pocos cupos
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Botón mostrar más */}
-          {hasMoreSlots && (
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronUp className="w-4 h-4 mr-2" />
-                    Mostrar menos
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="w-4 h-4 mr-2" />
-                    Ver {slotsToShow.length - 6} horarios más
-                  </>
+              {/* Información del slot */}
+              <div className="mb-3">
+                <div className="font-semibold text-gray-900 text-lg">{slot.timeRange}</div>
+                {slot.label && (
+                  <div className="text-xs text-gray-500 mt-1">{slot.label}</div>
                 )}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <div className="flex justify-end space-x-3">
-            <button onClick={onCancel} className="btn-secondary" disabled={isUpdating}>
-              Cancelar
+              </div>
+              
+              {/* Estado y disponibilidad */}
+              <div className="space-y-2">
+                <div className="flex items-center text-xs">
+                  <Users className="w-3 h-3 mr-1 text-gray-400" />
+                  <span className="text-gray-600">
+                    {slot.available} de {slot.capacity} disponibles
+                  </span>
+                </div>
+                
+                <div className="flex space-x-1">
+                  {isCurrentlyMine && (
+                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                      Mi horario actual
+                    </span>
+                  )}
+                  {slot.status === 'full' && (
+                    <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+                      Lleno
+                    </span>
+                  )}
+                  {slot.status === 'available' && slot.available <= 3 && slot.available > 0 && (
+                    <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                      Pocos cupos
+                    </span>
+                  )}
+                </div>
+              </div>
             </button>
-          </div>
-        </div>
+          );
+        })}
       </div>
+
+      {/* Botón mostrar más */}
+      {hasMoreSlots && (
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="w-4 h-4 mr-2" />
+                Mostrar menos
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4 mr-2" />
+                Ver {slotsToShow.length - 6} horarios más
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
 // ================================
-// 🧩 COMPONENTES AUXILIARES
+// 🧩 COMPONENTES AUXILIARES (Sin cambios)
 // ================================
 
 const StatCard = ({ title, value, icon: Icon, color, subtitle }) => {
