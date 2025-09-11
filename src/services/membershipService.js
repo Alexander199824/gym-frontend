@@ -1,7 +1,7 @@
 /*
 Autor: Alexander Echeverria
 src/services/membershipService.js
-ACTUALIZADO: Con gestión completa de horarios para clientes
+COMPLETO: Con gestión completa de horarios adaptada al formato actual del backend
 */
 
 import apiService from './apiService';
@@ -291,32 +291,35 @@ class MembershipService {
   }
 
   // ================================
-  // 📅 NUEVOS MÉTODOS DE GESTIÓN DE HORARIOS
+  // 📅 MÉTODOS DE GESTIÓN DE HORARIOS ADAPTADOS
   // ================================
 
-  // OBTENER: Horarios actuales del cliente
+  // OBTENER: Horarios actuales del cliente (adaptado para backend actual)
   async getCurrentSchedule() {
     try {
-      console.log('📅 Obteniendo horarios actuales del cliente...');
+      console.log('📅 MembershipService: Obteniendo horarios actuales del cliente...');
       
       const response = await apiService.get('/api/memberships/my-schedule');
       
-      if (response?.success && response.data) {
-        console.log('✅ Horarios actuales obtenidos:', response.data);
-        return response.data;
-      }
+      console.log('📋 MembershipService: Respuesta cruda del backend:', response);
       
-      throw new Error('Error obteniendo horarios actuales');
+      // Usar normalización adaptada para el formato actual
+      const normalizedData = this.normalizeScheduleDataFallback(response);
+      console.log('✅ MembershipService: Datos normalizados:', normalizedData);
+      return normalizedData;
       
     } catch (error) {
-      console.error('❌ Error obteniendo horarios actuales:', error);
+      console.error('❌ MembershipService: Error obteniendo horarios actuales:', error);
       
       if (error.response?.status === 404) {
         // Usuario sin membresía o sin horarios
+        console.log('ℹ️ Usuario sin membresía activa');
         return {
           hasMembership: false,
           currentSchedule: {},
-          membership: null
+          membership: null,
+          canEditSchedule: false,
+          totalSlotsReserved: 0
         };
       }
       
@@ -324,57 +327,58 @@ class MembershipService {
     }
   }
 
-  // OBTENER: Opciones de horarios disponibles
+  // OBTENER: Opciones de horarios disponibles (adaptado)
   async getAvailableScheduleOptions(day = null) {
     try {
-      console.log('🔍 Obteniendo opciones de horarios disponibles...');
+      console.log('🔍 MembershipService: Obteniendo opciones de horarios disponibles...');
       
       const params = day ? { day } : {};
       const response = await apiService.get('/api/memberships/my-schedule/available-options', { params });
       
-      if (response?.success && response.data) {
-        console.log('✅ Opciones disponibles obtenidas:', response.data);
-        return response.data;
-      }
+      console.log('📋 MembershipService: Respuesta de opciones:', response);
       
-      throw new Error('Error obteniendo opciones disponibles');
+      // Usar normalización adaptada
+      const normalizedData = this.normalizeAvailableOptionsFallback(response);
+      console.log('✅ MembershipService: Opciones normalizadas:', normalizedData);
+      return normalizedData;
       
     } catch (error) {
-      console.error('❌ Error obteniendo opciones disponibles:', error);
+      console.error('❌ MembershipService: Error obteniendo opciones disponibles:', error);
       throw error;
     }
   }
 
-  // CAMBIAR: Horarios seleccionados del cliente
+  // CAMBIAR: Horarios seleccionados del cliente (con validación robusta)
   async changeClientSchedule(changes) {
     try {
-      console.log('✏️ Cambiando horarios del cliente...');
-      console.log('📤 Cambios a aplicar:', changes);
+      console.log('✏️ MembershipService: Cambiando horarios del cliente...');
+      console.log('📤 Cambios recibidos:', changes);
       
-      // Validar cambios antes de enviar
-      this.validateScheduleChanges(changes);
+      // Validar y limpiar cambios
+      const cleanedChanges = this.validateAndCleanChangesFallback(changes);
+      console.log('🧹 Cambios limpiados:', cleanedChanges);
       
       // Determinar tipo de cambio
-      const changeType = Object.keys(changes).length === 1 ? 
-        'single_day' : 
-        Object.keys(changes).length <= 3 ? 'multiple_days' : 'full_week';
+      const changeType = this.determineChangeType(cleanedChanges);
       
       const payload = {
         changeType,
-        changes
+        changes: cleanedChanges
       };
+      
+      console.log('📦 MembershipService: Enviando payload:', payload);
       
       const response = await apiService.post('/api/memberships/my-schedule/change', payload);
       
       if (response?.success) {
-        console.log('✅ Horarios cambiados exitosamente:', response.data);
+        console.log('✅ MembershipService: Horarios cambiados exitosamente:', response.data);
         return response.data;
       }
       
       throw new Error(response?.message || 'Error cambiando horarios');
       
     } catch (error) {
-      console.error('❌ Error cambiando horarios:', error);
+      console.error('❌ MembershipService: Error cambiando horarios:', error);
       
       // Manejo específico de errores de disponibilidad
       if (error.response?.data?.unavailableSlots) {
@@ -388,51 +392,64 @@ class MembershipService {
     }
   }
 
-  // CANCELAR: Horario específico
+  // CANCELAR: Horario específico (con validación de ID)
   async cancelScheduleSlot(day, slotId) {
     try {
-      console.log(`🗑️ Cancelando horario ${day}/${slotId}...`);
+      console.log(`🗑️ MembershipService: Cancelando horario ${day}/${slotId}...`);
       
-      const response = await apiService.delete(`/api/memberships/my-schedule/${day}/${slotId}`);
+      // Validar y extraer ID válido
+      const validSlotId = this.extractSlotId(slotId);
+      if (!validSlotId) {
+        throw new Error(`ID de slot inválido: ${slotId}`);
+      }
+      
+      console.log(`🗑️ MembershipService: Cancelando horario validado ${day}/${validSlotId}...`);
+      
+      const response = await apiService.delete(`/api/memberships/my-schedule/${day}/${validSlotId}`);
       
       if (response?.success) {
-        console.log('✅ Horario cancelado exitosamente');
+        console.log('✅ MembershipService: Horario cancelado exitosamente');
         return response.data;
       }
       
       throw new Error(response?.message || 'Error cancelando horario');
       
     } catch (error) {
-      console.error('❌ Error cancelando horario:', error);
+      console.error('❌ MembershipService: Error cancelando horario:', error);
       throw error;
     }
   }
 
-  // OBTENER: Estadísticas de horarios del cliente
+  // OBTENER: Estadísticas de horarios del cliente (con fallback mejorado)
   async getScheduleStats() {
     try {
-      console.log('📊 Obteniendo estadísticas de horarios...');
+      console.log('📊 MembershipService: Obteniendo estadísticas de horarios...');
       
       const response = await apiService.get('/api/memberships/my-schedule/stats');
       
       if (response?.success && response.data) {
-        console.log('✅ Estadísticas obtenidas:', response.data);
+        console.log('✅ MembershipService: Estadísticas obtenidas:', response.data);
         return response.data;
       }
       
       throw new Error('Error obteniendo estadísticas');
       
     } catch (error) {
-      console.error('❌ Error obteniendo estadísticas:', error);
+      console.error('❌ MembershipService: Error obteniendo estadísticas:', error);
       
       if (error.response?.status === 404) {
-        // Fallback con estadísticas vacías
+        // Fallback con estadísticas vacías mejoradas
+        console.log('📊 MembershipService: Usando estadísticas fallback');
         return {
-          totalSlots: 0,
-          usedSlots: 0,
-          availableSlots: 0,
-          favoriteTime: null,
-          totalVisits: 0
+          hasMembership: false,
+          stats: {
+            totalSlots: 0,
+            usedSlots: 0,
+            availableSlots: 0,
+            favoriteTime: null,
+            totalVisits: 0,
+            dayDistribution: {}
+          }
         };
       }
       
@@ -440,30 +457,374 @@ class MembershipService {
     }
   }
 
-  // PREVISUALIZAR: Cambios de horarios antes de confirmar
+  // PREVISUALIZAR: Cambios de horarios antes de confirmar (mejorado)
   async previewScheduleChanges(changes) {
     try {
-      console.log('👁️ Previsualizando cambios de horarios...');
+      console.log('👁️ MembershipService: Previsualizando cambios de horarios...');
+      
+      // Validar cambios antes de previsualizar
+      const cleanedChanges = this.validateAndCleanChangesFallback(changes);
       
       const response = await apiService.post('/api/memberships/my-schedule/preview-change', {
-        changes
+        changes: cleanedChanges
       });
       
       if (response?.success && response.data) {
-        console.log('✅ Vista previa generada:', response.data);
+        console.log('✅ MembershipService: Vista previa generada:', response.data);
         return response.data;
       }
       
       throw new Error('Error generando vista previa');
       
     } catch (error) {
-      console.error('❌ Error en vista previa:', error);
+      console.error('❌ MembershipService: Error en vista previa:', error);
       throw error;
     }
   }
 
   // ================================
-  // 🛠️ MÉTODOS HELPER Y VALIDACIONES
+  // 🛠️ MÉTODOS HELPER ADAPTADOS Y NUEVOS
+  // ================================
+
+  // Extraer ID de slot de forma segura (nuevo método)
+  extractSlotId(slot) {
+    if (typeof slot === 'number') {
+      return slot > 0 ? slot : null;
+    }
+    
+    if (typeof slot === 'string') {
+      const parsed = parseInt(slot);
+      return !isNaN(parsed) && parsed > 0 ? parsed : null;
+    }
+    
+    if (typeof slot === 'object' && slot) {
+      const id = slot.id || slot.slotId;
+      return this.extractSlotId(id);
+    }
+    
+    console.warn('⚠️ MembershipService: ID de slot inválido:', slot);
+    return null;
+  }
+
+  // Validar y limpiar cambios - fallback manual
+  validateAndCleanChangesFallback(changes) {
+    console.log('🔍 MembershipService: Validando cambios (fallback)...');
+    
+    if (!changes || typeof changes !== 'object') {
+      throw new Error('Los cambios deben ser un objeto válido');
+    }
+
+    if (Object.keys(changes).length === 0) {
+      throw new Error('Debe especificar al menos un cambio');
+    }
+
+    const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const cleanedChanges = {};
+    
+    for (const [day, slots] of Object.entries(changes)) {
+      // Validar nombre del día
+      if (!validDays.includes(day.toLowerCase())) {
+        console.warn(`⚠️ Día inválido ignorado: ${day}`);
+        continue;
+      }
+      
+      // Validar que slots sea un array
+      if (!Array.isArray(slots)) {
+        console.warn(`⚠️ Slots para ${day} no es un array:`, slots);
+        continue;
+      }
+      
+      // Limpiar y validar IDs de slots
+      const cleanedSlots = slots
+        .map(slot => this.extractSlotId(slot))
+        .filter(id => id !== null);
+      
+      if (cleanedSlots.length === 0) {
+        console.warn(`⚠️ No hay slots válidos para ${day}`);
+        continue;
+      }
+      
+      cleanedChanges[day] = cleanedSlots;
+    }
+
+    if (Object.keys(cleanedChanges).length === 0) {
+      throw new Error('No hay cambios válidos para procesar');
+    }
+
+    console.log('✅ MembershipService: Cambios validados (fallback)');
+    return cleanedChanges;
+  }
+
+  // Determinar tipo de cambio
+  determineChangeType(changes) {
+    const dayCount = Object.keys(changes).length;
+    
+    if (dayCount === 1) {
+      return 'single_day';
+    } else if (dayCount <= 3) {
+      return 'multiple_days';
+    } else {
+      return 'full_week';
+    }
+  }
+
+  // Normalizar datos de horarios - fallback manual
+  normalizeScheduleDataFallback(response) {
+    console.log('🔄 MembershipService: Normalizando horarios (fallback)...');
+    
+    if (!response) {
+      return this.getEmptyScheduleStructure();
+    }
+    
+    // Extraer datos de respuesta
+    const data = response.data || response;
+    
+    if (!data.hasMembership) {
+      return {
+        hasMembership: false,
+        currentSchedule: {},
+        membership: null,
+        canEditSchedule: false,
+        totalSlotsReserved: 0
+      };
+    }
+    
+    // Normalizar horarios actuales
+    const normalizedSchedule = this.normalizeCurrentScheduleFallback(data.currentSchedule);
+    
+    return {
+      hasMembership: true,
+      currentSchedule: normalizedSchedule,
+      membership: data.membership,
+      canEditSchedule: data.canEditSchedule !== false,
+      totalSlotsReserved: Object.values(normalizedSchedule).reduce((total, day) => 
+        total + (day.hasSlots ? day.slots.length : 0), 0
+      )
+    };
+  }
+
+  // Normalizar horarios actuales - fallback
+  normalizeCurrentScheduleFallback(currentSchedule) {
+    const dayNames = {
+      monday: 'Lunes',
+      tuesday: 'Martes',
+      wednesday: 'Miércoles',
+      thursday: 'Jueves',
+      friday: 'Viernes',
+      saturday: 'Sábado',
+      sunday: 'Domingo'
+    };
+
+    const normalized = {};
+
+    // Asegurar que todos los días estén presentes
+    Object.keys(dayNames).forEach(day => {
+      normalized[day] = {
+        dayName: dayNames[day],
+        hasSlots: false,
+        slots: []
+      };
+    });
+
+    if (!currentSchedule) {
+      return normalized;
+    }
+
+    // Procesar cada día
+    Object.entries(currentSchedule).forEach(([day, dayData]) => {
+      if (dayData && dayNames[day]) {
+        const slots = this.extractSlotsFromDayData(dayData);
+        normalized[day] = {
+          dayName: dayNames[day],
+          hasSlots: slots.length > 0,
+          slots: slots
+        };
+      }
+    });
+
+    return normalized;
+  }
+
+  // Extraer slots de datos de día (manejo de múltiples formatos)
+  extractSlotsFromDayData(dayData) {
+    // Caso 1: dayData.slots existe
+    if (dayData.slots && Array.isArray(dayData.slots)) {
+      return this.normalizeSlotsArray(dayData.slots);
+    }
+    
+    // Caso 2: dayData es un array directo
+    if (Array.isArray(dayData)) {
+      return this.normalizeSlotsArray(dayData);
+    }
+    
+    // Caso 3: dayData.hasSlots y puede tener estructura diferente
+    if (dayData.hasSlots && dayData.slots) {
+      return this.normalizeSlotsArray(dayData.slots);
+    }
+    
+    return [];
+  }
+
+  // Normalizar array de slots
+  normalizeSlotsArray(slots) {
+    if (!Array.isArray(slots)) return [];
+    
+    return slots.map((slot, index) => {
+      if (typeof slot === 'object' && slot) {
+        return {
+          id: slot.id || slot.slotId || index,
+          timeRange: slot.timeRange || this.buildTimeRange(slot.openTime, slot.closeTime),
+          openTime: slot.openTime || '00:00',
+          closeTime: slot.closeTime || '00:00',
+          label: slot.label || slot.slotLabel || '',
+          capacity: slot.capacity || 0,
+          currentReservations: slot.currentReservations || 0,
+          availability: slot.availability || 0,
+          canCancel: slot.canCancel !== false
+        };
+      }
+      
+      // Si es solo un ID
+      return {
+        id: this.extractSlotId(slot) || index,
+        timeRange: 'Horario configurado',
+        openTime: '00:00',
+        closeTime: '00:00',
+        label: '',
+        capacity: 0,
+        currentReservations: 0,
+        availability: 0,
+        canCancel: true
+      };
+    }).filter(slot => slot.id !== null);
+  }
+
+  // Construir timeRange desde openTime y closeTime
+  buildTimeRange(openTime, closeTime) {
+    if (!openTime || !closeTime) {
+      return 'Horario';
+    }
+    
+    const formatTime = (time) => {
+      if (typeof time === 'string' && time.includes(':')) {
+        return time.slice(0, 5);
+      }
+      return time;
+    };
+    
+    return `${formatTime(openTime)} - ${formatTime(closeTime)}`;
+  }
+
+  // Normalizar opciones disponibles - fallback
+  normalizeAvailableOptionsFallback(response) {
+    console.log('🔄 MembershipService: Normalizando opciones disponibles (fallback)...');
+    
+    if (!response || !response.availableOptions) {
+      return {
+        membershipId: null,
+        planInfo: null,
+        availableOptions: {},
+        currentSchedule: {},
+        summary: null
+      };
+    }
+    
+    const normalized = {
+      membershipId: response.membershipId,
+      planInfo: response.planInfo,
+      availableOptions: {},
+      currentSchedule: response.currentSchedule || {},
+      summary: response.summary
+    };
+    
+    // Normalizar opciones por día
+    Object.entries(response.availableOptions).forEach(([day, dayData]) => {
+      normalized.availableOptions[day] = this.normalizeDayOptionsFallback(day, dayData);
+    });
+    
+    return normalized;
+  }
+
+  // Normalizar opciones de día - fallback
+  normalizeDayOptionsFallback(day, dayData) {
+    const dayNames = {
+      monday: 'Lunes',
+      tuesday: 'Martes',
+      wednesday: 'Miércoles',
+      thursday: 'Jueves',
+      friday: 'Viernes',
+      saturday: 'Sábado',
+      sunday: 'Domingo'
+    };
+    
+    if (!dayData) {
+      return {
+        dayName: dayNames[day] || day,
+        isOpen: false,
+        slots: [],
+        totalAvailable: 0
+      };
+    }
+    
+    const normalized = {
+      dayName: dayNames[day] || day,
+      isOpen: dayData.isOpen !== false,
+      slots: [],
+      totalAvailable: 0
+    };
+    
+    if (normalized.isOpen && dayData.slots && Array.isArray(dayData.slots)) {
+      normalized.slots = dayData.slots.map(slot => ({
+        id: slot.id,
+        timeRange: slot.timeRange || this.buildTimeRange(slot.openTime, slot.closeTime),
+        openTime: slot.openTime || '00:00',
+        closeTime: slot.closeTime || '00:00',
+        label: slot.label || '',
+        capacity: slot.capacity || 0,
+        available: slot.available || 0,
+        canSelect: slot.canSelect !== false,
+        isCurrentlyMine: slot.isCurrentlyMine || false,
+        status: slot.status || 'available'
+      }));
+      
+      normalized.totalAvailable = normalized.slots.filter(s => s.canSelect).length;
+    }
+    
+    return normalized;
+  }
+
+  // Estructura vacía de horarios
+  getEmptyScheduleStructure() {
+    const dayNames = {
+      monday: 'Lunes',
+      tuesday: 'Martes',
+      wednesday: 'Miércoles',
+      thursday: 'Jueves',
+      friday: 'Viernes',
+      saturday: 'Sábado',
+      sunday: 'Domingo'
+    };
+
+    const emptySchedule = {};
+    Object.entries(dayNames).forEach(([day, dayName]) => {
+      emptySchedule[day] = {
+        dayName,
+        hasSlots: false,
+        slots: []
+      };
+    });
+
+    return {
+      hasMembership: false,
+      currentSchedule: emptySchedule,
+      membership: null,
+      canEditSchedule: false,
+      totalSlotsReserved: 0
+    };
+  }
+
+  // ================================
+  // 🛠️ MÉTODOS HELPER ORIGINALES
   // ================================
   
   // HELPER: Calcular días hasta vencimiento
@@ -478,56 +839,29 @@ class MembershipService {
     return diffDays;
   }
 
-  // VALIDAR: Cambios de horarios
+  // VALIDAR: Cambios de horarios (método público actualizado)
   validateScheduleChanges(changes) {
-    if (!changes || typeof changes !== 'object') {
-      throw new Error('Los cambios deben ser un objeto válido');
+    try {
+      this.validateAndCleanChangesFallback(changes);
+      return true;
+    } catch (error) {
+      console.error('❌ MembershipService: Validación falló:', error.message);
+      return false;
     }
-
-    if (Object.keys(changes).length === 0) {
-      throw new Error('Debe especificar al menos un cambio');
-    }
-
-    const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    
-    for (const [day, slots] of Object.entries(changes)) {
-      if (!validDays.includes(day)) {
-        throw new Error(`Día inválido: ${day}`);
-      }
-      
-      if (!Array.isArray(slots)) {
-        throw new Error(`Los slots para ${day} deben ser un array`);
-      }
-      
-      if (slots.length === 0) {
-        throw new Error(`Debe especificar al menos un slot para ${day}`);
-      }
-    }
-
-    return true;
   }
 
-  // FORMATEAR: Horarios para visualización
+  // FORMATEAR: Horarios para visualización (actualizado)
   formatScheduleForDisplay(schedule) {
     if (!schedule || !schedule.currentSchedule) {
+      console.warn('MembershipService: No hay datos de horarios para formatear');
       return {};
     }
 
     const formatted = {};
-    const dayNames = {
-      monday: 'Lunes',
-      tuesday: 'Martes', 
-      wednesday: 'Miércoles',
-      thursday: 'Jueves',
-      friday: 'Viernes',
-      saturday: 'Sábado',
-      sunday: 'Domingo'
-    };
 
-    for (const [day, dayData] of Object.entries(schedule.currentSchedule)) {
+    Object.entries(schedule.currentSchedule).forEach(([day, dayData]) => {
       formatted[day] = {
         ...dayData,
-        dayName: dayNames[day] || day,
         formattedSlots: dayData.slots?.map(slot => ({
           ...slot,
           displayTime: this.formatTimeRange(slot.timeRange),
@@ -535,8 +869,9 @@ class MembershipService {
           isPast: this.isPastTime(slot.timeRange)
         })) || []
       };
-    }
+    });
 
+    console.log('✅ MembershipService: Horarios formateados para visualización');
     return formatted;
   }
 
@@ -548,7 +883,9 @@ class MembershipService {
 
   // HELPER: Verificar si el horario ya pasó
   isPastTime(timeRange) {
-    if (!timeRange) return false;
+    if (!timeRange || timeRange === 'Horario' || timeRange === 'Horario configurado') {
+      return false;
+    }
     
     try {
       const now = new Date();
@@ -566,7 +903,9 @@ class MembershipService {
 
   // HELPER: Formatear rango de tiempo
   formatTimeRange(timeRange) {
-    if (!timeRange) return '';
+    if (!timeRange || timeRange === 'Horario' || timeRange === 'Horario configurado') {
+      return timeRange;
+    }
     
     try {
       const [start, end] = timeRange.split(' - ');
@@ -588,6 +927,7 @@ class MembershipService {
       
       return `${displayHour}:${minutes} ${period}`;
     } catch (error) {
+      console.warn('MembershipService: Error formateando tiempo:', error);
       return time;
     }
   }
@@ -698,6 +1038,60 @@ class MembershipService {
     }, maxDuration);
     
     return pollInterval;
+  }
+
+  // ================================
+  // 📊 HELPERS MEJORADOS PARA ESTADÍSTICAS LOCALES
+  // ================================
+
+  // Calcular estadísticas locales mejorado
+  calculateLocalScheduleStats(schedule) {
+    if (!schedule?.currentSchedule) {
+      return null;
+    }
+
+    const currentScheduleData = schedule.currentSchedule;
+    let totalSlots = 0;
+    const dayDistribution = {};
+    const allTimes = [];
+
+    Object.entries(currentScheduleData).forEach(([day, dayData]) => {
+      const slotsCount = dayData.hasSlots ? dayData.slots.length : 0;
+      
+      dayDistribution[dayData.dayName] = slotsCount;
+      totalSlots += slotsCount;
+      
+      if (dayData.hasSlots && dayData.slots) {
+        dayData.slots.forEach(slot => {
+          if (slot.timeRange && slot.timeRange !== 'Horario' && slot.timeRange !== 'Horario configurado') {
+            allTimes.push(slot.timeRange);
+          }
+        });
+      }
+    });
+
+    // Encontrar horario más común
+    const timeFrequency = {};
+    allTimes.forEach(time => {
+      timeFrequency[time] = (timeFrequency[time] || 0) + 1;
+    });
+
+    const favoriteTime = Object.keys(timeFrequency).length > 0 ? 
+      Object.keys(timeFrequency).reduce((a, b) => 
+        timeFrequency[a] > timeFrequency[b] ? a : b
+      ) : null;
+
+    const stats = {
+      totalSlots,
+      usedSlots: totalSlots,
+      availableSlots: 0,
+      totalVisits: totalSlots * 4, // Estimación semanal
+      favoriteTime,
+      dayDistribution
+    };
+
+    console.log('📊 MembershipService: Estadísticas locales calculadas:', stats);
+    return stats;
   }
 }
 
