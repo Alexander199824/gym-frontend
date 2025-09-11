@@ -36,6 +36,9 @@ const AdminDashboard = React.lazy(() => import('./pages/dashboard/AdminDashboard
 const StaffDashboard = React.lazy(() => import('./pages/dashboard/StaffDashboard'));
 const ClientDashboard = React.lazy(() => import('./pages/dashboard/ClientDashboard'));
 
+// 🆕 NUEVA IMPORTACIÓN: Gestión de Página Web
+const WebsiteManager = React.lazy(() => import('./pages/dashboard/admin/WebsiteManager'));
+
 // Componentes específicos del dashboard
 const UsersManager = React.lazy(() => import('./pages/dashboard/components/UsersManager'));
 const MembershipsManager = React.lazy(() => import('./pages/dashboard/components/MembershipsManager'));
@@ -404,6 +407,13 @@ function AppContent() {
             <Route path="admin" element={
               <ProtectedRoute requiredRole="admin">
                 <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            
+            {/* 🆕 NUEVA RUTA: Gestión de Página Web - Solo para administradores */}
+            <Route path="admin/website" element={
+              <ProtectedRoute requiredRole="admin">
+                <WebsiteManager />
               </ProtectedRoute>
             } />
             
