@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/Sidebar.js
 // FUNCIÓN: Sidebar solo para desktop con navegación colapsable
-// ACTUALIZADO: Con opción de Gestión de Página Web y opciones específicas para clientes
+// ACTUALIZADO: Con gestión de horarios separada del gestor web
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -81,17 +81,20 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // Horarios según el rol
-    if (hasPermission('manage_gym_schedule')) {
-      // Admin: gestión de horarios del gimnasio
+    // 🆕 GESTIÓN DE HORARIOS - Solo para administradores con permisos
+    if (canManageContent && user?.role === 'admin') {
       baseItems.push({
-        id: 'gym_schedule',
-        label: 'Horarios del Gimnasio',
+        id: 'schedule_manager',
+        label: 'Gestión de Horarios',
         icon: Clock,
-        path: '/dashboard/schedule',
-        show: true
+        path: '/dashboard/admin/schedule',
+        show: true,
+        isNew: true // Marcar como nueva para destacar visualmente
       });
-    } else if (user?.role === 'cliente') {
+    }
+    
+    // Horarios según el rol (para clientes)
+    if (user?.role === 'cliente') {
       // Cliente: gestión de sus propios horarios
       baseItems.push({
         id: 'my_schedule',
@@ -122,8 +125,8 @@ const Sidebar = ({ collapsed }) => {
       show: true
     });
     
-    // *** NUEVA OPCIÓN: Gestión de Página Web - Solo para administradores con permisos ***
-    if (canManageContent) {
+    // 🆕 GESTIÓN DE PÁGINA WEB - Solo para administradores con permisos
+    if (canManageContent && user?.role === 'admin') {
       baseItems.push({
         id: 'website_manager',
         label: 'Gestión de Página Web',
@@ -424,6 +427,47 @@ const Sidebar = ({ collapsed }) => {
 };
 
 export default Sidebar;
+
+/*
+🆕 CAMBIOS PRINCIPALES EN Sidebar.js:
+
+NUEVA OPCIÓN AGREGADA:
+- "Gestión de Horarios" con icono Clock
+- Solo visible para administradores con canManageContent
+- Ruta: /dashboard/admin/schedule
+- Badge "Nuevo" para destacar la funcionalidad
+- Punto verde animado cuando está colapsado
+
+REORDENAMIENTO LÓGICO:
+1. Panel Principal
+2. Usuarios (admin/staff)
+3. Membresías (según rol)
+4. 🆕 Gestión de Horarios (admin) - NUEVA
+5. Mis Horarios (clientes)
+6. Pagos
+7. Tienda
+8. 🆕 Gestión de Página Web (admin) - YA EXISTÍA
+9. Reportes
+10. Configuración del Sistema
+
+BENEFICIOS DE LA SEPARACIÓN:
+- Acceso directo a gestión de horarios desde sidebar
+- Gestión web y horarios claramente separadas
+- Flujo de trabajo más intuitivo para administradores
+- URLs específicas para cada funcionalidad:
+  * Horarios: /dashboard/admin/schedule
+  * Web: /dashboard/admin/website
+
+INDICADORES VISUALES:
+- Ambas opciones marcadas como "Nuevo" temporalmente
+- Puntos verdes animados cuando sidebar está colapsado
+- Tooltips informativos en modo colapsado
+- Estados activos claramente diferenciados
+
+Esta actualización proporciona acceso independiente y directo a la 
+gestión de horarios, mejorando significativamente la experiencia 
+de usuario para administradores del gimnasio.
+*/
 
 /*
 DOCUMENTACIÓN DEL COMPONENTE Sidebar ACTUALIZADO

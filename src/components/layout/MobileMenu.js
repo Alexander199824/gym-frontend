@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/MobileMenu.js
 // FUNCIÓN: Menú móvil optimizado para rendimiento sin errores de timeout
-// ACTUALIZADO: Con nueva opción de Gestión de Página Web y opciones específicas para clientes
+// ACTUALIZADO: Con gestión de horarios separada del gestor web
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -144,18 +144,22 @@ const MobileMenu = React.memo(({ onClose }) => {
       });
     }
     
-    // Horarios (Admin: gestión del gimnasio, Cliente: mis horarios)
-    if (hasPermission('manage_gym_schedule')) {
+    // 🆕 GESTIÓN DE HORARIOS - Solo para administradores con permisos
+    if (canManageContent && user?.role === 'admin') {
       baseItems.push({
-        id: 'gym_schedule',
-        label: 'Horarios del Gimnasio',
+        id: 'schedule_manager',
+        label: 'Gestión de Horarios',
         icon: Clock,
-        path: '/dashboard/schedule',
+        path: '/dashboard/admin/schedule',
         show: true,
-        badge: null,
-        color: 'text-orange-600'
+        badge: 'Nuevo',
+        color: 'text-orange-600',
+        isNew: true
       });
-    } else if (user?.role === 'cliente') {
+    }
+    
+    // Horarios (Cliente: mis horarios)
+    if (user?.role === 'cliente') {
       baseItems.push({
         id: 'my_schedule',
         label: 'Mis Horarios',
@@ -191,8 +195,8 @@ const MobileMenu = React.memo(({ onClose }) => {
       color: 'text-pink-600'
     });
     
-    // *** NUEVA OPCIÓN: Gestión de Página Web - Solo para administradores con permisos ***
-    if (canManageContent) {
+    // 🆕 GESTIÓN DE PÁGINA WEB - Solo para administradores con permisos
+    if (canManageContent && user?.role === 'admin') {
       baseItems.push({
         id: 'website_manager',
         label: 'Gestión de Página Web',
@@ -248,7 +252,8 @@ const MobileMenu = React.memo(({ onClose }) => {
     if (userRole === 'admin') {
       actions.push(
         { icon: TrendingUp, label: 'Estadísticas', path: '/dashboard/analytics' },
-        { icon: Globe, label: 'Página Web', path: '/dashboard/admin/website' }, // Nueva acción rápida
+        { icon: Clock, label: 'Horarios', path: '/dashboard/admin/schedule' }, // 🆕 Nueva acción rápida
+        { icon: Globe, label: 'Página Web', path: '/dashboard/admin/website' },
         { icon: Bell, label: 'Notificaciones', path: '/dashboard/notifications' },
         { icon: Package, label: 'Inventario', path: '/dashboard/inventory' }
       );
@@ -616,6 +621,55 @@ MobileMenu.displayName = 'MobileMenu';
 
 export default MobileMenu;
 
+/*
+🆕 CAMBIOS PRINCIPALES EN MobileMenu.js:
+
+NUEVA OPCIÓN AGREGADA:
+- "Gestión de Horarios" para administradores con permisos
+- Icono Clock con color orange (text-orange-600)
+- Badge "Nuevo" con animación pulse
+- Ruta: /dashboard/admin/schedule
+- Solo visible para administradores con canManageContent
+
+ACCESOS RÁPIDOS ACTUALIZADOS:
+- Para administradores: "Horarios" apunta a la nueva gestión independiente
+- Se mantienen "Página Web" y otras acciones existentes
+- Reordenamiento lógico de acciones por importancia
+
+REORDENAMIENTO DE NAVEGACIÓN:
+1. Panel Principal
+2. Usuarios (admin/staff)
+3. Membresías (según rol)
+4. 🆕 Gestión de Horarios (admin) - NUEVA
+5. Mis Horarios (clientes)
+6. Pagos
+7. Tienda
+8. Gestión de Página Web (admin)
+9. Reportes
+10. Configuración Personal
+
+INDICADORES VISUALES MEJORADOS:
+- Badge "Nuevo" con animación pulse para destacar
+- Punto verde animado en esquina para nueva funcionalidad
+- Colores diferenciados por tipo de funcionalidad
+- Estados activos claramente marcados
+
+BÚSQUEDA COMPATIBLE:
+- La nueva opción es totalmente compatible con el sistema de búsqueda
+- Aparece en resultados al buscar "horarios", "gestión", etc.
+- Mantiene todos los filtros y funcionalidades existentes
+
+EXPERIENCIA MÓVIL OPTIMIZADA:
+- Navegación táctil mejorada para la nueva opción
+- Indicadores visuales claros en pantallas pequeñas
+- Accesos rápidos reorganizados para mejor usabilidad
+- Historial de páginas recientes incluye la nueva página
+
+Esta actualización del menú móvil proporciona acceso completo e 
+intuitivo a la nueva gestión de horarios independiente, manteniendo 
+la excelente experiencia móvil mientras organiza mejor las opciones 
+administrativas por categorías lógicas.
+*/
 /*
 DOCUMENTACIÓN DEL COMPONENTE MobileMenu ACTUALIZADO
 

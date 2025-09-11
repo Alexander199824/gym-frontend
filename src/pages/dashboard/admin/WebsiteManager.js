@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/admin/WebsiteManager.js
 // FUNCIÓN: Página principal para gestión de contenido web desde sidebar
-// NUEVA ESTRUCTURA: Separada del AdminDashboard principal
+// ACTUALIZADO: Sin gestión de horarios (movida a ScheduleManager independiente)
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -31,14 +31,11 @@ const WebsiteManager = () => {
   const [savingSection, setSavingSection] = useState(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   
-  // Estados para datos de contenido con soporte para horarios flexibles
+  // Estados para datos de contenido (sin horarios)
   const [gymConfigData, setGymConfigData] = useState({ data: null, isLoading: false, error: null });
   const [servicesData, setServicesData] = useState({ data: null, isLoading: false, error: null });
   const [membershipPlansData, setMembershipPlansData] = useState({ data: null, isLoading: false, error: null });
   const [featuredProductsData, setFeaturedProductsData] = useState({ data: null, isLoading: false, error: null });
-  
-  // Estados específicos para horarios flexibles
-  const [capacityMetrics, setCapacityMetrics] = useState({ data: null, isLoading: false, error: null });
   
   // Verificar permisos
   useEffect(() => {
@@ -48,12 +45,12 @@ const WebsiteManager = () => {
     }
   }, [canManageContent, showError]);
   
-  // Cargar datos de contenido con soporte para horarios flexibles
+  // Cargar datos de contenido (sin horarios)
   const loadContentData = async () => {
-    console.log('WebsiteManager - Cargando datos de gestión de contenido...');
+    console.log('WebsiteManager - Cargando datos de gestión de contenido (sin horarios)...');
     
     try {
-      // Configuración del gimnasio con horarios flexibles
+      // Configuración del gimnasio (sin horarios)
       setGymConfigData({ data: null, isLoading: true, error: null });
       try {
         console.log('Cargando configuración del gimnasio usando endpoint del editor...');
@@ -61,12 +58,12 @@ const WebsiteManager = () => {
         const configData = gymConfigResponse?.data || gymConfigResponse;
         setGymConfigData({ data: configData, isLoading: false, error: null });
         
-        console.log('Configuración del gimnasio cargada para WebsiteManager con horarios flexibles:', {
+        console.log('Configuración del gimnasio cargada para WebsiteManager (sin horarios):', {
           hasConfig: !!configData,
           hasName: !!configData?.name,
-          hasHours: !!configData?.hours,
-          hasFlexibleStructure: configData?.hours ? 
-            Object.values(configData.hours).some(day => day?.timeSlots?.length > 0) : false
+          hasContact: !!configData?.contact,
+          hasSocial: !!configData?.social,
+          hasStats: !!configData?.stats
         });
       } catch (error) {
         console.log('Editor de configuración del gimnasio no disponible, intentando respaldo:', error.message);
@@ -117,24 +114,12 @@ const WebsiteManager = () => {
         setFeaturedProductsData({ data: null, isLoading: false, error });
       }
       
-      // Cargar métricas de capacidad para horarios flexibles
-      setCapacityMetrics({ data: null, isLoading: true, error: null });
-      try {
-        const capacityResponse = await apiService.getCapacityMetrics();
-        const capacity = capacityResponse?.data || capacityResponse;
-        setCapacityMetrics({ data: capacity, isLoading: false, error: null });
-        console.log('Métricas de capacidad cargadas para WebsiteManager:', capacity);
-      } catch (error) {
-        console.log('Métricas de capacidad no disponibles:', error.message);
-        setCapacityMetrics({ data: null, isLoading: false, error });
-      }
-      
     } catch (error) {
       console.error('Error cargando datos de contenido:', error);
     }
   };
   
-  // Refrescar datos con soporte para horarios flexibles
+  // Refrescar datos
   const refreshWebsiteData = () => {
     setRefreshKey(prev => prev + 1);
     loadContentData();
@@ -147,16 +132,14 @@ const WebsiteManager = () => {
     loadContentData();
   }, [refreshKey]);
   
-  // Secciones de gestión web con indicadores de horarios flexibles
+  // Secciones de gestión web (sin horarios)
   const webSections = [
     {
       id: 'general',
       title: 'Información General',
       icon: Info,
-      description: 'Nombre, descripción, contacto, horarios flexibles',
+      description: 'Nombre, descripción, contacto, redes sociales',
       dataLoaded: !!gymConfigData.data && !gymConfigData.isLoading,
-      hasFlexibleHours: gymConfigData.data?.hours ? 
-        Object.values(gymConfigData.data.hours).some(day => day?.timeSlots?.length > 0) : false,
       color: 'blue'
     },
     {
@@ -206,28 +189,20 @@ const WebsiteManager = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
   
-  // FUNCIONES PARA SISTEMA DE HORARIOS FLEXIBLES
-  
-  // Guardar configuración con soporte para horarios flexibles
+  // Guardar configuración (sin horarios)
   const handleSaveConfig = async (saveData) => {
-    console.log('WebsiteManager - Guardando configuración del gimnasio con horarios flexibles:', saveData);
+    console.log('WebsiteManager - Guardando configuración del gimnasio (sin horarios):', saveData);
     
     try {
       setSavingSection('general');
       let result;
       
-      // Verificar si es guardado por secciones (nuevo sistema de horarios flexibles)
+      // Verificar si es guardado por secciones
       if (saveData.section && saveData.data) {
         console.log(`Guardando sección: ${saveData.section}`);
         
         // Usar el nuevo método para guardar por secciones
-        if (saveData.section === 'schedule') {
-          // Guardar horarios flexibles
-          result = await apiService.saveFlexibleSchedule(saveData.data.hours);
-        } else {
-          // Guardar otras secciones
-          result = await apiService.saveGymConfigSection(saveData.section, saveData.data);
-        }
+        result = await apiService.saveGymConfigSection(saveData.section, saveData.data);
         
       } else {
         // Guardado tradicional (mantener compatibilidad)
@@ -244,19 +219,6 @@ const WebsiteManager = () => {
         // Mostrar mensaje de éxito específico
         const successMessage = result.message || 'Configuración guardada exitosamente';
         showSuccess(successMessage);
-        
-        // Si se guardaron horarios, actualizar métricas de capacidad
-        if (saveData.section === 'schedule') {
-          console.log('Refrescando métricas de capacidad después de guardar horarios...');
-          try {
-            const capacityResponse = await apiService.getCapacityMetrics();
-            const capacity = capacityResponse?.data || capacityResponse;
-            setCapacityMetrics({ data: capacity, isLoading: false, error: null });
-            console.log('Métricas de capacidad actualizadas:', capacity);
-          } catch (error) {
-            console.log('No se pudieron actualizar las métricas de capacidad:', error.message);
-          }
-        }
         
       } else {
         console.warn('El resultado del guardado podría ser diferente al esperado:', result);
@@ -408,36 +370,23 @@ const WebsiteManager = () => {
           
           {showDebugInfo && (
             <div className="absolute bottom-10 right-0 bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 shadow-lg min-w-80">
-              <div className="font-medium mb-2">WebsiteManager - Horarios Flexibles</div>
+              <div className="font-medium mb-2">WebsiteManager - Sin Horarios</div>
               <div className="space-y-1">
                 <div>Usuario: {user?.firstName} {user?.lastName} ({user?.role})</div>
                 <div>Puede gestionar contenido: {canManageContent ? 'Sí' : 'No'}</div>
                 <div>Sección activa: {activeSection}</div>
                 
-                {/* Debug info específico para horarios flexibles */}
                 <div className="border-t pt-1 mt-1">
-                  <div className="font-medium text-green-700">Estado de Horarios Flexibles:</div>
+                  <div className="font-medium text-green-700">Estado del Contenido:</div>
                   <div>Configuración cargada: {gymConfigData.data ? 'Sí' : 'No'}</div>
-                  <div>Tiene horarios: {gymConfigData.data?.hours ? 'Sí' : 'No'}</div>
-                  {gymConfigData.data?.hours && (
-                    <>
-                      <div>Días abiertos: {Object.keys(gymConfigData.data.hours).filter(day => gymConfigData.data.hours[day]?.isOpen).length}/7</div>
-                      <div>Total de horarios: {Object.values(gymConfigData.data.hours).reduce((sum, day) => sum + (day?.timeSlots?.length || 0), 0)}</div>
-                      <div>Tiene flexibilidad: {Object.values(gymConfigData.data.hours).some(day => day?.timeSlots?.length > 1) ? 'Sí' : 'No'}</div>
-                    </>
-                  )}
-                  <div>Métricas de capacidad: {capacityMetrics.data ? 'Sí' : 'No'}</div>
-                  {capacityMetrics.data && (
-                    <>
-                      <div>Capacidad total: {capacityMetrics.data.totalCapacity || 0}</div>
-                      <div>Ocupación: {capacityMetrics.data.averageOccupancy || 0}%</div>
-                    </>
-                  )}
+                  <div>Servicios: {servicesData.data ? 'Sí' : 'No'}</div>
+                  <div>Planes: {membershipPlansData.data ? 'Sí' : 'No'}</div>
+                  <div>Productos: {featuredProductsData.data ? 'Sí' : 'No'}</div>
                 </div>
                 
-                <div className="border-t pt-1 mt-1">
-                  <div>Servicios: {servicesData.data ? 'Sí' : 'No'} | Planes: {membershipPlansData.data ? 'Sí' : 'No'}</div>
-                  <div>Productos: {featuredProductsData.data ? 'Sí' : 'No'} | Multimedia: {gymConfigData.data ? 'Sí' : 'No'}</div>
+                <div className="border-t pt-1 mt-1 text-blue-700">
+                  <div>🗑️ Horarios removidos de este gestor</div>
+                  <div>📍 Nueva ubicación: /dashboard/admin/schedule</div>
                 </div>
               </div>
             </div>
@@ -455,25 +404,27 @@ const WebsiteManager = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Administra el contenido, horarios flexibles y elementos visuales de tu página web
+            Administra el contenido y elementos visuales de tu página web
           </p>
           
-          {/* Mostrar métricas de horarios flexibles */}
-          {capacityMetrics.data && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                Capacidad total: {capacityMetrics.data.totalCapacity}
-              </span>
-              <span className="text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                Ocupación: {capacityMetrics.data.averageOccupancy}%
-              </span>
-              {Object.values(gymConfigData.data?.hours || {}).some(day => day?.isOpen) && (
-                <span className="text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
-                  Horarios flexibles activos
-                </span>
-              )}
+          {/* Nota sobre horarios separados */}
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center">
+              <Clock className="w-4 h-4 text-blue-600 mr-2" />
+              <p className="text-sm text-blue-800">
+                <strong>Los horarios del gimnasio</strong> ahora se gestionan desde su propia sección en el menú lateral: "Gestión de Horarios"
+              </p>
             </div>
-          )}
+          </div>
+          
+          {/* Mostrar resumen de contenido cargado */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {webSections.map(section => section.dataLoaded && (
+              <span key={section.id} className="text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+                {section.title} ✓
+              </span>
+            ))}
+          </div>
         </div>
         
         <div className="flex items-center space-x-4 mt-4 lg:mt-0">
@@ -527,11 +478,6 @@ const WebsiteManager = () => {
               {section.dataLoaded && (
                 <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
               )}
-              {section.hasFlexibleHours && (
-                <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 rounded" title="Horarios flexibles activos">
-                  flex
-                </span>
-              )}
               
               {/* Indicador de guardando */}
               {savingSection === section.id && (
@@ -545,11 +491,10 @@ const WebsiteManager = () => {
       {/* CONTENIDO SEGÚN SECCIÓN ACTIVA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         
-        {/* SECCIÓN: Información General con horarios flexibles */}
+        {/* SECCIÓN: Información General (sin horarios) */}
         {activeSection === 'general' && (
           <ContentEditor 
             gymConfig={gymConfigData}
-            capacityMetrics={capacityMetrics}
             onSave={handleSaveConfig}
             onUnsavedChanges={setHasUnsavedChanges}
           />
@@ -602,6 +547,53 @@ const WebsiteManager = () => {
 
 export default WebsiteManager;
 
+/*
+=============================================================================
+CAMBIOS PRINCIPALES EN WebsiteManager.js
+=============================================================================
+
+🗑️ ELIMINADO COMPLETAMENTE:
+- Referencias a métricas de capacidad (capacityMetrics)
+- Carga de datos de horarios flexibles
+- Funciones relacionadas con horarios
+- Indicadores de horarios flexibles en el header
+- Debug info específico de horarios
+- Props relacionadas con horarios pasadas a ContentEditor
+
+✅ MANTENIDO SIN CAMBIOS:
+- Gestión de Información General (sin horarios)
+- Gestión de Servicios del gimnasio
+- Gestión de Planes de Membresía
+- Gestión de Productos de la tienda
+- Gestión de Multimedia
+- Sistema de guardado independiente por sección
+- Verificación de permisos
+- Navegación por pestañas
+
+🆕 MEJORAS AGREGADAS:
+- Nota informativa sobre nueva ubicación de horarios
+- Header actualizado sin referencias a horarios
+- Resumen de contenido cargado sin métricas de horarios
+- Debug info actualizado para reflejar cambios
+- Documentación actualizada
+
+📍 REFERENCIAS A NUEVA UBICACIÓN:
+- Nota azul con icono Clock sobre nueva gestión de horarios
+- Información clara sobre ubicación en menú lateral
+- Debug info actualizado con nueva estructura
+
+🎯 BENEFICIOS:
+- Gestor más enfocado en contenido web
+- Carga más rápida sin lógica compleja de horarios
+- Interfaz más limpia y especializada
+- Separación clara de responsabilidades
+- Mejor organización funcional
+
+El WebsiteManager ahora se enfoca exclusivamente en la gestión 
+del contenido web (información, servicios, planes, productos, 
+multimedia), mientras que los horarios tienen su propio gestor 
+independiente y especializado.
+*/
 /*
 =============================================================================
 DOCUMENTACIÓN DEL COMPONENTE WebsiteManager

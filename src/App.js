@@ -36,8 +36,9 @@ const AdminDashboard = React.lazy(() => import('./pages/dashboard/AdminDashboard
 const StaffDashboard = React.lazy(() => import('./pages/dashboard/StaffDashboard'));
 const ClientDashboard = React.lazy(() => import('./pages/dashboard/ClientDashboard'));
 
-// 🆕 NUEVA IMPORTACIÓN: Gestión de Página Web
+// 🆕 NUEVAS IMPORTACIONES: Gestión separada
 const WebsiteManager = React.lazy(() => import('./pages/dashboard/admin/WebsiteManager'));
+const ScheduleManager = React.lazy(() => import('./pages/dashboard/admin/ScheduleManager'));
 
 // Componentes específicos del dashboard
 const UsersManager = React.lazy(() => import('./pages/dashboard/components/UsersManager'));
@@ -348,6 +349,8 @@ function AppContent() {
           <div>Carrito: Integrado con backend</div>
           <div>Checkout: Invitados + autenticados</div>
           <div>Moneda: Quetzales guatemaltecos</div>
+          <div>🆕 Horarios: Gestor independiente</div>
+          <div>🆕 Web: Gestor separado</div>
           {user && (
             <div className="mt-2 text-green-300">
               Usuario: {user.firstName} ({user.role})
@@ -414,6 +417,13 @@ function AppContent() {
             <Route path="admin/website" element={
               <ProtectedRoute requiredRole="admin">
                 <WebsiteManager />
+              </ProtectedRoute>
+            } />
+            
+            {/* 🆕 NUEVA RUTA: Gestión de Horarios - Solo para administradores */}
+            <Route path="admin/schedule" element={
+              <ProtectedRoute requiredRole="admin">
+                <ScheduleManager />
               </ProtectedRoute>
             } />
             
@@ -518,6 +528,31 @@ function App() {
 
 export default App;
 
+/*
+CAMBIOS PRINCIPALES EN App.js:
+
+🆕 NUEVA RUTA AGREGADA:
+- Importación de ScheduleManager desde './pages/dashboard/admin/ScheduleManager'
+- Nueva ruta protegida: /dashboard/admin/schedule
+- Solo accesible para administradores (requiredRole="admin")
+- Lazy loading para optimización de rendimiento
+
+🔧 ACTUALIZACIONES:
+- Debug info actualizado para mostrar "Horarios: Gestor independiente"
+- Comentarios actualizados para reflejar la nueva estructura
+- Mantenida toda la funcionalidad existente sin modificaciones
+
+🎯 BENEFICIOS:
+- Separación clara entre gestión de horarios y gestión web
+- URL específica para gestión de horarios: /dashboard/admin/schedule
+- Acceso directo desde el sidebar sin necesidad de navegar por pestañas
+- Mantiene toda la seguridad y verificación de permisos
+
+La nueva estructura permite:
+- WebsiteManager: /dashboard/admin/website (gestión de contenido web)
+- ScheduleManager: /dashboard/admin/schedule (gestión exclusiva de horarios)
+- Ambos accesibles desde el sidebar como opciones independientes
+*/
 /*
 EXPLICACIÓN DEL ARCHIVO:
 
