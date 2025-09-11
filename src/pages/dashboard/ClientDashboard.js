@@ -1,9 +1,9 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/ClientDashboard.js
-// ACTUALIZADO: Para integrar con el nuevo sistema de compra de membresías y traducir tipos de membresía
+// ACTUALIZADO: Con gestión completa de membresías y horarios del cliente
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   CreditCard, 
@@ -34,7 +34,10 @@ import {
   Loader2,
   MapPin,
   DollarSign,
-  RefreshCw
+  RefreshCw,
+  Timer,
+  BarChart3,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -54,8 +57,10 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 // Componente de checkout actualizado
 import MembershipCheckout from '../../components/memberships/MembershipCheckout';
 
-// Componente de testimonios
+// Componentes de gestión
 import TestimonialManager from './components/TestimonialManager';
+import MembershipManager from './client/MembershipManager';
+import ScheduleManager from './client/ScheduleManager';
 
 // Función auxiliar para formatear en Quetzales
 const formatQuetzales = (amount) => {
@@ -69,15 +74,16 @@ const formatQuetzales = (amount) => {
 const ClientDashboard = () => {
   const { user } = useAuth();
   const { formatDate, showError, showSuccess, showInfo, isMobile } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // Hook de traducción
   const { translateMembershipType } = useTranslation();
   
-  // Estado para navegación entre secciones
-  const [activeSection, setActiveSection] = useState('dashboard');
+  // Estado para navegación entre secciones usando URL params
+  const section = searchParams.get('section') || 'dashboard';
   const [selectedPlan, setSelectedPlan] = useState(null);
   
-  // QUERIES PARA DATOS DEL CLIENTE - USANDO SERVICIOS ACTUALIZADOS
+  // QUERIES PARA DATOS DEL CLIENTE
   
   // Membresía actual del cliente
   const { data: currentMembership, isLoading: membershipLoading, refetch: refetchMembership } = useQuery({
@@ -88,6 +94,20 @@ const ClientDashboard = () => {
     onError: (error) => {
       if (error.response?.status !== 404) {
         showError('Error al cargar tu membresía actual');
+      }
+    }
+  });
+  
+  // Horarios actuales del cliente
+  const { data: currentSchedule, isLoading: scheduleLoading, refetch: refetchSchedule } = useQuery({
+    queryKey: ['currentSchedule', user?.id],
+    queryFn: () => apiService.getCurrentSchedule(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    enabled: section === 'dashboard' || section === 'schedule',
+    onError: (error) => {
+      if (error.response?.status !== 404) {
+        console.warn('Error cargando horarios:', error.message);
       }
     }
   });
@@ -108,11 +128,12 @@ const ClientDashboard = () => {
     onError: (error) => showError('Error al cargar tu historial de pagos')
   });
   
-  // Planes de membresía disponibles - USANDO NUEVO SERVICIO
+  // Planes de membresía disponibles
   const { data: plans, isLoading: plansLoading, refetch: refetchPlans } = useQuery({
     queryKey: ['membershipPlans'],
     queryFn: () => membershipService.getPlans(),
     staleTime: 10 * 60 * 1000,
+    enabled: section === 'membership',
     onError: (error) => showError('Error al cargar planes de membresía')
   });
   
@@ -129,16 +150,22 @@ const ClientDashboard = () => {
     }
   });
 
-  // Procesar datos de pagos
+  // Procesar datos
   const recentPayments = payments?.data?.payments || [];
   const totalPaid = recentPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
   
-  // Procesar datos de testimonios
   const testimonialData = testimonials?.data || {};
   const userTestimonials = testimonialData.testimonials || [];
   const canSubmitTestimonial = testimonialData.canSubmitNew !== false;
   const publishedCount = testimonialData.publishedCount || 0;
   const pendingCount = testimonialData.pendingCount || 0;
+  
+  // Procesar datos de horarios
+  const scheduleData = currentSchedule?.currentSchedule || {};
+  const totalScheduledSlots = Object.values(scheduleData).reduce((sum, day) => 
+    day.hasSlots ? day.slots.length : 0, 0
+  );
+  const scheduledDays = Object.values(scheduleData).filter(day => day.hasSlots).length;
   
   // Calcular días hasta vencimiento
   const getDaysUntilExpiry = (endDate) => {
@@ -152,11 +179,10 @@ const ClientDashboard = () => {
   
   const daysUntilExpiry = currentMembership ? getDaysUntilExpiry(currentMembership.endDate) : null;
   
-  // Estado de la membresía mejorado
+  // Estado de la membresía
   const getMembershipStatus = () => {
     if (!currentMembership) return { status: 'none', message: 'Sin membresía activa', color: 'red' };
     
-    // Verificar si está pendiente de validación
     if (currentMembership.status === 'pending_validation') {
       return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
     }
@@ -172,6 +198,16 @@ const ClientDashboard = () => {
   
   const membershipStatus = getMembershipStatus();
 
+  // Función para cambiar sección
+  const navigateToSection = (newSection) => {
+    setSearchParams({ section: newSection });
+  };
+
+  // Función para volver al dashboard
+  const handleBackToDashboard = () => {
+    setSearchParams({});
+  };
+
   // Función para obtener el tipo de membresía traducido
   const getTranslatedMembershipType = () => {
     if (!currentMembership) return null;
@@ -182,14 +218,13 @@ const ClientDashboard = () => {
   const handleSelectPlan = (plan) => {
     console.log('Plan seleccionado:', plan);
     setSelectedPlan(plan);
-    setActiveSection('checkout');
+    navigateToSection('checkout');
   };
 
-  // Manejar éxito de compra - ACTUALIZADO
+  // Manejar éxito de compra
   const handleMembershipSuccess = (membership) => {
     console.log('Membresía adquirida exitosamente:', membership);
     
-    // Mostrar mensaje según método de pago
     if (membership.paymentMethod === 'card') {
       showSuccess('¡Membresía activada exitosamente! Ya puedes usar todas nuestras instalaciones.');
     } else if (membership.paymentMethod === 'transfer') {
@@ -198,18 +233,15 @@ const ClientDashboard = () => {
       showSuccess('Membresía registrada. Visita el gimnasio para completar tu pago en efectivo.');
     }
     
-    // Refrescar datos
     refetchMembership();
-    
-    // Volver al dashboard
     setSelectedPlan(null);
-    setActiveSection('dashboard');
+    navigateToSection('dashboard');
   };
 
   // Volver desde checkout
   const handleBackFromCheckout = () => {
     setSelectedPlan(null);
-    setActiveSection('memberships');
+    navigateToSection('membership');
   };
 
   // Función para refrescar estado de pagos pendientes
@@ -222,13 +254,13 @@ const ClientDashboard = () => {
     }
   };
 
-  // Si está en la sección de testimonios
-  if (activeSection === 'testimonials') {
+  // Renderizado condicional según la sección
+  if (section === 'testimonials') {
     return (
       <div className="space-y-6">
         <div className="flex items-center">
           <button
-            onClick={() => setActiveSection('dashboard')}
+            onClick={handleBackToDashboard}
             className="btn-secondary btn-sm mr-4 flex items-center"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
@@ -241,8 +273,23 @@ const ClientDashboard = () => {
     );
   }
 
-  // Si está en checkout de membresía
-  if (activeSection === 'checkout' && selectedPlan) {
+  if (section === 'membership') {
+    return (
+      <MembershipManager 
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
+
+  if (section === 'schedule') {
+    return (
+      <ScheduleManager 
+        onBack={handleBackToDashboard}
+      />
+    );
+  }
+
+  if (section === 'checkout' && selectedPlan) {
     return (
       <MembershipCheckout
         selectedPlan={selectedPlan}
@@ -252,104 +299,7 @@ const ClientDashboard = () => {
     );
   }
 
-  // Si está en la sección de compra de membresías
-  if (activeSection === 'memberships') {
-    return (
-      <div className="space-y-6">
-        {/* Navegación de regreso */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setActiveSection('dashboard')}
-            className="btn-secondary btn-sm flex items-center"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Volver al Panel
-          </button>
-          <h2 className="text-xl font-semibold text-gray-900">
-            {currentMembership ? 'Cambiar Plan' : 'Obtener Membresía'}
-          </h2>
-          <button
-            onClick={() => refetchPlans()}
-            className="btn-outline btn-sm flex items-center"
-            disabled={plansLoading}
-          >
-            <RefreshCw className={`w-4 h-4 mr-1 ${plansLoading ? 'animate-spin' : ''}`} />
-            Actualizar
-          </button>
-        </div>
-
-        {/* Alerta de estado actual */}
-        {!currentMembership && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <div className="flex items-center">
-              <AlertTriangle className="w-6 h-6 text-red-500 mr-3" />
-              <div>
-                <h3 className="text-lg font-semibold text-red-800">
-                  No tienes membresía activa
-                </h3>
-                <p className="text-red-700 mt-1">
-                  Para acceder a todas nuestras instalaciones y servicios, necesitas una membresía activa. 
-                  Elige el plan que mejor se adapte a tus necesidades.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {membershipStatus.status === 'pending' && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Clock className="w-6 h-6 text-yellow-500 mr-3" />
-                <div>
-                  <h3 className="text-lg font-semibold text-yellow-800">
-                    Membresía pendiente de validación
-                  </h3>
-                  <p className="text-yellow-700 mt-1">
-                    Tu membresía está siendo validada por nuestro equipo. Te notificaremos cuando esté lista.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleRefreshPaymentStatus}
-                className="btn-warning btn-sm flex items-center"
-              >
-                <RefreshCw className="w-4 h-4 mr-1" />
-                Actualizar estado
-              </button>
-            </div>
-          </div>
-        )}
-
-        {membershipStatus.status === 'expired' && (
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
-            <div className="flex items-center">
-              <AlertCircle className="w-6 h-6 text-orange-500 mr-3" />
-              <div>
-                <h3 className="text-lg font-semibold text-orange-800">
-                  Tu membresía ha vencido
-                </h3>
-                <p className="text-orange-700 mt-1">
-                  Renueva tu membresía para continuar disfrutando de nuestros servicios.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Componente de planes de membresía actualizado */}
-        <MembershipPlansSection 
-          plans={plans || []} 
-          isLoading={plansLoading}
-          currentMembership={currentMembership}
-          isMobile={isMobile}
-          onSelectPlan={handleSelectPlan}
-        />
-      </div>
-    );
-  }
-
-  // Vista principal del dashboard actualizada
+  // Vista principal del dashboard
   return (
     <div className="space-y-6">
       
@@ -378,7 +328,7 @@ const ClientDashboard = () => {
       {/* MÉTRICAS PERSONALES ACTUALIZADAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* Estado de membresía con indicador de pago pendiente */}
+        {/* Estado de membresía */}
         <div 
           className={`cursor-pointer transition-transform hover:scale-105 ${
             !currentMembership || membershipStatus.status === 'pending' ? 'ring-2 ring-opacity-50' : ''
@@ -386,11 +336,7 @@ const ClientDashboard = () => {
             !currentMembership ? 'ring-red-500' : 
             membershipStatus.status === 'pending' ? 'ring-yellow-500' : ''
           }`}
-          onClick={() => {
-            if (!currentMembership || membershipStatus.status === 'pending') {
-              setActiveSection('memberships');
-            }
-          }}
+          onClick={() => navigateToSection('membership')}
         >
           <DashboardCard
             title="Mi Membresía"
@@ -407,7 +353,35 @@ const ClientDashboard = () => {
           />
         </div>
         
-        {/* Días restantes con estado de validación */}
+        {/* Horarios del cliente */}
+        <div 
+          className="cursor-pointer transition-transform hover:scale-105"
+          onClick={() => navigateToSection('schedule')}
+        >
+          <DashboardCard
+            title="Mis Horarios"
+            value={
+              !currentSchedule?.hasMembership ? 'Sin membresía' :
+              totalScheduledSlots === 0 ? 'Sin horarios' :
+              totalScheduledSlots === 1 ? '1 horario' :
+              `${totalScheduledSlots} horarios`
+            }
+            icon={Timer}
+            color={
+              !currentSchedule?.hasMembership ? 'red' :
+              totalScheduledSlots === 0 ? 'yellow' : 'green'
+            }
+            isLoading={scheduleLoading}
+            subtitle={
+              !currentSchedule?.hasMembership ? 'Obtén membresía primero' :
+              totalScheduledSlots === 0 ? 'Configura tus horarios' :
+              scheduledDays === 1 ? '1 día activo' : `${scheduledDays} días activos`
+            }
+            alert={!currentSchedule?.hasMembership || totalScheduledSlots === 0}
+          />
+        </div>
+        
+        {/* Días restantes */}
         <DashboardCard
           title="Días restantes"
           value={
@@ -428,7 +402,7 @@ const ClientDashboard = () => {
           alert={daysUntilExpiry !== null && daysUntilExpiry <= 3}
         />
         
-        {/* Total pagado en Quetzales */}
+        {/* Total pagado */}
         <DashboardCard
           title="Total pagado"
           value={formatQuetzales(totalPaid)}
@@ -438,35 +412,9 @@ const ClientDashboard = () => {
           subtitle={`${recentPayments.length} pagos`}
         />
         
-        {/* Estado de testimonios */}
-        <DashboardCard
-          title="Mis Testimonios"
-          value={
-            userTestimonials.length === 0 ? 'Ninguno' :
-            userTestimonials.length === 1 ? '1 testimonio' :
-            `${userTestimonials.length} testimonios`
-          }
-          icon={MessageSquare}
-          color={
-            publishedCount > 0 ? 'green' :
-            pendingCount > 0 ? 'yellow' :
-            'blue'
-          }
-          isLoading={testimonialsLoading}
-          subtitle={
-            publishedCount > 0 && pendingCount > 0 ? 
-              `${publishedCount} publicados, ${pendingCount} en revisión` :
-            publishedCount > 0 ? 
-              `${publishedCount} publicado${publishedCount !== 1 ? 's' : ''}` :
-            pendingCount > 0 ? 
-              `${pendingCount} en revisión` :
-            'Comparte tu experiencia'
-          }
-        />
-        
       </div>
       
-      {/* ALERTAS IMPORTANTES ACTUALIZADAS */}
+      {/* ALERTAS IMPORTANTES */}
       {!currentMembership && (
         <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 shadow-lg">
           <div className="flex items-center">
@@ -479,17 +427,10 @@ const ClientDashboard = () => {
                 Para disfrutar de todas nuestras instalaciones y servicios exclusivos, 
                 necesitas obtener una membresía. Elige entre pago con tarjeta, transferencia o efectivo.
               </p>
-              {plans && plans.length > 0 && plans[0].features && (
-                <ul className="mt-3 text-sm text-red-600 space-y-1">
-                  {plans[0].features.slice(0, 4).map((feature, index) => (
-                    <li key={index}>• {feature}</li>
-                  ))}
-                </ul>
-              )}
             </div>
             <div className="ml-6">
               <button
-                onClick={() => setActiveSection('memberships')}
+                onClick={() => navigateToSection('membership')}
                 className="btn-primary font-bold py-3 px-6 text-lg hover:scale-105 transition-transform"
               >
                 <Gift className="w-5 h-5 mr-2" />
@@ -500,7 +441,7 @@ const ClientDashboard = () => {
         </div>
       )}
 
-      {/* Alerta para membresía pendiente de validación */}
+      {/* Alerta para membresía pendiente */}
       {membershipStatus.status === 'pending' && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
@@ -542,6 +483,7 @@ const ClientDashboard = () => {
         </div>
       )}
 
+      {/* Alertas de vencimiento */}
       {membershipStatus.status === 'expired' && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
@@ -555,7 +497,7 @@ const ClientDashboard = () => {
               </p>
             </div>
             <button
-              onClick={() => setActiveSection('memberships')}
+              onClick={() => navigateToSection('membership')}
               className="ml-auto btn-danger btn-sm"
             >
               Renovar ahora
@@ -577,10 +519,34 @@ const ClientDashboard = () => {
               </p>
             </div>
             <button
-              onClick={() => setActiveSection('memberships')}
+              onClick={() => navigateToSection('membership')}
               className="ml-auto btn-warning btn-sm"
             >
               Renovar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta para configurar horarios */}
+      {currentMembership && membershipStatus.status === 'active' && totalScheduledSlots === 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Timer className="w-5 h-5 text-blue-500 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">
+                ¡Configura tus horarios de entrenamiento!
+              </h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Ya tienes membresía activa. Ahora configura tus horarios para aprovechar al máximo el gimnasio.
+              </p>
+            </div>
+            <button
+              onClick={() => navigateToSection('schedule')}
+              className="ml-auto btn-primary btn-sm"
+            >
+              <Calendar className="w-4 h-4 mr-1" />
+              Configurar Horarios
             </button>
           </div>
         </div>
@@ -606,7 +572,7 @@ const ClientDashboard = () => {
               </p>
             </div>
             <button
-              onClick={() => setActiveSection('testimonials')}
+              onClick={() => navigateToSection('testimonials')}
               className="ml-auto btn-primary btn-sm"
             >
               {userTestimonials.length === 0 ? 'Escribir testimonio' : 'Agregar otro'}
@@ -615,10 +581,10 @@ const ClientDashboard = () => {
         </div>
       )}
       
-      {/* CONTENIDO PRINCIPAL ACTUALIZADO */}
+      {/* CONTENIDO PRINCIPAL */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* MI MEMBRESÍA con estados actualizados */}
+        {/* MI MEMBRESÍA */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
@@ -634,16 +600,16 @@ const ClientDashboard = () => {
                     Actualizar estado
                   </button>
                 )}
-                <Link 
-                  to={`/dashboard/memberships/${currentMembership.id}`}
+                <button 
+                  onClick={() => navigateToSection('membership')}
                   className="text-primary-600 hover:text-primary-500 text-sm font-medium"
                 >
                   Ver detalles
-                </Link>
+                </button>
               </div>
             ) : (
               <button
-                onClick={() => setActiveSection('memberships')}
+                onClick={() => navigateToSection('membership')}
                 className="text-primary-600 hover:text-primary-500 text-sm font-medium"
               >
                 Obtener membresía
@@ -694,7 +660,7 @@ const ClientDashboard = () => {
               </p>
               <div className="space-y-3">
                 <button
-                  onClick={() => setActiveSection('memberships')}
+                  onClick={() => navigateToSection('membership')}
                   className="btn-primary w-full"
                 >
                   <Gift className="w-4 h-4 mr-2" />
@@ -710,132 +676,103 @@ const ClientDashboard = () => {
           )}
         </div>
         
-        {/* MI TESTIMONIO - Sin cambios mayores */}
+        {/* MIS HORARIOS */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
-              Mis Testimonios
-              {userTestimonials.length > 0 && (
-                <span className="ml-2 text-sm font-normal text-gray-500">
-                  ({userTestimonials.length})
-                </span>
-              )}
+              Mis Horarios
             </h3>
             <button
-              onClick={() => setActiveSection('testimonials')}
+              onClick={() => navigateToSection('schedule')}
               className="text-primary-600 hover:text-primary-500 text-sm font-medium"
             >
-              {userTestimonials.length > 0 ? 'Ver todos' : 'Escribir testimonio'}
+              {totalScheduledSlots > 0 ? 'Gestionar horarios' : 'Configurar horarios'}
             </button>
           </div>
           
-          {testimonialsLoading ? (
+          {scheduleLoading ? (
             <LoadingSpinner />
-          ) : userTestimonials.length > 0 ? (
-            <div className="space-y-4">
-              
-              {/* Estadísticas rápidas */}
+          ) : !currentSchedule?.hasMembership ? (
+            <div className="text-center py-8">
+              <Timer className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                Necesitas membresía activa
+              </h4>
+              <p className="text-gray-600 mb-6">
+                Para configurar horarios de entrenamiento, 
+                primero necesitas obtener una membresía.
+              </p>
+              <button
+                onClick={() => navigateToSection('membership')}
+                className="btn-primary w-full"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Obtener Membresía
+              </button>
+            </div>
+          ) : totalScheduledSlots === 0 ? (
+            <div className="text-center py-8">
+              <Calendar className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                Sin horarios configurados
+              </h4>
+              <p className="text-gray-600 mb-6">
+                Configura tus horarios de entrenamiento para 
+                aprovechar al máximo tu membresía.
+              </p>
+              <button
+                onClick={() => navigateToSection('schedule')}
+                className="btn-primary w-full"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Configurar Horarios
+              </button>
+            </div>
+          ) : (
+            <div>
+              {/* Resumen de horarios */}
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-green-800">{publishedCount}</div>
-                  <div className="text-xs text-green-600">Publicado{publishedCount !== 1 ? 's' : ''}</div>
-                </div>
                 <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-blue-800">{pendingCount}</div>
-                  <div className="text-xs text-blue-600">En revisión</div>
+                  <div className="text-lg font-semibold text-blue-800">{totalScheduledSlots}</div>
+                  <div className="text-xs text-blue-600">Horarios activos</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-semibold text-green-800">{scheduledDays}</div>
+                  <div className="text-xs text-green-600">Días programados</div>
                 </div>
               </div>
               
-              {/* Mostrar los 2 testimonios más recientes */}
-              {userTestimonials.slice(0, 2).map((testimonial, index) => (
-                <div key={testimonial.id} className="border border-gray-200 rounded-lg p-4">
-                  
-                  {/* Estado del testimonio */}
-                  <div className="flex items-center justify-between mb-3">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      testimonial.status === 'Publicado' ? 'bg-green-100 text-green-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {testimonial.status === 'Publicado' && <CheckCircle className="w-3 h-3 mr-1" />}
-                      {testimonial.status === 'En revisión' && <Clock className="w-3 h-3 mr-1" />}
-                      {testimonial.status}
-                      {index === 0 && userTestimonials.length > 1 && (
-                        <span className="ml-1 text-xs">• Más reciente</span>
-                      )}
-                    </span>
-                    
-                    {/* Calificación */}
-                    <div className="flex items-center">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`w-4 h-4 ${
-                            star <= testimonial.rating
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
-                      <span className="ml-2 text-sm text-gray-600">
-                        ({testimonial.rating}/5)
-                      </span>
+              {/* Lista de horarios */}
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {Object.entries(scheduleData)
+                  .filter(([_, dayData]) => dayData.hasSlots)
+                  .map(([day, dayData]) => (
+                    <div key={day} className="border border-gray-200 rounded-lg p-3">
+                      <div className="font-medium text-gray-900 mb-1">
+                        {dayData.dayName}
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {dayData.slots.map((slot, index) => (
+                          <span 
+                            key={index}
+                            className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md"
+                          >
+                            <Clock className="w-3 h-3 mr-1" />
+                            {slot.timeRange}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Contenido del testimonio */}
-                  <p className="text-gray-800 text-sm leading-relaxed mb-3">
-                    "{testimonial.text.length > 100 ? 
-                      testimonial.text.substring(0, 100) + '...' : 
-                      testimonial.text}"
-                  </p>
-                  
-                  {/* Meta información */}
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>Como {testimonial.role}</span>
-                    <span>Enviado el {formatDate(testimonial.submittedAt)}</span>
-                  </div>
-                  
-                  {/* Destacado */}
-                  {testimonial.featured && (
-                    <div className="mt-2 flex items-center text-xs text-purple-600">
-                      <Star className="w-3 h-3 mr-1 fill-current" />
-                      Testimonio destacado
-                    </div>
-                  )}
-                </div>
-              ))}
+                  ))
+                }
+              </div>
               
-              {/* Indicador de más testimonios */}
-              {userTestimonials.length > 2 && (
-                <div className="text-center pt-2">
-                  <button
-                    onClick={() => setActiveSection('testimonials')}
-                    className="text-sm text-primary-600 hover:text-primary-500"
-                  >
-                    Ver {userTestimonials.length - 2} testimonio{userTestimonials.length - 2 !== 1 ? 's' : ''} más →
-                  </button>
-                </div>
-              )}
-              
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
-                Comparte tu experiencia
-              </h4>
-              <p className="text-gray-600 mb-4">
-                Tu testimonio ayuda a otros miembros a conocer los beneficios del gimnasio
-              </p>
               <button
-                onClick={() => setActiveSection('testimonials')}
-                className="btn-primary"
-                disabled={!currentMembership || membershipStatus.status === 'pending'}
+                onClick={() => navigateToSection('schedule')}
+                className="w-full mt-4 btn-outline text-center"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                {!currentMembership ? 'Obtén membresía primero' : 
-                 membershipStatus.status === 'pending' ? 'Espera validación' :
-                 'Escribir testimonio'}
+                <Settings className="w-4 h-4 mr-2 inline" />
+                Gestionar todos los horarios
               </button>
             </div>
           )}
@@ -843,219 +780,137 @@ const ClientDashboard = () => {
         
       </div>
       
-    </div>
-  );
-};
-
-// COMPONENTE: Planes de membresía actualizado para producción
-const MembershipPlansSection = ({ 
-  plans, 
-  isLoading, 
-  currentMembership, 
-  isMobile, 
-  onSelectPlan
-}) => {
-  const { showSuccess, showError } = useApp();
-
-  const handleSelectPlan = async (plan) => {
-    try {
-      console.log(`Plan ${plan.name} seleccionado para checkout`);
-      onSelectPlan(plan);
-    } catch (error) {
-      showError('Error al seleccionar el plan');
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="text-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
-        <p className="text-gray-600">Cargando planes de membresía...</p>
-      </div>
-    );
-  }
-
-  if (!plans || plans.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          No hay planes disponibles
-        </h3>
-        <p className="text-gray-600">
-          Contacta con el gimnasio para más información sobre membresías.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      
-      {/* Header de métodos de pago */}
-      <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6">
-        <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
-          Múltiples opciones de pago
-        </h3>
-        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-3'}`}>
-          <div className="flex items-center">
-            <CreditCard className="w-5 h-5 text-green-600 mr-2 flex-shrink-0" />
-            <div>
-              <span className="text-sm font-medium">Tarjeta de crédito/débito</span>
-              <div className="text-xs text-gray-600">Activación inmediata</div>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <Upload className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0" />
-            <div>
-              <span className="text-sm font-medium">Transferencia bancaria</span>
-              <div className="text-xs text-gray-600">Validación 1-2 días</div>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <DollarSign className="w-5 h-5 text-purple-600 mr-2 flex-shrink-0" />
-            <div>
-              <span className="text-sm font-medium">Efectivo en gimnasio</span>
-              <div className="text-xs text-gray-600">Pago en sucursal</div>
-            </div>
-          </div>
+      {/* SECCIÓN DE TESTIMONIOS */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Mis Testimonios
+            {userTestimonials.length > 0 && (
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                ({userTestimonials.length})
+              </span>
+            )}
+          </h3>
+          <button
+            onClick={() => navigateToSection('testimonials')}
+            className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+          >
+            {userTestimonials.length > 0 ? 'Ver todos' : 'Escribir testimonio'}
+          </button>
         </div>
-      </div>
-
-      {/* Grid de planes */}
-      <div className={`grid gap-6 ${
-        isMobile ? 'grid-cols-1' :
-        plans.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
-        plans.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
-        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-      }`}>
-        {plans.map((plan) => {
-          const IconComponent = plan.iconName === 'crown' ? Crown : 
-                              plan.iconName === 'calendar-days' ? Calendar : 
-                              plan.iconName === 'calendar' ? Calendar :
-                              plan.iconName === 'calendar-range' ? Calendar :
-                              Shield;
-          
-          const isCurrentPlan = currentMembership && currentMembership.planId === plan.id;
-          
-          return (
-            <div key={plan.id} className={`
-              relative bg-white rounded-3xl shadow-xl p-8 transition-all duration-300 hover:scale-105
-              ${plan.isPopular ? 'ring-2 ring-primary-500 scale-105' : ''}
-              ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}
-            `}>
-              
-              {plan.isPopular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-primary-600 text-white px-6 py-2 rounded-full text-sm font-bold">
-                    Más Popular
-                  </span>
-                </div>
-              )}
-
-              {isCurrentPlan && (
-                <div className="absolute -top-4 right-4">
-                  <span className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold">
-                    Plan Actual
-                  </span>
-                </div>
-              )}
-              
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-primary-100 flex items-center justify-center">
-                  <IconComponent className="w-8 h-8 text-primary-600" />
-                </div>
-                
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                  {plan.name}
-                </h3>
-                
-                <div className="mb-8">
-                  <div className="flex items-baseline justify-center mb-2">
-                    <span className="text-5xl font-bold text-gray-900">
-                      Q{plan.price}
-                    </span>
-                    <span className="text-gray-600 ml-2">
-                      /{plan.durationType}
-                    </span>
-                  </div>
-                  {plan.originalPrice && plan.originalPrice > plan.price && (
-                    <div className="text-sm text-gray-500">
-                      <span className="line-through">Q{plan.originalPrice}</span>
-                      <span className="ml-2 text-green-600 font-semibold">
-                        Ahorra Q{plan.originalPrice - plan.price}
-                      </span>
-                    </div>
-                  )}
-                  {plan.availability && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      {plan.availability.availableSpaces} espacios disponibles
-                    </div>
-                  )}
-                </div>
-                
-                {plan.description && (
-                  <p className="text-gray-600 text-sm mb-6">
-                    {plan.description}
-                  </p>
-                )}
-                
-                {plan.features && Array.isArray(plan.features) && plan.features.length > 0 && (
-                  <ul className="space-y-4 mb-8 text-left">
-                    {plan.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-center">
-                        <Check className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                        <span className="text-gray-700">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                
-                <button 
-                  onClick={() => handleSelectPlan(plan)}
-                  disabled={isCurrentPlan || plan.availability?.availableSpaces === 0}
-                  className={`
-                    w-full btn text-center font-semibold py-4 transition-all
-                    ${isCurrentPlan ? 'btn-secondary opacity-50 cursor-not-allowed' :
-                      plan.availability?.availableSpaces === 0 ? 'btn-secondary opacity-50 cursor-not-allowed' :
-                      plan.isPopular ? 'btn-primary hover:scale-105' : 'btn-secondary hover:scale-105'}
-                  `}
-                >
-                  {isCurrentPlan ? 'Plan Actual' :
-                   plan.availability?.availableSpaces === 0 ? 'Sin disponibilidad' :
-                   plan.isPopular ? 'Adquirir Plan Popular' : 'Adquirir Plan'}
-                </button>
-
-                {!currentMembership && plan.isPopular && (
-                  <p className="text-xs text-green-600 font-medium mt-2">
-                    ¡Oferta especial para nuevos miembros!
-                  </p>
-                )}
-                
-                {plan.availability?.availableSpaces === 0 && (
-                  <p className="text-xs text-red-600 font-medium mt-2">
-                    Sin espacios disponibles actualmente
-                  </p>
-                )}
+        
+        {testimonialsLoading ? (
+          <LoadingSpinner />
+        ) : userTestimonials.length > 0 ? (
+          <div className="space-y-4">
+            
+            {/* Estadísticas rápidas */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-semibold text-green-800">{publishedCount}</div>
+                <div className="text-xs text-green-600">Publicado{publishedCount !== 1 ? 's' : ''}</div>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <div className="text-lg font-semibold text-blue-800">{pendingCount}</div>
+                <div className="text-xs text-blue-600">En revisión</div>
               </div>
             </div>
-          );
-        })}
+            
+            {/* Mostrar los 2 testimonios más recientes */}
+            {userTestimonials.slice(0, 2).map((testimonial, index) => (
+              <div key={testimonial.id} className="border border-gray-200 rounded-lg p-4">
+                
+                {/* Estado del testimonio */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    testimonial.status === 'Publicado' ? 'bg-green-100 text-green-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {testimonial.status === 'Publicado' && <CheckCircle className="w-3 h-3 mr-1" />}
+                    {testimonial.status === 'En revisión' && <Clock className="w-3 h-3 mr-1" />}
+                    {testimonial.status}
+                    {index === 0 && userTestimonials.length > 1 && (
+                      <span className="ml-1 text-xs">• Más reciente</span>
+                    )}
+                  </span>
+                  
+                  {/* Calificación */}
+                  <div className="flex items-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-4 h-4 ${
+                          star <= testimonial.rating
+                            ? 'text-yellow-400 fill-current'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                    <span className="ml-2 text-sm text-gray-600">
+                      ({testimonial.rating}/5)
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Contenido del testimonio */}
+                <p className="text-gray-800 text-sm leading-relaxed mb-3">
+                  "{testimonial.text.length > 100 ? 
+                    testimonial.text.substring(0, 100) + '...' : 
+                    testimonial.text}"
+                </p>
+                
+                {/* Meta información */}
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Como {testimonial.role}</span>
+                  <span>Enviado el {formatDate(testimonial.submittedAt)}</span>
+                </div>
+                
+                {/* Destacado */}
+                {testimonial.featured && (
+                  <div className="mt-2 flex items-center text-xs text-purple-600">
+                    <Star className="w-3 h-3 mr-1 fill-current" />
+                    Testimonio destacado
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {/* Indicador de más testimonios */}
+            {userTestimonials.length > 2 && (
+              <div className="text-center pt-2">
+                <button
+                  onClick={() => navigateToSection('testimonials')}
+                  className="text-sm text-primary-600 hover:text-primary-500"
+                >
+                  Ver {userTestimonials.length - 2} testimonio{userTestimonials.length - 2 !== 1 ? 's' : ''} más →
+                </button>
+              </div>
+            )}
+            
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h4 className="text-lg font-medium text-gray-900 mb-2">
+              Comparte tu experiencia
+            </h4>
+            <p className="text-gray-600 mb-4">
+              Tu testimonio ayuda a otros miembros a conocer los beneficios del gimnasio
+            </p>
+            <button
+              onClick={() => navigateToSection('testimonials')}
+              className="btn-primary"
+              disabled={!currentMembership || membershipStatus.status === 'pending'}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {!currentMembership ? 'Obtén membresía primero' : 
+               membershipStatus.status === 'pending' ? 'Espera validación' :
+               'Escribir testimonio'}
+            </button>
+          </div>
+        )}
       </div>
-
-      {/* Información adicional */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <div className="flex items-center justify-center mb-4">
-          <Shield className="w-6 h-6 text-green-500 mr-2" />
-          <span className="font-semibold text-gray-900">
-            Garantía de satisfacción
-          </span>
-        </div>
-        <div className="text-center text-gray-600 text-sm">
-          <p>Proceso de compra 100% seguro • Múltiples métodos de pago • Soporte 24/7</p>
-        </div>
-      </div>
-
+      
     </div>
   );
 };

@@ -16,7 +16,9 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  ShoppingBag
+  ShoppingBag,
+  Timer,
+  Calendar
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -45,7 +47,7 @@ const Sidebar = ({ collapsed }) => {
       }
     ];
     
-    // Usuarios
+    // Usuarios - Solo admin y colaboradores
     if (hasPermission('view_users')) {
       baseItems.push({
         id: 'users',
@@ -56,8 +58,9 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // Membresías (Admin/Staff: gestión, Cliente: mi membresía)
+    // Membresías según el rol
     if (hasPermission('view_memberships')) {
+      // Admin/Staff: gestión completa de membresías
       baseItems.push({
         id: 'memberships',
         label: 'Membresías',
@@ -66,6 +69,7 @@ const Sidebar = ({ collapsed }) => {
         show: true
       });
     } else if (user?.role === 'cliente') {
+      // Cliente: gestión de su propia membresía
       baseItems.push({
         id: 'my_membership',
         label: 'Mi Membresía',
@@ -75,20 +79,22 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // Horarios (Admin: gestión del gimnasio, Cliente: mis horarios)
+    // Horarios según el rol
     if (hasPermission('manage_gym_schedule')) {
+      // Admin: gestión de horarios del gimnasio
       baseItems.push({
-        id: 'schedule',
-        label: 'Horarios de Atención',
+        id: 'gym_schedule',
+        label: 'Horarios del Gimnasio',
         icon: Clock,
         path: '/dashboard/schedule',
         show: true
       });
     } else if (user?.role === 'cliente') {
+      // Cliente: gestión de sus propios horarios
       baseItems.push({
         id: 'my_schedule',
         label: 'Mis Horarios',
-        icon: Clock,
+        icon: Timer,
         path: '/dashboard/client?section=schedule',
         show: true
       });
@@ -114,7 +120,7 @@ const Sidebar = ({ collapsed }) => {
       show: true
     });
     
-    // Reportes
+    // Reportes - Solo admin y colaboradores con permisos
     if (hasPermission('view_reports')) {
       baseItems.push({
         id: 'reports',

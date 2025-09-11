@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/MobileMenu.js
 // FUNCIÓN: Menú móvil optimizado para rendimiento sin errores de timeout
-// ACTUALIZADO: Con opciones específicas para clientes (Mi Membresía y Mis Horarios)
+// ACTUALIZADO: Con opciones específicas para clientes (Mi Membresía y Mis Horarios) usando URL params
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -146,9 +146,9 @@ const MobileMenu = React.memo(({ onClose }) => {
     // Horarios (Admin: gestión del gimnasio, Cliente: mis horarios)
     if (hasPermission('manage_gym_schedule')) {
       baseItems.push({
-        id: 'schedule',
-        label: 'Horarios de Atención',
-        icon: Timer,
+        id: 'gym_schedule',
+        label: 'Horarios del Gimnasio',
+        icon: Clock,
         path: '/dashboard/schedule',
         show: true,
         badge: null,

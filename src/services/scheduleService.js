@@ -6,27 +6,35 @@ import { BaseService } from './baseService.js';
 class ScheduleService extends BaseService {
   constructor() {
     super();
-    this.baseScheduleURL = '/api/memberships/my-schedule';
+    this.cache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 minutos
   }
 
   // ================================
-  // 📅 OBTENER HORARIOS ACTUALES DEL CLIENTE
+  // 📅 MÉTODOS PRINCIPALES DE HORARIOS
   // ================================
+
+  // OBTENER: Horarios actuales del cliente autenticado
   async getCurrentSchedule() {
     try {
-      console.log('📅 Obteniendo horarios actuales del cliente...');
+      console.log('📅 ScheduleService: Obteniendo horarios actuales...');
       
-      const response = await this.get(this.baseScheduleURL);
+      const response = await this.get('/memberships/my-schedule');
       
       if (response?.success && response.data) {
-        console.log('✅ Horarios actuales obtenidos:', response.data);
+        console.log('✅ ScheduleService: Horarios actuales obtenidos:', {
+          hasMembership: response.data.hasMembership,
+          scheduleDays: response.data.currentSchedule ? Object.keys(response.data.currentSchedule).length : 0,
+          membershipStatus: response.data.membership?.status
+        });
+        
         return response.data;
       }
       
-      throw new Error('Error obteniendo horarios actuales');
+      throw new Error('Formato de respuesta inválido para horarios actuales');
       
     } catch (error) {
-      console.error('❌ Error obteniendo horarios actuales:', error);
+      console.error('❌ ScheduleService: Error obteniendo horarios actuales:', error);
       
       if (error.response?.status === 404) {
         // Usuario sin membresía o sin horarios
@@ -41,122 +49,133 @@ class ScheduleService extends BaseService {
     }
   }
 
-  // ================================
-  // 🔍 OBTENER OPCIONES DE HORARIOS DISPONIBLES
-  // ================================
+  // OBTENER: Opciones de horarios disponibles para reservar
   async getAvailableOptions(day = null) {
     try {
-      console.log('🔍 Obteniendo opciones de horarios disponibles...');
+      console.log('🔍 ScheduleService: Obteniendo opciones disponibles...', { day });
       
       const params = day ? { day } : {};
-      const url = `${this.baseScheduleURL}/available-options`;
-      
-      const response = await this.get(url, { params });
+      const response = await this.get('/memberships/my-schedule/available-options', { params });
       
       if (response?.success && response.data) {
-        console.log('✅ Opciones disponibles obtenidas:', response.data);
+        console.log('✅ ScheduleService: Opciones disponibles obtenidas:', {
+          totalDays: Object.keys(response.data.availableOptions || {}).length,
+          openDays: Object.values(response.data.availableOptions || {}).filter(d => d.isOpen).length
+        });
+        
         return response.data;
       }
       
-      throw new Error('Error obteniendo opciones disponibles');
+      throw new Error('Error obteniendo opciones de horarios disponibles');
       
     } catch (error) {
-      console.error('❌ Error obteniendo opciones disponibles:', error);
+      console.error('❌ ScheduleService: Error obteniendo opciones disponibles:', error);
       throw error;
     }
   }
 
-  // ================================
-  // ✏️ CAMBIAR HORARIOS SELECCIONADOS
-  // ================================
+  // CAMBIAR: Horarios seleccionados del cliente con validación
   async changeSchedule(changes) {
     try {
-      console.log('✏️ Cambiando horarios del cliente...');
+      console.log('✏️ ScheduleService: Cambiando horarios del cliente...');
       console.log('📤 Cambios a aplicar:', changes);
       
-      // Determinar tipo de cambio
-      const changeType = Object.keys(changes).length === 1 ? 
-        'single_day' : 
-        Object.keys(changes).length <= 3 ? 'multiple_days' : 'full_week';
+      // Validar cambios antes de enviar
+      this.validateChanges(changes);
+      
+      // Determinar tipo de cambio automáticamente
+      const changeType = this.determineChangeType(changes);
       
       const payload = {
         changeType,
         changes
       };
       
-      const response = await this.post(`${this.baseScheduleURL}/change`, payload);
+      console.log('📦 ScheduleService: Payload final:', payload);
+      
+      const response = await this.post('/memberships/my-schedule/change', payload);
       
       if (response?.success) {
-        console.log('✅ Horarios cambiados exitosamente:', response.data);
+        console.log('✅ ScheduleService: Horarios cambiados exitosamente');
+        
+        // Invalidar cache después del cambio exitoso
+        this.invalidateCache();
+        
         return response.data;
       }
       
       throw new Error(response?.message || 'Error cambiando horarios');
       
     } catch (error) {
-      console.error('❌ Error cambiando horarios:', error);
+      console.error('❌ ScheduleService: Error cambiando horarios:', error);
       
       // Manejo específico de errores de disponibilidad
       if (error.response?.data?.unavailableSlots) {
-        throw {
-          ...error,
-          unavailableSlots: error.response.data.unavailableSlots
-        };
+        const enhancedError = new Error(error.message);
+        enhancedError.unavailableSlots = error.response.data.unavailableSlots;
+        throw enhancedError;
       }
       
       throw error;
     }
   }
 
-  // ================================
-  // 🗑️ CANCELAR HORARIO ESPECÍFICO
-  // ================================
+  // CANCELAR: Horario específico por día y slot ID
   async cancelSlot(day, slotId) {
     try {
-      console.log(`🗑️ Cancelando horario ${day}/${slotId}...`);
+      console.log(`🗑️ ScheduleService: Cancelando horario ${day}/${slotId}...`);
       
-      const response = await this.delete(`${this.baseScheduleURL}/${day}/${slotId}`);
+      // Validar parámetros
+      if (!day || !slotId) {
+        throw new Error('Día y ID de slot son requeridos para cancelar');
+      }
+      
+      const response = await this.delete(`/memberships/my-schedule/${day}/${slotId}`);
       
       if (response?.success) {
-        console.log('✅ Horario cancelado exitosamente');
+        console.log('✅ ScheduleService: Horario cancelado exitosamente');
+        
+        // Invalidar cache después de la cancelación
+        this.invalidateCache();
+        
         return response.data;
       }
       
       throw new Error(response?.message || 'Error cancelando horario');
       
     } catch (error) {
-      console.error('❌ Error cancelando horario:', error);
+      console.error('❌ ScheduleService: Error cancelando horario:', error);
       throw error;
     }
   }
 
-  // ================================
-  // 📊 OBTENER ESTADÍSTICAS DE HORARIOS
-  // ================================
+  // OBTENER: Estadísticas de uso de horarios del cliente
   async getScheduleStats() {
     try {
-      console.log('📊 Obteniendo estadísticas de horarios...');
+      console.log('📊 ScheduleService: Obteniendo estadísticas de horarios...');
       
-      const response = await this.get(`${this.baseScheduleURL}/stats`);
+      const response = await this.get('/memberships/my-schedule/stats');
       
       if (response?.success && response.data) {
-        console.log('✅ Estadísticas obtenidas:', response.data);
+        console.log('✅ ScheduleService: Estadísticas obtenidas:', response.data);
         return response.data;
       }
       
-      throw new Error('Error obteniendo estadísticas');
+      throw new Error('Error obteniendo estadísticas de horarios');
       
     } catch (error) {
-      console.error('❌ Error obteniendo estadísticas:', error);
+      console.error('❌ ScheduleService: Error obteniendo estadísticas:', error);
       
       if (error.response?.status === 404) {
         // Fallback con estadísticas vacías
+        console.log('📊 ScheduleService: Usando estadísticas fallback');
         return {
           totalSlots: 0,
           usedSlots: 0,
           availableSlots: 0,
           favoriteTime: null,
-          totalVisits: 0
+          totalVisits: 0,
+          dayDistribution: {}
         };
       }
       
@@ -164,36 +183,79 @@ class ScheduleService extends BaseService {
     }
   }
 
-  // ================================
-  // 👁️ PREVISUALIZAR CAMBIOS DE HORARIOS
-  // ================================
+  // PREVISUALIZAR: Cambios de horarios antes de confirmar
   async previewChanges(changes) {
     try {
-      console.log('👁️ Previsualizando cambios de horarios...');
+      console.log('👁️ ScheduleService: Previsualizando cambios de horarios...');
       
-      const response = await this.post(`${this.baseScheduleURL}/preview-change`, {
+      // Validar cambios antes de previsualizar
+      this.validateChanges(changes);
+      
+      const response = await this.post('/memberships/my-schedule/preview-change', {
         changes
       });
       
       if (response?.success && response.data) {
-        console.log('✅ Vista previa generada:', response.data);
+        console.log('✅ ScheduleService: Vista previa generada:', {
+          canProceed: response.data.canProceed,
+          conflictsCount: response.data.conflicts?.length || 0
+        });
+        
         return response.data;
       }
       
-      throw new Error('Error generando vista previa');
+      throw new Error('Error generando vista previa de cambios');
       
     } catch (error) {
-      console.error('❌ Error en vista previa:', error);
+      console.error('❌ ScheduleService: Error en vista previa:', error);
       throw error;
     }
   }
 
   // ================================
-  // 📱 HELPERS Y UTILIDADES
+  // 🔄 MÉTODOS CON CACHE PARA OPTIMIZACIÓN
   // ================================
 
-  // Validar cambios antes de enviar
+  // Obtener horarios actuales con cache
+  async getCurrentScheduleWithCache() {
+    const cacheKey = 'currentSchedule';
+    const cached = this.getFromCache(cacheKey);
+    
+    if (cached) {
+      console.log('📅 ScheduleService: Usando horarios desde cache');
+      return cached;
+    }
+    
+    const data = await this.getCurrentSchedule();
+    this.setCache(cacheKey, data);
+    
+    return data;
+  }
+
+  // Obtener opciones disponibles con cache
+  async getAvailableOptionsWithCache(day = null) {
+    const cacheKey = `availableOptions_${day || 'all'}`;
+    const cached = this.getFromCache(cacheKey);
+    
+    if (cached) {
+      console.log('🔍 ScheduleService: Usando opciones disponibles desde cache');
+      return cached;
+    }
+    
+    const data = await this.getAvailableOptions(day);
+    this.setCache(cacheKey, data);
+    
+    return data;
+  }
+
+  // ================================
+  // 🛠️ MÉTODOS DE VALIDACIÓN Y HELPERS
+  // ================================
+
+  // Validar cambios de horarios antes de envío
   validateChanges(changes) {
+    console.log('🔍 ScheduleService: Validando cambios de horarios...');
+    
     if (!changes || typeof changes !== 'object') {
       throw new Error('Los cambios deben ser un objeto válido');
     }
@@ -205,25 +267,50 @@ class ScheduleService extends BaseService {
     const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     
     for (const [day, slots] of Object.entries(changes)) {
-      if (!validDays.includes(day)) {
-        throw new Error(`Día inválido: ${day}`);
+      // Validar nombre del día
+      if (!validDays.includes(day.toLowerCase())) {
+        throw new Error(`Día inválido: ${day}. Días válidos: ${validDays.join(', ')}`);
       }
       
+      // Validar que slots sea un array
       if (!Array.isArray(slots)) {
         throw new Error(`Los slots para ${day} deben ser un array`);
       }
       
+      // Validar que haya al menos un slot
       if (slots.length === 0) {
         throw new Error(`Debe especificar al menos un slot para ${day}`);
       }
+      
+      // Validar que todos los slots sean números o strings válidos
+      slots.forEach((slot, index) => {
+        if (slot === null || slot === undefined || slot === '') {
+          throw new Error(`Slot ${index + 1} para ${day} no puede estar vacío`);
+        }
+      });
     }
 
+    console.log('✅ ScheduleService: Validación de cambios exitosa');
     return true;
   }
 
-  // Formatear horarios para mostrar
+  // Determinar tipo de cambio automáticamente
+  determineChangeType(changes) {
+    const dayCount = Object.keys(changes).length;
+    
+    if (dayCount === 1) {
+      return 'single_day';
+    } else if (dayCount <= 3) {
+      return 'multiple_days';
+    } else {
+      return 'full_week';
+    }
+  }
+
+  // Formatear horarios para visualización en UI
   formatScheduleForDisplay(schedule) {
     if (!schedule || !schedule.currentSchedule) {
+      console.warn('ScheduleService: No hay datos de horarios para formatear');
       return {};
     }
 
@@ -238,7 +325,7 @@ class ScheduleService extends BaseService {
       sunday: 'Domingo'
     };
 
-    for (const [day, dayData] of Object.entries(schedule.currentSchedule)) {
+    Object.entries(schedule.currentSchedule).forEach(([day, dayData]) => {
       formatted[day] = {
         ...dayData,
         dayName: dayNames[day] || day,
@@ -249,18 +336,80 @@ class ScheduleService extends BaseService {
           isPast: this.isPastTime(slot.timeRange)
         })) || []
       };
-    }
+    });
 
+    console.log('✅ ScheduleService: Horarios formateados para visualización');
     return formatted;
   }
+
+  // Calcular estadísticas locales desde datos existentes
+  calculateLocalStats(schedule) {
+    if (!schedule?.currentSchedule) {
+      return null;
+    }
+
+    const currentScheduleData = schedule.currentSchedule;
+    const dayNames = {
+      monday: 'Lunes',
+      tuesday: 'Martes',
+      wednesday: 'Miércoles', 
+      thursday: 'Jueves',
+      friday: 'Viernes',
+      saturday: 'Sábado',
+      sunday: 'Domingo'
+    };
+
+    let totalSlots = 0;
+    const dayDistribution = {};
+    const allTimes = [];
+
+    Object.entries(currentScheduleData).forEach(([day, dayData]) => {
+      const dayName = dayNames[day] || day;
+      const slotsCount = dayData.hasSlots ? dayData.slots.length : 0;
+      
+      dayDistribution[dayName] = slotsCount;
+      totalSlots += slotsCount;
+      
+      if (dayData.hasSlots) {
+        allTimes.push(...dayData.slots.map(slot => slot.timeRange));
+      }
+    });
+
+    // Encontrar horario más común
+    const timeFrequency = {};
+    allTimes.forEach(time => {
+      timeFrequency[time] = (timeFrequency[time] || 0) + 1;
+    });
+
+    const favoriteTime = Object.keys(timeFrequency).length > 0 ? 
+      Object.keys(timeFrequency).reduce((a, b) => 
+        timeFrequency[a] > timeFrequency[b] ? a : b
+      ) : null;
+
+    const stats = {
+      totalSlots,
+      usedSlots: totalSlots,
+      availableSlots: 0, // Los slots actuales están siendo usados
+      totalVisits: totalSlots * 4, // Estimación semanal
+      favoriteTime,
+      dayDistribution
+    };
+
+    console.log('📊 ScheduleService: Estadísticas locales calculadas:', stats);
+    return stats;
+  }
+
+  // ================================
+  // 🕒 UTILIDADES DE TIEMPO Y DÍAS
+  // ================================
 
   // Verificar si es el día actual
   isToday(day) {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    return day === today;
+    return day.toLowerCase() === today;
   }
 
-  // Verificar si el horario ya pasó
+  // Verificar si el horario ya pasó (solo para el día actual)
   isPastTime(timeRange) {
     if (!timeRange) return false;
     
@@ -274,11 +423,12 @@ class ScheduleService extends BaseService {
       
       return now > slotTime;
     } catch (error) {
+      console.warn('ScheduleService: Error verificando tiempo pasado:', error);
       return false;
     }
   }
 
-  // Formatear rango de tiempo
+  // Formatear rango de tiempo para visualización
   formatTimeRange(timeRange) {
     if (!timeRange) return '';
     
@@ -286,11 +436,12 @@ class ScheduleService extends BaseService {
       const [start, end] = timeRange.split(' - ');
       return `${this.formatTime(start)} - ${this.formatTime(end)}`;
     } catch (error) {
+      console.warn('ScheduleService: Error formateando rango de tiempo:', error);
       return timeRange;
     }
   }
 
-  // Formatear tiempo individual
+  // Formatear tiempo individual a formato 12 horas
   formatTime(time) {
     if (!time) return '';
     
@@ -302,117 +453,109 @@ class ScheduleService extends BaseService {
       
       return `${displayHour}:${minutes} ${period}`;
     } catch (error) {
+      console.warn('ScheduleService: Error formateando tiempo:', error);
       return time;
     }
   }
 
-  // Calcular estadísticas locales
-  calculateLocalStats(schedule) {
-    if (!schedule?.currentSchedule) {
-      return {
-        totalSlots: 0,
-        usedSlots: 0,
-        availableSlots: 0,
-        daysWithSlots: 0
-      };
-    }
-
-    let totalSlots = 0;
-    let usedSlots = 0;
-    let daysWithSlots = 0;
-
-    Object.values(schedule.currentSchedule).forEach(dayData => {
-      if (dayData.hasSlots && dayData.slots) {
-        usedSlots += dayData.slots.length;
-        daysWithSlots++;
-      }
-    });
-
-    // Estimación de slots totales (esto depende del plan de membresía)
-    totalSlots = usedSlots + (daysWithSlots * 2); // Estimación conservadora
-
-    return {
-      totalSlots,
-      usedSlots,
-      availableSlots: totalSlots - usedSlots,
-      daysWithSlots
-    };
-  }
-
   // ================================
-  // 🔄 GESTIÓN DE ESTADO LOCAL Y CACHE
+  // 💾 GESTIÓN DE CACHE
   // ================================
 
-  // Cache para evitar peticiones repetidas
-  _cache = new Map();
-  _cacheTimeout = 2 * 60 * 1000; // 2 minutos
-
-  // Obtener del cache
+  // Obtener datos del cache
   getFromCache(key) {
-    const cached = this._cache.get(key);
+    const cached = this.cache.get(key);
     if (!cached) return null;
     
-    if (Date.now() - cached.timestamp > this._cacheTimeout) {
-      this._cache.delete(key);
+    const now = Date.now();
+    if (now - cached.timestamp > this.cacheTimeout) {
+      this.cache.delete(key);
       return null;
     }
     
     return cached.data;
   }
 
-  // Guardar en cache
-  saveToCache(key, data) {
-    this._cache.set(key, {
+  // Guardar datos en cache
+  setCache(key, data) {
+    this.cache.set(key, {
       data,
       timestamp: Date.now()
     });
   }
 
-  // Limpiar cache
-  clearCache() {
-    this._cache.clear();
-  }
-
-  // Métodos con cache
-  async getCurrentScheduleWithCache() {
-    const cacheKey = 'current-schedule';
-    const cached = this.getFromCache(cacheKey);
-    
-    if (cached) {
-      console.log('📅 Usando horarios desde cache');
-      return cached;
-    }
-    
-    const data = await this.getCurrentSchedule();
-    this.saveToCache(cacheKey, data);
-    return data;
-  }
-
-  async getAvailableOptionsWithCache(day = null) {
-    const cacheKey = `available-options-${day || 'all'}`;
-    const cached = this.getFromCache(cacheKey);
-    
-    if (cached) {
-      console.log('🔍 Usando opciones disponibles desde cache');
-      return cached;
-    }
-    
-    const data = await this.getAvailableOptions(day);
-    this.saveToCache(cacheKey, data);
-    return data;
-  }
-
-  // Invalidar cache después de cambios
+  // Invalidar todo el cache
   invalidateCache() {
-    console.log('🔄 Invalidando cache de horarios');
-    this.clearCache();
+    console.log('🗑️ ScheduleService: Invalidando cache de horarios');
+    this.cache.clear();
+  }
+
+  // Invalidar cache específico
+  invalidateCacheKey(key) {
+    console.log(`🗑️ ScheduleService: Invalidando cache para: ${key}`);
+    this.cache.delete(key);
+  }
+
+  // ================================
+  // 🔧 MÉTODOS DE DEBUG Y SALUD
+  // ================================
+
+  // Verificar conectividad con endpoints de horarios
+  async checkScheduleEndpoints() {
+    console.log('🔍 ScheduleService: Verificando endpoints de horarios...');
+    
+    const endpoints = [
+      { path: '/memberships/my-schedule', method: 'GET', description: 'Obtener horarios actuales' },
+      { path: '/memberships/my-schedule/available-options', method: 'GET', description: 'Obtener opciones disponibles' },
+      { path: '/memberships/my-schedule/change', method: 'POST', description: 'Cambiar horarios' },
+      { path: '/memberships/my-schedule/stats', method: 'GET', description: 'Obtener estadísticas' }
+    ];
+    
+    const results = {};
+    
+    for (const endpoint of endpoints) {
+      try {
+        if (endpoint.method === 'GET') {
+          await this.get(endpoint.path);
+          results[endpoint.path] = { available: true, method: endpoint.method };
+          console.log(`✅ ${endpoint.description} - Disponible`);
+        } else {
+          results[endpoint.path] = { available: true, method: endpoint.method, note: 'No probado (requiere datos)' };
+        }
+      } catch (error) {
+        results[endpoint.path] = { available: false, method: endpoint.method, error: error.message };
+        
+        if (error.response?.status === 404) {
+          console.log(`❌ ${endpoint.description} - Endpoint no implementado`);
+        } else if (error.response?.status === 401) {
+          console.log(`✅ ${endpoint.description} - Disponible (requiere auth)`);
+          results[endpoint.path].available = true;
+          results[endpoint.path].note = 'Requiere autenticación';
+        }
+      }
+    }
+    
+    return results;
+  }
+
+  // Obtener estado del cache
+  getCacheStatus() {
+    const entries = Array.from(this.cache.entries());
+    const now = Date.now();
+    
+    return {
+      totalEntries: entries.length,
+      validEntries: entries.filter(([_, value]) => now - value.timestamp <= this.cacheTimeout).length,
+      expiredEntries: entries.filter(([_, value]) => now - value.timestamp > this.cacheTimeout).length,
+      cacheKeys: entries.map(([key]) => key),
+      cacheTimeout: this.cacheTimeout
+    };
   }
 }
 
 // Exportar instancia singleton
 const scheduleService = new ScheduleService();
 export default scheduleService;
-
 /*
 DOCUMENTACIÓN DEL SERVICIO ScheduleService
 
