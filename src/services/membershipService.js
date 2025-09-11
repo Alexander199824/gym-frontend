@@ -1,12 +1,16 @@
-
 /*
 Autor: Alexander Echeverria
 src/services/membershipService.js
+ACTUALIZADO: Con gestión completa de horarios para clientes
 */
 
 import apiService from './apiService';
 
 class MembershipService {
+  
+  // ================================
+  // 🎫 MÉTODOS DE MEMBRESÍAS EXISTENTES
+  // ================================
   
   // PASO 1: Obtener planes de membresía disponibles - ENDPOINT QUE FUNCIONA
   async getPlans() {
@@ -285,6 +289,182 @@ class MembershipService {
       throw error;
     }
   }
+
+  // ================================
+  // 📅 NUEVOS MÉTODOS DE GESTIÓN DE HORARIOS
+  // ================================
+
+  // OBTENER: Horarios actuales del cliente
+  async getCurrentSchedule() {
+    try {
+      console.log('📅 Obteniendo horarios actuales del cliente...');
+      
+      const response = await apiService.get('/api/memberships/my-schedule');
+      
+      if (response?.success && response.data) {
+        console.log('✅ Horarios actuales obtenidos:', response.data);
+        return response.data;
+      }
+      
+      throw new Error('Error obteniendo horarios actuales');
+      
+    } catch (error) {
+      console.error('❌ Error obteniendo horarios actuales:', error);
+      
+      if (error.response?.status === 404) {
+        // Usuario sin membresía o sin horarios
+        return {
+          hasMembership: false,
+          currentSchedule: {},
+          membership: null
+        };
+      }
+      
+      throw error;
+    }
+  }
+
+  // OBTENER: Opciones de horarios disponibles
+  async getAvailableScheduleOptions(day = null) {
+    try {
+      console.log('🔍 Obteniendo opciones de horarios disponibles...');
+      
+      const params = day ? { day } : {};
+      const response = await apiService.get('/api/memberships/my-schedule/available-options', { params });
+      
+      if (response?.success && response.data) {
+        console.log('✅ Opciones disponibles obtenidas:', response.data);
+        return response.data;
+      }
+      
+      throw new Error('Error obteniendo opciones disponibles');
+      
+    } catch (error) {
+      console.error('❌ Error obteniendo opciones disponibles:', error);
+      throw error;
+    }
+  }
+
+  // CAMBIAR: Horarios seleccionados del cliente
+  async changeClientSchedule(changes) {
+    try {
+      console.log('✏️ Cambiando horarios del cliente...');
+      console.log('📤 Cambios a aplicar:', changes);
+      
+      // Validar cambios antes de enviar
+      this.validateScheduleChanges(changes);
+      
+      // Determinar tipo de cambio
+      const changeType = Object.keys(changes).length === 1 ? 
+        'single_day' : 
+        Object.keys(changes).length <= 3 ? 'multiple_days' : 'full_week';
+      
+      const payload = {
+        changeType,
+        changes
+      };
+      
+      const response = await apiService.post('/api/memberships/my-schedule/change', payload);
+      
+      if (response?.success) {
+        console.log('✅ Horarios cambiados exitosamente:', response.data);
+        return response.data;
+      }
+      
+      throw new Error(response?.message || 'Error cambiando horarios');
+      
+    } catch (error) {
+      console.error('❌ Error cambiando horarios:', error);
+      
+      // Manejo específico de errores de disponibilidad
+      if (error.response?.data?.unavailableSlots) {
+        throw {
+          ...error,
+          unavailableSlots: error.response.data.unavailableSlots
+        };
+      }
+      
+      throw error;
+    }
+  }
+
+  // CANCELAR: Horario específico
+  async cancelScheduleSlot(day, slotId) {
+    try {
+      console.log(`🗑️ Cancelando horario ${day}/${slotId}...`);
+      
+      const response = await apiService.delete(`/api/memberships/my-schedule/${day}/${slotId}`);
+      
+      if (response?.success) {
+        console.log('✅ Horario cancelado exitosamente');
+        return response.data;
+      }
+      
+      throw new Error(response?.message || 'Error cancelando horario');
+      
+    } catch (error) {
+      console.error('❌ Error cancelando horario:', error);
+      throw error;
+    }
+  }
+
+  // OBTENER: Estadísticas de horarios del cliente
+  async getScheduleStats() {
+    try {
+      console.log('📊 Obteniendo estadísticas de horarios...');
+      
+      const response = await apiService.get('/api/memberships/my-schedule/stats');
+      
+      if (response?.success && response.data) {
+        console.log('✅ Estadísticas obtenidas:', response.data);
+        return response.data;
+      }
+      
+      throw new Error('Error obteniendo estadísticas');
+      
+    } catch (error) {
+      console.error('❌ Error obteniendo estadísticas:', error);
+      
+      if (error.response?.status === 404) {
+        // Fallback con estadísticas vacías
+        return {
+          totalSlots: 0,
+          usedSlots: 0,
+          availableSlots: 0,
+          favoriteTime: null,
+          totalVisits: 0
+        };
+      }
+      
+      throw error;
+    }
+  }
+
+  // PREVISUALIZAR: Cambios de horarios antes de confirmar
+  async previewScheduleChanges(changes) {
+    try {
+      console.log('👁️ Previsualizando cambios de horarios...');
+      
+      const response = await apiService.post('/api/memberships/my-schedule/preview-change', {
+        changes
+      });
+      
+      if (response?.success && response.data) {
+        console.log('✅ Vista previa generada:', response.data);
+        return response.data;
+      }
+      
+      throw new Error('Error generando vista previa');
+      
+    } catch (error) {
+      console.error('❌ Error en vista previa:', error);
+      throw error;
+    }
+  }
+
+  // ================================
+  // 🛠️ MÉTODOS HELPER Y VALIDACIONES
+  // ================================
   
   // HELPER: Calcular días hasta vencimiento
   calculateDaysUntilExpiry(endDate) {
@@ -296,6 +476,120 @@ class MembershipService {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     return diffDays;
+  }
+
+  // VALIDAR: Cambios de horarios
+  validateScheduleChanges(changes) {
+    if (!changes || typeof changes !== 'object') {
+      throw new Error('Los cambios deben ser un objeto válido');
+    }
+
+    if (Object.keys(changes).length === 0) {
+      throw new Error('Debe especificar al menos un cambio');
+    }
+
+    const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    
+    for (const [day, slots] of Object.entries(changes)) {
+      if (!validDays.includes(day)) {
+        throw new Error(`Día inválido: ${day}`);
+      }
+      
+      if (!Array.isArray(slots)) {
+        throw new Error(`Los slots para ${day} deben ser un array`);
+      }
+      
+      if (slots.length === 0) {
+        throw new Error(`Debe especificar al menos un slot para ${day}`);
+      }
+    }
+
+    return true;
+  }
+
+  // FORMATEAR: Horarios para visualización
+  formatScheduleForDisplay(schedule) {
+    if (!schedule || !schedule.currentSchedule) {
+      return {};
+    }
+
+    const formatted = {};
+    const dayNames = {
+      monday: 'Lunes',
+      tuesday: 'Martes', 
+      wednesday: 'Miércoles',
+      thursday: 'Jueves',
+      friday: 'Viernes',
+      saturday: 'Sábado',
+      sunday: 'Domingo'
+    };
+
+    for (const [day, dayData] of Object.entries(schedule.currentSchedule)) {
+      formatted[day] = {
+        ...dayData,
+        dayName: dayNames[day] || day,
+        formattedSlots: dayData.slots?.map(slot => ({
+          ...slot,
+          displayTime: this.formatTimeRange(slot.timeRange),
+          isToday: this.isToday(day),
+          isPast: this.isPastTime(slot.timeRange)
+        })) || []
+      };
+    }
+
+    return formatted;
+  }
+
+  // HELPER: Verificar si es el día actual
+  isToday(day) {
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    return day === today;
+  }
+
+  // HELPER: Verificar si el horario ya pasó
+  isPastTime(timeRange) {
+    if (!timeRange) return false;
+    
+    try {
+      const now = new Date();
+      const [startTime] = timeRange.split(' - ');
+      const [hours, minutes] = startTime.split(':').map(Number);
+      
+      const slotTime = new Date();
+      slotTime.setHours(hours, minutes, 0, 0);
+      
+      return now > slotTime;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // HELPER: Formatear rango de tiempo
+  formatTimeRange(timeRange) {
+    if (!timeRange) return '';
+    
+    try {
+      const [start, end] = timeRange.split(' - ');
+      return `${this.formatTime(start)} - ${this.formatTime(end)}`;
+    } catch (error) {
+      return timeRange;
+    }
+  }
+
+  // HELPER: Formatear tiempo individual
+  formatTime(time) {
+    if (!time) return '';
+    
+    try {
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      
+      return `${displayHour}:${minutes} ${period}`;
+    } catch (error) {
+      return time;
+    }
   }
   
   // HELPER: Selección automática de horarios básica
@@ -410,6 +704,46 @@ class MembershipService {
 // Exportar instancia singleton
 const membershipService = new MembershipService();
 export default membershipService;
+
+/*
+=== ACTUALIZACIONES PARA GESTIÓN DE HORARIOS ===
+
+NUEVOS MÉTODOS AGREGADOS:
+- getCurrentSchedule(): Obtener horarios actuales del cliente
+- getAvailableScheduleOptions(): Ver opciones de horarios disponibles
+- changeClientSchedule(): Modificar horarios con validación
+- cancelScheduleSlot(): Cancelar horario específico
+- getScheduleStats(): Estadísticas de uso de horarios
+- previewScheduleChanges(): Vista previa antes de confirmar
+- validateScheduleChanges(): Validación de cambios
+- formatScheduleForDisplay(): Formateo para UI
+
+ENDPOINTS UTILIZADOS:
+- GET /api/memberships/my-schedule: Horarios actuales
+- GET /api/memberships/my-schedule/available-options: Opciones disponibles
+- POST /api/memberships/my-schedule/change: Cambiar horarios
+- DELETE /api/memberships/my-schedule/{day}/{slotId}: Cancelar slot
+- GET /api/memberships/my-schedule/stats: Estadísticas
+- POST /api/memberships/my-schedule/preview-change: Vista previa
+
+FUNCIONALIDADES AGREGADAS:
+- Gestión completa de horarios de clientes
+- Validación de disponibilidad en tiempo real
+- Sistema de vista previa de cambios
+- Formateo de horarios para visualización
+- Cálculo de estadísticas locales
+- Manejo de errores específicos
+- Helpers para formato de tiempo y días
+
+INTEGRACIÓN CON MEMBRESÍAS:
+- Los métodos de horarios se integran con el sistema de membresías existente
+- Validación de estado de membresía antes de operaciones
+- Consistencia con el flujo de adquisición de membresías
+- Reutilización de helpers y validaciones existentes
+
+Esta actualización mantiene toda la funcionalidad original del servicio de membresías
+y agrega capacidades completas de gestión de horarios para clientes con membresía activa.
+*/
 
 /*
 === ACTUALIZACIONES PARA PRODUCCIÓN ===

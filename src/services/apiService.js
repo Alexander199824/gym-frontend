@@ -1,6 +1,6 @@
 // src/services/apiService.js
 // ARCHIVO PRINCIPAL - MANTIENE LA MISMA INTERFAZ EXACTA PARA NO ROMPER NADA
-// AHORA ORGANIZADO EN MÓDULOS SEPARADOS
+// AHORA ORGANIZADO EN MÓDULOS SEPARADOS + GESTIÓN DE HORARIOS
 
 // ================================
 // 📁 IMPORTACIONES DE MÓDULOS
@@ -11,6 +11,7 @@ import { GymService } from './gymService.js';
 import { UserService } from './userService.js';
 import { StoreService } from './storeService.js';
 import { StripeService } from './stripeService.js';
+import scheduleService from './scheduleService.js';
 
 // ================================
 // 🏠 CLASE PRINCIPAL DEL SERVICIO API
@@ -25,6 +26,7 @@ class ApiService extends BaseService {
     this.userService = new UserService();
     this.storeService = new StoreService();
     this.stripeService = new StripeService();
+    this.scheduleService = scheduleService; // Usar instancia singleton
   }
 
   // ================================
@@ -400,6 +402,81 @@ class ApiService extends BaseService {
   async getStripeStatus() {
     return this.stripeService.getStripeStatus();
   }
+
+  // ================================
+  // 📅 NUEVOS MÉTODOS DE GESTIÓN DE HORARIOS - DELEGACIÓN A scheduleService
+  // ================================
+
+  // OBTENER: Horarios actuales del cliente autenticado
+  async getCurrentSchedule() {
+    return this.scheduleService.getCurrentSchedule();
+  }
+
+  // OBTENER: Opciones de horarios disponibles para reservar
+  async getAvailableScheduleOptions(day = null) {
+    return this.scheduleService.getAvailableOptions(day);
+  }
+
+  // CAMBIAR: Horarios seleccionados del cliente
+  async changeClientSchedule(changes) {
+    return this.scheduleService.changeSchedule(changes);
+  }
+
+  // CANCELAR: Horario específico por día y slot ID
+  async cancelScheduleSlot(day, slotId) {
+    return this.scheduleService.cancelSlot(day, slotId);
+  }
+
+  // OBTENER: Estadísticas de uso de horarios del cliente
+  async getScheduleStats() {
+    return this.scheduleService.getScheduleStats();
+  }
+
+  // PREVISUALIZAR: Cambios de horarios antes de confirmar
+  async previewScheduleChanges(changes) {
+    return this.scheduleService.previewChanges(changes);
+  }
+
+  // VALIDAR: Cambios de horarios antes de envío
+  validateScheduleChanges(changes) {
+    return this.scheduleService.validateChanges(changes);
+  }
+
+  // FORMATEAR: Horarios para visualización en UI
+  formatScheduleForDisplay(schedule) {
+    return this.scheduleService.formatScheduleForDisplay(schedule);
+  }
+
+  // CACHE: Métodos con cache para optimizar peticiones
+  async getCurrentScheduleWithCache() {
+    return this.scheduleService.getCurrentScheduleWithCache();
+  }
+
+  async getAvailableOptionsWithCache(day = null) {
+    return this.scheduleService.getAvailableOptionsWithCache(day);
+  }
+
+  // CACHE: Invalidar cache después de cambios
+  invalidateScheduleCache() {
+    return this.scheduleService.invalidateCache();
+  }
+
+  // UTILIDADES: Helpers para trabajo con horarios
+  isToday(day) {
+    return this.scheduleService.isToday(day);
+  }
+
+  isPastTime(timeRange) {
+    return this.scheduleService.isPastTime(timeRange);
+  }
+
+  formatTimeRange(timeRange) {
+    return this.scheduleService.formatTimeRange(timeRange);
+  }
+
+  calculateLocalScheduleStats(schedule) {
+    return this.scheduleService.calculateLocalStats(schedule);
+  }
 }
 
 // ================================
@@ -409,6 +486,64 @@ const apiService = new ApiService();
 
 export default apiService;
 
+// ✅ GESTIÓN DE HORARIOS AGREGADA AL SERVICIO PRINCIPAL
+// 
+// 📁 ARCHIVOS RELACIONADOS:
+// 1. scheduleService.js - Servicio especializado para gestión de horarios
+// 2. membershipService.js - Actualizado con métodos de horarios
+// 3. apiService.js - Archivo principal con delegación a servicios
+// 
+// ✅ NUEVOS MÉTODOS DISPONIBLES:
+// - getCurrentSchedule(): Horarios actuales del cliente
+// - getAvailableScheduleOptions(): Opciones disponibles por día
+// - changeClientSchedule(): Modificar horarios con validación
+// - cancelScheduleSlot(): Cancelar horario específico
+// - getScheduleStats(): Estadísticas de uso
+// - previewScheduleChanges(): Vista previa antes de confirmar
+// - validateScheduleChanges(): Validación de datos
+// - formatScheduleForDisplay(): Formateo para UI
+// - Cache y utilidades para optimización
+// 
+// ✅ ENDPOINTS INTEGRADOS:
+// - GET /api/memberships/my-schedule
+// - GET /api/memberships/my-schedule/available-options
+// - POST /api/memberships/my-schedule/change
+// - DELETE /api/memberships/my-schedule/{day}/{slotId}
+// - GET /api/memberships/my-schedule/stats
+// - POST /api/memberships/my-schedule/preview-change
+// 
+// 🔄 COMPATIBILIDAD TOTAL:
+// - Mantiene todos los métodos existentes sin cambios
+// - Agrega nuevos métodos de forma no invasiva
+// - Misma importación y uso que antes
+// - No rompe funcionalidad existente
+// 
+// 🚀 USO EN COMPONENTES:
+// import apiService from './services/apiService.js'
+// 
+// const horarios = await apiService.getCurrentSchedule()
+// const opciones = await apiService.getAvailableScheduleOptions()
+// await apiService.changeClientSchedule(cambios)
+// await apiService.cancelScheduleSlot('monday', 123)
+// const stats = await apiService.getScheduleStats()
+// 
+// 📱 INTEGRACIÓN CON REACT QUERY:
+// const { data } = useQuery({
+//   queryKey: ['currentSchedule'],
+//   queryFn: () => apiService.getCurrentSchedule()
+// })
+// 
+// const mutation = useMutation({
+//   mutationFn: (changes) => apiService.changeClientSchedule(changes)
+// })
+// 
+// ✅ BENEFICIOS:
+// - Gestión completa de horarios integrada
+// - Misma interfaz consistente del apiService
+// - Validaciones y formateo incluidos
+// - Sistema de cache para optimización
+// - Manejo de errores específicos
+// - Compatibilidad total con código existente
 // ✅ SEPARACIÓN MODULAR COMPLETADA
 // 
 // 📁 ARCHIVOS CREADOS:

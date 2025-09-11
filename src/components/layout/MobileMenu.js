@@ -1,6 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/MobileMenu.js
 // FUNCIÓN: Menú móvil optimizado para rendimiento sin errores de timeout
+// ACTUALIZADO: Con opciones específicas para clientes (Mi Membresía y Mis Horarios)
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -24,7 +25,8 @@ import {
   TrendingUp,
   Clock,
   HelpCircle,
-  Phone
+  Phone,
+  Timer
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import GymLogo from '../common/GymLogo';
@@ -80,6 +82,17 @@ const MobileMenu = React.memo(({ onClose }) => {
     }
   }, [user?.role]);
   
+  // Verificar secciones específicas del cliente
+  const isActiveMembershipSection = useCallback(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return location.pathname === '/dashboard/client' && searchParams.get('section') === 'membership';
+  }, [location]);
+  
+  const isActiveScheduleSection = useCallback(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return location.pathname === '/dashboard/client' && searchParams.get('section') === 'schedule';
+  }, [location]);
+  
   // Memoizar elementos del menú para evitar re-renders
   const menuItems = useMemo(() => {
     const baseItems = [
@@ -107,7 +120,7 @@ const MobileMenu = React.memo(({ onClose }) => {
       });
     }
     
-    // Membresías
+    // Membresías (Admin/Staff: gestión, Cliente: mi membresía)
     if (hasPermission('view_memberships')) {
       baseItems.push({
         id: 'memberships',
@@ -117,6 +130,39 @@ const MobileMenu = React.memo(({ onClose }) => {
         show: true,
         badge: null,
         color: 'text-purple-600'
+      });
+    } else if (user?.role === 'cliente') {
+      baseItems.push({
+        id: 'my_membership',
+        label: 'Mi Membresía',
+        icon: CreditCard,
+        path: '/dashboard/client?section=membership',
+        show: true,
+        badge: null,
+        color: 'text-purple-600'
+      });
+    }
+    
+    // Horarios (Admin: gestión del gimnasio, Cliente: mis horarios)
+    if (hasPermission('manage_gym_schedule')) {
+      baseItems.push({
+        id: 'schedule',
+        label: 'Horarios de Atención',
+        icon: Timer,
+        path: '/dashboard/schedule',
+        show: true,
+        badge: null,
+        color: 'text-orange-600'
+      });
+    } else if (user?.role === 'cliente') {
+      baseItems.push({
+        id: 'my_schedule',
+        label: 'Mis Horarios',
+        icon: Timer,
+        path: '/dashboard/client?section=schedule',
+        show: true,
+        badge: null,
+        color: 'text-orange-600'
       });
     }
     
@@ -198,8 +244,8 @@ const MobileMenu = React.memo(({ onClose }) => {
       );
     } else {
       actions.push(
-        { icon: Calendar, label: 'Mis Clases', path: '/dashboard/classes' },
-        { icon: Star, label: 'Progreso', path: '/dashboard/progress' },
+        { icon: CreditCard, label: 'Mi Membresía', path: '/dashboard/client?section=membership' },
+        { icon: Timer, label: 'Mis Horarios', path: '/dashboard/client?section=schedule' },
         { icon: ShoppingCart, label: 'Tienda', path: '/store' }
       );
     }
@@ -400,31 +446,44 @@ const MobileMenu = React.memo(({ onClose }) => {
       {/* Navegación principal */}
       <nav className="flex-1 overflow-y-auto p-4">
         <div className="space-y-1">
-          {filteredMenuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleNavigation(item.path, item.label)}
-              className={`
-                w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
-                ${isActiveRoute(item.path) || isActiveSection([item.path])
-                  ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-500 shadow-sm'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                }
-              `}
-              type="button"
-            >
-              <div className="flex items-center">
-                <item.icon className={`w-5 h-5 mr-3 ${item.color || 'text-current'}`} />
-                <span>{item.label}</span>
-                {item.badge && (
-                  <span className="ml-2 px-2 py-1 text-xs font-bold bg-red-100 text-red-800 rounded-full">
-                    {item.badge}
-                  </span>
-                )}
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
-          ))}
+          {filteredMenuItems.map((item) => {
+            // Verificar si está activo - incluir secciones específicas para cliente
+            let isActive = false;
+            
+            if (item.id === 'my_membership') {
+              isActive = isActiveMembershipSection();
+            } else if (item.id === 'my_schedule') {
+              isActive = isActiveScheduleSection();
+            } else {
+              isActive = isActiveRoute(item.path) || isActiveSection([item.path]);
+            }
+            
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavigation(item.path, item.label)}
+                className={`
+                  w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200
+                  ${isActive
+                    ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-500 shadow-sm'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }
+                `}
+                type="button"
+              >
+                <div className="flex items-center">
+                  <item.icon className={`w-5 h-5 mr-3 ${item.color || 'text-current'}`} />
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className="ml-2 px-2 py-1 text-xs font-bold bg-red-100 text-red-800 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </button>
+            );
+          })}
         </div>
         
         {/* Páginas recientes */}
@@ -529,7 +588,6 @@ const MobileMenu = React.memo(({ onClose }) => {
 MobileMenu.displayName = 'MobileMenu';
 
 export default MobileMenu;
-
 /*
 DOCUMENTACIÓN DEL COMPONENTE MobileMenu
 

@@ -1,6 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/Sidebar.js
 // FUNCIÓN: Sidebar solo para desktop con navegación colapsable
+// ACTUALIZADO: Con opciones específicas para clientes (Mi Membresía y Mis Horarios)
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -55,13 +56,40 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // Membresías
+    // Membresías (Admin/Staff: gestión, Cliente: mi membresía)
     if (hasPermission('view_memberships')) {
       baseItems.push({
         id: 'memberships',
         label: 'Membresías',
         icon: CreditCard,
         path: '/dashboard/memberships',
+        show: true
+      });
+    } else if (user?.role === 'cliente') {
+      baseItems.push({
+        id: 'my_membership',
+        label: 'Mi Membresía',
+        icon: CreditCard,
+        path: '/dashboard/client?section=membership',
+        show: true
+      });
+    }
+    
+    // Horarios (Admin: gestión del gimnasio, Cliente: mis horarios)
+    if (hasPermission('manage_gym_schedule')) {
+      baseItems.push({
+        id: 'schedule',
+        label: 'Horarios de Atención',
+        icon: Clock,
+        path: '/dashboard/schedule',
+        show: true
+      });
+    } else if (user?.role === 'cliente') {
+      baseItems.push({
+        id: 'my_schedule',
+        label: 'Mis Horarios',
+        icon: Clock,
+        path: '/dashboard/client?section=schedule',
         show: true
       });
     }
@@ -97,17 +125,6 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // Gestión de Horarios
-    if (hasPermission('manage_gym_schedule')) {
-      baseItems.push({
-        id: 'schedule',
-        label: 'Horarios de Atención',
-        icon: Clock,
-        path: '/dashboard/schedule',
-        show: true
-      });
-    }
-    
     return baseItems.filter(item => item.show);
   };
   
@@ -126,6 +143,17 @@ const Sidebar = ({ collapsed }) => {
   };
   
   const menuItems = getMenuItems();
+  
+  // Verificar si estamos en las secciones específicas del cliente
+  const isActiveMembershipSection = () => {
+    const searchParams = new URLSearchParams(location.search);
+    return location.pathname === '/dashboard/client' && searchParams.get('section') === 'membership';
+  };
+  
+  const isActiveScheduleSection = () => {
+    const searchParams = new URLSearchParams(location.search);
+    return location.pathname === '/dashboard/client' && searchParams.get('section') === 'schedule';
+  };
   
   // Manejar logout robusto
   const handleLogout = async () => {
@@ -253,31 +281,44 @@ const Sidebar = ({ collapsed }) => {
       <nav className={`flex-1 space-y-2 transition-all duration-300 ${
         collapsed ? 'p-2' : 'p-4'
       }`}>
-        {menuItems.map((item) => (
-          <Link
-            key={item.id}
-            to={item.path}
-            className={`
-              flex items-center rounded-xl transition-all duration-300
-              ${isActiveRoute(item.path) || isActiveSection([item.path])
-                ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-500'
-                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }
-              ${collapsed ? 'p-2 justify-center' : 'px-3 py-3'}
-            `}
-            title={collapsed ? item.label : undefined}
-          >
-            {/* Icono - siempre visible */}
-            <item.icon className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
-            
-            {/* Texto - desaparece cuando está colapsado */}
-            {!collapsed && (
-              <span className="text-sm font-medium transition-opacity duration-300">
-                {item.label}
-              </span>
-            )}
-          </Link>
-        ))}
+        {menuItems.map((item) => {
+          // Verificar si está activo - incluir secciones específicas para cliente
+          let isActive = false;
+          
+          if (item.id === 'my_membership') {
+            isActive = isActiveMembershipSection();
+          } else if (item.id === 'my_schedule') {
+            isActive = isActiveScheduleSection();
+          } else {
+            isActive = isActiveRoute(item.path) || isActiveSection([item.path]);
+          }
+          
+          return (
+            <Link
+              key={item.id}
+              to={item.path}
+              className={`
+                flex items-center rounded-xl transition-all duration-300
+                ${isActive
+                  ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-500'
+                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }
+                ${collapsed ? 'p-2 justify-center' : 'px-3 py-3'}
+              `}
+              title={collapsed ? item.label : undefined}
+            >
+              {/* Icono - siempre visible */}
+              <item.icon className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
+              
+              {/* Texto - desaparece cuando está colapsado */}
+              {!collapsed && (
+                <span className="text-sm font-medium transition-opacity duration-300">
+                  {item.label}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
       
       {/* Enlaces adicionales */}
