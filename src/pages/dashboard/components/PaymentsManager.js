@@ -1,16 +1,15 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/PaymentsManager.js
-// FUNCIÓN: Gestión completa de pagos - Crear, validar, reportes, transferencias
-// CONECTA CON: Backend API /api/payments/* + NUEVAS FUNCIONALIDADES DE AUTORIZACIÓN
+// VERSIÓN SIMPLIFICADA Y CORREGIDA - Sistema de Pagos
 
 import React, { useState, useEffect } from 'react';
 import {
-  Coins, Plus, Search, Filter, Eye, Check, X, Clock, AlertCircle,
-  CreditCard, Banknote, Building, Smartphone, Upload, Download,
-  RefreshCw, Calendar, User, FileText, CheckCircle, XCircle,
-  TrendingUp, PieChart, BarChart3, Calculator, Bell, Settings,
-  ImageIcon, Loader, MoreHorizontal, Bird, ExternalLink, Timer,
-  Users, Zap, Shield, Activity
+  Coins, Plus, Search, Filter, Eye, Check, X, Clock, 
+  CreditCard, Banknote, Building, Smartphone, RefreshCw, 
+  Calendar, User, FileText, CheckCircle, XCircle,
+  TrendingUp, PieChart, Calculator, Settings,
+  Loader, MoreHorizontal, Bird, ExternalLink,
+  Users, Activity
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -22,19 +21,24 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   
   // Estados principales
   const [payments, setPayments] = useState([]);
-  const [paymentStats, setPaymentStats] = useState({});
+  const [paymentStats, setPaymentStats] = useState({
+    totalIncome: 0,
+    totalPayments: 0,
+    averagePayment: 0,
+    incomeByMethod: []
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // 🆕 NUEVOS ESTADOS PARA FUNCIONALIDADES DE AUTORIZACIÓN
+  // Estados para funcionalidades de autorización
   const [dashboardData, setDashboardData] = useState({});
   const [pendingTransfers, setPendingTransfers] = useState([]);
   const [pendingCashMemberships, setPendingCashMemberships] = useState([]);
   const [processingPayments, setProcessingPayments] = useState(new Set());
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'payments', 'transfers', 'cash'
+  const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Estados de filtros y búsqueda (existentes)
+  // Estados de filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPaymentType, setSelectedPaymentType] = useState('all');
   const [selectedMethod, setSelectedMethod] = useState('all');
@@ -46,16 +50,12 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const [sortBy, setSortBy] = useState('paymentDate');
   const [sortOrder, setSortOrder] = useState('desc');
   
-  // 🆕 NUEVOS FILTROS PARA TRANSFERENCIAS
-  const [transferPriorityFilter, setTransferPriorityFilter] = useState('all');
-  const [hoursFilter, setHoursFilter] = useState(null);
-  
   // Estados de paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [paymentsPerPage] = useState(isMobile ? 10 : 20);
   const [totalPayments, setTotalPayments] = useState(0);
   
-  // Estados para crear/editar pago (existentes)
+  // Estados para crear/editar pago
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [paymentFormData, setPaymentFormData] = useState({
@@ -74,7 +74,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   });
   
-  // Configuraciones existentes
+  // Configuraciones
   const paymentTypes = [
     { value: 'membership', label: 'Membresía', color: 'bg-purple-100 text-purple-800', icon: CreditCard },
     { value: 'daily', label: 'Pago Diario', color: 'bg-blue-100 text-blue-800', icon: Calendar },
@@ -101,20 +101,17 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   // Referencias para auto-refresh
   const refreshIntervalRef = React.useRef(null);
   
-  // 🆕 CARGAR DASHBOARD DE PAGOS PENDIENTES
+  // CARGAR DASHBOARD DE PAGOS PENDIENTES
   const loadDashboard = async () => {
     try {
       console.log('📊 Cargando dashboard de pagos pendientes...');
       
-      // Cargar dashboard principal con cache
       const dashboardResponse = await apiService.getPendingPaymentsDashboardWithCache();
       setDashboardData(dashboardResponse.data || {});
       
-      // Cargar transferencias pendientes
-      const transfersResponse = await apiService.getPendingTransfersDetailed(hoursFilter);
+      const transfersResponse = await apiService.getPendingTransfersDetailed();
       setPendingTransfers(transfersResponse.data?.transfers || []);
       
-      // Cargar membresías pendientes en efectivo
       const cashResponse = await apiService.getPendingCashMemberships();
       setPendingCashMemberships(cashResponse.data?.memberships || []);
       
@@ -122,10 +119,14 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     } catch (error) {
       console.error('❌ Error al cargar dashboard:', error);
       showError('Error al cargar dashboard de pagos');
+      // Valores por defecto para evitar errores
+      setDashboardData({});
+      setPendingTransfers([]);
+      setPendingCashMemberships([]);
     }
   };
   
-  // CARGAR DATOS (función existente mejorada)
+  // CARGAR DATOS DE PAGOS
   const loadPayments = async () => {
     try {
       setLoading(true);
@@ -170,29 +171,41 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // CARGAR ESTADÍSTICAS (función existente mejorada)
+  // CARGAR ESTADÍSTICAS CORREGIDO
   const loadPaymentStats = async () => {
     try {
-      // Usar el nuevo endpoint de estadísticas si está disponible
-      const stats = await apiService.getPaymentStatistics({
+      console.log('📊 Cargando estadísticas de pagos...');
+      
+      // CORREGIDO: Usar el endpoint statistics correcto
+      const response = await apiService.getPaymentStatistics({
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       });
-      console.log('📊 Estadísticas de pagos cargadas:', stats);
-      setPaymentStats(stats.data || stats);
+      
+      console.log('✅ Estadísticas cargadas:', response);
+      
+      // Asegurar que los datos tengan estructura correcta
+      const stats = response.data || response || {};
+      setPaymentStats({
+        totalIncome: parseFloat(stats.totalIncome) || 0,
+        totalPayments: parseInt(stats.totalPayments) || 0,
+        averagePayment: parseFloat(stats.averagePayment) || 0,
+        incomeByMethod: stats.incomeByMethod || []
+      });
+      
     } catch (error) {
       console.error('Error al cargar estadísticas de pagos:', error);
-      // Fallback a estadísticas vacías
+      // Estadísticas por defecto para evitar errores
       setPaymentStats({
         totalIncome: 0,
         totalPayments: 0,
-        incomeByMethod: [],
-        averagePayment: 0
+        averagePayment: 0,
+        incomeByMethod: []
       });
     }
   };
   
-  // 🆕 VALIDAR TRANSFERENCIA
+  // VALIDAR TRANSFERENCIA
   const handleValidateTransfer = async (paymentId, approved, notes = '') => {
     if (processingPayments.has(paymentId)) return;
 
@@ -205,13 +218,14 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
       showSuccess(
         approved 
-          ? 'Transferencia aprobada y membresía activada exitosamente' 
+          ? 'Transferencia aprobada exitosamente' 
           : 'Transferencia rechazada'
       );
       
       // Recargar datos
       await loadDashboard();
       await loadPayments();
+      await loadPaymentStats();
       
       if (onSave) {
         onSave({ type: 'transfer_validation', action: approved ? 'approved' : 'rejected' });
@@ -231,7 +245,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
 
-  // 🆕 ACTIVAR MEMBRESÍA EN EFECTIVO
+  // ACTIVAR MEMBRESÍA EN EFECTIVO
   const handleActivateCashMembership = async (membershipId) => {
     if (processingPayments.has(membershipId)) return;
 
@@ -242,7 +256,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
       const result = await apiService.activateCashMembership(membershipId);
       
-      showSuccess(`Membresía activada y pago de ${formatCurrency(result.data?.payment?.amount || 0)} registrado`);
+      showSuccess(`Membresía activada exitosamente`);
       
       // Recargar datos
       await loadDashboard();
@@ -266,34 +280,31 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // 🆕 OBTENER CONFIGURACIÓN DE PRIORIDAD
-  const getPriorityConfig = (hoursWaiting) => {
-    return apiService.getTransferPriorityConfig(hoursWaiting);
-  };
-
-  // 🆕 FILTRAR TRANSFERENCIAS
-  const getFilteredTransfers = () => {
-    return pendingTransfers.filter(transfer => {
-      if (transferPriorityFilter === 'all') return true;
-      const priority = getPriorityConfig(transfer.hoursWaiting).priority;
-      return priority === transferPriorityFilter;
-    });
-  };
-  
-  // Función existente para crear pago
+  // Función para crear pago
   const handleCreatePayment = async () => {
     try {
       setSaving(true);
       
-      // Validaciones usando el nuevo servicio
-      const validation = apiService.validatePaymentData(paymentFormData);
-      if (!validation.isValid) {
-        showError(validation.errors[0]);
+      // Validaciones básicas
+      if (!paymentFormData.amount || paymentFormData.amount <= 0) {
+        showError('El monto debe ser mayor a 0');
         return;
       }
       
-      // Formatear datos usando el nuevo servicio
-      const formattedData = apiService.formatPaymentDataForAPI(paymentFormData);
+      // Formatear datos
+      const formattedData = {
+        userId: paymentFormData.userId || null,
+        membershipId: paymentFormData.paymentType === 'membership' ? paymentFormData.membershipId || null : null,
+        amount: parseFloat(paymentFormData.amount),
+        paymentMethod: paymentFormData.paymentMethod,
+        paymentType: paymentFormData.paymentType,
+        description: paymentFormData.description || `Pago ${paymentFormData.paymentType}`,
+        notes: paymentFormData.notes,
+        paymentDate: paymentFormData.paymentDate || new Date().toISOString().split('T')[0],
+        dailyPaymentCount: paymentFormData.paymentType === 'bulk_daily' ? 
+          parseInt(paymentFormData.dailyPaymentCount) || 1 : 1,
+        anonymousClientInfo: !paymentFormData.userId ? paymentFormData.anonymousClientInfo : null
+      };
       
       let response;
       if (editingPayment) {
@@ -327,7 +338,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // Funciones existentes mantenidas
+  // Funciones auxiliares
   const resetPaymentForm = () => {
     setPaymentFormData({
       userId: '',
@@ -399,7 +410,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     // Configurar auto-refresh
     if (autoRefresh) {
       refreshIntervalRef.current = setInterval(() => {
-        loadDashboard(); // Solo actualizar dashboard automáticamente
+        loadDashboard();
       }, 30000); // Cada 30 segundos
     }
 
@@ -419,10 +430,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     loadPaymentStats();
   }, [dateRange]);
   
-  useEffect(() => {
-    loadDashboard();
-  }, [hoursFilter]);
-  
   // Cálculo de paginación
   const totalPages = Math.max(1, Math.ceil(totalPayments / paymentsPerPage));
   const filteredPayments = payments.filter(payment => {
@@ -438,31 +445,18 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     return matchesSearch && matchesType && matchesMethod && matchesStatus;
   });
 
-  // 🆕 FUNCIÓN PARA OBTENER CONTADOR DE ITEMS URGENTES
-  const getUrgentCount = () => {
-    const criticalTransfers = pendingTransfers.filter(t => 
-      getPriorityConfig(t.hoursWaiting).priority === 'critical'
-    ).length;
-    
-    const oldCashMemberships = pendingCashMemberships.filter(m => 
-      (m.hoursWaiting || 0) > 4
-    ).length;
-    
-    return criticalTransfers + oldCashMemberships;
-  };
-
   return (
     <div className="space-y-6">
       
-      {/* HEADER CON NAVEGACIÓN POR TABS */}
+      {/* HEADER SIMPLIFICADO */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-            <Bird className="w-6 h-6 mr-2 text-green-600" />
-            Sistema de Pagos en Quetzales
+            <Coins className="w-6 h-6 mr-2 text-green-600" />
+            Pagos
           </h3>
           <p className="text-gray-600 mt-1">
-            Gestión completa de pagos, transferencias y autorizaciones
+            Gestión de pagos, transferencias y membresías
           </p>
         </div>
         
@@ -477,14 +471,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             />
             Auto-refresh
           </label>
-          
-          {/* Indicador de items urgentes */}
-          {getUrgentCount() > 0 && (
-            <div className="flex items-center space-x-1 text-red-600 text-sm">
-              <AlertCircle className="w-4 h-4" />
-              <span>{getUrgentCount()} urgentes</span>
-            </div>
-          )}
           
           <button
             onClick={() => {
@@ -511,7 +497,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
 
-      {/* 🆕 NAVEGACIÓN POR TABS */}
+      {/* NAVEGACIÓN POR TABS SIMPLIFICADA */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button
@@ -523,12 +509,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             }`}
           >
             <TrendingUp className="w-4 h-4 mr-2" />
-            Dashboard
-            {(dashboardData?.urgentItems?.length || 0) > 0 && (
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">
-                {dashboardData.urgentItems.length}
-              </span>
-            )}
+            Resumen
           </button>
           
           <button
@@ -579,11 +560,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </nav>
       </div>
 
-      {/* 🆕 CONTENIDO DEL TAB DASHBOARD */}
+      {/* CONTENIDO DEL TAB RESUMEN - SIMPLIFICADO */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
           
-          {/* Tarjetas de resumen mejoradas */}
+          {/* Tarjetas de resumen CORREGIDAS */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
               <div className="flex items-center">
@@ -605,12 +586,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 <Building className="w-8 h-8 text-purple-600" />
                 <div className="ml-3">
                   <div className="text-2xl font-bold text-purple-900">
-                    {dashboardData?.summary?.pendingTransfers?.count || 0}
+                    {pendingTransfers.length || 0}
                   </div>
                   <div className="text-sm text-purple-600">Transferencias</div>
-                  <div className="text-xs text-purple-500 flex items-center">
-                    <Bird className="w-3 h-3 mr-1" />
-                    {formatCurrency(dashboardData?.summary?.pendingTransfers?.totalAmount || 0)}
+                  <div className="text-xs text-purple-500">
+                    Pendientes de validación
                   </div>
                 </div>
               </div>
@@ -621,12 +601,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 <Banknote className="w-8 h-8 text-blue-600" />
                 <div className="ml-3">
                   <div className="text-2xl font-bold text-blue-900">
-                    {dashboardData?.summary?.pendingCashMemberships?.count || 0}
+                    {pendingCashMemberships.length || 0}
                   </div>
                   <div className="text-sm text-blue-600">Efectivo Pendiente</div>
-                  <div className="text-xs text-blue-500 flex items-center">
-                    <Bird className="w-3 h-3 mr-1" />
-                    {formatCurrency(dashboardData?.summary?.pendingCashMemberships?.totalAmount || 0)}
+                  <div className="text-xs text-blue-500">
+                    Membresías por activar
                   </div>
                 </div>
               </div>
@@ -634,164 +613,84 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             
             <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
               <div className="flex items-center">
-                <Activity className="w-8 h-8 text-orange-600" />
+                <Calculator className="w-8 h-8 text-orange-600" />
                 <div className="ml-3">
                   <div className="text-2xl font-bold text-orange-900">
-                    {(dashboardData?.summary?.todayValidations?.approved || 0) + 
-                     (dashboardData?.summary?.todayValidations?.rejected || 0)}
+                    {formatCurrency(paymentStats.averagePayment || 0)}
                   </div>
-                  <div className="text-sm text-orange-600">Procesadas Hoy</div>
+                  <div className="text-sm text-orange-600">Promedio</div>
                   <div className="text-xs text-orange-500">
-                    {dashboardData?.summary?.todayValidations?.approved || 0}✓ • {' '}
-                    {dashboardData?.summary?.todayValidations?.rejected || 0}✗
+                    Por transacción
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Items urgentes */}
-          {dashboardData?.urgentItems && dashboardData.urgentItems.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-              <div className="flex items-center mb-4">
-                <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
-                <h4 className="text-lg font-medium text-red-900">Items Urgentes ({dashboardData.urgentItems.length})</h4>
-              </div>
+          {/* Métodos de pago más usados */}
+          {paymentStats.incomeByMethod && paymentStats.incomeByMethod.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <PieChart className="w-5 h-5 mr-2 text-gray-600" />
+                Métodos de Pago Más Utilizados
+              </h4>
               <div className="space-y-3">
-                {dashboardData.urgentItems.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between bg-white rounded-lg p-3 border border-red-200">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{item.clientName}</div>
-                      <div className="text-xs text-gray-500">
-                        {item.type === 'transfer' ? 'Transferencia' : 'Membresía en efectivo'} • {' '}
-                        Esperando {item.hoursWaiting.toFixed(1)}h • {' '}
-                        <span className="text-green-600 flex items-center inline">
-                          <Bird className="w-3 h-3 mr-1" />
-                          {formatCurrency(item.amount)}
-                        </span>
+                {paymentStats.incomeByMethod.map((method, index) => {
+                  const methodInfo = getMethodInfo(method.method);
+                  const MethodIcon = methodInfo.icon;
+                  return (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <MethodIcon className="w-5 h-5 mr-3 text-gray-600" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {methodInfo.label}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {method.count} transacciones
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-gray-900">
+                          {formatCurrency(method.total)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {method.percentage}%
+                        </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (item.type === 'transfer') {
-                          setActiveTab('transfers');
-                        } else {
-                          setActiveTab('cash');
-                        }
-                      }}
-                      className="btn-danger btn-sm"
-                    >
-                      Atender
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Actividad reciente */}
-          {dashboardData?.recentActivity && dashboardData.recentActivity.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h4 className="text-lg font-medium text-gray-900 flex items-center">
-                  <Clock className="w-5 h-5 mr-2 text-gray-600" />
-                  Actividad Reciente
-                </h4>
-              </div>
-              <div className="p-6">
-                <div className="space-y-3">
-                  {dashboardData.recentActivity.map((activity, index) => (
-                    <div key={index} className="flex items-center text-sm">
-                      <div className={`w-2 h-2 rounded-full mr-3 ${
-                        activity.action === 'transfer_approved' ? 'bg-green-400' : 'bg-red-400'
-                      }`} />
-                      <div className="flex-1">
-                        <span className="text-gray-900">{activity.performedBy}</span>
-                        <span className="text-gray-600">
-                          {' '}{activity.action === 'transfer_approved' ? 'aprobó' : 'rechazó'} transferencia de{' '}
-                        </span>
-                        <span className="font-medium text-gray-900">{activity.clientName}</span>
-                        <span className="text-gray-600"> por </span>
-                        <span className="font-medium text-green-600 flex items-center inline">
-                          <Bird className="w-3 h-3 mr-1" />
-                          {formatCurrency(activity.amount)}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {formatDate(activity.timestamp, 'HH:mm')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* 🆕 CONTENIDO DEL TAB TRANSFERENCIAS */}
+      {/* CONTENIDO DEL TAB TRANSFERENCIAS */}
       {activeTab === 'transfers' && hasPermission('validate_transfers') && (
         <div className="space-y-6">
           
-          {/* Filtros de transferencias */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <select
-                value={transferPriorityFilter}
-                onChange={(e) => setTransferPriorityFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="all">Todas las prioridades</option>
-                <option value="critical">🔴 Críticas (+72h)</option>
-                <option value="high">🟠 Altas (+48h)</option>
-                <option value="medium">🟡 Medias (+24h)</option>
-                <option value="normal">🟢 Normales (&lt;24h)</option>
-              </select>
-              
-              <select
-                value={hoursFilter || ''}
-                onChange={(e) => setHoursFilter(e.target.value ? parseInt(e.target.value) : null)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">Todas las horas</option>
-                <option value="0">Todas</option>
-                <option value="24">Más de 24 horas</option>
-                <option value="48">Más de 48 horas</option>
-              </select>
-              
-              <div className="text-sm text-gray-600 flex items-center">
-                <Building className="w-4 h-4 mr-2" />
-                {getFilteredTransfers().length} transferencias mostradas
-              </div>
-            </div>
-          </div>
-
           {/* Lista de transferencias */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {getFilteredTransfers().length === 0 ? (
+            {pendingTransfers.length === 0 ? (
               <div className="text-center py-12">
                 <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {transferPriorityFilter === 'all' 
-                    ? 'No hay transferencias pendientes' 
-                    : `No hay transferencias ${transferPriorityFilter}`
-                  }
+                  No hay transferencias pendientes
                 </h3>
                 <p className="text-gray-600">
-                  {transferPriorityFilter === 'all'
-                    ? 'Todas las transferencias han sido procesadas'
-                    : 'Cambia el filtro para ver otras transferencias'
-                  }
+                  Todas las transferencias han sido procesadas
                 </p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {getFilteredTransfers().map((transfer) => {
-                  const priorityConfig = getPriorityConfig(transfer.hoursWaiting);
+                {pendingTransfers.map((transfer) => {
                   const isProcessing = processingPayments.has(transfer.id);
                   
                   return (
-                    <div key={transfer.id} className={`p-6 ${priorityConfig.bg} hover:bg-opacity-80`}>
+                    <div key={transfer.id} className="p-6 hover:bg-gray-50">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           
@@ -814,16 +713,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                 {transfer.user?.email || transfer.user?.phone || 'Sin datos de contacto'}
                               </p>
                             </div>
-                            
-                            {/* Badge de prioridad */}
-                            <div className={`px-3 py-1 rounded-full text-sm font-medium ${priorityConfig.color} bg-white border-2`}>
-                              {priorityConfig.priority.toUpperCase()} • {transfer.hoursWaiting.toFixed(1)}h
-                            </div>
                           </div>
                           
                           {/* Detalles del pago */}
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                            <div className="bg-white rounded-lg p-3 border">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div className="bg-gray-50 rounded-lg p-3">
                               <div className="text-xs text-gray-500 mb-1">Monto</div>
                               <div className="text-lg font-bold text-gray-900 flex items-center">
                                 <Bird className="w-4 h-4 mr-1 text-green-600" />
@@ -831,32 +725,17 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                               </div>
                             </div>
                             
-                            <div className="bg-white rounded-lg p-3 border">
+                            <div className="bg-gray-50 rounded-lg p-3">
                               <div className="text-xs text-gray-500 mb-1">Fecha</div>
                               <div className="text-sm text-gray-700">
                                 {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy')}
                               </div>
-                              <div className="text-xs text-gray-500">
-                                {formatDate(transfer.paymentDate || transfer.createdAt, 'HH:mm')}
-                              </div>
                             </div>
                             
-                            <div className="bg-white rounded-lg p-3 border">
-                              <div className="text-xs text-gray-500 mb-1">Tipo</div>
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">Tiempo esperando</div>
                               <div className="text-sm text-gray-700">
-                                {transfer.membership ? 'Membresía' : transfer.description || 'Pago general'}
-                              </div>
-                              {transfer.membership && (
-                                <div className="text-xs text-gray-500">
-                                  {transfer.membership.type}
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="bg-white rounded-lg p-3 border">
-                              <div className="text-xs text-gray-500 mb-1">Registrado por</div>
-                              <div className="text-sm text-gray-700">
-                                {transfer.registeredBy?.name || 'Sistema'}
+                                {transfer.hoursWaiting?.toFixed(1) || '0.0'}h
                               </div>
                             </div>
                           </div>
@@ -887,14 +766,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                         {/* Acciones */}
                         <div className="flex flex-col space-y-2 ml-6">
                           <button
-                            onClick={() => handleValidateTransfer(transfer.id, true, 'Comprobante verificado y válido')}
+                            onClick={() => handleValidateTransfer(transfer.id, true)}
                             disabled={isProcessing}
                             className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
                               isProcessing 
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                                 : 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl'
                             }`}
-                            title="Aprobar transferencia y activar membresía"
                           >
                             {isProcessing ? (
                               <Loader className="w-5 h-5 animate-spin" />
@@ -907,14 +785,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                           </button>
                           
                           <button
-                            onClick={() => handleValidateTransfer(transfer.id, false, 'Comprobante no válido o monto incorrecto')}
+                            onClick={() => handleValidateTransfer(transfer.id, false)}
                             disabled={isProcessing}
                             className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
                               isProcessing 
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                                 : 'bg-red-600 text-white hover:bg-red-700 shadow-lg hover:shadow-xl'
                             }`}
-                            title="Rechazar transferencia"
                           >
                             {isProcessing ? (
                               <Loader className="w-5 h-5 animate-spin" />
@@ -936,25 +813,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
 
-      {/* 🆕 CONTENIDO DEL TAB EFECTIVO */}
+      {/* CONTENIDO DEL TAB EFECTIVO */}
       {activeTab === 'cash' && hasPermission('activate_cash_memberships') && (
         <div className="space-y-6">
           
-          {/* Header del tab efectivo */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <Banknote className="w-6 h-6 text-green-600 mr-3" />
-              <div>
-                <h4 className="text-lg font-medium text-green-900">
-                  Membresías Esperando Pago en Efectivo
-                </h4>
-                <p className="text-sm text-green-600">
-                  Activa las membresías cuando los clientes lleguen a pagar en efectivo
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Lista de membresías en efectivo */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             {pendingCashMemberships.length === 0 ? (
@@ -994,9 +856,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             <p className="text-sm text-gray-500">
                               {membership.user?.email || membership.user?.phone || 'Sin datos de contacto'}
                             </p>
-                            <div className="text-xs text-gray-400 mt-1">
-                              ID: {membership.id}
-                            </div>
                           </div>
                         </div>
                         
@@ -1017,67 +876,23 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                 {formatCurrency(membership.price)}
                               </div>
                             </div>
-                            
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">Creada</div>
-                              <div className="text-sm text-gray-700">
-                                {formatDate(membership.createdAt, 'dd/MM/yyyy HH:mm')}
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">Esperando</div>
-                              <div className={`text-sm font-medium ${
-                                (membership.hoursWaiting || 0) > 4 ? 'text-red-600' : 'text-orange-600'
-                              }`}>
-                                {membership.hoursWaiting?.toFixed(1) || '0.0'}h
-                              </div>
-                            </div>
                           </div>
                         </div>
-                        
-                        {/* Horarios reservados */}
-                        {membership.schedule && Object.keys(membership.schedule).length > 0 && (
-                          <div className="mb-4">
-                            <div className="text-sm font-medium text-gray-700 mb-2">Horarios reservados:</div>
-                            <div className="bg-blue-50 rounded-lg p-3">
-                              <div className="grid grid-cols-1 gap-1">
-                                {Object.entries(membership.schedule).map(([day, slots]) => (
-                                  <div key={day} className="text-xs">
-                                    <span className="font-medium text-blue-900 capitalize">{day}:</span>{' '}
-                                    <span className="text-blue-700">
-                                      {slots.map(slot => `${slot.timeRange} (${slot.label})`).join(', ')}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
                         
                         {/* Botón de activación */}
                         <button
                           onClick={() => handleActivateCashMembership(membership.id)}
-                          disabled={isProcessing || !membership.canActivate}
+                          disabled={isProcessing}
                           className={`w-full px-6 py-4 rounded-lg font-medium transition-all flex items-center justify-center ${
                             isProcessing 
                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                              : membership.canActivate
-                                ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
                           }`}
-                          title={
-                            isProcessing 
-                              ? 'Activando membresía...' 
-                              : membership.canActivate 
-                                ? `Activar al recibir ${formatCurrency(membership.price)} en efectivo`
-                                : 'No se puede activar esta membresía'
-                          }
                         >
                           {isProcessing ? (
                             <>
                               <Loader className="w-5 h-5 mr-3 animate-spin" />
-                              Activando membresía...
+                              Activando...
                             </>
                           ) : (
                             <>
@@ -1096,7 +911,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
 
-      {/* CONTENIDO DEL TAB HISTORIAL (EXISTENTE MEJORADO) */}
+      {/* CONTENIDO DEL TAB HISTORIAL */}
       {activeTab === 'payments' && (
         <div className="space-y-6">
           
@@ -1191,7 +1006,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 <p className="text-gray-600 mb-4">
                   {searchTerm || selectedPaymentType !== 'all' || selectedMethod !== 'all' || selectedStatus !== 'all'
                     ? 'No se encontraron pagos con los filtros aplicados'
-                    : 'Comienza registrando tu primer pago en quetzales'
+                    : 'Comienza registrando tu primer pago'
                   }
                 </p>
                 {hasPermission('create_payments') && (
@@ -1319,7 +1134,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end space-x-2">
-                                {/* Ver detalles */}
                                 <button
                                   onClick={() => {
                                     console.log('Ver detalles del pago:', payment);
@@ -1330,7 +1144,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                   <Eye className="w-4 h-4" />
                                 </button>
                                 
-                                {/* Validar transferencia (solo para personal autorizado) */}
                                 {payment.paymentMethod === 'transfer' && 
                                  payment.status === 'pending' && 
                                  hasPermission('validate_transfers') && (
@@ -1360,7 +1173,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   </table>
                 </div>
                 
-                {/* Mobile Cards (versión mejorada) */}
+                {/* Mobile Cards */}
                 <div className="md:hidden divide-y divide-gray-200">
                   {filteredPayments.map((payment) => {
                     const typeInfo = getTypeInfo(payment.paymentType);
@@ -1489,7 +1302,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* MODAL PARA CREAR/EDITAR PAGO (EXISTENTE) */}
+      {/* MODAL PARA CREAR/EDITAR PAGO (SIMPLIFICADO) */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -1498,8 +1311,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                  <Bird className="w-5 h-5 mr-2 text-green-600" />
-                  {editingPayment ? 'Editar Pago' : 'Nuevo Pago en Quetzales'}
+                  <Coins className="w-5 h-5 mr-2 text-green-600" />
+                  {editingPayment ? 'Editar Pago' : 'Nuevo Pago'}
                 </h3>
                 <button
                   onClick={() => {
@@ -1588,7 +1401,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   />
                 </div>
                 
-                {/* ID de usuario (opcional para pagos anónimos) */}
+                {/* ID de usuario (opcional) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     ID de Usuario
@@ -1602,19 +1415,21 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   />
                 </div>
                 
-                {/* ID de membresía (opcional) */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ID de Membresía
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentFormData.membershipId}
-                    onChange={(e) => setPaymentFormData(prev => ({ ...prev, membershipId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Solo para pagos de membresía"
-                  />
-                </div>
+                {/* ID de membresía (solo para membresías) */}
+                {paymentFormData.paymentType === 'membership' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID de Membresía
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentFormData.membershipId}
+                      onChange={(e) => setPaymentFormData(prev => ({ ...prev, membershipId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="ID de la membresía"
+                    />
+                  </div>
+                )}
                 
                 {/* Descripción */}
                 <div className="md:col-span-2">
@@ -1630,7 +1445,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   />
                 </div>
                 
-                {/* Para pagos diarios - número de días */}
+                {/* Para pagos múltiples diarios */}
                 {['daily', 'bulk_daily'].includes(paymentFormData.paymentType) && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1652,7 +1467,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   <>
                     <div className="md:col-span-2">
                       <h4 className="text-lg font-medium text-gray-900 mb-4 border-t border-gray-200 pt-4">
-                        Información del Cliente Anónimo
+                        Información del Cliente
                       </h4>
                     </div>
                     
@@ -1700,7 +1515,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                     onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Notas adicionales sobre el pago en quetzales..."
+                    placeholder="Notas adicionales sobre el pago..."
                   />
                 </div>
                 
