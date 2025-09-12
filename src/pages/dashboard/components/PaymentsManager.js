@@ -1,6 +1,6 @@
+// src/pages/dashboard/components/PaymentsManager.js
+// VERSIÓN MEJORADA - Historial primero, filtros de período, efectivo corregido
 // Autor: Alexander Echeverria
-// Archivo: src/pages/dashboard/components/PaymentsManager.js
-// VERSIÓN SIMPLIFICADA Y CORREGIDA - Sistema de Pagos
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -9,7 +9,7 @@ import {
   Calendar, User, FileText, CheckCircle, XCircle,
   TrendingUp, PieChart, Calculator, Settings,
   Loader, MoreHorizontal, Bird, ExternalLink,
-  Users, Activity
+  Users, Activity, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -21,22 +21,32 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   
   // Estados principales
   const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // Estados para funcionalidades de autorización
+  const [dashboardData, setDashboardData] = useState({});
+  const [financialDashboard, setFinancialDashboard] = useState({});
   const [paymentStats, setPaymentStats] = useState({
     totalIncome: 0,
     totalPayments: 0,
     averagePayment: 0,
     incomeByMethod: []
   });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  
-  // Estados para funcionalidades de autorización
-  const [dashboardData, setDashboardData] = useState({});
   const [pendingTransfers, setPendingTransfers] = useState([]);
   const [pendingCashMemberships, setPendingCashMemberships] = useState([]);
   const [processingPayments, setProcessingPayments] = useState(new Set());
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // NUEVO: Cambio de orden de tabs - Historial primero, Resumen último
+  const [activeTab, setActiveTab] = useState('payments'); // Cambiado de 'dashboard' a 'payments'
+  
+  // NUEVO: Estados para filtros de período en estadísticas
+  const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  });
   
   // Estados de filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState('');
@@ -98,28 +108,111 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'cancelled', label: 'Cancelado', color: 'bg-gray-100 text-gray-800', icon: X }
   ];
 
+  // NUEVO: Períodos disponibles para filtros
+  const periods = [
+    { value: 'today', label: 'Hoy' },
+    { value: 'week', label: 'Esta Semana' },
+    { value: 'month', label: 'Este Mes' },
+    { value: 'year', label: 'Este Año' },
+    { value: 'custom', label: 'Personalizado' }
+  ];
+
   // Referencias para auto-refresh
   const refreshIntervalRef = React.useRef(null);
   
-  // CARGAR DASHBOARD DE PAGOS PENDIENTES
-  const loadDashboard = async () => {
+  // ================================
+  // 📊 FUNCIONES DE CARGA DE DATOS ACTUALIZADAS
+  // ================================
+  
+  // NUEVO: Cargar dashboard financiero con filtros de período
+  const loadFinancialDashboard = async () => {
     try {
-      console.log('📊 Cargando dashboard de pagos pendientes...');
+      console.log('📊 Cargando dashboard financiero...');
+      const response = await apiService.paymentService.getFinancialDashboard();
+      setFinancialDashboard(response.data || {});
+      console.log('✅ Dashboard financiero cargado');
+    } catch (error) {
+      console.error('❌ Error al cargar dashboard financiero:', error);
+      setFinancialDashboard({});
+    }
+  };
+  
+  // ACTUALIZADO: Cargar estadísticas con filtros de período
+  const loadPaymentStats = async () => {
+    try {
+      console.log(`📈 Cargando estadísticas para período: ${selectedPeriod}`);
       
-      const dashboardResponse = await apiService.getPendingPaymentsDashboardWithCache();
+      let startDate = null;
+      let endDate = null;
+      
+      if (selectedPeriod === 'custom') {
+        startDate = customDateRange.startDate;
+        endDate = customDateRange.endDate;
+      } else if (selectedPeriod !== 'all') {
+        // Usar reportes predefinidos del manual
+        const response = await apiService.paymentService.getPaymentReports(selectedPeriod);
+        const stats = response.data || {};
+        
+        setPaymentStats({
+          totalIncome: parseFloat(stats.totalIncome) || 0,
+          totalPayments: parseInt(stats.totalPayments) || 0,
+          averagePayment: parseFloat(stats.averagePayment) || 0,
+          incomeByMethod: stats.incomeByMethod || [],
+          incomeByType: stats.incomeByType || [],
+          dailyPayments: stats.dailyPayments || []
+        });
+        return;
+      }
+      
+      // Para períodos personalizados, usar estadísticas
+      const response = await apiService.paymentService.getPaymentStatistics(startDate, endDate);
+      const stats = response.data || {};
+      
+      setPaymentStats({
+        totalIncome: parseFloat(stats.totalIncome) || 0,
+        totalPayments: parseInt(stats.totalPayments) || 0,
+        averagePayment: parseFloat(stats.averagePayment) || 0,
+        incomeByMethod: stats.incomeByMethod || [],
+        incomeByType: stats.incomeByType || [],
+        dailyPayments: stats.dailyPayments || []
+      });
+      
+      console.log('✅ Estadísticas cargadas correctamente');
+    } catch (error) {
+      console.error('❌ Error al cargar estadísticas:', error);
+      // Estadísticas por defecto
+      setPaymentStats({
+        totalIncome: 0,
+        totalPayments: 0,
+        averagePayment: 0,
+        incomeByMethod: [],
+        incomeByType: [],
+        dailyPayments: []
+      });
+    }
+  };
+  
+  // CARGAR DASHBOARD DE PAGOS PENDIENTES
+  const loadPendingDashboard = async () => {
+    try {
+      console.log('📋 Cargando dashboard de pendientes...');
+      
+      const dashboardResponse = await apiService.paymentService.getPendingPaymentsDashboard();
       setDashboardData(dashboardResponse.data || {});
       
-      const transfersResponse = await apiService.getPendingTransfersDetailed();
+      const transfersResponse = await apiService.paymentService.getPendingTransfersDetailed();
       setPendingTransfers(transfersResponse.data?.transfers || []);
       
-      const cashResponse = await apiService.getPendingCashMemberships();
+      // CORREGIDO: Cargar membresías en efectivo con manejo de errores mejorado
+      const cashResponse = await apiService.paymentService.getPendingCashMemberships();
       setPendingCashMemberships(cashResponse.data?.memberships || []);
       
-      console.log('✅ Dashboard cargado exitosamente');
+      console.log('✅ Dashboard de pendientes cargado exitosamente');
+      console.log('📊 Transferencias pendientes:', transfersResponse.data?.transfers?.length || 0);
+      console.log('💵 Membresías en efectivo:', cashResponse.data?.memberships?.length || 0);
+      
     } catch (error) {
-      console.error('❌ Error al cargar dashboard:', error);
-      showError('Error al cargar dashboard de pagos');
-      // Valores por defecto para evitar errores
+      console.error('❌ Error al cargar dashboard de pendientes:', error);
       setDashboardData({});
       setPendingTransfers([]);
       setPendingCashMemberships([]);
@@ -146,7 +239,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
       console.log('💰 Cargando pagos con parámetros:', params);
       
-      const response = await apiService.get('/payments', { params });
+      const response = await apiService.paymentService.getPayments(params);
       const paymentData = response.data || response;
       
       if (paymentData.payments && Array.isArray(paymentData.payments)) {
@@ -171,39 +264,9 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // CARGAR ESTADÍSTICAS CORREGIDO
-  const loadPaymentStats = async () => {
-    try {
-      console.log('📊 Cargando estadísticas de pagos...');
-      
-      // CORREGIDO: Usar el endpoint statistics correcto
-      const response = await apiService.getPaymentStatistics({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      });
-      
-      console.log('✅ Estadísticas cargadas:', response);
-      
-      // Asegurar que los datos tengan estructura correcta
-      const stats = response.data || response || {};
-      setPaymentStats({
-        totalIncome: parseFloat(stats.totalIncome) || 0,
-        totalPayments: parseInt(stats.totalPayments) || 0,
-        averagePayment: parseFloat(stats.averagePayment) || 0,
-        incomeByMethod: stats.incomeByMethod || []
-      });
-      
-    } catch (error) {
-      console.error('Error al cargar estadísticas de pagos:', error);
-      // Estadísticas por defecto para evitar errores
-      setPaymentStats({
-        totalIncome: 0,
-        totalPayments: 0,
-        averagePayment: 0,
-        incomeByMethod: []
-      });
-    }
-  };
+  // ================================
+  // 🏦 FUNCIONES DE AUTORIZACIÓN ACTUALIZADAS
+  // ================================
   
   // VALIDAR TRANSFERENCIA
   const handleValidateTransfer = async (paymentId, approved, notes = '') => {
@@ -214,7 +277,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
       console.log(`${approved ? '✅ Aprobando' : '❌ Rechazando'} transferencia:`, paymentId);
       
-      await apiService.validateTransfer(paymentId, approved, notes);
+      if (approved) {
+        await apiService.paymentService.validateTransfer(paymentId, approved, notes);
+      } else {
+        await apiService.paymentService.rejectTransfer(paymentId, notes || 'Transferencia rechazada desde dashboard');
+      }
       
       showSuccess(
         approved 
@@ -223,7 +290,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       );
       
       // Recargar datos
-      await loadDashboard();
+      await loadPendingDashboard();
       await loadPayments();
       await loadPaymentStats();
       
@@ -233,7 +300,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
     } catch (error) {
       console.error('Error al validar transferencia:', error);
-      const errorMsg = error.response?.data?.message || 
+      const errorMsg = error.message || 
         (approved ? 'Error al aprobar transferencia' : 'Error al rechazar transferencia');
       showError(errorMsg);
     } finally {
@@ -254,12 +321,12 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
       console.log('💵 Activando membresía en efectivo:', membershipId);
       
-      const result = await apiService.activateCashMembership(membershipId);
+      const result = await apiService.paymentService.activateCashMembership(membershipId);
       
-      showSuccess(`Membresía activada exitosamente`);
+      showSuccess('Membresía activada exitosamente');
       
       // Recargar datos
-      await loadDashboard();
+      await loadPendingDashboard();
       await loadPayments();
       await loadPaymentStats();
       
@@ -269,7 +336,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
     } catch (error) {
       console.error('Error al activar membresía:', error);
-      const errorMsg = error.response?.data?.message || 'Error al activar membresía en efectivo';
+      const errorMsg = error.message || 'Error al activar membresía en efectivo';
       showError(errorMsg);
     } finally {
       setProcessingPayments(prev => {
@@ -280,65 +347,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // Función para crear pago
-  const handleCreatePayment = async () => {
-    try {
-      setSaving(true);
-      
-      // Validaciones básicas
-      if (!paymentFormData.amount || paymentFormData.amount <= 0) {
-        showError('El monto debe ser mayor a 0');
-        return;
-      }
-      
-      // Formatear datos
-      const formattedData = {
-        userId: paymentFormData.userId || null,
-        membershipId: paymentFormData.paymentType === 'membership' ? paymentFormData.membershipId || null : null,
-        amount: parseFloat(paymentFormData.amount),
-        paymentMethod: paymentFormData.paymentMethod,
-        paymentType: paymentFormData.paymentType,
-        description: paymentFormData.description || `Pago ${paymentFormData.paymentType}`,
-        notes: paymentFormData.notes,
-        paymentDate: paymentFormData.paymentDate || new Date().toISOString().split('T')[0],
-        dailyPaymentCount: paymentFormData.paymentType === 'bulk_daily' ? 
-          parseInt(paymentFormData.dailyPaymentCount) || 1 : 1,
-        anonymousClientInfo: !paymentFormData.userId ? paymentFormData.anonymousClientInfo : null
-      };
-      
-      let response;
-      if (editingPayment) {
-        response = await apiService.put(`/payments/${editingPayment.id}`, formattedData);
-        showSuccess('Pago actualizado exitosamente');
-      } else {
-        response = await apiService.post('/payments', formattedData);
-        showSuccess('Pago registrado exitosamente');
-      }
-      
-      // Recargar datos
-      await loadPayments();
-      await loadPaymentStats();
-      await loadDashboard();
-      
-      // Cerrar modal
-      setShowPaymentModal(false);
-      setEditingPayment(null);
-      resetPaymentForm();
-      
-      if (onSave) {
-        onSave({ type: 'payment', action: editingPayment ? 'updated' : 'created' });
-      }
-      
-    } catch (error) {
-      console.error('Error al guardar pago:', error);
-      const errorMsg = error.response?.data?.message || 'Error al guardar pago';
-      showError(errorMsg);
-    } finally {
-      setSaving(false);
-    }
-  };
-  
-  // Funciones auxiliares
+  // Funciones auxiliares (mantener las existentes)
   const resetPaymentForm = () => {
     setPaymentFormData({
       userId: '',
@@ -355,26 +364,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         phone: ''
       }
     });
-  };
-  
-  const handleEditPayment = (payment) => {
-    setEditingPayment(payment);
-    setPaymentFormData({
-      userId: payment.userId || '',
-      membershipId: payment.membershipId || '',
-      amount: payment.amount || 0,
-      paymentMethod: payment.paymentMethod || 'cash',
-      paymentType: payment.paymentType || 'membership',
-      description: payment.description || '',
-      notes: payment.notes || '',
-      paymentDate: payment.paymentDate ? payment.paymentDate.split('T')[0] : '',
-      dailyPaymentCount: payment.dailyPaymentCount || 1,
-      anonymousClientInfo: payment.anonymousClientInfo || {
-        name: '',
-        phone: ''
-      }
-    });
-    setShowPaymentModal(true);
   };
   
   const handleNewPayment = () => {
@@ -401,7 +390,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       await Promise.all([
         loadPayments(),
         loadPaymentStats(),
-        loadDashboard()
+        loadPendingDashboard(),
+        loadFinancialDashboard()
       ]);
     };
     
@@ -410,7 +400,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     // Configurar auto-refresh
     if (autoRefresh) {
       refreshIntervalRef.current = setInterval(() => {
-        loadDashboard();
+        loadPendingDashboard();
+        loadFinancialDashboard();
       }, 30000); // Cada 30 segundos
     }
 
@@ -426,9 +417,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     loadPayments();
   }, [currentPage, searchTerm, selectedPaymentType, selectedMethod, selectedStatus, dateRange, sortBy, sortOrder]);
   
+  // NUEVO: Recargar estadísticas cuando cambien filtros de período
   useEffect(() => {
     loadPaymentStats();
-  }, [dateRange]);
+  }, [selectedPeriod, customDateRange]);
   
   // Cálculo de paginación
   const totalPages = Math.max(1, Math.ceil(totalPayments / paymentsPerPage));
@@ -453,10 +445,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
             <Coins className="w-6 h-6 mr-2 text-green-600" />
-            Pagos
+            Gestión de Pagos
           </h3>
           <p className="text-gray-600 mt-1">
-            Gestión de pagos, transferencias y membresías
+            Historial, transferencias, efectivo y estadísticas financieras
           </p>
         </div>
         
@@ -474,9 +466,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           
           <button
             onClick={() => {
-              loadDashboard();
+              loadPendingDashboard();
               loadPayments();
               loadPaymentStats();
+              loadFinancialDashboard();
             }}
             disabled={loading}
             className="btn-secondary btn-sm"
@@ -497,19 +490,25 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
 
-      {/* NAVEGACIÓN POR TABS SIMPLIFICADA */}
+      {/* NAVEGACIÓN POR TABS - NUEVO ORDEN */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
+          {/* HISTORIAL PRIMERO */}
           <button
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => setActiveTab('payments')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
-              activeTab === 'dashboard'
-                ? 'border-green-500 text-green-600'
+              activeTab === 'payments'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            <TrendingUp className="w-4 h-4 mr-2" />
-            Resumen
+            <Coins className="w-4 h-4 mr-2" />
+            Historial de Pagos
+            {totalPayments > 0 && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                {totalPayments}
+              </span>
+            )}
           </button>
           
           <button
@@ -538,7 +537,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             }`}
           >
             <Banknote className="w-4 h-4 mr-2" />
-            Efectivo
+            Pagos en Efectivo
             {pendingCashMemberships.length > 0 && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
                 {pendingCashMemberships.length}
@@ -546,372 +545,22 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             )}
           </button>
           
+          {/* RESUMEN AL FINAL */}
           <button
-            onClick={() => setActiveTab('payments')}
+            onClick={() => setActiveTab('dashboard')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
-              activeTab === 'payments'
-                ? 'border-blue-500 text-blue-600'
+              activeTab === 'dashboard'
+                ? 'border-green-500 text-green-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            <Coins className="w-4 h-4 mr-2" />
-            Historial
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Resumen Financiero
           </button>
         </nav>
       </div>
 
-      {/* CONTENIDO DEL TAB RESUMEN - SIMPLIFICADO */}
-      {activeTab === 'dashboard' && (
-        <div className="space-y-6">
-          
-          {/* Tarjetas de resumen CORREGIDAS */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <Bird className="w-8 h-8 text-green-600" />
-                <div className="ml-3">
-                  <div className="text-2xl font-bold text-green-900">
-                    {formatCurrency(paymentStats.totalIncome || 0)}
-                  </div>
-                  <div className="text-sm text-green-600">Ingresos Totales</div>
-                  <div className="text-xs text-green-500">
-                    {paymentStats.totalPayments || 0} transacciones
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <Building className="w-8 h-8 text-purple-600" />
-                <div className="ml-3">
-                  <div className="text-2xl font-bold text-purple-900">
-                    {pendingTransfers.length || 0}
-                  </div>
-                  <div className="text-sm text-purple-600">Transferencias</div>
-                  <div className="text-xs text-purple-500">
-                    Pendientes de validación
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <Banknote className="w-8 h-8 text-blue-600" />
-                <div className="ml-3">
-                  <div className="text-2xl font-bold text-blue-900">
-                    {pendingCashMemberships.length || 0}
-                  </div>
-                  <div className="text-sm text-blue-600">Efectivo Pendiente</div>
-                  <div className="text-xs text-blue-500">
-                    Membresías por activar
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <Calculator className="w-8 h-8 text-orange-600" />
-                <div className="ml-3">
-                  <div className="text-2xl font-bold text-orange-900">
-                    {formatCurrency(paymentStats.averagePayment || 0)}
-                  </div>
-                  <div className="text-sm text-orange-600">Promedio</div>
-                  <div className="text-xs text-orange-500">
-                    Por transacción
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Métodos de pago más usados */}
-          {paymentStats.incomeByMethod && paymentStats.incomeByMethod.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                <PieChart className="w-5 h-5 mr-2 text-gray-600" />
-                Métodos de Pago Más Utilizados
-              </h4>
-              <div className="space-y-3">
-                {paymentStats.incomeByMethod.map((method, index) => {
-                  const methodInfo = getMethodInfo(method.method);
-                  const MethodIcon = methodInfo.icon;
-                  return (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <MethodIcon className="w-5 h-5 mr-3 text-gray-600" />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {methodInfo.label}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {method.count} transacciones
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(method.total)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {method.percentage}%
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* CONTENIDO DEL TAB TRANSFERENCIAS */}
-      {activeTab === 'transfers' && hasPermission('validate_transfers') && (
-        <div className="space-y-6">
-          
-          {/* Lista de transferencias */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {pendingTransfers.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No hay transferencias pendientes
-                </h3>
-                <p className="text-gray-600">
-                  Todas las transferencias han sido procesadas
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200">
-                {pendingTransfers.map((transfer) => {
-                  const isProcessing = processingPayments.has(transfer.id);
-                  
-                  return (
-                    <div key={transfer.id} className="p-6 hover:bg-gray-50">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          
-                          {/* Información del cliente */}
-                          <div className="flex items-center mb-3">
-                            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-4">
-                              <span className="text-lg font-medium text-gray-700">
-                                {transfer.user ? 
-                                  `${transfer.user.name[0]}${transfer.user.name.split(' ')[1]?.[0] || ''}` :
-                                  'A'
-                                }
-                              </span>
-                            </div>
-                            
-                            <div className="flex-1">
-                              <h4 className="text-lg font-medium text-gray-900">
-                                {transfer.user?.name || 'Cliente Anónimo'}
-                              </h4>
-                              <p className="text-sm text-gray-500">
-                                {transfer.user?.email || transfer.user?.phone || 'Sin datos de contacto'}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          {/* Detalles del pago */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div className="bg-gray-50 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 mb-1">Monto</div>
-                              <div className="text-lg font-bold text-gray-900 flex items-center">
-                                <Bird className="w-4 h-4 mr-1 text-green-600" />
-                                {formatCurrency(transfer.amount)}
-                              </div>
-                            </div>
-                            
-                            <div className="bg-gray-50 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 mb-1">Fecha</div>
-                              <div className="text-sm text-gray-700">
-                                {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy')}
-                              </div>
-                            </div>
-                            
-                            <div className="bg-gray-50 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 mb-1">Tiempo esperando</div>
-                              <div className="text-sm text-gray-700">
-                                {transfer.hoursWaiting?.toFixed(1) || '0.0'}h
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Comprobante */}
-                          {transfer.transferProof && (
-                            <div className="mb-4">
-                              <div className="text-sm text-gray-500 mb-2">Comprobante de transferencia:</div>
-                              <div className="flex items-center space-x-3">
-                                <img
-                                  src={transfer.transferProof}
-                                  alt="Comprobante"
-                                  className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80"
-                                  onClick={() => window.open(transfer.transferProof, '_blank')}
-                                />
-                                <button
-                                  onClick={() => window.open(transfer.transferProof, '_blank')}
-                                  className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
-                                >
-                                  <ExternalLink className="w-4 h-4 mr-1" />
-                                  Ver comprobante completo
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Acciones */}
-                        <div className="flex flex-col space-y-2 ml-6">
-                          <button
-                            onClick={() => handleValidateTransfer(transfer.id, true)}
-                            disabled={isProcessing}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                              isProcessing 
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                : 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl'
-                            }`}
-                          >
-                            {isProcessing ? (
-                              <Loader className="w-5 h-5 animate-spin" />
-                            ) : (
-                              <>
-                                <Check className="w-5 h-5 mr-2" />
-                                Aprobar
-                              </>
-                            )}
-                          </button>
-                          
-                          <button
-                            onClick={() => handleValidateTransfer(transfer.id, false)}
-                            disabled={isProcessing}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                              isProcessing 
-                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg hover:shadow-xl'
-                            }`}
-                          >
-                            {isProcessing ? (
-                              <Loader className="w-5 h-5 animate-spin" />
-                            ) : (
-                              <>
-                                <X className="w-5 h-5 mr-2" />
-                                Rechazar
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* CONTENIDO DEL TAB EFECTIVO */}
-      {activeTab === 'cash' && hasPermission('activate_cash_memberships') && (
-        <div className="space-y-6">
-          
-          {/* Lista de membresías en efectivo */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {pendingCashMemberships.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No hay membresías esperando pago en efectivo
-                </h3>
-                <p className="text-gray-600">
-                  Todas las membresías en efectivo han sido activadas
-                </p>
-              </div>
-            ) : (
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {pendingCashMemberships.map((membership) => {
-                    const isProcessing = processingPayments.has(membership.id);
-                    
-                    return (
-                      <div key={membership.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        
-                        {/* Información del cliente */}
-                        <div className="flex items-center mb-4">
-                          <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-4">
-                            <span className="text-xl font-bold text-green-700">
-                              {membership.user ? 
-                                `${membership.user.name[0]}${membership.user.name.split(' ')[1]?.[0] || ''}` :
-                                'A'
-                              }
-                            </span>
-                          </div>
-                          
-                          <div>
-                            <h4 className="text-lg font-medium text-gray-900">
-                              {membership.user?.name || 'Cliente Anónimo'}
-                            </h4>
-                            <p className="text-sm text-gray-500">
-                              {membership.user?.email || membership.user?.phone || 'Sin datos de contacto'}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Detalles de la membresía */}
-                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">Plan</div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {membership.plan?.name || 'Plan personalizado'}
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">Precio</div>
-                              <div className="text-lg font-bold text-green-600 flex items-center">
-                                <Bird className="w-4 h-4 mr-1" />
-                                {formatCurrency(membership.price)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Botón de activación */}
-                        <button
-                          onClick={() => handleActivateCashMembership(membership.id)}
-                          disabled={isProcessing}
-                          className={`w-full px-6 py-4 rounded-lg font-medium transition-all flex items-center justify-center ${
-                            isProcessing 
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                              : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
-                          }`}
-                        >
-                          {isProcessing ? (
-                            <>
-                              <Loader className="w-5 h-5 mr-3 animate-spin" />
-                              Activando...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-5 h-5 mr-3" />
-                              Recibir {formatCurrency(membership.price)} en Efectivo
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* CONTENIDO DEL TAB HISTORIAL */}
+      {/* CONTENIDO DEL TAB HISTORIAL - AHORA PRIMERO */}
       {activeTab === 'payments' && (
         <div className="space-y-6">
           
@@ -991,7 +640,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             </div>
           </div>
           
-          {/* TABLA DE PAGOS */}
+          {/* TABLA DE PAGOS - MANTENIDA IGUAL */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             
             {loading ? (
@@ -1173,7 +822,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   </table>
                 </div>
                 
-                {/* Mobile Cards */}
+                {/* Mobile Cards - Mantenidas igual */}
                 <div className="md:hidden divide-y divide-gray-200">
                   {filteredPayments.map((payment) => {
                     const typeInfo = getTypeInfo(payment.paymentType);
@@ -1262,7 +911,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   })}
                 </div>
                 
-                {/* PAGINACIÓN */}
+                {/* PAGINACIÓN - MANTENIDA IGUAL */}
                 {totalPages > 1 && (
                   <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
                     <div className="flex items-center justify-between">
@@ -1301,264 +950,477 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           </div>
         </div>
       )}
-      
-      {/* MODAL PARA CREAR/EDITAR PAGO (SIMPLIFICADO) */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
-            
-            {/* Header del modal */}
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                  <Coins className="w-5 h-5 mr-2 text-green-600" />
-                  {editingPayment ? 'Editar Pago' : 'Nuevo Pago'}
+
+      {/* CONTENIDO DEL TAB TRANSFERENCIAS */}
+      {activeTab === 'transfers' && hasPermission('validate_transfers') && (
+        <div className="space-y-6">
+          
+          {/* Lista de transferencias */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            {pendingTransfers.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No hay transferencias pendientes
                 </h3>
-                <button
-                  onClick={() => {
-                    setShowPaymentModal(false);
-                    setEditingPayment(null);
-                    resetPaymentForm();
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                <p className="text-gray-600">
+                  Todas las transferencias han sido procesadas
+                </p>
               </div>
-            </div>
-            
-            {/* Contenido del modal */}
-            <div className="px-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                {/* Tipo de pago */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Pago *
-                  </label>
-                  <select
-                    value={paymentFormData.paymentType}
-                    onChange={(e) => setPaymentFormData(prev => ({ ...prev, paymentType: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  >
-                    {paymentTypes.map(type => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                {/* Método de pago */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Método de Pago *
-                  </label>
-                  <select
-                    value={paymentFormData.paymentMethod}
-                    onChange={(e) => setPaymentFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  >
-                    {paymentMethods.map(method => (
-                      <option key={method.value} value={method.value}>
-                        {method.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                {/* Monto */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Monto en Quetzales (GTQ) *
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Bird className="h-4 w-4 text-green-500" />
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {pendingTransfers.map((transfer) => {
+                  const isProcessing = processingPayments.has(transfer.id);
+                  
+                  return (
+                    <div key={transfer.id} className="p-6 hover:bg-gray-50">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          
+                          {/* Información del cliente */}
+                          <div className="flex items-center mb-3">
+                            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-4">
+                              <span className="text-lg font-medium text-gray-700">
+                                {transfer.user ? 
+                                  `${transfer.user.name[0]}${transfer.user.name.split(' ')[1]?.[0] || ''}` :
+                                  'A'
+                                }
+                              </span>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <h4 className="text-lg font-medium text-gray-900">
+                                {transfer.user?.name || 'Cliente Anónimo'}
+                              </h4>
+                              <p className="text-sm text-gray-500">
+                                {transfer.user?.email || transfer.user?.phone || 'Sin datos de contacto'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Detalles del pago */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">Monto</div>
+                              <div className="text-lg font-bold text-gray-900 flex items-center">
+                                <Bird className="w-4 h-4 mr-1 text-green-600" />
+                                {formatCurrency(transfer.amount)}
+                              </div>
+                            </div>
+                            
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">Fecha</div>
+                              <div className="text-sm text-gray-700">
+                                {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy')}
+                              </div>
+                            </div>
+                            
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">Tiempo esperando</div>
+                              <div className="text-sm text-gray-700">
+                                {transfer.hoursWaiting?.toFixed(1) || '0.0'}h
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Comprobante */}
+                          {transfer.transferProof && (
+                            <div className="mb-4">
+                              <div className="text-sm text-gray-500 mb-2">Comprobante de transferencia:</div>
+                              <div className="flex items-center space-x-3">
+                                <img
+                                  src={transfer.transferProof}
+                                  alt="Comprobante"
+                                  className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80"
+                                  onClick={() => window.open(transfer.transferProof, '_blank')}
+                                />
+                                <button
+                                  onClick={() => window.open(transfer.transferProof, '_blank')}
+                                  className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                                >
+                                  <ExternalLink className="w-4 h-4 mr-1" />
+                                  Ver comprobante completo
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Acciones */}
+                        <div className="flex flex-col space-y-2 ml-6">
+                          <button
+                            onClick={() => handleValidateTransfer(transfer.id, true)}
+                            disabled={isProcessing}
+                            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
+                              isProcessing 
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                : 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl'
+                            }`}
+                          >
+                            {isProcessing ? (
+                              <Loader className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="w-5 h-5 mr-2" />
+                                Aprobar
+                              </>
+                            )}
+                          </button>
+                          
+                          <button
+                            onClick={() => handleValidateTransfer(transfer.id, false)}
+                            disabled={isProcessing}
+                            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
+                              isProcessing 
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg hover:shadow-xl'
+                            }`}
+                          >
+                            {isProcessing ? (
+                              <Loader className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <>
+                                <X className="w-5 h-5 mr-2" />
+                                Rechazar
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={paymentFormData.amount}
-                      onChange={(e) => setPaymentFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-                
-                {/* Fecha de pago */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Pago *
-                  </label>
-                  <input
-                    type="date"
-                    value={paymentFormData.paymentDate}
-                    onChange={(e) => setPaymentFormData(prev => ({ ...prev, paymentDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                </div>
-                
-                {/* ID de usuario (opcional) */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ID de Usuario
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentFormData.userId}
-                    onChange={(e) => setPaymentFormData(prev => ({ ...prev, userId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Dejar vacío para pago anónimo"
-                  />
-                </div>
-                
-                {/* ID de membresía (solo para membresías) */}
-                {paymentFormData.paymentType === 'membership' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ID de Membresía
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentFormData.membershipId}
-                      onChange={(e) => setPaymentFormData(prev => ({ ...prev, membershipId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="ID de la membresía"
-                    />
-                  </div>
-                )}
-                
-                {/* Descripción */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción del Pago
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentFormData.description}
-                    onChange={(e) => setPaymentFormData(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Descripción del pago"
-                  />
-                </div>
-                
-                {/* Para pagos múltiples diarios */}
-                {['daily', 'bulk_daily'].includes(paymentFormData.paymentType) && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Número de Días
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="30"
-                      value={paymentFormData.dailyPaymentCount}
-                      onChange={(e) => setPaymentFormData(prev => ({ ...prev, dailyPaymentCount: parseInt(e.target.value) || 1 }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    />
-                  </div>
-                )}
-                
-                {/* Información de cliente anónimo */}
-                {!paymentFormData.userId && (
-                  <>
-                    <div className="md:col-span-2">
-                      <h4 className="text-lg font-medium text-gray-900 mb-4 border-t border-gray-200 pt-4">
-                        Información del Cliente
-                      </h4>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre del Cliente *
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentFormData.anonymousClientInfo.name}
-                        onChange={(e) => setPaymentFormData(prev => ({
-                          ...prev,
-                          anonymousClientInfo: { ...prev.anonymousClientInfo, name: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        placeholder="Nombre completo del cliente"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Teléfono
-                      </label>
-                      <input
-                        type="tel"
-                        value={paymentFormData.anonymousClientInfo.phone}
-                        onChange={(e) => setPaymentFormData(prev => ({
-                          ...prev,
-                          anonymousClientInfo: { ...prev.anonymousClientInfo, phone: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                        placeholder="+502 1234-5678"
-                      />
-                    </div>
-                  </>
-                )}
-                
-                {/* Notas */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Notas Adicionales
-                  </label>
-                  <textarea
-                    value={paymentFormData.notes}
-                    onChange={(e) => setPaymentFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Notas adicionales sobre el pago..."
-                  />
-                </div>
-                
+                  );
+                })}
               </div>
-            </div>
-            
-            {/* Footer del modal */}
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  setEditingPayment(null);
-                  resetPaymentForm();
-                }}
-                className="btn-secondary"
-                disabled={saving}
-              >
-                Cancelar
-              </button>
-              
-              <button
-                onClick={handleCreatePayment}
-                disabled={saving}
-                className="btn-primary flex items-center"
-              >
-                {saving ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    {editingPayment ? 'Actualizar' : 'Registrar'} Pago
-                  </>
-                )}
-              </button>
-            </div>
-            
+            )}
           </div>
         </div>
       )}
-      
+
+      {/* CONTENIDO DEL TAB EFECTIVO - CORREGIDO */}
+      {activeTab === 'cash' && hasPermission('activate_cash_memberships') && (
+        <div className="space-y-6">
+          
+          {/* Lista de membresías en efectivo */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            {pendingCashMemberships.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No hay membresías esperando pago en efectivo
+                </h3>
+                <p className="text-gray-600">
+                  Todas las membresías en efectivo han sido activadas
+                </p>
+              </div>
+            ) : (
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {pendingCashMemberships.map((membership) => {
+                    const isProcessing = processingPayments.has(membership.id);
+                    
+                    return (
+                      <div key={membership.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+                        
+                        {/* Información del cliente */}
+                        <div className="flex items-center mb-4">
+                          <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-4">
+                            <span className="text-xl font-bold text-green-700">
+                              {membership.user ? 
+                                `${membership.user.name[0]}${membership.user.name.split(' ')[1]?.[0] || ''}` :
+                                'A'
+                              }
+                            </span>
+                          </div>
+                          
+                          <div>
+                            <h4 className="text-lg font-medium text-gray-900">
+                              {membership.user?.name || 'Cliente Anónimo'}
+                            </h4>
+                            <p className="text-sm text-gray-500">
+                              {membership.user?.email || membership.user?.phone || 'Sin datos de contacto'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Detalles de la membresía */}
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Plan</div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {membership.plan?.name || 'Plan personalizado'}
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <div className="text-xs text-gray-500 mb-1">Precio</div>
+                              <div className="text-lg font-bold text-green-600 flex items-center">
+                                <Bird className="w-4 h-4 mr-1" />
+                                {formatCurrency(membership.price)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Botón de activación */}
+                        <button
+                          onClick={() => handleActivateCashMembership(membership.id)}
+                          disabled={isProcessing}
+                          className={`w-full px-6 py-4 rounded-lg font-medium transition-all flex items-center justify-center ${
+                            isProcessing 
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                              : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
+                          }`}
+                        >
+                          {isProcessing ? (
+                            <>
+                              <Loader className="w-5 h-5 mr-3 animate-spin" />
+                              Activando...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-5 h-5 mr-3" />
+                              Recibir {formatCurrency(membership.price)} en Efectivo
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* CONTENIDO DEL TAB RESUMEN - AHORA AL FINAL CON FILTROS */}
+      {activeTab === 'dashboard' && (
+        <div className="space-y-6">
+          
+          {/* NUEVO: Filtros de período para estadísticas */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+              
+              {/* Selector de período */}
+              <div className="flex flex-wrap gap-2">
+                {periods.map((period) => (
+                  <button
+                    key={period.value}
+                    onClick={() => setSelectedPeriod(period.value)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      selectedPeriod === period.value
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {period.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Fecha personalizada */}
+              {selectedPeriod === 'custom' && (
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="date"
+                    value={customDateRange.startDate}
+                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="text-sm border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                  <span className="text-gray-500">a</span>
+                  <input
+                    type="date"
+                    value={customDateRange.endDate}
+                    onChange={(e) => setCustomDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="text-sm border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Tarjetas de resumen con datos filtrados */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <Bird className="w-8 h-8 text-green-600" />
+                <div className="ml-3">
+                  <div className="text-2xl font-bold text-green-900">
+                    {formatCurrency(paymentStats.totalIncome || 0)}
+                  </div>
+                  <div className="text-sm text-green-600">Ingresos Totales</div>
+                  <div className="text-xs text-green-500">
+                    {paymentStats.totalPayments || 0} transacciones
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <Building className="w-8 h-8 text-purple-600" />
+                <div className="ml-3">
+                  <div className="text-2xl font-bold text-purple-900">
+                    {pendingTransfers.length || 0}
+                  </div>
+                  <div className="text-sm text-purple-600">Transferencias</div>
+                  <div className="text-xs text-purple-500">
+                    Pendientes de validación
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <Banknote className="w-8 h-8 text-blue-600" />
+                <div className="ml-3">
+                  <div className="text-2xl font-bold text-blue-900">
+                    {pendingCashMemberships.length || 0}
+                  </div>
+                  <div className="text-sm text-blue-600">Efectivo Pendiente</div>
+                  <div className="text-xs text-blue-500">
+                    Membresías por activar
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <Calculator className="w-8 h-8 text-orange-600" />
+                <div className="ml-3">
+                  <div className="text-2xl font-bold text-orange-900">
+                    {formatCurrency(paymentStats.averagePayment || 0)}
+                  </div>
+                  <div className="text-sm text-orange-600">Promedio</div>
+                  <div className="text-xs text-orange-500">
+                    Por transacción
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Métodos de pago más usados */}
+          {paymentStats.incomeByMethod && paymentStats.incomeByMethod.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <PieChart className="w-5 h-5 mr-2 text-gray-600" />
+                Métodos de Pago - Período: {periods.find(p => p.value === selectedPeriod)?.label}
+              </h4>
+              <div className="space-y-3">
+                {paymentStats.incomeByMethod.map((method, index) => {
+                  const methodInfo = getMethodInfo(method.method);
+                  const MethodIcon = methodInfo.icon;
+                  return (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <MethodIcon className="w-5 h-5 mr-3 text-gray-600" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {methodInfo.label}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {method.count} transacciones
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-gray-900 flex items-center">
+                          <Bird className="w-3 h-3 mr-1 text-green-600" />
+                          {formatCurrency(method.total)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {method.percentage}%
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* NUEVO: Dashboard financiero básico */}
+          {financialDashboard.today && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Hoy</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Ingresos:</span>
+                    <span className="text-sm font-medium text-green-600">
+                      {formatCurrency(financialDashboard.today.income || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Gastos:</span>
+                    <span className="text-sm font-medium text-red-600">
+                      {formatCurrency(financialDashboard.today.expenses || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t">
+                    <span className="text-sm font-medium text-gray-900">Neto:</span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {formatCurrency(financialDashboard.today.net || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Esta Semana</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Ingresos:</span>
+                    <span className="text-sm font-medium text-green-600">
+                      {formatCurrency(financialDashboard.thisWeek?.income || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Gastos:</span>
+                    <span className="text-sm font-medium text-red-600">
+                      {formatCurrency(financialDashboard.thisWeek?.expenses || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t">
+                    <span className="text-sm font-medium text-gray-900">Neto:</span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {formatCurrency(financialDashboard.thisWeek?.net || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Este Mes</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Ingresos:</span>
+                    <span className="text-sm font-medium text-green-600">
+                      {formatCurrency(financialDashboard.thisMonth?.income || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Gastos:</span>
+                    <span className="text-sm font-medium text-red-600">
+                      {formatCurrency(financialDashboard.thisMonth?.expenses || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t">
+                    <span className="text-sm font-medium text-gray-900">Neto:</span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {formatCurrency(financialDashboard.thisMonth?.net || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

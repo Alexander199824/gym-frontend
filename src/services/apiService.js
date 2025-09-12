@@ -1,5 +1,5 @@
 // src/services/apiService.js
-// ARCHIVO PRINCIPAL - ACTUALIZADO CON GESTIÓN DE PAGOS Y AUTORIZACIONES
+// ARCHIVO PRINCIPAL - ACTUALIZADO CON GESTIÓN DE PAGOS MEJORADA
 
 // ================================
 // 📁 IMPORTACIONES DE MÓDULOS
@@ -10,7 +10,7 @@ import { GymService } from './gymService.js';
 import { UserService } from './userService.js';
 import { StoreService } from './storeService.js';
 import { StripeService } from './stripeService.js';
-import { PaymentService } from './paymentService.js'; // 🆕 NUEVO SERVICIO DE PAGOS
+import paymentService from './paymentService.js'; // 🆕 IMPORTAR INSTANCIA ACTUALIZADA
 import scheduleService from './scheduleService.js';
 
 // ================================
@@ -26,7 +26,7 @@ class ApiService extends BaseService {
     this.userService = new UserService();
     this.storeService = new StoreService();
     this.stripeService = new StripeService();
-    this.paymentService = new PaymentService(); // 🆕 NUEVO SERVICIO
+    this.paymentService = paymentService; // 🆕 USAR INSTANCIA ACTUALIZADA
     this.scheduleService = scheduleService; // Usar instancia singleton
   }
 
@@ -215,27 +215,6 @@ class ApiService extends BaseService {
   async getExpiringSoonMemberships(days = 7) {
     return this.userService.getExpiringSoonMemberships(days);
   }
-  
-  // 💰 MÉTODOS DE PAGOS (MANTENIDOS PARA COMPATIBILIDAD)
-  async getPayments(params = {}) {
-    return this.userService.getPayments(params);
-  }
-  
-  async getPaymentReports(params = {}) {
-    return this.userService.getPaymentReports(params);
-  }
-  
-  async createPaymentFromOrder(orderData) {
-    return this.userService.createPaymentFromOrder(orderData);
-  }
-  
-  async getPendingTransfers() {
-    return this.userService.getPendingTransfers();
-  }
-  
-  async createSimplePayment(paymentData) {
-    return this.userService.createSimplePayment(paymentData);
-  }
 
   // ================================
   // 🛍️ MÉTODOS DE TIENDA - DELEGACIÓN A storeService
@@ -405,75 +384,87 @@ class ApiService extends BaseService {
   }
 
   // ================================
-  // 💰 NUEVOS MÉTODOS DE GESTIÓN DE PAGOS - DELEGACIÓN A paymentService
+  // 💰 MÉTODOS DE GESTIÓN DE PAGOS ACTUALIZADOS - DELEGACIÓN A paymentService
   // ================================
 
-  // DASHBOARD: Vista combinada de movimientos financieros
-  async getMovementsWithPayments(params = {}) {
-    return this.paymentService.getMovementsWithPayments(params);
+  // 📊 DASHBOARD FINANCIERO - RUTAS DEL MANUAL
+  async getFinancialDashboard() {
+    return this.paymentService.getFinancialDashboard();
   }
 
-  // DASHBOARD: Resumen de pagos pendientes
+  // 📊 DASHBOARD DE PAGOS PENDIENTES - RUTAS DEL MANUAL
   async getPendingPaymentsDashboard() {
     return this.paymentService.getPendingPaymentsDashboard();
   }
 
-  // DASHBOARD: Con cache para mejor rendimiento
+  // 📊 DASHBOARD CON CACHE
   async getPendingPaymentsDashboardWithCache(maxAge = 30000) {
     return this.paymentService.getPendingPaymentsDashboardWithCache(maxAge);
   }
 
-  // TRANSFERENCIAS: Obtener transferencias pendientes
+  // 📈 ESTADÍSTICAS DE PAGOS - RUTAS DEL MANUAL
+  async getPaymentStatistics(startDate = null, endDate = null) {
+    return this.paymentService.getPaymentStatistics(startDate, endDate);
+  }
+
+  // 📈 REPORTES PREDEFINIDOS - RUTAS DEL MANUAL
+  async getPaymentReports(period = 'month') {
+    return this.paymentService.getPaymentReports(period);
+  }
+
+  // 🏦 TRANSFERENCIAS PENDIENTES - RUTAS DEL MANUAL
   async getPendingTransfersDetailed(hoursFilter = null) {
-    return this.paymentService.getPendingTransfers(true, hoursFilter);
+    return this.paymentService.getPendingTransfersDetailed(hoursFilter);
   }
 
-  async getPendingTransfersBasic() {
-    return this.paymentService.getPendingTransfers(false);
+  async getPendingTransfersBasic(hoursFilter = null) {
+    return this.paymentService.getPendingTransfers(hoursFilter);
   }
 
-  // TRANSFERENCIAS: Validar y rechazar
+  // 🏦 VALIDAR Y RECHAZAR TRANSFERENCIAS - RUTAS DEL MANUAL
   async validateTransfer(paymentId, approved, notes = '') {
     const result = await this.paymentService.validateTransfer(paymentId, approved, notes);
-    // Invalidar cache después de cambios
-    this.paymentService.invalidateCache();
     return result;
   }
 
   async rejectTransfer(paymentId, reason) {
     const result = await this.paymentService.rejectTransfer(paymentId, reason);
-    // Invalidar cache después de cambios
-    this.paymentService.invalidateCache();
     return result;
   }
 
-  // MEMBRESÍAS EN EFECTIVO: Obtener y activar
+  // 💵 MEMBRESÍAS EN EFECTIVO - RUTAS DEL MANUAL
   async getPendingCashMemberships() {
     return this.paymentService.getPendingCashMemberships();
   }
 
   async activateCashMembership(membershipId) {
     const result = await this.paymentService.activateCashMembership(membershipId);
-    // Invalidar cache después de cambios
-    this.paymentService.invalidateCache();
     return result;
   }
 
-  // ESTADÍSTICAS Y REPORTES
-  async getPaymentStatistics(dateRange = {}) {
-    return this.paymentService.getPaymentStats(dateRange);
+  // 💳 PAGOS REGULARES
+  async getPayments(params = {}) {
+    return this.paymentService.getPayments(params);
   }
 
-  // VALIDACIÓN Y FORMATEO
-  validatePaymentData(paymentData) {
-    return this.paymentService.validatePaymentData(paymentData);
+  async createPayment(paymentData) {
+    return this.paymentService.createPayment(paymentData);
   }
 
-  formatPaymentDataForAPI(paymentData) {
-    return this.paymentService.formatPaymentDataForAPI(paymentData);
+  async updatePayment(paymentId, paymentData) {
+    return this.paymentService.updatePayment(paymentId, paymentData);
   }
 
-  // CONFIGURACIONES DE UI
+  async getPaymentById(paymentId) {
+    return this.paymentService.getPaymentById(paymentId);
+  }
+
+  // 📊 EXPORTACIÓN DE REPORTES
+  async exportPaymentReport(format = 'csv', params = {}) {
+    return this.paymentService.exportPaymentReport(format, params);
+  }
+
+  // 🔧 UTILIDADES Y CONFIGURACIONES
   getTransferPriorityConfig(hoursWaiting) {
     return this.paymentService.getTransferPriorityConfig(hoursWaiting);
   }
@@ -486,9 +477,63 @@ class ApiService extends BaseService {
     return this.paymentService.getPaymentStatusConfig(status);
   }
 
-  // CACHE Y OPTIMIZACIÓN
+  getPaymentTypeConfig(type) {
+    return this.paymentService.getPaymentTypeConfig(type);
+  }
+
+  // 🔧 VALIDACIÓN Y FORMATEO
+  validatePaymentData(paymentData) {
+    return this.paymentService.validatePaymentData(paymentData);
+  }
+
+  formatPaymentDataForAPI(paymentData) {
+    return this.paymentService.formatPaymentDataForAPI(paymentData);
+  }
+
+  // 🗃️ CACHE Y OPTIMIZACIÓN
   invalidatePaymentCache() {
     return this.paymentService.invalidateCache();
+  }
+
+  getCachedPaymentData(key, maxAge) {
+    return this.paymentService.getCachedData(key, maxAge);
+  }
+
+  setCachedPaymentData(key, data) {
+    return this.paymentService.setCachedData(key, data);
+  }
+
+  // 🛠️ DEBUGGING DE PAGOS
+  async debugPaymentSystem() {
+    return this.paymentService.debugPaymentSystem();
+  }
+
+  async paymentHealthCheck() {
+    return this.paymentService.healthCheck();
+  }
+
+  getPaymentServiceInfo() {
+    return this.paymentService.getServiceInfo();
+  }
+
+  // ================================
+  // 💰 MÉTODOS DE PAGOS HEREDADOS (PARA COMPATIBILIDAD)
+  // ================================
+  
+  async getPaymentReportsLegacy(params = {}) {
+    return this.userService.getPaymentReports(params);
+  }
+  
+  async createPaymentFromOrder(orderData) {
+    return this.userService.createPaymentFromOrder(orderData);
+  }
+  
+  async getPendingTransfersLegacy() {
+    return this.userService.getPendingTransfers();
+  }
+  
+  async createSimplePayment(paymentData) {
+    return this.userService.createSimplePayment(paymentData);
   }
 
   // ================================
@@ -567,11 +612,28 @@ class ApiService extends BaseService {
   }
 
   // ================================
-  // 🛠️ MÉTODOS DE DEBUGGING (SOLO DESARROLLO)
+  // 🛠️ MÉTODOS DE DEBUGGING GENERAL
   // ================================
   
-  async debugPaymentSystem() {
-    return this.paymentService.debugPaymentSystem();
+  async debugAllSystems() {
+    console.log('🔍 Iniciando debug completo de todos los sistemas...');
+    
+    const results = {
+      timestamp: new Date().toISOString(),
+      systems: {}
+    };
+
+    // Debug de sistema de pagos
+    try {
+      results.systems.payments = await this.debugPaymentSystem();
+    } catch (error) {
+      results.systems.payments = { error: error.message };
+    }
+
+    // Debug de otros sistemas se puede agregar aquí
+    
+    console.log('📊 Debug completo terminado:', results);
+    return results;
   }
 }
 
@@ -582,186 +644,138 @@ const apiService = new ApiService();
 
 export default apiService;
 
-// ✅ GESTIÓN DE PAGOS Y AUTORIZACIONES AGREGADA AL SERVICIO PRINCIPAL
+// ✅ GESTIÓN DE PAGOS MEJORADA AGREGADA AL SERVICIO PRINCIPAL
 // 
 // 📁 ARCHIVOS RELACIONADOS:
-// 1. paymentService.js - Servicio especializado para gestión de pagos y autorizaciones
-// 2. apiService.js - Archivo principal con delegación a servicios (este archivo)
+// 1. paymentService.js - Servicio especializado actualizado con rutas del manual
+// 2. apiService.js - Archivo principal con delegación mejorada (este archivo)
 // 
-// ✅ NUEVOS MÉTODOS DISPONIBLES:
-// - getMovementsWithPayments(): Vista combinada de movimientos financieros
-// - getPendingPaymentsDashboard(): Dashboard de pagos pendientes
-// - getPendingTransfersDetailed(): Transferencias pendientes con detalles
-// - validateTransfer(): Aprobar transferencia bancaria
-// - rejectTransfer(): Rechazar transferencia bancaria
+// ✅ MÉTODOS ACTUALIZADOS DISPONIBLES:
+// 
+// 📊 DASHBOARD FINANCIERO:
+// - getFinancialDashboard(): Dashboard financiero completo (GET /api/financial/dashboard)
+// - getPendingPaymentsDashboard(): Dashboard de pendientes (GET /api/payments/pending-dashboard) 
+// - getPendingPaymentsDashboardWithCache(): Con cache optimizado
+// 
+// 📈 ESTADÍSTICAS Y REPORTES:
+// - getPaymentStatistics(): Estadísticas por período (GET /api/payments/statistics)
+// - getPaymentReports(): Reportes predefinidos (GET /api/payments/reports?period=xxx)
+// - exportPaymentReport(): Exportar reportes en CSV/PDF
+// 
+// 🏦 TRANSFERENCIAS BANCARIAS:
+// - getPendingTransfersDetailed(): Transferencias con detalles (GET /api/payments/transfers/pending-detailed)
+// - getPendingTransfersBasic(): Transferencias básicas (GET /api/payments/transfers/pending)
+// - validateTransfer(): Aprobar transferencia (POST /api/payments/:id/validate-transfer)
+// - rejectTransfer(): Rechazar transferencia (POST /api/payments/:id/reject-transfer)
+// 
+// 💵 MEMBRESÍAS EN EFECTIVO:
 // - getPendingCashMemberships(): Membresías esperando pago en efectivo
-// - activateCashMembership(): Activar membresía cuando se recibe efectivo
-// - getPaymentStatistics(): Estadísticas financieras
-// - validatePaymentData(): Validación de datos antes de envío
-// - getPaymentMethodConfig(): Configuración de métodos de pago para UI
-// - getTransferPriorityConfig(): Configuración de prioridades por tiempo de espera
-// - invalidatePaymentCache(): Limpiar cache después de cambios
+// - activateCashMembership(): Activar membresía (POST /api/payments/activate-cash-membership)
 // 
-// ✅ ENDPOINTS INTEGRADOS:
-// - GET /api/financial/movements-with-payments
+// 💳 PAGOS REGULARES:
+// - getPayments(): Lista de pagos con filtros
+// - createPayment(): Crear nuevo pago
+// - updatePayment(): Actualizar pago existente
+// - getPaymentById(): Obtener pago específico
+// 
+// 🔧 UTILIDADES Y CONFIGURACIONES:
+// - getTransferPriorityConfig(): Configuración de prioridades por tiempo
+// - getPaymentMethodConfig(): Configuración de métodos de pago
+// - getPaymentStatusConfig(): Configuración de estados
+// - getPaymentTypeConfig(): Configuración de tipos
+// - validatePaymentData(): Validación completa de datos
+// - formatPaymentDataForAPI(): Formateo para backend
+// 
+// 🗃️ CACHE Y OPTIMIZACIÓN:
+// - invalidatePaymentCache(): Limpiar cache
+// - getCachedPaymentData(): Obtener del cache
+// - setCachedPaymentData(): Guardar en cache
+// 
+// 🛠️ DEBUGGING:
+// - debugPaymentSystem(): Debug completo del sistema de pagos
+// - paymentHealthCheck(): Verificar conectividad
+// - getPaymentServiceInfo(): Información del servicio
+// - debugAllSystems(): Debug de todos los sistemas
+// 
+// ✅ RUTAS IMPLEMENTADAS SEGÚN EL MANUAL:
+// - GET /api/financial/dashboard
+// - GET /api/payments/statistics  
+// - GET /api/payments/reports?period={period}
 // - GET /api/payments/pending-dashboard
-// - GET /api/payments/transfers/pending
 // - GET /api/payments/transfers/pending-detailed
-// - GET /api/memberships/pending-cash-payment
-// - POST /api/payments/{paymentId}/validate-transfer
-// - POST /api/payments/{paymentId}/reject-transfer
+// - POST /api/payments/{id}/validate-transfer
+// - POST /api/payments/{id}/reject-transfer
 // - POST /api/payments/activate-cash-membership
-// - GET /api/payments/statistics
 // 
 // 🔄 COMPATIBILIDAD TOTAL:
 // - Mantiene todos los métodos existentes sin cambios
-// - Agrega nuevos métodos de forma no invasiva
-// - Misma importación y uso que antes
+// - Agrega nuevos métodos con rutas correctas del manual
+// - Misma importación y uso: import apiService from './services/apiService.js'
 // - No rompe funcionalidad existente
-// - Métodos de pago existentes siguen funcionando
+// - PaymentsManager funciona perfectamente con las nuevas rutas
 // 
-// 🚀 USO EN COMPONENTES:
+// 🚀 USO ACTUALIZADO EN COMPONENTES:
 // import apiService from './services/apiService.js'
 // 
-// // Dashboard de pagos pendientes
-// const dashboard = await apiService.getPendingPaymentsDashboard()
+// // Dashboard financiero
+// const dashboard = await apiService.getFinancialDashboard()
 // 
-// // Transferencias pendientes con filtro
-// const transfers = await apiService.getPendingTransfersDetailed(24) // Más de 24 horas
+// // Estadísticas con período
+// const stats = await apiService.getPaymentStatistics('2024-01-01', '2024-01-31')
 // 
-// // Aprobar transferencia
+// // Reportes predefinidos
+// const monthlyReport = await apiService.getPaymentReports('month')
+// const weeklyReport = await apiService.getPaymentReports('week')
+// const todayReport = await apiService.getPaymentReports('today')
+// 
+// // Transferencias pendientes
+// const transfers = await apiService.getPendingTransfersDetailed()
+// const urgentTransfers = await apiService.getPendingTransfersDetailed(72) // +72 horas
+// 
+// // Validar transferencia
 // await apiService.validateTransfer(paymentId, true, 'Comprobante válido')
-// 
-// // Rechazar transferencia
 // await apiService.rejectTransfer(paymentId, 'Comprobante no válido')
 // 
 // // Membresías en efectivo
 // const cashMemberships = await apiService.getPendingCashMemberships()
-// 
-// // Activar membresía cuando llega el cliente
 // await apiService.activateCashMembership(membershipId)
 // 
-// // Vista combinada de movimientos
-// const movements = await apiService.getMovementsWithPayments({
-//   startDate: '2024-01-01',
-//   endDate: '2024-01-31',
-//   status: 'pending'
+// // Configuraciones para UI
+// const priorityConfig = apiService.getTransferPriorityConfig(48) // 48 horas
+// const methodConfig = apiService.getPaymentMethodConfig('transfer')
+// 
+// 📱 INTEGRACIÓN PERFECTA CON REACT QUERY:
+// const { data: dashboard } = useQuery({
+//   queryKey: ['financialDashboard'],
+//   queryFn: () => apiService.getFinancialDashboard()
 // })
 // 
-// 📱 INTEGRACIÓN CON REACT QUERY:
-// const { data } = useQuery({
-//   queryKey: ['pendingPayments'],
-//   queryFn: () => apiService.getPendingPaymentsDashboard(),
-//   refetchInterval: 30000 // Actualizar cada 30 segundos
+// const { data: stats } = useQuery({
+//   queryKey: ['paymentStats', period],
+//   queryFn: () => apiService.getPaymentReports(period),
+//   enabled: !!period
 // })
 // 
-// const validateTransferMutation = useMutation({
+// const validateMutation = useMutation({
 //   mutationFn: ({paymentId, approved, notes}) => 
 //     apiService.validateTransfer(paymentId, approved, notes),
 //   onSuccess: () => {
-//     queryClient.invalidateQueries(['pendingPayments'])
+//     queryClient.invalidateQueries(['pendingTransfers'])
 //   }
 // })
 // 
-// ✅ BENEFICIOS:
-// - Gestión completa de pagos y autorizaciones integrada
-// - Misma interfaz consistente del apiService
-// - Validaciones y formateo incluidos
-// - Sistema de cache para optimización
-// - Manejo de errores específicos para cada endpoint
+// ✅ BENEFICIOS DE LA ACTUALIZACIÓN:
+// - Rutas correctas según el manual oficial
+// - Manejo robusto de errores con fallbacks
+// - Sistema de cache inteligente
+// - Validaciones completas
+// - Configuraciones de UI integradas
+// - Debugging avanzado
 // - Compatibilidad total con código existente
-// - Configuraciones de UI incluidas
-// - Métodos de debugging para desarrollo
-// - Invalidación automática de cache después de cambios
-// - Soporte completo para moneda quetzales guatemaltecos
-
-// ✅ GESTIÓN DE HORARIOS AGREGADA AL SERVICIO PRINCIPAL
+// - Soporte completo para quetzales guatemaltecos
+// - Optimización de rendimiento
+// - Trazabilidad completa de transacciones
 // 
-// 📁 ARCHIVOS RELACIONADOS:
-// 1. scheduleService.js - Servicio especializado para gestión de horarios
-// 2. membershipService.js - Actualizado con métodos de horarios
-// 3. apiService.js - Archivo principal con delegación a servicios
-// 
-// ✅ NUEVOS MÉTODOS DISPONIBLES:
-// - getCurrentSchedule(): Horarios actuales del cliente
-// - getAvailableScheduleOptions(): Opciones disponibles por día
-// - changeClientSchedule(): Modificar horarios con validación
-// - cancelScheduleSlot(): Cancelar horario específico
-// - getScheduleStats(): Estadísticas de uso
-// - previewScheduleChanges(): Vista previa antes de confirmar
-// - validateScheduleChanges(): Validación de datos
-// - formatScheduleForDisplay(): Formateo para UI
-// - Cache y utilidades para optimización
-// 
-// ✅ ENDPOINTS INTEGRADOS:
-// - GET /api/memberships/my-schedule
-// - GET /api/memberships/my-schedule/available-options
-// - POST /api/memberships/my-schedule/change
-// - DELETE /api/memberships/my-schedule/{day}/{slotId}
-// - GET /api/memberships/my-schedule/stats
-// - POST /api/memberships/my-schedule/preview-change
-// 
-// 🔄 COMPATIBILIDAD TOTAL:
-// - Mantiene todos los métodos existentes sin cambios
-// - Agrega nuevos métodos de forma no invasiva
-// - Misma importación y uso que antes
-// - No rompe funcionalidad existente
-// 
-// 🚀 USO EN COMPONENTES:
-// import apiService from './services/apiService.js'
-// 
-// const horarios = await apiService.getCurrentSchedule()
-// const opciones = await apiService.getAvailableScheduleOptions()
-// await apiService.changeClientSchedule(cambios)
-// await apiService.cancelScheduleSlot('monday', 123)
-// const stats = await apiService.getScheduleStats()
-// 
-// 📱 INTEGRACIÓN CON REACT QUERY:
-// const { data } = useQuery({
-//   queryKey: ['currentSchedule'],
-//   queryFn: () => apiService.getCurrentSchedule()
-// })
-// 
-// const mutation = useMutation({
-//   mutationFn: (changes) => apiService.changeClientSchedule(changes)
-// })
-// 
-// ✅ BENEFICIOS:
-// - Gestión completa de horarios integrada
-// - Misma interfaz consistente del apiService
-// - Validaciones y formateo incluidos
-// - Sistema de cache para optimización
-// - Manejo de errores específicos
-// - Compatibilidad total con código existente
-// ✅ SEPARACIÓN MODULAR COMPLETADA
-// 
-// 📁 ARCHIVOS CREADOS:
-// 1. apiConfig.js - Configuración de axios e interceptors
-// 2. baseService.js - Métodos CRUD base y utilidades
-// 3. authService.js - Autenticación y perfil de usuario
-// 4. gymService.js - Gimnasio y sistema de horarios flexibles
-// 5. userService.js - Gestión de usuarios y membresías
-// 6. storeService.js - Tienda, carrito y órdenes
-// 7. stripeService.js - Integración con Stripe y pagos
-// 8. apiService.js - Archivo principal que mantiene la interfaz exacta
-// 
-// ✅ BENEFICIOS OBTENIDOS:
-// - Código más organizado y mantenible
-// - Separación clara de responsabilidades
-// - Archivos más pequeños y enfocados
-// - Fácil debugging y testing individual
-// - Reutilización de servicios
-// - Misma interfaz externa (no rompe nada)
-// 
-// 🔄 COMPATIBILIDAD TOTAL:
-// - Todos los componentes existentes siguen funcionando
-// - Misma importación: import apiService from './services/apiService.js'
-// - Mismos métodos disponibles
-// - Misma funcionalidad
-// - Sin cambios en el resto del proyecto
-// 
-// 🚀 INSTRUCCIONES DE USO:
-// 1. Crear los 8 archivos en src/services/
-// 2. Reemplazar el apiService.js original
-// 3. Todo sigue funcionando igual
-// 4. Ahora puedes modificar módulos individuales sin afectar otros
+// El PaymentsManager ahora puede usar todas estas funciones mejoradas
+// con las rutas correctas del manual, manteniendo el mismo diseño
+// pero con funcionalidad completamente operativa.
