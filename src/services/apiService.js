@@ -1,6 +1,5 @@
 // src/services/apiService.js
-// ARCHIVO PRINCIPAL - MANTIENE LA MISMA INTERFAZ EXACTA PARA NO ROMPER NADA
-// AHORA ORGANIZADO EN MÓDULOS SEPARADOS + GESTIÓN DE HORARIOS
+// ARCHIVO PRINCIPAL - ACTUALIZADO CON GESTIÓN DE PAGOS Y AUTORIZACIONES
 
 // ================================
 // 📁 IMPORTACIONES DE MÓDULOS
@@ -11,6 +10,7 @@ import { GymService } from './gymService.js';
 import { UserService } from './userService.js';
 import { StoreService } from './storeService.js';
 import { StripeService } from './stripeService.js';
+import { PaymentService } from './paymentService.js'; // 🆕 NUEVO SERVICIO DE PAGOS
 import scheduleService from './scheduleService.js';
 
 // ================================
@@ -26,6 +26,7 @@ class ApiService extends BaseService {
     this.userService = new UserService();
     this.storeService = new StoreService();
     this.stripeService = new StripeService();
+    this.paymentService = new PaymentService(); // 🆕 NUEVO SERVICIO
     this.scheduleService = scheduleService; // Usar instancia singleton
   }
 
@@ -215,7 +216,7 @@ class ApiService extends BaseService {
     return this.userService.getExpiringSoonMemberships(days);
   }
   
-  // 💰 MÉTODOS DE PAGOS
+  // 💰 MÉTODOS DE PAGOS (MANTENIDOS PARA COMPATIBILIDAD)
   async getPayments(params = {}) {
     return this.userService.getPayments(params);
   }
@@ -404,7 +405,94 @@ class ApiService extends BaseService {
   }
 
   // ================================
-  // 📅 NUEVOS MÉTODOS DE GESTIÓN DE HORARIOS - DELEGACIÓN A scheduleService
+  // 💰 NUEVOS MÉTODOS DE GESTIÓN DE PAGOS - DELEGACIÓN A paymentService
+  // ================================
+
+  // DASHBOARD: Vista combinada de movimientos financieros
+  async getMovementsWithPayments(params = {}) {
+    return this.paymentService.getMovementsWithPayments(params);
+  }
+
+  // DASHBOARD: Resumen de pagos pendientes
+  async getPendingPaymentsDashboard() {
+    return this.paymentService.getPendingPaymentsDashboard();
+  }
+
+  // DASHBOARD: Con cache para mejor rendimiento
+  async getPendingPaymentsDashboardWithCache(maxAge = 30000) {
+    return this.paymentService.getPendingPaymentsDashboardWithCache(maxAge);
+  }
+
+  // TRANSFERENCIAS: Obtener transferencias pendientes
+  async getPendingTransfersDetailed(hoursFilter = null) {
+    return this.paymentService.getPendingTransfers(true, hoursFilter);
+  }
+
+  async getPendingTransfersBasic() {
+    return this.paymentService.getPendingTransfers(false);
+  }
+
+  // TRANSFERENCIAS: Validar y rechazar
+  async validateTransfer(paymentId, approved, notes = '') {
+    const result = await this.paymentService.validateTransfer(paymentId, approved, notes);
+    // Invalidar cache después de cambios
+    this.paymentService.invalidateCache();
+    return result;
+  }
+
+  async rejectTransfer(paymentId, reason) {
+    const result = await this.paymentService.rejectTransfer(paymentId, reason);
+    // Invalidar cache después de cambios
+    this.paymentService.invalidateCache();
+    return result;
+  }
+
+  // MEMBRESÍAS EN EFECTIVO: Obtener y activar
+  async getPendingCashMemberships() {
+    return this.paymentService.getPendingCashMemberships();
+  }
+
+  async activateCashMembership(membershipId) {
+    const result = await this.paymentService.activateCashMembership(membershipId);
+    // Invalidar cache después de cambios
+    this.paymentService.invalidateCache();
+    return result;
+  }
+
+  // ESTADÍSTICAS Y REPORTES
+  async getPaymentStatistics(dateRange = {}) {
+    return this.paymentService.getPaymentStats(dateRange);
+  }
+
+  // VALIDACIÓN Y FORMATEO
+  validatePaymentData(paymentData) {
+    return this.paymentService.validatePaymentData(paymentData);
+  }
+
+  formatPaymentDataForAPI(paymentData) {
+    return this.paymentService.formatPaymentDataForAPI(paymentData);
+  }
+
+  // CONFIGURACIONES DE UI
+  getTransferPriorityConfig(hoursWaiting) {
+    return this.paymentService.getTransferPriorityConfig(hoursWaiting);
+  }
+
+  getPaymentMethodConfig(method) {
+    return this.paymentService.getPaymentMethodConfig(method);
+  }
+
+  getPaymentStatusConfig(status) {
+    return this.paymentService.getPaymentStatusConfig(status);
+  }
+
+  // CACHE Y OPTIMIZACIÓN
+  invalidatePaymentCache() {
+    return this.paymentService.invalidateCache();
+  }
+
+  // ================================
+  // 📅 MÉTODOS DE GESTIÓN DE HORARIOS - DELEGACIÓN A scheduleService
   // ================================
 
   // OBTENER: Horarios actuales del cliente autenticado
@@ -477,6 +565,14 @@ class ApiService extends BaseService {
   calculateLocalScheduleStats(schedule) {
     return this.scheduleService.calculateLocalStats(schedule);
   }
+
+  // ================================
+  // 🛠️ MÉTODOS DE DEBUGGING (SOLO DESARROLLO)
+  // ================================
+  
+  async debugPaymentSystem() {
+    return this.paymentService.debugPaymentSystem();
+  }
 }
 
 // ================================
@@ -485,6 +581,99 @@ class ApiService extends BaseService {
 const apiService = new ApiService();
 
 export default apiService;
+
+// ✅ GESTIÓN DE PAGOS Y AUTORIZACIONES AGREGADA AL SERVICIO PRINCIPAL
+// 
+// 📁 ARCHIVOS RELACIONADOS:
+// 1. paymentService.js - Servicio especializado para gestión de pagos y autorizaciones
+// 2. apiService.js - Archivo principal con delegación a servicios (este archivo)
+// 
+// ✅ NUEVOS MÉTODOS DISPONIBLES:
+// - getMovementsWithPayments(): Vista combinada de movimientos financieros
+// - getPendingPaymentsDashboard(): Dashboard de pagos pendientes
+// - getPendingTransfersDetailed(): Transferencias pendientes con detalles
+// - validateTransfer(): Aprobar transferencia bancaria
+// - rejectTransfer(): Rechazar transferencia bancaria
+// - getPendingCashMemberships(): Membresías esperando pago en efectivo
+// - activateCashMembership(): Activar membresía cuando se recibe efectivo
+// - getPaymentStatistics(): Estadísticas financieras
+// - validatePaymentData(): Validación de datos antes de envío
+// - getPaymentMethodConfig(): Configuración de métodos de pago para UI
+// - getTransferPriorityConfig(): Configuración de prioridades por tiempo de espera
+// - invalidatePaymentCache(): Limpiar cache después de cambios
+// 
+// ✅ ENDPOINTS INTEGRADOS:
+// - GET /api/financial/movements-with-payments
+// - GET /api/payments/pending-dashboard
+// - GET /api/payments/transfers/pending
+// - GET /api/payments/transfers/pending-detailed
+// - GET /api/memberships/pending-cash-payment
+// - POST /api/payments/{paymentId}/validate-transfer
+// - POST /api/payments/{paymentId}/reject-transfer
+// - POST /api/payments/activate-cash-membership
+// - GET /api/payments/statistics
+// 
+// 🔄 COMPATIBILIDAD TOTAL:
+// - Mantiene todos los métodos existentes sin cambios
+// - Agrega nuevos métodos de forma no invasiva
+// - Misma importación y uso que antes
+// - No rompe funcionalidad existente
+// - Métodos de pago existentes siguen funcionando
+// 
+// 🚀 USO EN COMPONENTES:
+// import apiService from './services/apiService.js'
+// 
+// // Dashboard de pagos pendientes
+// const dashboard = await apiService.getPendingPaymentsDashboard()
+// 
+// // Transferencias pendientes con filtro
+// const transfers = await apiService.getPendingTransfersDetailed(24) // Más de 24 horas
+// 
+// // Aprobar transferencia
+// await apiService.validateTransfer(paymentId, true, 'Comprobante válido')
+// 
+// // Rechazar transferencia
+// await apiService.rejectTransfer(paymentId, 'Comprobante no válido')
+// 
+// // Membresías en efectivo
+// const cashMemberships = await apiService.getPendingCashMemberships()
+// 
+// // Activar membresía cuando llega el cliente
+// await apiService.activateCashMembership(membershipId)
+// 
+// // Vista combinada de movimientos
+// const movements = await apiService.getMovementsWithPayments({
+//   startDate: '2024-01-01',
+//   endDate: '2024-01-31',
+//   status: 'pending'
+// })
+// 
+// 📱 INTEGRACIÓN CON REACT QUERY:
+// const { data } = useQuery({
+//   queryKey: ['pendingPayments'],
+//   queryFn: () => apiService.getPendingPaymentsDashboard(),
+//   refetchInterval: 30000 // Actualizar cada 30 segundos
+// })
+// 
+// const validateTransferMutation = useMutation({
+//   mutationFn: ({paymentId, approved, notes}) => 
+//     apiService.validateTransfer(paymentId, approved, notes),
+//   onSuccess: () => {
+//     queryClient.invalidateQueries(['pendingPayments'])
+//   }
+// })
+// 
+// ✅ BENEFICIOS:
+// - Gestión completa de pagos y autorizaciones integrada
+// - Misma interfaz consistente del apiService
+// - Validaciones y formateo incluidos
+// - Sistema de cache para optimización
+// - Manejo de errores específicos para cada endpoint
+// - Compatibilidad total con código existente
+// - Configuraciones de UI incluidas
+// - Métodos de debugging para desarrollo
+// - Invalidación automática de cache después de cambios
+// - Soporte completo para moneda quetzales guatemaltecos
 
 // ✅ GESTIÓN DE HORARIOS AGREGADA AL SERVICIO PRINCIPAL
 // 
