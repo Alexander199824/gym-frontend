@@ -10,7 +10,7 @@ import { GymService } from './gymService.js';
 import { UserService } from './userService.js';
 import { StoreService } from './storeService.js';
 import { StripeService } from './stripeService.js';
-import paymentService from './paymentService.js'; // 🆕 NUEVO SERVICIO SIMPLIFICADO
+import paymentService from './paymentService.js'; 
 import scheduleService from './scheduleService.js';
 
 // ================================
