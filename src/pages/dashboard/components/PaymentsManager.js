@@ -1,5 +1,5 @@
 // src/pages/dashboard/components/PaymentsManager.js
-// VERSIÓN COMPLETA SIN ERRORES - Dashboard de gestión de pagos
+// VERSIÓN CORREGIDA SIN ERRORES DE SINTAXIS
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -626,7 +626,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const filteredCardPayments = getFilteredCardPayments();
 
   return (
-    
     <div className="space-y-6">
       
       {/* HEADER */}
@@ -940,7 +939,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       {activeTab === 'cash' && (
         <div className="space-y-6">
           
-          {/* ESTADÍSTICAS DE EFECTIVO CORREGIDAS */}
+          {/* ESTADÍSTICAS DE EFECTIVO */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <div className="text-center">
@@ -1120,7 +1119,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 <AlertTriangle className="w-8 h-8 text-red-600 mr-3" />
                 <div>
                   <div className="text-2xl font-bold text-red-900">{cardPaymentStats.urgent || 0}</div>
-                  <div className="text-sm text-red-600">Urgentes (&gt;24h)</div>
+                  <div className="text-sm text-red-600">Urgentes (más de 24h)</div>
+                </div>
               </div>
             </div>
             
