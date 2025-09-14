@@ -1,14 +1,17 @@
 // src/pages/dashboard/components/PaymentsManager.js
-// VERSIÓN COMPLETA - Con implementación de efectivo incluida
+// VERSIÓN COMPLETA SIN ERRORES - Dashboard de gestión de pagos
 
 import React, { useState, useEffect } from 'react';
 import {
   Coins, Plus, Search, RefreshCw, Eye, Check, X, 
-  CreditCard, Banknote, Building, Calendar,
+  CreditCard, Banknote, Building, Calendar, Smartphone,
   CheckCircle, XCircle, Clock, Loader2,
   TrendingUp, Bird, Users, Activity,
   AlertTriangle, Timer, Phone, Mail,
-  User, Filter, Grid3X3, List
+  User, Filter, Grid3X3, List, DollarSign,
+  UserCheck, UserX, MessageSquare, Hash,
+  Shield, Receipt, Zap, TrendingDown,
+  ArrowUp, ArrowDown, BarChart3
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -26,9 +29,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const [payments, setPayments] = useState([]);
   const [statistics, setStatistics] = useState({});
   const [pendingDashboard, setPendingDashboard] = useState({});
+  
+  // Estados específicos por método de pago
   const [pendingTransfers, setPendingTransfers] = useState([]);
-  const [pendingCashMemberships, setPendingCashMemberships] = useState([]);
-  const [cashMembershipStats, setCashMembershipStats] = useState({});
+  const [pendingCashPayments, setPendingCashPayments] = useState([]);
+  const [pendingCardPayments, setPendingCardPayments] = useState([]);
+  const [cashPaymentStats, setCashPaymentStats] = useState({});
+  const [cardPaymentStats, setCardPaymentStats] = useState({});
   const [financialDashboard, setFinancialDashboard] = useState({});
   
   // Estados de procesamiento
@@ -40,13 +47,17 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const [totalPayments, setTotalPayments] = useState(0);
   const paymentsPerPage = 20;
 
-  // Estados específicos para efectivo
-  const [cashViewMode, setCashViewMode] = useState('grid'); // 'grid' | 'list'
+  // Estados específicos para cada método
+  const [cashViewMode, setCashViewMode] = useState('grid');
   const [cashSortBy, setCashSortBy] = useState('waiting_time');
   const [cashPriorityFilter, setCashPriorityFilter] = useState('all');
+  
+  const [cardViewMode, setCardViewMode] = useState('grid');
+  const [cardSortBy, setCardSortBy] = useState('waiting_time');
+  const [cardPriorityFilter, setCardPriorityFilter] = useState('all');
 
   // ================================
-  // FUNCIONES DE CARGA DE DATOS BÁSICAS
+  // FUNCIONES DE CARGA DE DATOS
   // ================================
 
   const loadPayments = async () => {
@@ -105,26 +116,26 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
 
-  const loadPendingCashMemberships = async () => {
+  const loadPendingCashPayments = async () => {
     try {
-      console.log('💵 Cargando membresías en efectivo pendientes...');
-      const response = await apiService.paymentService.getPendingCashMemberships({
+      console.log('💵 Cargando pagos en efectivo pendientes...');
+      
+      const response = await apiService.paymentService.getPendingCashPayments({
         search: searchTerm,
         sortBy: cashSortBy,
         priority: cashPriorityFilter === 'all' ? undefined : cashPriorityFilter
       });
       
-      setPendingCashMemberships(response?.data?.memberships || []);
+      setPendingCashPayments(response?.data?.payments || []);
       
-      // Cargar estadísticas específicas
-      const statsResponse = await apiService.paymentService.getCashMembershipStats();
-      setCashMembershipStats(statsResponse?.data || {});
+      const statsResponse = await apiService.paymentService.getCashPaymentStats();
+      setCashPaymentStats(statsResponse?.data || {});
       
-      console.log(`✅ ${response?.data?.memberships?.length || 0} membresías en efectivo cargadas`);
+      console.log(`✅ ${response?.data?.payments?.length || 0} pagos en efectivo cargados`);
     } catch (error) {
-      console.error('❌ Error cargando membresías en efectivo:', error);
-      setPendingCashMemberships([]);
-      setCashMembershipStats({});
+      console.error('❌ Error cargando pagos en efectivo:', error);
+      setPendingCashPayments([]);
+      setCashPaymentStats({});
     }
   };
 
@@ -137,6 +148,29 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     } catch (error) {
       console.error('❌ Error cargando transferencias:', error);
       setPendingTransfers([]);
+    }
+  };
+
+  const loadPendingCardPayments = async () => {
+    try {
+      console.log('💳 Cargando pagos con tarjeta pendientes...');
+      
+      const response = await apiService.paymentService.getPendingCardPayments({
+        search: searchTerm,
+        sortBy: cardSortBy,
+        priority: cardPriorityFilter === 'all' ? undefined : cardPriorityFilter
+      });
+      
+      setPendingCardPayments(response?.data?.payments || []);
+      
+      const statsResponse = await apiService.paymentService.getCardPaymentStats();
+      setCardPaymentStats(statsResponse?.data || {});
+      
+      console.log(`✅ ${response?.data?.payments?.length || 0} pagos con tarjeta cargados`);
+    } catch (error) {
+      console.error('❌ Error cargando pagos con tarjeta:', error);
+      setPendingCardPayments([]);
+      setCardPaymentStats({});
     }
   };
 
@@ -153,7 +187,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   };
 
   // ================================
-  // FUNCIONES DE ACCIÓN BÁSICAS
+  // FUNCIONES DE ACCIÓN PARA TRANSFERENCIAS
   // ================================
 
   const handleValidateTransfer = async (paymentId, approved) => {
@@ -173,11 +207,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       console.log(`${approved ? '✅' : '❌'} Validando transferencia:`, paymentId);
       
       await apiService.paymentService.validateTransfer(paymentId, approved, 
-        approved ? 'Transferencia aprobada' : 'Transferencia rechazada');
+        approved ? 'Transferencia aprobada por administrador' : 'Transferencia rechazada por administrador');
       
-      showSuccess(approved ? 'Transferencia aprobada' : 'Transferencia rechazada');
+      showSuccess(approved ? 'Transferencia aprobada correctamente' : 'Transferencia rechazada correctamente');
       
-      // Recargar datos
       await loadPendingTransfers();
       await loadPayments();
       
@@ -198,93 +231,311 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   };
 
   // ================================
-  // FUNCIONES ESPECÍFICAS PARA EFECTIVO
+  // FUNCIONES DE ACCIÓN PARA EFECTIVO
   // ================================
 
-  const handleActivateCashMembership = async (membershipId) => {
-    if (processingIds.has(membershipId)) return;
+  const handleConfirmCashPayment = async (paymentId) => {
+    if (processingIds.has(paymentId)) return;
 
-    const membershipData = pendingCashMemberships.find(m => m.id === membershipId);
+    const paymentData = pendingCashPayments.find(p => p.id === paymentId);
     
     const confirmed = window.confirm(
-      `¿Confirmar que recibiste ${formatCurrency(membershipData?.price || 0)} en efectivo de ${membershipData?.user?.name || 'cliente'}?`
+      `¿Confirmar que recibiste ${formatCurrency(paymentData?.amount || 0)} en efectivo de ${paymentData?.client?.name || 'este cliente'}?`
     );
     
     if (!confirmed) return;
 
     try {
-      setProcessingIds(prev => new Set([...prev, membershipId]));
+      setProcessingIds(prev => new Set([...prev, paymentId]));
       
-      console.log('💵 Activando membresía:', membershipId);
+      console.log('💵 Confirmando pago en efectivo:', paymentId);
       
-      await apiService.paymentService.activateCashMembership(membershipId, {
-        notes: `Pago en efectivo recibido de ${membershipData?.user?.name || 'cliente'}`
+      await apiService.paymentService.confirmCashPayment(paymentId, {
+        notes: `Pago en efectivo recibido de ${paymentData?.client?.name || 'cliente'} por ${paymentData?.paymentType || 'servicio'}`
       });
       
       showSuccess(
-        `¡Membresía activada! Pago de ${formatCurrency(membershipData?.price || 0)} registrado correctamente.`
+        `¡Pago confirmado! ${formatCurrency(paymentData?.amount || 0)} recibidos correctamente.`
       );
       
-      // Remover de la lista local inmediatamente
-      setPendingCashMemberships(prev => prev.filter(m => m.id !== membershipId));
+      setPendingCashPayments(prev => prev.filter(p => p.id !== paymentId));
       
-      // Recargar datos completos
-      await loadPendingCashMemberships();
+      await loadPendingCashPayments();
       await loadPayments();
       
       if (onSave) {
         onSave({ 
-          type: 'cash_membership_activation',
-          membershipId,
-          clientName: membershipData?.user?.name || 'Cliente',
-          amount: membershipData?.price || 0
+          type: 'cash_payment_confirmation',
+          paymentId,
+          clientName: paymentData?.client?.name || 'Cliente',
+          amount: paymentData?.amount || 0
         });
       }
       
     } catch (error) {
-      console.error('❌ Error activando membresía:', error);
-      showError('Error al activar membresía en efectivo');
+      console.error('❌ Error confirmando pago en efectivo:', error);
+      showError('Error al confirmar pago en efectivo');
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(membershipId);
+        newSet.delete(paymentId);
         return newSet;
       });
     }
   };
 
-  // Filtrar membresías en efectivo
-  const getFilteredCashMemberships = () => {
-    let filtered = pendingCashMemberships;
+  const handleCancelCashPayment = async (paymentId) => {
+    if (processingIds.has(paymentId)) return;
 
-    // Filtrar por prioridad
+    const paymentData = pendingCashPayments.find(p => p.id === paymentId);
+    
+    const reason = window.prompt(
+      `¿Por qué quieres cancelar el pago de ${paymentData?.client?.name || 'este cliente'}?\n\nEscribe la razón:`,
+      'Cliente no se presentó'
+    );
+    
+    if (!reason || reason.trim() === '') return;
+
+    const confirmed = window.confirm(
+      `¿Confirmar cancelación del pago de ${formatCurrency(paymentData?.amount || 0)}?\n\nRazón: ${reason}`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setProcessingIds(prev => new Set([...prev, paymentId]));
+      
+      console.log('❌ Cancelando pago en efectivo:', paymentId);
+      
+      await apiService.paymentService.cancelCashPayment(paymentId, {
+        reason: reason.trim(),
+        notes: `Pago cancelado: ${reason.trim()}`
+      });
+      
+      showSuccess(
+        `Pago cancelado correctamente. Razón: ${reason.trim()}`
+      );
+      
+      setPendingCashPayments(prev => prev.filter(p => p.id !== paymentId));
+      
+      await loadPendingCashPayments();
+      await loadPayments();
+      
+      if (onSave) {
+        onSave({ 
+          type: 'cash_payment_cancellation',
+          paymentId,
+          clientName: paymentData?.client?.name || 'Cliente',
+          amount: paymentData?.amount || 0,
+          reason: reason.trim()
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error cancelando pago en efectivo:', error);
+      showError('Error al cancelar pago en efectivo');
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(paymentId);
+        return newSet;
+      });
+    }
+  };
+
+  // ================================
+  // FUNCIONES DE ACCIÓN PARA TARJETAS
+  // ================================
+
+  const handleConfirmCardPayment = async (paymentId) => {
+    if (processingIds.has(paymentId)) return;
+
+    const paymentData = pendingCardPayments.find(p => p.id === paymentId);
+    
+    const transactionId = window.prompt(
+      `Confirmar pago con tarjeta de ${paymentData?.client?.name || 'cliente'}:\n\nMonto: ${formatCurrency(paymentData?.amount || 0)}\n\nIngresa el ID de transacción:`,
+      `TXN_${Date.now()}`
+    );
+    
+    if (!transactionId || transactionId.trim() === '') return;
+
+    const confirmed = window.confirm(
+      `¿Confirmar procesamiento de ${formatCurrency(paymentData?.amount || 0)} con tarjeta?\n\nID Transacción: ${transactionId}`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setProcessingIds(prev => new Set([...prev, paymentId]));
+      
+      console.log('💳 Confirmando pago con tarjeta:', paymentId);
+      
+      await apiService.paymentService.confirmCardPayment(paymentId, {
+        notes: `Pago con tarjeta procesado para ${paymentData?.client?.name || 'cliente'}`,
+        transactionId: transactionId.trim(),
+        cardLast4: paymentData?.cardLast4 || undefined
+      });
+      
+      showSuccess(
+        `¡Pago con tarjeta confirmado! ${formatCurrency(paymentData?.amount || 0)} procesados correctamente.`
+      );
+      
+      setPendingCardPayments(prev => prev.filter(p => p.id !== paymentId));
+      
+      await loadPendingCardPayments();
+      await loadPayments();
+      
+      if (onSave) {
+        onSave({ 
+          type: 'card_payment_confirmation',
+          paymentId,
+          clientName: paymentData?.client?.name || 'Cliente',
+          amount: paymentData?.amount || 0,
+          transactionId: transactionId.trim()
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error confirmando pago con tarjeta:', error);
+      showError('Error al confirmar pago con tarjeta');
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(paymentId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleCancelCardPayment = async (paymentId) => {
+    if (processingIds.has(paymentId)) return;
+
+    const paymentData = pendingCardPayments.find(p => p.id === paymentId);
+    
+    const reason = window.prompt(
+      `¿Por qué quieres cancelar el pago con tarjeta de ${paymentData?.client?.name || 'este cliente'}?\n\nEscribe la razón:`,
+      'Problema con la transacción'
+    );
+    
+    if (!reason || reason.trim() === '') return;
+
+    const confirmed = window.confirm(
+      `¿Confirmar cancelación del pago con tarjeta de ${formatCurrency(paymentData?.amount || 0)}?\n\nRazón: ${reason}`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setProcessingIds(prev => new Set([...prev, paymentId]));
+      
+      console.log('❌ Cancelando pago con tarjeta:', paymentId);
+      
+      await apiService.paymentService.cancelCardPayment(paymentId, {
+        reason: reason.trim(),
+        notes: `Pago con tarjeta cancelado: ${reason.trim()}`
+      });
+      
+      showSuccess(
+        `Pago con tarjeta cancelado correctamente. Razón: ${reason.trim()}`
+      );
+      
+      setPendingCardPayments(prev => prev.filter(p => p.id !== paymentId));
+      
+      await loadPendingCardPayments();
+      await loadPayments();
+      
+      if (onSave) {
+        onSave({ 
+          type: 'card_payment_cancellation',
+          paymentId,
+          clientName: paymentData?.client?.name || 'Cliente',
+          amount: paymentData?.amount || 0,
+          reason: reason.trim()
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error cancelando pago con tarjeta:', error);
+      showError('Error al cancelar pago con tarjeta');
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(paymentId);
+        return newSet;
+      });
+    }
+  };
+
+  // ================================
+  // FUNCIONES DE FILTROS
+  // ================================
+
+  const getFilteredCashPayments = () => {
+    let filtered = pendingCashPayments;
+
     if (cashPriorityFilter !== 'all') {
-      filtered = filtered.filter(membership => {
-        const priority = apiService.paymentService.getCashMembershipPriorityConfig(
-          membership.hoursWaiting || 0
+      filtered = filtered.filter(payment => {
+        const priority = apiService.paymentService.getCashPaymentPriorityConfig(
+          payment.hoursWaiting || 0
         ).priority;
         return priority === cashPriorityFilter;
       });
     }
 
-    // Filtrar por búsqueda
     if (searchTerm) {
       const searchText = searchTerm.toLowerCase();
-      filtered = filtered.filter(membership => {
-        const clientInfo = `${membership.user?.name || ''} ${membership.user?.email || ''} ${membership.plan?.name || ''}`.toLowerCase();
+      filtered = filtered.filter(payment => {
+        const clientInfo = `${payment.client?.name || ''} ${payment.client?.email || ''} ${payment.paymentType || ''} ${payment.description || ''}`.toLowerCase();
         return clientInfo.includes(searchText);
       });
     }
 
-    // Ordenar
     filtered.sort((a, b) => {
       switch (cashSortBy) {
         case 'waiting_time':
           return (b.hoursWaiting || 0) - (a.hoursWaiting || 0);
         case 'amount':
-          return (b.price || 0) - (a.price || 0);
+          return (b.amount || 0) - (a.amount || 0);
         case 'name':
-          return (a.user?.name || '').localeCompare(b.user?.name || '');
+          return (a.client?.name || '').localeCompare(b.client?.name || '');
+        case 'created':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  };
+
+  const getFilteredCardPayments = () => {
+    let filtered = pendingCardPayments;
+
+    if (cardPriorityFilter !== 'all') {
+      filtered = filtered.filter(payment => {
+        const priority = apiService.paymentService.getCardPaymentPriorityConfig(
+          payment.hoursWaiting || 0
+        ).priority;
+        return priority === cardPriorityFilter;
+      });
+    }
+
+    if (searchTerm) {
+      const searchText = searchTerm.toLowerCase();
+      filtered = filtered.filter(payment => {
+        const clientInfo = `${payment.client?.name || ''} ${payment.client?.email || ''} ${payment.paymentType || ''} ${payment.description || ''} ${payment.transactionId || ''}`.toLowerCase();
+        return clientInfo.includes(searchText);
+      });
+    }
+
+    filtered.sort((a, b) => {
+      switch (cardSortBy) {
+        case 'waiting_time':
+          return (b.hoursWaiting || 0) - (a.hoursWaiting || 0);
+        case 'amount':
+          return (b.amount || 0) - (a.amount || 0);
+        case 'name':
+          return (a.client?.name || '').localeCompare(b.client?.name || '');
         case 'created':
           return new Date(b.createdAt) - new Date(a.createdAt);
         default:
@@ -306,7 +557,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         loadStatistics(),
         loadPendingDashboard(),
         loadPendingTransfers(),
-        loadPendingCashMemberships(),
+        loadPendingCashPayments(),
+        loadPendingCardPayments(),
         loadFinancialDashboard()
       ]);
     };
@@ -314,12 +566,17 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     loadData();
   }, [currentPage, searchTerm]);
 
-  // Recargar membresías en efectivo cuando cambien los filtros
   useEffect(() => {
     if (activeTab === 'cash') {
-      loadPendingCashMemberships();
+      loadPendingCashPayments();
     }
   }, [cashSortBy, cashPriorityFilter]);
+
+  useEffect(() => {
+    if (activeTab === 'cards') {
+      loadPendingCardPayments();
+    }
+  }, [cardSortBy, cardPriorityFilter]);
 
   // ================================
   // UTILIDADES PARA RENDERIZADO
@@ -330,7 +587,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       cash: Banknote,
       card: CreditCard,
       transfer: Building,
-      mobile: Building
+      mobile: Smartphone
     };
     return icons[method] || CreditCard;
   };
@@ -345,9 +602,31 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     return colors[status] || colors.completed;
   };
 
-  const filteredCashMemberships = getFilteredCashMemberships();
+  const getStatusLabel = (status) => {
+    const labels = {
+      completed: 'Completado',
+      pending: 'Pendiente',
+      failed: 'Fallido',
+      cancelled: 'Cancelado'
+    };
+    return labels[status] || 'Completado';
+  };
+
+  const getMethodLabel = (method) => {
+    const labels = {
+      cash: 'Efectivo',
+      card: 'Tarjeta',
+      transfer: 'Transferencia',
+      mobile: 'Pago Móvil'
+    };
+    return labels[method] || 'Efectivo';
+  };
+
+  const filteredCashPayments = getFilteredCashPayments();
+  const filteredCardPayments = getFilteredCardPayments();
 
   return (
+    
     <div className="space-y-6">
       
       {/* HEADER */}
@@ -369,7 +648,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               loadStatistics();
               loadPendingDashboard();
               loadPendingTransfers();
-              loadPendingCashMemberships();
+              loadPendingCashPayments();
+              loadPendingCardPayments();
               loadFinancialDashboard();
             }}
             disabled={loading}
@@ -410,7 +690,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             }`}
           >
             <Building className="w-4 h-4 mr-2" />
-            Transferencias
+            Transferencias Bancarias
             {pendingTransfers.length > 0 && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800">
                 {pendingTransfers.length}
@@ -427,14 +707,36 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             }`}
           >
             <Banknote className="w-4 h-4 mr-2" />
-            Efectivo
-            {cashMembershipStats.total > 0 && (
+            Pagos en Efectivo
+            {cashPaymentStats.total > 0 && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
-                {cashMembershipStats.total}
+                {cashPaymentStats.total}
               </span>
             )}
-            {cashMembershipStats.urgent > 0 && (
+            {cashPaymentStats.urgent > 0 && (
               <span className="ml-1 inline-flex items-center px-1 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800">
+                <AlertTriangle className="w-3 h-3" />
+              </span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('cards')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
+              activeTab === 'cards'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <CreditCard className="w-4 h-4 mr-2" />
+            Pagos con Tarjeta
+            {cardPaymentStats.total > 0 && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                {cardPaymentStats.total}
+              </span>
+            )}
+            {cardPaymentStats.urgent > 0 && (
+              <span className="ml-1 inline-flex items-center px-1 py-0.5 rounded-full text-xs bg-red-100 text-red-800">
                 <AlertTriangle className="w-3 h-3" />
               </span>
             )}
@@ -449,7 +751,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             }`}
           >
             <TrendingUp className="w-4 h-4 mr-2" />
-            Resumen
+            Resumen Financiero
           </button>
         </nav>
       </div>
@@ -458,38 +760,36 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       {activeTab === 'payments' && (
         <div className="space-y-6">
           
-          {/* Barra de búsqueda simple */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center space-x-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar pagos por cliente..."
+                  placeholder="Buscar pagos por nombre de cliente..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 />
               </div>
               <div className="text-sm text-gray-500">
-                {totalPayments} pagos total
+                {totalPayments} pagos registrados
               </div>
             </div>
           </div>
           
-          {/* Lista de pagos */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-6 h-6 animate-spin text-green-600 mr-2" />
-                <span className="text-gray-600">Cargando pagos...</span>
+                <span className="text-gray-600">Cargando historial de pagos...</span>
               </div>
             ) : payments.length === 0 ? (
               <div className="text-center py-12">
                 <Coins className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay pagos</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay pagos registrados</h3>
                 <p className="text-gray-600">
-                  {searchTerm ? 'No se encontraron pagos con ese criterio' : 'No hay pagos registrados'}
+                  {searchTerm ? 'No se encontraron pagos con ese criterio de búsqueda' : 'Aún no se han registrado pagos en el sistema'}
                 </p>
               </div>
             ) : (
@@ -510,6 +810,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                               <h4 className="text-sm font-medium text-gray-900">
                                 {payment.user ? 
                                   `${payment.user.firstName} ${payment.user.lastName}` : 
+                                  payment.client?.name || 
                                   'Cliente Anónimo'
                                 }
                               </h4>
@@ -521,17 +822,22 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             
                             <div className="flex items-center text-sm text-gray-500">
                               <Calendar className="w-4 h-4 mr-1" />
-                              {formatDate(payment.paymentDate || payment.createdAt, 'dd/MM/yyyy')}
+                              {formatDate(payment.paymentDate || payment.createdAt, 'dd/MM/yyyy HH:mm')}
                               <span className="mx-2">•</span>
                               <span className={`px-2 py-0.5 rounded text-xs ${getStatusColor(payment.status || 'completed')}`}>
-                                {payment.status || 'completed'}
+                                {getStatusLabel(payment.status || 'completed')}
+                              </span>
+                              <span className="mx-2">•</span>
+                              <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                                {getMethodLabel(payment.paymentMethod)}
                               </span>
                             </div>
                           </div>
                           
                           <button
-                            onClick={() => console.log('Ver pago:', payment)}
-                            className="text-blue-600 hover:text-blue-800 p-2"
+                            onClick={() => console.log('Ver detalles del pago:', payment)}
+                            className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50"
+                            title="Ver detalles del pago"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -557,7 +863,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   No hay transferencias pendientes
                 </h3>
                 <p className="text-gray-600">
-                  Todas las transferencias han sido procesadas
+                  Todas las transferencias bancarias han sido procesadas
                 </p>
               </div>
             ) : (
@@ -570,25 +876,30 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h4 className="text-lg font-medium text-gray-900">
-                            {transfer.user?.name || 'Cliente Anónimo'}
+                            {transfer.user?.name || transfer.client?.name || 'Cliente Anónimo'}
                           </h4>
                           <div className="text-2xl font-bold text-green-600 flex items-center mt-2">
                             <Bird className="w-6 h-6 mr-2" />
                             {formatCurrency(transfer.amount)}
                           </div>
                           <p className="text-sm text-gray-500 mt-1">
-                            {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy HH:mm')}
+                            Fecha: {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy HH:mm')}
                             {transfer.hoursWaiting && (
-                              <span className="ml-2">• Esperando {transfer.hoursWaiting.toFixed(1)}h</span>
+                              <span className="ml-2">• Esperando {transfer.hoursWaiting.toFixed(1)} horas</span>
                             )}
                           </p>
+                          {transfer.description && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              Concepto: {transfer.description}
+                            </p>
+                          )}
                         </div>
                         
                         <div className="flex space-x-2">
                           <button
                             onClick={() => handleValidateTransfer(transfer.id, true)}
                             disabled={isProcessing}
-                            className="btn-success"
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                           >
                             {isProcessing ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -603,7 +914,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                           <button
                             onClick={() => handleValidateTransfer(transfer.id, false)}
                             disabled={isProcessing}
-                            className="btn-danger"
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                           >
                             {isProcessing ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -629,19 +940,25 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       {activeTab === 'cash' && (
         <div className="space-y-6">
           
-          {/* ESTADÍSTICAS DE EFECTIVO */}
+          {/* ESTADÍSTICAS DE EFECTIVO CORREGIDAS */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-900">{cashMembershipStats.total || 0}</div>
-                <div className="text-xs text-green-600">Esperando</div>
+                <div className="text-2xl font-bold text-green-900">{cashPaymentStats.total || 0}</div>
+                <div className="text-xs text-green-600">Pagos Esperando</div>
+                {cashPaymentStats.total > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">En efectivo</div>
+                )}
               </div>
             </div>
             
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
               <div className="text-center">
-                <div className="text-2xl font-bold text-orange-900">{cashMembershipStats.urgent || 0}</div>
+                <div className="text-2xl font-bold text-orange-900">{cashPaymentStats.urgent || 0}</div>
                 <div className="text-xs text-orange-600">Urgentes</div>
+                {cashPaymentStats.urgent > 0 && (
+                  <div className="text-xs text-orange-500 mt-1">Más de 4h</div>
+                )}
               </div>
             </div>
             
@@ -649,9 +966,9 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               <div className="text-center">
                 <div className="text-lg font-bold text-blue-900 flex items-center justify-center">
                   <Bird className="w-4 h-4 mr-1" />
-                  <span className="text-sm">{formatCurrency(cashMembershipStats.totalAmount || 0)}</span>
+                  <span className="text-sm">{formatCurrency(cashPaymentStats.totalAmount || 0)}</span>
                 </div>
-                <div className="text-xs text-blue-600">Total GTQ</div>
+                <div className="text-xs text-blue-600">Total Pendiente</div>
               </div>
             </div>
             
@@ -659,7 +976,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               <div className="text-center">
                 <div className="text-lg font-bold text-purple-900 flex items-center justify-center">
                   <Bird className="w-4 h-4 mr-1" />
-                  <span className="text-sm">{formatCurrency(cashMembershipStats.avgAmount || 0)}</span>
+                  <span className="text-sm">{formatCurrency(cashPaymentStats.avgAmount || 0)}</span>
                 </div>
                 <div className="text-xs text-purple-600">Promedio</div>
               </div>
@@ -667,8 +984,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{(cashMembershipStats.avgHours || 0).toFixed(1)}h</div>
-                <div className="text-xs text-gray-600">Tiempo Prom.</div>
+                <div className="text-2xl font-bold text-gray-900">{(cashPaymentStats.avgHours || 0).toFixed(1)}h</div>
+                <div className="text-xs text-gray-600">Tiempo Promedio</div>
+                {cashPaymentStats.avgHours > 4 && (
+                  <div className="text-xs text-orange-500 mt-1">⚠️ Elevado</div>
+                )}
               </div>
             </div>
           </div>
@@ -676,12 +996,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           {/* CONTROLES DE EFECTIVO */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 bg-white rounded-lg p-4 border border-gray-200">
             
-            {/* Búsqueda */}
             <div className="relative flex-1 md:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar por nombre, email o plan..."
+                placeholder="Buscar pagos en efectivo por nombre..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
@@ -689,30 +1008,27 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             </div>
             
             <div className="flex items-center space-x-3">
-              {/* Filtro de prioridad */}
               <select
                 value={cashPriorityFilter}
                 onChange={(e) => setCashPriorityFilter(e.target.value)}
                 className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
               >
                 <option value="all">Todas las prioridades</option>
-                <option value="urgent">🟠 Urgentes (+4h)</option>
-                <option value="normal">🟢 Normales (&lt;4h)</option>
+                <option value="urgent">🟠 Urgentes (más de 4 horas)</option>
+                <option value="normal">🟢 Normales (menos de 4 horas)</option>
               </select>
               
-              {/* Ordenar */}
               <select
                 value={cashSortBy}
                 onChange={(e) => setCashSortBy(e.target.value)}
                 className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
               >
-                <option value="waiting_time">Tiempo de espera</option>
-                <option value="amount">Monto</option>
-                <option value="name">Nombre</option>
-                <option value="created">Fecha de creación</option>
+                <option value="waiting_time">Ordenar por tiempo de espera</option>
+                <option value="amount">Ordenar por monto</option>
+                <option value="name">Ordenar por nombre</option>
+                <option value="created">Ordenar por fecha de creación</option>
               </select>
               
-              {/* Vista */}
               <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                 <button
                   onClick={() => setCashViewMode('grid')}
@@ -731,46 +1047,201 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               </div>
               
               <div className="text-sm text-gray-500">
-                {filteredCashMemberships.length} membresías
+                {filteredCashPayments.length} pagos mostrados
               </div>
             </div>
           </div>
 
-          {/* CONTENIDO DE MEMBRESÍAS EN EFECTIVO */}
-          {filteredCashMemberships.length === 0 ? (
+          {/* CONTENIDO DE PAGOS EN EFECTIVO */}
+          {filteredCashPayments.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
               <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
               <h3 className="text-xl font-medium text-gray-900 mb-2">
                 {searchTerm || cashPriorityFilter !== 'all'
-                  ? 'No se encontraron membresías con ese criterio'
-                  : '¡Excelente! No hay membresías esperando pago en efectivo'
+                  ? 'No se encontraron pagos con ese criterio'
+                  : '¡Excelente! No hay pagos en efectivo pendientes'
                 }
               </h3>
               <p className="text-gray-600">
                 {searchTerm || cashPriorityFilter !== 'all'
                   ? 'Intenta con otro criterio de búsqueda o filtro'
-                  : 'Todas las membresías en efectivo han sido procesadas'
+                  : 'Todos los pagos en efectivo han sido procesados correctamente'
                 }
               </p>
             </div>
           ) : (
             <div className={`${cashViewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}`}>
-              {filteredCashMemberships.map((membership) => (
+              {filteredCashPayments.map((payment) => (
                 cashViewMode === 'grid' ? (
-                  <CashMembershipCard
-                    key={membership.id}
-                    membership={membership}
-                    onActivate={handleActivateCashMembership}
-                    isProcessing={processingIds.has(membership.id)}
+                  <CashPaymentCard
+                    key={payment.id}
+                    payment={payment}
+                    onConfirm={handleConfirmCashPayment}
+                    onCancel={handleCancelCashPayment}
+                    isProcessing={processingIds.has(payment.id)}
                     formatCurrency={formatCurrency}
                     formatDate={formatDate}
                   />
                 ) : (
-                  <CashMembershipListItem
-                    key={membership.id}
-                    membership={membership}
-                    onActivate={handleActivateCashMembership}
-                    isProcessing={processingIds.has(membership.id)}
+                  <CashPaymentListItem
+                    key={payment.id}
+                    payment={payment}
+                    onConfirm={handleConfirmCashPayment}
+                    onCancel={handleCancelCashPayment}
+                    isProcessing={processingIds.has(payment.id)}
+                    formatCurrency={formatCurrency}
+                    formatDate={formatDate}
+                  />
+                )
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CONTENIDO DEL TAB TARJETAS */}
+      {activeTab === 'cards' && (
+        <div className="space-y-6">
+          
+          {/* ESTADÍSTICAS DE TARJETAS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <CreditCard className="w-8 h-8 text-blue-600 mr-3" />
+                <div>
+                  <div className="text-2xl font-bold text-blue-900">{cardPaymentStats.total || 0}</div>
+                  <div className="text-sm text-blue-600">Pagos Pendientes</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <AlertTriangle className="w-8 h-8 text-red-600 mr-3" />
+                <div>
+                  <div className="text-2xl font-bold text-red-900">{cardPaymentStats.urgent || 0}</div>
+                  <div className="text-sm text-red-600">Urgentes (&gt;24h)</div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <Bird className="w-8 h-8 text-green-600 mr-3" />
+                <div>
+                  <div className="text-lg font-bold text-green-900">{formatCurrency(cardPaymentStats.totalAmount || 0)}</div>
+                  <div className="text-sm text-green-600">Total Pendiente</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <Timer className="w-8 h-8 text-purple-600 mr-3" />
+                <div>
+                  <div className="text-2xl font-bold text-purple-900">{(cardPaymentStats.avgHours || 0).toFixed(1)}h</div>
+                  <div className="text-sm text-purple-600">Tiempo Promedio</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CONTROLES DE TARJETAS */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 bg-white rounded-lg p-4 border border-gray-200">
+            
+            <div className="relative flex-1 md:max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar pagos con tarjeta..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <select
+                value={cardPriorityFilter}
+                onChange={(e) => setCardPriorityFilter(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
+              >
+                <option value="all">Todas las prioridades</option>
+                <option value="urgent">🔴 Urgentes (más de 24 horas)</option>
+                <option value="medium">🟡 Medias (12-24 horas)</option>
+                <option value="normal">🟢 Normales (menos de 12 horas)</option>
+              </select>
+              
+              <select
+                value={cardSortBy}
+                onChange={(e) => setCardSortBy(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
+              >
+                <option value="waiting_time">Ordenar por tiempo de espera</option>
+                <option value="amount">Ordenar por monto</option>
+                <option value="name">Ordenar por nombre</option>
+                <option value="created">Ordenar por fecha de creación</option>
+              </select>
+              
+              <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setCardViewMode('grid')}
+                  className={`p-2 ${cardViewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  title="Vista en cuadrícula"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setCardViewMode('list')}
+                  className={`p-2 ${cardViewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  title="Vista en lista"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                {filteredCardPayments.length} pagos mostrados
+              </div>
+            </div>
+          </div>
+
+          {/* CONTENIDO DE PAGOS CON TARJETA */}
+          {filteredCardPayments.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <CheckCircle className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+              <h3 className="text-xl font-medium text-gray-900 mb-2">
+                {searchTerm || cardPriorityFilter !== 'all'
+                  ? 'No se encontraron pagos con ese criterio'
+                  : '¡Perfecto! No hay pagos con tarjeta pendientes'
+                }
+              </h3>
+              <p className="text-gray-600">
+                {searchTerm || cardPriorityFilter !== 'all'
+                  ? 'Intenta con otro criterio de búsqueda o filtro'
+                  : 'Todos los pagos con tarjeta han sido procesados correctamente'
+                }
+              </p>
+            </div>
+          ) : (
+            <div className={`${cardViewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}`}>
+              {filteredCardPayments.map((payment) => (
+                cardViewMode === 'grid' ? (
+                  <CardPaymentCard
+                    key={payment.id}
+                    payment={payment}
+                    onConfirm={handleConfirmCardPayment}
+                    onCancel={handleCancelCardPayment}
+                    isProcessing={processingIds.has(payment.id)}
+                    formatCurrency={formatCurrency}
+                    formatDate={formatDate}
+                  />
+                ) : (
+                  <CardPaymentListItem
+                    key={payment.id}
+                    payment={payment}
+                    onConfirm={handleConfirmCardPayment}
+                    onCancel={handleCancelCardPayment}
+                    isProcessing={processingIds.has(payment.id)}
                     formatCurrency={formatCurrency}
                     formatDate={formatDate}
                   />
@@ -789,8 +1260,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
               <div className="flex items-center">
-                <Bird className="w-8 h-8 text-green-600" />
-                <div className="ml-3">
+                <Bird className="w-8 h-8 text-green-600 mr-3" />
+                <div>
                   <div className="text-2xl font-bold text-green-900">
                     {formatCurrency(statistics.totalIncome || 0)}
                   </div>
@@ -801,99 +1272,174 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center">
-                <CreditCard className="w-8 h-8 text-blue-600" />
-                <div className="ml-3">
+                <BarChart3 className="w-8 h-8 text-blue-600 mr-3" />
+                <div>
                   <div className="text-2xl font-bold text-blue-900">
                     {statistics.totalPayments || 0}
                   </div>
-                  <div className="text-sm text-blue-600">Transacciones</div>
+                  <div className="text-sm text-blue-600">Total de Transacciones</div>
                 </div>
               </div>
             </div>
             
             <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
               <div className="flex items-center">
-                <Building className="w-8 h-8 text-purple-600" />
-                <div className="ml-3">
+                <Building className="w-8 h-8 text-purple-600 mr-3" />
+                <div>
                   <div className="text-2xl font-bold text-purple-900">
                     {pendingTransfers.length}
                   </div>
-                  <div className="text-sm text-purple-600">Transferencias</div>
+                  <div className="text-sm text-purple-600">Transferencias Pendientes</div>
                 </div>
               </div>
             </div>
             
             <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
               <div className="flex items-center">
-                <TrendingUp className="w-8 h-8 text-orange-600" />
-                <div className="ml-3">
+                <TrendingUp className="w-8 h-8 text-orange-600 mr-3" />
+                <div>
                   <div className="text-2xl font-bold text-orange-900">
                     {formatCurrency(statistics.averagePayment || 0)}
                   </div>
-                  <div className="text-sm text-orange-600">Promedio</div>
+                  <div className="text-sm text-orange-600">Promedio por Pago</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Dashboard financiero básico */}
+          {/* Dashboard financiero detallado */}
           {financialDashboard.today && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Hoy</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Ingresos:</span>
-                    <span className="text-sm font-medium text-green-600">
+                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <Calendar className="w-5 h-5 mr-2 text-blue-600" />
+                  Hoy
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Ingresos del día:</span>
+                    <span className="text-sm font-medium text-green-600 flex items-center">
+                      <ArrowUp className="w-3 h-3 mr-1" />
                       {formatCurrency(financialDashboard.today.income || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Gastos:</span>
-                    <span className="text-sm font-medium text-red-600">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Gastos del día:</span>
+                    <span className="text-sm font-medium text-red-600 flex items-center">
+                      <ArrowDown className="w-3 h-3 mr-1" />
                       {formatCurrency(financialDashboard.today.expenses || 0)}
                     </span>
                   </div>
+                  <div className="border-t pt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-900">Balance neto:</span>
+                      <span className={`text-sm font-bold ${(financialDashboard.today.income - financialDashboard.today.expenses) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency((financialDashboard.today.income || 0) - (financialDashboard.today.expenses || 0))}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Esta Semana</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Ingresos:</span>
-                    <span className="text-sm font-medium text-green-600">
+                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <Calendar className="w-5 h-5 mr-2 text-purple-600" />
+                  Esta Semana
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Ingresos semanales:</span>
+                    <span className="text-sm font-medium text-green-600 flex items-center">
+                      <ArrowUp className="w-3 h-3 mr-1" />
                       {formatCurrency(financialDashboard.thisWeek?.income || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Gastos:</span>
-                    <span className="text-sm font-medium text-red-600">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Gastos semanales:</span>
+                    <span className="text-sm font-medium text-red-600 flex items-center">
+                      <ArrowDown className="w-3 h-3 mr-1" />
                       {formatCurrency(financialDashboard.thisWeek?.expenses || 0)}
                     </span>
+                  </div>
+                  <div className="border-t pt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-900">Balance neto:</span>
+                      <span className={`text-sm font-bold ${((financialDashboard.thisWeek?.income || 0) - (financialDashboard.thisWeek?.expenses || 0)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency((financialDashboard.thisWeek?.income || 0) - (financialDashboard.thisWeek?.expenses || 0))}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Este Mes</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Ingresos:</span>
-                    <span className="text-sm font-medium text-green-600">
+                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <Calendar className="w-5 h-5 mr-2 text-orange-600" />
+                  Este Mes
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Ingresos mensuales:</span>
+                    <span className="text-sm font-medium text-green-600 flex items-center">
+                      <ArrowUp className="w-3 h-3 mr-1" />
                       {formatCurrency(financialDashboard.thisMonth?.income || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Gastos:</span>
-                    <span className="text-sm font-medium text-red-600">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Gastos mensuales:</span>
+                    <span className="text-sm font-medium text-red-600 flex items-center">
+                      <ArrowDown className="w-3 h-3 mr-1" />
                       {formatCurrency(financialDashboard.thisMonth?.expenses || 0)}
                     </span>
+                  </div>
+                  <div className="border-t pt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-900">Balance neto:</span>
+                      <span className={`text-sm font-bold ${((financialDashboard.thisMonth?.income || 0) - (financialDashboard.thisMonth?.expenses || 0)) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency((financialDashboard.thisMonth?.income || 0) - (financialDashboard.thisMonth?.expenses || 0))}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Resumen por métodos de pago */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+              <Coins className="w-5 h-5 mr-2 text-gray-600" />
+              Resumen por Métodos de Pago
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 border border-green-200 rounded-lg bg-green-50">
+                <Banknote className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                <div className="text-lg font-bold text-green-900">{cashPaymentStats.total || 0}</div>
+                <div className="text-sm text-green-600">Pagos en Efectivo</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {formatCurrency(cashPaymentStats.totalAmount || 0)} pendientes
+                </div>
+              </div>
+              
+              <div className="text-center p-4 border border-blue-200 rounded-lg bg-blue-50">
+                <CreditCard className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                <div className="text-lg font-bold text-blue-900">{cardPaymentStats.total || 0}</div>
+                <div className="text-sm text-blue-600">Pagos con Tarjeta</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {formatCurrency(cardPaymentStats.totalAmount || 0)} pendientes
+                </div>
+              </div>
+              
+              <div className="text-center p-4 border border-purple-200 rounded-lg bg-purple-50">
+                <Building className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                <div className="text-lg font-bold text-purple-900">{pendingTransfers.length}</div>
+                <div className="text-sm text-purple-600">Transferencias</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {formatCurrency(pendingTransfers.reduce((sum, t) => sum + (t.amount || 0), 0))} pendientes
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -901,36 +1447,32 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 // ================================
-// COMPONENTES PARA MEMBRESÍAS EN EFECTIVO
+// COMPONENTES PARA PAGOS EN EFECTIVO
 // ================================
 
-// COMPONENTE: Tarjeta de membresía (vista grid)
-const CashMembershipCard = ({ membership, onActivate, isProcessing, formatCurrency, formatDate }) => {
-  const isUrgent = (membership.hoursWaiting || 0) > 4;
+const CashPaymentCard = ({ payment, onConfirm, onCancel, isProcessing, formatCurrency, formatDate }) => {
+  const isUrgent = (payment.hoursWaiting || 0) > 4;
   
   return (
     <div className={`bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 ${
       isUrgent ? 'ring-2 ring-orange-200 border-orange-300' : 'border-gray-200'
     }`}>
       
-      {/* Header con urgencia */}
       {isUrgent && (
         <div className="bg-orange-50 px-4 py-2 border-b border-orange-200">
           <div className="flex items-center text-orange-700 text-sm">
             <Timer className="w-4 h-4 mr-1" />
-            <span className="font-medium">Esperando {membership.hoursWaiting.toFixed(1)} horas</span>
+            <span className="font-medium">Esperando {payment.hoursWaiting.toFixed(1)} horas</span>
           </div>
         </div>
       )}
       
       <div className="p-6">
-        
-        {/* Cliente */}
         <div className="flex items-center mb-4">
           <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-4">
             <span className="text-xl font-bold text-green-700">
-              {membership.user ? 
-                `${membership.user.name[0]}${membership.user.name.split(' ')[1]?.[0] || ''}` :
+              {payment.client ? 
+                `${payment.client.name[0]}${payment.client.name.split(' ')[1]?.[0] || ''}` :
                 'A'
               }
             </span>
@@ -938,117 +1480,121 @@ const CashMembershipCard = ({ membership, onActivate, isProcessing, formatCurren
           
           <div className="flex-1 min-w-0">
             <h3 className="text-lg font-semibold text-gray-900 truncate">
-              {membership.user?.name || 'Cliente Anónimo'}
+              {payment.client?.name || 'Cliente Anónimo'}
             </h3>
             <div className="text-sm text-gray-500 space-y-1">
-              {membership.user?.email && (
+              {payment.client?.email && (
                 <div className="flex items-center truncate">
                   <Mail className="w-3 h-3 mr-1" />
-                  <span className="truncate">{membership.user.email}</span>
+                  <span className="truncate">{payment.client.email}</span>
                 </div>
               )}
-              {membership.user?.phone && (
+              {payment.client?.phone && (
                 <div className="flex items-center">
                   <Phone className="w-3 h-3 mr-1" />
-                  <span>{membership.user.phone}</span>
+                  <span>{payment.client.phone}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
         
-        {/* Detalles del plan */}
         <div className="bg-gray-50 rounded-lg p-4 mb-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
-              <div className="text-gray-500 mb-1">Plan</div>
+              <div className="text-gray-500 mb-1">Tipo de Pago</div>
               <div className="font-medium text-gray-900 truncate">
-                {membership.plan?.name || 'Plan personalizado'}
+                {payment.paymentType === 'membership' ? 'Membresía' :
+                 payment.paymentType === 'daily' ? 'Pago Diario' :
+                 payment.paymentType || 'Pago General'}
               </div>
             </div>
             
             <div>
-              <div className="text-gray-500 mb-1">Precio</div>
+              <div className="text-gray-500 mb-1">Monto</div>
               <div className="text-xl font-bold text-green-600 flex items-center">
                 <Bird className="w-4 h-4 mr-1" />
-                {formatCurrency(membership.price)}
+                {formatCurrency(payment.amount)}
               </div>
             </div>
             
             <div>
-              <div className="text-gray-500 mb-1">Creada</div>
+              <div className="text-gray-500 mb-1">Fecha de Creación</div>
               <div className="text-gray-700">
-                {formatDate(membership.createdAt, 'dd/MM')}
+                {formatDate(payment.createdAt, 'dd/MM HH:mm')}
               </div>
             </div>
             
             <div>
-              <div className="text-gray-500 mb-1">Esperando</div>
+              <div className="text-gray-500 mb-1">Tiempo de Espera</div>
               <div className={`font-medium ${isUrgent ? 'text-orange-600' : 'text-gray-700'}`}>
-                {membership.hoursWaiting?.toFixed(1) || '0.0'}h
+                {payment.hoursWaiting?.toFixed(1) || '0.0'} horas
               </div>
             </div>
           </div>
         </div>
         
-        {/* Horarios reservados */}
-        {membership.schedule && Object.keys(membership.schedule).length > 0 && (
+        {payment.description && (
           <div className="mb-4">
-            <div className="text-sm font-medium text-gray-700 mb-2">Horarios:</div>
+            <div className="text-sm font-medium text-gray-700 mb-2">Descripción:</div>
             <div className="bg-blue-50 rounded-lg p-3">
-              <div className="space-y-1">
-                {Object.entries(membership.schedule).slice(0, 3).map(([day, slots]) => (
-                  <div key={day} className="text-xs">
-                    <span className="font-medium text-blue-900 capitalize">
-                      {day.substring(0, 3)}:
-                    </span>{' '}
-                    <span className="text-blue-700">
-                      {slots.map(slot => slot.timeRange).join(', ')}
-                    </span>
-                  </div>
-                ))}
-                {Object.keys(membership.schedule).length > 3 && (
-                  <div className="text-xs text-blue-600">
-                    +{Object.keys(membership.schedule).length - 3} días más...
-                  </div>
-                )}
-              </div>
+              <p className="text-sm text-blue-900">{payment.description}</p>
             </div>
           </div>
         )}
         
-        {/* Botón de activación */}
-        <button
-          onClick={() => onActivate(membership.id)}
-          disabled={isProcessing || !membership.canActivate}
-          className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
-            isProcessing 
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-              : membership.canActivate
-                ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Activando...
-            </>
-          ) : (
-            <>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Recibir {formatCurrency(membership.price)}
-            </>
-          )}
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onConfirm(payment.id)}
+            disabled={isProcessing}
+            className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+              isProcessing 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
+            }`}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <UserCheck className="w-4 h-4 mr-2" />
+                Confirmar
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => onCancel(payment.id)}
+            disabled={isProcessing}
+            className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+              isProcessing 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <UserX className="w-4 h-4 mr-2" />
+                Cancelar
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-// COMPONENTE: Item de membresía (vista lista)
-const CashMembershipListItem = ({ membership, onActivate, isProcessing, formatCurrency, formatDate }) => {
-  const isUrgent = (membership.hoursWaiting || 0) > 4;
+const CashPaymentListItem = ({ payment, onConfirm, onCancel, isProcessing, formatCurrency, formatDate }) => {
+  const isUrgent = (payment.hoursWaiting || 0) > 4;
   
   return (
     <div className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
@@ -1057,27 +1603,296 @@ const CashMembershipListItem = ({ membership, onActivate, isProcessing, formatCu
       <div className="flex items-center justify-between">
         
         <div className="flex items-center flex-1">
-          {/* Avatar */}
           <div className="w-12 h-12 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-4">
             <span className="text-lg font-bold text-green-700">
-              {membership.user ? 
-                `${membership.user.name[0]}${membership.user.name.split(' ')[1]?.[0] || ''}` :
+              {payment.client ? 
+                `${payment.client.name[0]}${payment.client.name.split(' ')[1]?.[0] || ''}` :
                 'A'
               }
             </span>
           </div>
           
-          {/* Información */}
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-lg font-semibold text-gray-900">
-                {membership.user?.name || 'Cliente Anónimo'}
+                {payment.client?.name || 'Cliente Anónimo'}
               </h3>
               
               {isUrgent && (
                 <div className="flex items-center text-orange-600 text-sm">
                   <Timer className="w-4 h-4 mr-1" />
-                  <span>{membership.hoursWaiting.toFixed(1)}h</span>
+                  <span>{payment.hoursWaiting.toFixed(1)}h</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-4 text-sm text-gray-600">
+              <div className="flex items-center">
+                <DollarSign className="w-4 h-4 mr-1" />
+                <span>{payment.paymentType === 'membership' ? 'Membresía' :
+                       payment.paymentType === 'daily' ? 'Pago Diario' :
+                       payment.paymentType || 'Pago General'}</span>
+              </div>
+              
+              <div className="flex items-center font-semibold text-green-600">
+                <Bird className="w-4 h-4 mr-1" />
+                <span>{formatCurrency(payment.amount)}</span>
+              </div>
+              
+              <div className="flex items-center">
+                <Calendar className="w-4 h-4 mr-1" />
+                <span>{formatDate(payment.createdAt, 'dd/MM HH:mm')}</span>
+              </div>
+              
+              {payment.client?.phone && (
+                <div className="flex items-center">
+                  <Phone className="w-4 h-4 mr-1" />
+                  <span>{payment.client.phone}</span>
+                </div>
+              )}
+              
+              {payment.description && (
+                <div className="flex items-center">
+                  <MessageSquare className="w-4 h-4 mr-1" />
+                  <span className="truncate max-w-40">{payment.description}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="ml-4 flex space-x-2">
+          <button
+            onClick={() => onConfirm(payment.id)}
+            disabled={isProcessing}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center ${
+              isProcessing 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <UserCheck className="w-4 h-4 mr-2" />
+                Confirmar
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => onCancel(payment.id)}
+            disabled={isProcessing}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center ${
+              isProcessing 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <UserX className="w-4 h-4 mr-2" />
+                Cancelar
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ================================
+// COMPONENTES PARA PAGOS CON TARJETA
+// ================================
+
+const CardPaymentCard = ({ payment, onConfirm, onCancel, isProcessing, formatCurrency, formatDate }) => {
+  const isUrgent = (payment.hoursWaiting || 0) > 24;
+  const isMedium = (payment.hoursWaiting || 0) > 12 && (payment.hoursWaiting || 0) <= 24;
+  
+  return (
+    <div className={`bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 ${
+      isUrgent ? 'ring-2 ring-red-200 border-red-300' : 
+      isMedium ? 'ring-2 ring-orange-200 border-orange-300' : 
+      'border-gray-200'
+    }`}>
+      
+      {(isUrgent || isMedium) && (
+        <div className={`${isUrgent ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'} px-4 py-2 border-b`}>
+          <div className={`flex items-center text-sm ${isUrgent ? 'text-red-700' : 'text-orange-700'}`}>
+            <Timer className="w-4 h-4 mr-1" />
+            <span className="font-medium">Esperando {payment.hoursWaiting.toFixed(1)} horas</span>
+          </div>
+        </div>
+      )}
+      
+      <div className="p-6">
+        <div className="flex items-center mb-4">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center justify-center mr-4">
+            <span className="text-xl font-bold text-blue-700">
+              {payment.client ? 
+                `${payment.client.name[0]}${payment.client.name.split(' ')[1]?.[0] || ''}` :
+                'A'
+              }
+            </span>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
+              {payment.client?.name || 'Cliente Anónimo'}
+            </h3>
+            <div className="text-sm text-gray-500 space-y-1">
+              {payment.client?.email && (
+                <div className="flex items-center truncate">
+                  <Mail className="w-3 h-3 mr-1" />
+                  <span className="truncate">{payment.client.email}</span>
+                </div>
+              )}
+              {payment.client?.phone && (
+                <div className="flex items-center">
+                  <Phone className="w-3 h-3 mr-1" />
+                  <span>{payment.client.phone}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <div className="text-gray-500 mb-1">Tipo de Pago</div>
+              <div className="font-medium text-gray-900 truncate">
+                {payment.paymentType === 'membership' ? 'Membresía' :
+                 payment.paymentType === 'daily' ? 'Pago Diario' :
+                 payment.paymentType || 'Pago General'}
+              </div>
+            </div>
+            
+            <div>
+              <div className="text-gray-500 mb-1">Monto</div>
+              <div className="text-xl font-bold text-blue-600 flex items-center">
+                <Bird className="w-4 h-4 mr-1" />
+                {formatCurrency(payment.amount)}
+              </div>
+            </div>
+            
+            <div>
+              <div className="text-gray-500 mb-1">Fecha de Creación</div>
+              <div className="text-gray-700">
+                {formatDate(payment.createdAt, 'dd/MM HH:mm')}
+              </div>
+            </div>
+            
+            <div>
+              <div className="text-gray-500 mb-1">Tiempo de Espera</div>
+              <div className={`font-medium ${isUrgent ? 'text-red-600' : isMedium ? 'text-orange-600' : 'text-gray-700'}`}>
+                {payment.hoursWaiting?.toFixed(1) || '0.0'} horas
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {payment.transactionId && (
+          <div className="mb-4">
+            <div className="text-sm font-medium text-gray-700 mb-2">ID de Transacción:</div>
+            <div className="bg-blue-50 rounded-lg p-3">
+              <p className="text-sm text-blue-900 font-mono">{payment.transactionId}</p>
+            </div>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onConfirm(payment.id)}
+            disabled={isProcessing}
+            className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+              isProcessing 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:scale-105'
+            }`}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                Confirmar
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => onCancel(payment.id)}
+            disabled={isProcessing}
+            className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+              isProcessing 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <X className="w-4 h-4 mr-2" />
+                Cancelar
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CardPaymentListItem = ({ payment, onConfirm, onCancel, isProcessing, formatCurrency, formatDate }) => {
+  const isUrgent = (payment.hoursWaiting || 0) > 24;
+  const isMedium = (payment.hoursWaiting || 0) > 12 && (payment.hoursWaiting || 0) <= 24;
+  
+  return (
+    <div className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
+      isUrgent ? 'border-red-300 bg-red-50' : 
+      isMedium ? 'border-orange-300 bg-orange-50' : 
+      'border-gray-200'
+    }`}>
+      <div className="flex items-center justify-between">
+        
+        <div className="flex items-center flex-1">
+          <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center justify-center mr-4">
+            <span className="text-lg font-bold text-blue-700">
+              {payment.client ? 
+                `${payment.client.name[0]}${payment.client.name.split(' ')[1]?.[0] || ''}` :
+                'A'
+              }
+            </span>
+          </div>
+          
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {payment.client?.name || 'Cliente Anónimo'}
+              </h3>
+              
+              {(isUrgent || isMedium) && (
+                <div className={`flex items-center text-sm ${isUrgent ? 'text-red-600' : 'text-orange-600'}`}>
+                  <Timer className="w-4 h-4 mr-1" />
+                  <span>{payment.hoursWaiting.toFixed(1)}h</span>
                 </div>
               )}
             </div>
@@ -1085,51 +1900,72 @@ const CashMembershipListItem = ({ membership, onActivate, isProcessing, formatCu
             <div className="flex items-center space-x-4 text-sm text-gray-600">
               <div className="flex items-center">
                 <CreditCard className="w-4 h-4 mr-1" />
-                <span>{membership.plan?.name || 'Plan personalizado'}</span>
+                <span>{payment.paymentType === 'membership' ? 'Membresía' :
+                       payment.paymentType === 'daily' ? 'Pago Diario' :
+                       payment.paymentType || 'Pago General'}</span>
               </div>
               
-              <div className="flex items-center font-semibold text-green-600">
+              <div className="flex items-center font-semibold text-blue-600">
                 <Bird className="w-4 h-4 mr-1" />
-                <span>{formatCurrency(membership.price)}</span>
+                <span>{formatCurrency(payment.amount)}</span>
               </div>
               
               <div className="flex items-center">
                 <Calendar className="w-4 h-4 mr-1" />
-                <span>{formatDate(membership.createdAt, 'dd/MM HH:mm')}</span>
+                <span>{formatDate(payment.createdAt, 'dd/MM HH:mm')}</span>
               </div>
               
-              {membership.user?.phone && (
+              {payment.transactionId && (
                 <div className="flex items-center">
-                  <Phone className="w-4 h-4 mr-1" />
-                  <span>{membership.user.phone}</span>
+                  <Hash className="w-4 h-4 mr-1" />
+                  <span className="truncate max-w-20">{payment.transactionId}</span>
                 </div>
               )}
             </div>
           </div>
         </div>
         
-        {/* Botón de acción */}
-        <div className="ml-4">
+        <div className="ml-4 flex space-x-2">
           <button
-            onClick={() => onActivate(membership.id)}
-            disabled={isProcessing || !membership.canActivate}
-            className={`px-6 py-2 rounded-lg font-medium transition-all flex items-center ${
+            onClick={() => onConfirm(payment.id)}
+            disabled={isProcessing}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center ${
               isProcessing 
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : membership.canActivate
-                  ? 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
             }`}
           >
             {isProcessing ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Activando...
+                Procesando...
               </>
             ) : (
               <>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Recibir Efectivo
+                <Check className="w-4 h-4 mr-2" />
+                Confirmar
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={() => onCancel(payment.id)}
+            disabled={isProcessing}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center ${
+              isProcessing 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <X className="w-4 h-4 mr-2" />
+                Cancelar
               </>
             )}
           </button>
