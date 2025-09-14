@@ -352,12 +352,6 @@ const Sidebar = ({ collapsed }) => {
               )}
               
               {/* Indicador de nueva funcionalidad */}
-              {item.isNew && !collapsed && (
-                <span className="ml-2 px-2 py-1 text-xs font-bold bg-green-100 text-green-800 rounded-full">
-                  Nuevo
-                </span>
-              )}
-              
               {/* Punto indicador para nueva funcionalidad cuando está colapsado */}
               {item.isNew && collapsed && (
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>

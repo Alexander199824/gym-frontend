@@ -438,13 +438,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
             <div className="flex items-start">
               <Clock className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-sm text-blue-800">
-                  <strong>💡 Gestión de Horarios:</strong> Los horarios del gimnasio ahora se gestionan desde su propia sección especializada en el menú lateral: 
-                  <span className="font-semibold"> "Gestión de Horarios"</span>
-                </p>
-                <p className="text-xs text-blue-700 mt-1">
-                  Allí podrás configurar múltiples franjas horarias por día, capacidades individuales y métricas de ocupación.
-                </p>
               </div>
             </div>
           </div>

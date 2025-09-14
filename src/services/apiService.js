@@ -1,5 +1,5 @@
 // src/services/apiService.js
-// ARCHIVO PRINCIPAL - ACTUALIZADO CON GESTIÓN DE PAGOS MEJORADA
+// ARCHIVO PRINCIPAL ACTUALIZADO CON NUEVA GESTIÓN DE PAGOS
 
 // ================================
 // 📁 IMPORTACIONES DE MÓDULOS
@@ -10,7 +10,7 @@ import { GymService } from './gymService.js';
 import { UserService } from './userService.js';
 import { StoreService } from './storeService.js';
 import { StripeService } from './stripeService.js';
-import paymentService from './paymentService.js'; // 🆕 IMPORTAR INSTANCIA ACTUALIZADA
+import paymentService from './paymentService.js'; // 🆕 NUEVO SERVICIO SIMPLIFICADO
 import scheduleService from './scheduleService.js';
 
 // ================================
@@ -26,7 +26,7 @@ class ApiService extends BaseService {
     this.userService = new UserService();
     this.storeService = new StoreService();
     this.stripeService = new StripeService();
-    this.paymentService = paymentService; // 🆕 USAR INSTANCIA ACTUALIZADA
+    this.paymentService = paymentService; // 🆕 SERVICIO ACTUALIZADO
     this.scheduleService = scheduleService; // Usar instancia singleton
   }
 
@@ -383,158 +383,6 @@ class ApiService extends BaseService {
     return this.stripeService.getStripeStatus();
   }
 
-  // ================================
-  // 💰 MÉTODOS DE GESTIÓN DE PAGOS ACTUALIZADOS - DELEGACIÓN A paymentService
-  // ================================
-
-  // 📊 DASHBOARD FINANCIERO - RUTAS DEL MANUAL
-  async getFinancialDashboard() {
-    return this.paymentService.getFinancialDashboard();
-  }
-
-  // 📊 DASHBOARD DE PAGOS PENDIENTES - RUTAS DEL MANUAL
-  async getPendingPaymentsDashboard() {
-    return this.paymentService.getPendingPaymentsDashboard();
-  }
-
-  // 📊 DASHBOARD CON CACHE
-  async getPendingPaymentsDashboardWithCache(maxAge = 30000) {
-    return this.paymentService.getPendingPaymentsDashboardWithCache(maxAge);
-  }
-
-  // 📈 ESTADÍSTICAS DE PAGOS - RUTAS DEL MANUAL
-  async getPaymentStatistics(startDate = null, endDate = null) {
-    return this.paymentService.getPaymentStatistics(startDate, endDate);
-  }
-
-  // 📈 REPORTES PREDEFINIDOS - RUTAS DEL MANUAL
-  async getPaymentReports(period = 'month') {
-    return this.paymentService.getPaymentReports(period);
-  }
-
-  // 🏦 TRANSFERENCIAS PENDIENTES - RUTAS DEL MANUAL
-  async getPendingTransfersDetailed(hoursFilter = null) {
-    return this.paymentService.getPendingTransfersDetailed(hoursFilter);
-  }
-
-  async getPendingTransfersBasic(hoursFilter = null) {
-    return this.paymentService.getPendingTransfers(hoursFilter);
-  }
-
-  // 🏦 VALIDAR Y RECHAZAR TRANSFERENCIAS - RUTAS DEL MANUAL
-  async validateTransfer(paymentId, approved, notes = '') {
-    const result = await this.paymentService.validateTransfer(paymentId, approved, notes);
-    return result;
-  }
-
-  async rejectTransfer(paymentId, reason) {
-    const result = await this.paymentService.rejectTransfer(paymentId, reason);
-    return result;
-  }
-
-  // 💵 MEMBRESÍAS EN EFECTIVO - RUTAS DEL MANUAL
-  async getPendingCashMemberships() {
-    return this.paymentService.getPendingCashMemberships();
-  }
-
-  async activateCashMembership(membershipId) {
-    const result = await this.paymentService.activateCashMembership(membershipId);
-    return result;
-  }
-
-  // 💳 PAGOS REGULARES
-  async getPayments(params = {}) {
-    return this.paymentService.getPayments(params);
-  }
-
-  async createPayment(paymentData) {
-    return this.paymentService.createPayment(paymentData);
-  }
-
-  async updatePayment(paymentId, paymentData) {
-    return this.paymentService.updatePayment(paymentId, paymentData);
-  }
-
-  async getPaymentById(paymentId) {
-    return this.paymentService.getPaymentById(paymentId);
-  }
-
-  // 📊 EXPORTACIÓN DE REPORTES
-  async exportPaymentReport(format = 'csv', params = {}) {
-    return this.paymentService.exportPaymentReport(format, params);
-  }
-
-  // 🔧 UTILIDADES Y CONFIGURACIONES
-  getTransferPriorityConfig(hoursWaiting) {
-    return this.paymentService.getTransferPriorityConfig(hoursWaiting);
-  }
-
-  getPaymentMethodConfig(method) {
-    return this.paymentService.getPaymentMethodConfig(method);
-  }
-
-  getPaymentStatusConfig(status) {
-    return this.paymentService.getPaymentStatusConfig(status);
-  }
-
-  getPaymentTypeConfig(type) {
-    return this.paymentService.getPaymentTypeConfig(type);
-  }
-
-  // 🔧 VALIDACIÓN Y FORMATEO
-  validatePaymentData(paymentData) {
-    return this.paymentService.validatePaymentData(paymentData);
-  }
-
-  formatPaymentDataForAPI(paymentData) {
-    return this.paymentService.formatPaymentDataForAPI(paymentData);
-  }
-
-  // 🗃️ CACHE Y OPTIMIZACIÓN
-  invalidatePaymentCache() {
-    return this.paymentService.invalidateCache();
-  }
-
-  getCachedPaymentData(key, maxAge) {
-    return this.paymentService.getCachedData(key, maxAge);
-  }
-
-  setCachedPaymentData(key, data) {
-    return this.paymentService.setCachedData(key, data);
-  }
-
-  // 🛠️ DEBUGGING DE PAGOS
-  async debugPaymentSystem() {
-    return this.paymentService.debugPaymentSystem();
-  }
-
-  async paymentHealthCheck() {
-    return this.paymentService.healthCheck();
-  }
-
-  getPaymentServiceInfo() {
-    return this.paymentService.getServiceInfo();
-  }
-
-  // ================================
-  // 💰 MÉTODOS DE PAGOS HEREDADOS (PARA COMPATIBILIDAD)
-  // ================================
-  
-  async getPaymentReportsLegacy(params = {}) {
-    return this.userService.getPaymentReports(params);
-  }
-  
-  async createPaymentFromOrder(orderData) {
-    return this.userService.createPaymentFromOrder(orderData);
-  }
-  
-  async getPendingTransfersLegacy() {
-    return this.userService.getPendingTransfers();
-  }
-  
-  async createSimplePayment(paymentData) {
-    return this.userService.createSimplePayment(paymentData);
-  }
 
   // ================================
   // 📅 MÉTODOS DE GESTIÓN DE HORARIOS - DELEGACIÓN A scheduleService
@@ -611,30 +459,7 @@ class ApiService extends BaseService {
     return this.scheduleService.calculateLocalStats(schedule);
   }
 
-  // ================================
-  // 🛠️ MÉTODOS DE DEBUGGING GENERAL
-  // ================================
-  
-  async debugAllSystems() {
-    console.log('🔍 Iniciando debug completo de todos los sistemas...');
-    
-    const results = {
-      timestamp: new Date().toISOString(),
-      systems: {}
-    };
 
-    // Debug de sistema de pagos
-    try {
-      results.systems.payments = await this.debugPaymentSystem();
-    } catch (error) {
-      results.systems.payments = { error: error.message };
-    }
-
-    // Debug de otros sistemas se puede agregar aquí
-    
-    console.log('📊 Debug completo terminado:', results);
-    return results;
-  }
 }
 
 // ================================

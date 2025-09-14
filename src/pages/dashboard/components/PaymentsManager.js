@@ -1,5 +1,5 @@
 // src/pages/dashboard/components/PaymentsManager.js
-// VERSIÓN MEJORADA - Historial primero, filtros de período, efectivo corregido
+// VERSIÓN CORREGIDA - Filtrado por pestañas separado correctamente
 // Autor: Alexander Echeverria
 
 import React, { useState, useEffect } from 'react';
@@ -9,7 +9,7 @@ import {
   Calendar, User, FileText, CheckCircle, XCircle,
   TrendingUp, PieChart, Calculator, Settings,
   Loader, MoreHorizontal, Bird, ExternalLink,
-  Users, Activity, ChevronDown
+  Users, Activity, ChevronDown, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -19,12 +19,19 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
   const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
   
-  // Estados principales
-  const [payments, setPayments] = useState([]);
+  // ================================
+  // 🔧 ESTADOS SEPARADOS POR FUNCIONALIDAD
+  // ================================
+  
+  // Estados principales - SEPARADOS POR PESTAÑA
+  const [allPayments, setAllPayments] = useState([]); // TODOS los pagos para historial
+  const [pendingTransfers, setPendingTransfers] = useState([]); // Solo transferencias pendientes
+  const [pendingCashMemberships, setPendingCashMemberships] = useState([]); // Solo membresías en efectivo
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // Estados para funcionalidades de autorización
+  // Estados para dashboard y estadísticas
   const [dashboardData, setDashboardData] = useState({});
   const [financialDashboard, setFinancialDashboard] = useState({});
   const [paymentStats, setPaymentStats] = useState({
@@ -33,22 +40,21 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     averagePayment: 0,
     incomeByMethod: []
   });
-  const [pendingTransfers, setPendingTransfers] = useState([]);
-  const [pendingCashMemberships, setPendingCashMemberships] = useState([]);
+  
   const [processingPayments, setProcessingPayments] = useState(new Set());
   const [autoRefresh, setAutoRefresh] = useState(true);
   
-  // NUEVO: Cambio de orden de tabs - Historial primero, Resumen último
-  const [activeTab, setActiveTab] = useState('payments'); // Cambiado de 'dashboard' a 'payments'
+  // CAMBIO: Historial como tab principal
+  const [activeTab, setActiveTab] = useState('payments');
   
-  // NUEVO: Estados para filtros de período en estadísticas
+  // Estados para filtros de período en estadísticas
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [customDateRange, setCustomDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
   
-  // Estados de filtros y búsqueda
+  // ⚠️ FILTROS SOLO PARA HISTORIAL - NO para transferencias/efectivo
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPaymentType, setSelectedPaymentType] = useState('all');
   const [selectedMethod, setSelectedMethod] = useState('all');
@@ -60,7 +66,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const [sortBy, setSortBy] = useState('paymentDate');
   const [sortOrder, setSortOrder] = useState('desc');
   
-  // Estados de paginación
+  // Estados de paginación SOLO PARA HISTORIAL
   const [currentPage, setCurrentPage] = useState(1);
   const [paymentsPerPage] = useState(isMobile ? 10 : 20);
   const [totalPayments, setTotalPayments] = useState(0);
@@ -84,7 +90,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   });
   
-  // Configuraciones
+  // Configuraciones de tipos y métodos
   const paymentTypes = [
     { value: 'membership', label: 'Membresía', color: 'bg-purple-100 text-purple-800', icon: CreditCard },
     { value: 'daily', label: 'Pago Diario', color: 'bg-blue-100 text-blue-800', icon: Calendar },
@@ -108,7 +114,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'cancelled', label: 'Cancelado', color: 'bg-gray-100 text-gray-800', icon: X }
   ];
 
-  // NUEVO: Períodos disponibles para filtros
   const periods = [
     { value: 'today', label: 'Hoy' },
     { value: 'week', label: 'Esta Semana' },
@@ -121,14 +126,109 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const refreshIntervalRef = React.useRef(null);
   
   // ================================
-  // 📊 FUNCIONES DE CARGA DE DATOS ACTUALIZADAS
+  // 📊 FUNCIONES DE CARGA SEPARADAS Y CORREGIDAS
   // ================================
   
-  // NUEVO: Cargar dashboard financiero con filtros de período
+  // ✅ CARGAR HISTORIAL COMPLETO - TODOS los pagos
+  const loadAllPayments = async () => {
+    try {
+      setLoading(true);
+      console.log('💰 Cargando HISTORIAL COMPLETO de pagos...');
+      
+      const params = {
+        page: currentPage,
+        limit: paymentsPerPage,
+        search: searchTerm || undefined,
+        paymentType: selectedPaymentType !== 'all' ? selectedPaymentType : undefined,
+        paymentMethod: selectedMethod !== 'all' ? selectedMethod : undefined,
+        status: selectedStatus !== 'all' ? selectedStatus : undefined,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        sortBy,
+        sortOrder
+      };
+      
+      const response = await apiService.paymentService.getPayments(params);
+      const paymentData = response.data || response;
+      
+      if (paymentData.payments && Array.isArray(paymentData.payments)) {
+        setAllPayments(paymentData.payments);
+        setTotalPayments(paymentData.pagination?.total || paymentData.payments.length);
+        console.log(`✅ Cargados ${paymentData.payments.length} pagos en historial`);
+      } else if (Array.isArray(paymentData)) {
+        setAllPayments(paymentData);
+        setTotalPayments(paymentData.length);
+        console.log(`✅ Cargados ${paymentData.length} pagos en historial`);
+      } else {
+        console.warn('⚠️ Formato inesperado de pagos:', paymentData);
+        setAllPayments([]);
+        setTotalPayments(0);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error al cargar historial de pagos:', error);
+      showError('Error al cargar historial de pagos');
+      setAllPayments([]);
+      setTotalPayments(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // ✅ CARGAR TRANSFERENCIAS PENDIENTES - Solo las que necesitan validación
+  const loadPendingTransfers = async () => {
+    try {
+      console.log('🏦 Cargando transferencias PENDIENTES...');
+      
+      const response = await apiService.paymentService.getPendingTransfersDetailed();
+      const transfers = response.data?.transfers || [];
+      
+      // FILTRO ADICIONAL: Solo transferencias con comprobante y pendientes
+      const validTransfers = transfers.filter(transfer => 
+        transfer.status === 'pending' && 
+        transfer.transferProof && 
+        transfer.paymentMethod === 'transfer'
+      );
+      
+      setPendingTransfers(validTransfers);
+      console.log(`✅ Cargadas ${validTransfers.length} transferencias pendientes con comprobante`);
+      
+    } catch (error) {
+      console.error('❌ Error al cargar transferencias pendientes:', error);
+      setPendingTransfers([]);
+    }
+  };
+  
+  // ✅ CARGAR MEMBRESÍAS EN EFECTIVO - Solo las pendientes de activación
+  const loadPendingCashMemberships = async () => {
+    try {
+      console.log('💵 Cargando membresías pendientes de EFECTIVO...');
+      
+      const response = await apiService.membershipService.getPendingCashMemberships();
+      const memberships = response.data?.memberships || [];
+      
+      // FILTRO ADICIONAL: Solo membresías realmente pendientes
+      const validMemberships = memberships.filter(membership => 
+        membership.status === 'pending' && 
+        !membership.payments?.some(p => p.status === 'completed')
+      );
+      
+      setPendingCashMemberships(validMemberships);
+      console.log(`✅ Cargadas ${validMemberships.length} membresías pendientes de efectivo`);
+      
+    } catch (error) {
+      console.error('❌ Error al cargar membresías en efectivo:', error);
+      setPendingCashMemberships([]);
+    }
+  };
+  
+  // ✅ CARGAR DASHBOARD FINANCIERO
   const loadFinancialDashboard = async () => {
     try {
       console.log('📊 Cargando dashboard financiero...');
-      const response = await apiService.paymentService.getFinancialDashboard();
+      const response = await apiService.financialService?.getDashboard() || 
+                      await apiService.paymentService.getFinancialDashboard?.() || 
+                      { data: {} };
       setFinancialDashboard(response.data || {});
       console.log('✅ Dashboard financiero cargado');
     } catch (error) {
@@ -137,7 +237,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ACTUALIZADO: Cargar estadísticas con filtros de período
+  // ✅ CARGAR ESTADÍSTICAS CON FILTROS
   const loadPaymentStats = async () => {
     try {
       console.log(`📈 Cargando estadísticas para período: ${selectedPeriod}`);
@@ -149,7 +249,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         startDate = customDateRange.startDate;
         endDate = customDateRange.endDate;
       } else if (selectedPeriod !== 'all') {
-        // Usar reportes predefinidos del manual
         const response = await apiService.paymentService.getPaymentReports(selectedPeriod);
         const stats = response.data || {};
         
@@ -164,7 +263,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         return;
       }
       
-      // Para períodos personalizados, usar estadísticas
       const response = await apiService.paymentService.getPaymentStatistics(startDate, endDate);
       const stats = response.data || {};
       
@@ -180,7 +278,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       console.log('✅ Estadísticas cargadas correctamente');
     } catch (error) {
       console.error('❌ Error al cargar estadísticas:', error);
-      // Estadísticas por defecto
       setPaymentStats({
         totalIncome: 0,
         totalPayments: 0,
@@ -192,83 +289,27 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // CARGAR DASHBOARD DE PAGOS PENDIENTES
-  const loadPendingDashboard = async () => {
+  // ✅ CARGAR DASHBOARD DE PENDIENTES - Métricas generales
+  const loadDashboardMetrics = async () => {
     try {
-      console.log('📋 Cargando dashboard de pendientes...');
+      console.log('📋 Cargando métricas de dashboard...');
       
       const dashboardResponse = await apiService.paymentService.getPendingPaymentsDashboard();
       setDashboardData(dashboardResponse.data || {});
       
-      const transfersResponse = await apiService.paymentService.getPendingTransfersDetailed();
-      setPendingTransfers(transfersResponse.data?.transfers || []);
-      
-      // CORREGIDO: Cargar membresías en efectivo con manejo de errores mejorado
-      const cashResponse = await apiService.paymentService.getPendingCashMemberships();
-      setPendingCashMemberships(cashResponse.data?.memberships || []);
-      
-      console.log('✅ Dashboard de pendientes cargado exitosamente');
-      console.log('📊 Transferencias pendientes:', transfersResponse.data?.transfers?.length || 0);
-      console.log('💵 Membresías en efectivo:', cashResponse.data?.memberships?.length || 0);
+      console.log('✅ Métricas de dashboard cargadas');
       
     } catch (error) {
-      console.error('❌ Error al cargar dashboard de pendientes:', error);
+      console.error('❌ Error al cargar métricas de dashboard:', error);
       setDashboardData({});
-      setPendingTransfers([]);
-      setPendingCashMemberships([]);
-    }
-  };
-  
-  // CARGAR DATOS DE PAGOS
-  const loadPayments = async () => {
-    try {
-      setLoading(true);
-      
-      const params = {
-        page: currentPage,
-        limit: paymentsPerPage,
-        search: searchTerm || undefined,
-        paymentType: selectedPaymentType !== 'all' ? selectedPaymentType : undefined,
-        paymentMethod: selectedMethod !== 'all' ? selectedMethod : undefined,
-        status: selectedStatus !== 'all' ? selectedStatus : undefined,
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        sortBy,
-        sortOrder
-      };
-      
-      console.log('💰 Cargando pagos con parámetros:', params);
-      
-      const response = await apiService.paymentService.getPayments(params);
-      const paymentData = response.data || response;
-      
-      if (paymentData.payments && Array.isArray(paymentData.payments)) {
-        setPayments(paymentData.payments);
-        setTotalPayments(paymentData.pagination?.total || paymentData.payments.length);
-      } else if (Array.isArray(paymentData)) {
-        setPayments(paymentData);
-        setTotalPayments(paymentData.length);
-      } else {
-        console.warn('Formato de datos de pagos inesperado:', paymentData);
-        setPayments([]);
-        setTotalPayments(0);
-      }
-      
-    } catch (error) {
-      console.error('Error al cargar pagos:', error);
-      showError('Error al cargar pagos');
-      setPayments([]);
-      setTotalPayments(0);
-    } finally {
-      setLoading(false);
     }
   };
   
   // ================================
-  // 🏦 FUNCIONES DE AUTORIZACIÓN ACTUALIZADAS
+  // 🏦 FUNCIONES DE AUTORIZACIÓN
   // ================================
   
-  // VALIDAR TRANSFERENCIA
+  // ✅ VALIDAR TRANSFERENCIA
   const handleValidateTransfer = async (paymentId, approved, notes = '') => {
     if (processingPayments.has(paymentId)) return;
 
@@ -289,17 +330,20 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           : 'Transferencia rechazada'
       );
       
-      // Recargar datos
-      await loadPendingDashboard();
-      await loadPayments();
-      await loadPaymentStats();
+      // RECARGAR DATOS ESPECÍFICOS
+      await Promise.all([
+        loadPendingTransfers(), // Solo transferencias
+        loadAllPayments(), // Historial actualizado
+        loadPaymentStats(), // Estadísticas
+        loadDashboardMetrics() // Métricas
+      ]);
       
       if (onSave) {
         onSave({ type: 'transfer_validation', action: approved ? 'approved' : 'rejected' });
       }
       
     } catch (error) {
-      console.error('Error al validar transferencia:', error);
+      console.error('❌ Error al validar transferencia:', error);
       const errorMsg = error.message || 
         (approved ? 'Error al aprobar transferencia' : 'Error al rechazar transferencia');
       showError(errorMsg);
@@ -312,7 +356,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
 
-  // ACTIVAR MEMBRESÍA EN EFECTIVO
+  // ✅ ACTIVAR MEMBRESÍA EN EFECTIVO
   const handleActivateCashMembership = async (membershipId) => {
     if (processingPayments.has(membershipId)) return;
 
@@ -321,21 +365,24 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
       console.log('💵 Activando membresía en efectivo:', membershipId);
       
-      const result = await apiService.paymentService.activateCashMembership(membershipId);
+      await apiService.paymentService.activateCashMembership(membershipId);
       
       showSuccess('Membresía activada exitosamente');
       
-      // Recargar datos
-      await loadPendingDashboard();
-      await loadPayments();
-      await loadPaymentStats();
+      // RECARGAR DATOS ESPECÍFICOS
+      await Promise.all([
+        loadPendingCashMemberships(), // Solo membresías en efectivo
+        loadAllPayments(), // Historial actualizado
+        loadPaymentStats(), // Estadísticas
+        loadDashboardMetrics() // Métricas
+      ]);
       
       if (onSave) {
         onSave({ type: 'cash_membership_activation', action: 'activated' });
       }
       
     } catch (error) {
-      console.error('Error al activar membresía:', error);
+      console.error('❌ Error al activar membresía:', error);
       const errorMsg = error.message || 'Error al activar membresía en efectivo';
       showError(errorMsg);
     } finally {
@@ -347,7 +394,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // Funciones auxiliares (mantener las existentes)
+  // ================================
+  // 🔧 FUNCIONES AUXILIARES
+  // ================================
+  
   const resetPaymentForm = () => {
     setPaymentFormData({
       userId: '',
@@ -384,24 +434,37 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     return paymentStatuses.find(s => s.value === status) || paymentStatuses[0];
   };
   
-  // Cargar datos al montar y configurar auto-refresh
+  // ================================
+  // 🔄 EFECTOS Y CICLO DE VIDA
+  // ================================
+  
+  // ✅ CARGAR INICIAL Y AUTO-REFRESH
   useEffect(() => {
     const loadAllData = async () => {
+      console.log('🚀 Carga inicial de todos los datos...');
+      
       await Promise.all([
-        loadPayments(),
-        loadPaymentStats(),
-        loadPendingDashboard(),
-        loadFinancialDashboard()
+        loadAllPayments(), // Historial completo
+        loadPendingTransfers(), // Solo transferencias pendientes
+        loadPendingCashMemberships(), // Solo membresías en efectivo
+        loadPaymentStats(), // Estadísticas
+        loadFinancialDashboard(), // Dashboard financiero
+        loadDashboardMetrics() // Métricas generales
       ]);
+      
+      console.log('✅ Carga inicial completada');
     };
     
     loadAllData();
     
-    // Configurar auto-refresh
+    // ✅ AUTO-REFRESH solo para datos críticos
     if (autoRefresh) {
       refreshIntervalRef.current = setInterval(() => {
-        loadPendingDashboard();
-        loadFinancialDashboard();
+        console.log('🔄 Auto-refresh ejecutándose...');
+        // Solo datos críticos que cambian frecuentemente
+        loadPendingTransfers();
+        loadPendingCashMemberships();
+        loadDashboardMetrics();
       }, 30000); // Cada 30 segundos
     }
 
@@ -412,19 +475,25 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     };
   }, [autoRefresh]);
 
-  // Efectos para recargar cuando cambien filtros
+  // ✅ RECARGAR HISTORIAL cuando cambien filtros
   useEffect(() => {
-    loadPayments();
+    loadAllPayments();
   }, [currentPage, searchTerm, selectedPaymentType, selectedMethod, selectedStatus, dateRange, sortBy, sortOrder]);
   
-  // NUEVO: Recargar estadísticas cuando cambien filtros de período
+  // ✅ RECARGAR ESTADÍSTICAS cuando cambien filtros de período
   useEffect(() => {
     loadPaymentStats();
   }, [selectedPeriod, customDateRange]);
   
-  // Cálculo de paginación
+  // ================================
+  // 📊 DATOS CALCULADOS PARA MOSTRAR
+  // ================================
+  
+  // Cálculo de paginación para historial
   const totalPages = Math.max(1, Math.ceil(totalPayments / paymentsPerPage));
-  const filteredPayments = payments.filter(payment => {
+  
+  // ⚠️ FILTROS LOCALES SOLO PARA HISTORIAL
+  const filteredPayments = allPayments.filter(payment => {
     const searchText = `${payment.user?.firstName || ''} ${payment.user?.lastName || ''} ${payment.user?.email || ''}`.toLowerCase();
     const matchesSearch = !searchTerm || 
       searchText.includes(searchTerm.toLowerCase()) ||
@@ -437,10 +506,19 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     return matchesSearch && matchesType && matchesMethod && matchesStatus;
   });
 
+  // Cálculo de contadores para tabs
+  const transferCount = pendingTransfers.length;
+  const cashCount = pendingCashMemberships.length;
+  const totalPendingAmount = 
+    pendingTransfers.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) +
+    pendingCashMemberships.reduce((sum, m) => sum + parseFloat(m.price || 0), 0);
+
   return (
     <div className="space-y-6">
       
-      {/* HEADER SIMPLIFICADO */}
+      {/* ================================ */}
+      {/* 🎯 HEADER CON MÉTRICAS CRÍTICAS */}
+      {/* ================================ */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
@@ -448,8 +526,23 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             Gestión de Pagos
           </h3>
           <p className="text-gray-600 mt-1">
-            Historial, transferencias, efectivo y estadísticas financieras
+            Historial completo, validaciones pendientes y estadísticas financieras
           </p>
+          
+          {/* ⚠️ ALERTA DE PENDIENTES CRÍTICOS */}
+          {(transferCount > 0 || cashCount > 0) && (
+            <div className="mt-2 flex items-center text-sm">
+              <AlertTriangle className="w-4 h-4 mr-1 text-yellow-500" />
+              <span className="text-yellow-700">
+                {transferCount + cashCount} pagos requieren atención
+                {totalPendingAmount > 0 && (
+                  <span className="ml-2 font-medium">
+                    ({formatCurrency(totalPendingAmount)} pendientes)
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
         </div>
         
         <div className="flex items-center space-x-3 mt-4 lg:mt-0">
@@ -465,11 +558,17 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           </label>
           
           <button
-            onClick={() => {
-              loadPendingDashboard();
-              loadPayments();
-              loadPaymentStats();
-              loadFinancialDashboard();
+            onClick={async () => {
+              console.log('🔄 Refresh manual iniciado...');
+              await Promise.all([
+                loadAllPayments(),
+                loadPendingTransfers(),
+                loadPendingCashMemberships(),
+                loadPaymentStats(),
+                loadFinancialDashboard(),
+                loadDashboardMetrics()
+              ]);
+              console.log('✅ Refresh manual completado');
             }}
             disabled={loading}
             className="btn-secondary btn-sm"
@@ -490,10 +589,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
 
-      {/* NAVEGACIÓN POR TABS - NUEVO ORDEN */}
+      {/* ================================ */}
+      {/* 📑 NAVEGACIÓN POR TABS CORREGIDA */}
+      {/* ================================ */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
-          {/* HISTORIAL PRIMERO */}
+          
+          {/* HISTORIAL - TODOS LOS PAGOS */}
           <button
             onClick={() => setActiveTab('payments')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
@@ -503,7 +605,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             }`}
           >
             <Coins className="w-4 h-4 mr-2" />
-            Historial de Pagos
+            Historial Completo
             {totalPayments > 0 && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
                 {totalPayments}
@@ -511,6 +613,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             )}
           </button>
           
+          {/* TRANSFERENCIAS - SOLO PENDIENTES */}
           <button
             onClick={() => setActiveTab('transfers')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
@@ -520,14 +623,15 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             }`}
           >
             <Building className="w-4 h-4 mr-2" />
-            Transferencias
-            {pendingTransfers.length > 0 && (
+            Transferencias Pendientes
+            {transferCount > 0 && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800">
-                {pendingTransfers.length}
+                {transferCount}
               </span>
             )}
           </button>
           
+          {/* EFECTIVO - SOLO MEMBRESÍAS PENDIENTES */}
           <button
             onClick={() => setActiveTab('cash')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
@@ -537,20 +641,20 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             }`}
           >
             <Banknote className="w-4 h-4 mr-2" />
-            Pagos en Efectivo
-            {pendingCashMemberships.length > 0 && (
+            Efectivo Pendiente
+            {cashCount > 0 && (
               <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
-                {pendingCashMemberships.length}
+                {cashCount}
               </span>
             )}
           </button>
           
-          {/* RESUMEN AL FINAL */}
+          {/* RESUMEN FINANCIERO */}
           <button
             onClick={() => setActiveTab('dashboard')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
               activeTab === 'dashboard'
-                ? 'border-green-500 text-green-600'
+                ? 'border-orange-500 text-orange-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
@@ -560,11 +664,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </nav>
       </div>
 
-      {/* CONTENIDO DEL TAB HISTORIAL - AHORA PRIMERO */}
+      {/* ================================ */}
+      {/* 📋 TAB HISTORIAL - TODOS LOS PAGOS */}
+      {/* ================================ */}
       {activeTab === 'payments' && (
         <div className="space-y-6">
           
-          {/* FILTROS Y BÚSQUEDA */}
+          {/* FILTROS PARA HISTORIAL */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               
@@ -573,7 +679,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar pagos..."
+                  placeholder="Buscar en historial..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
@@ -608,7 +714,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 ))}
               </select>
               
-              {/* Filtro por estado */}
+              {/* ⚠️ FILTRO POR ESTADO - AHORA INCLUYE TODOS */}
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
@@ -640,18 +746,18 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             </div>
           </div>
           
-          {/* TABLA DE PAGOS - MANTENIDA IGUAL */}
+          {/* TABLA DE HISTORIAL COMPLETO */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader className="w-6 h-6 animate-spin text-green-600 mr-2" />
-                <span className="text-gray-600">Cargando historial de pagos...</span>
+                <span className="text-gray-600">Cargando historial completo...</span>
               </div>
             ) : filteredPayments.length === 0 ? (
               <div className="text-center py-12">
                 <Coins className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay pagos registrados</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay pagos en el historial</h3>
                 <p className="text-gray-600 mb-4">
                   {searchTerm || selectedPaymentType !== 'all' || selectedMethod !== 'all' || selectedStatus !== 'all'
                     ? 'No se encontraron pagos con los filtros aplicados'
@@ -774,8 +880,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                 <StatusIcon className="w-3 h-3 mr-1" />
                                 {statusInfo.label}
                               </span>
+                              {/* ⚠️ MOSTRAR ESTADO ADICIONAL SI ES TRANSFERENCIA PENDIENTE */}
                               {payment.paymentMethod === 'transfer' && payment.status === 'pending' && (
-                                <div className="text-xs text-yellow-600 mt-1">
+                                <div className="text-xs text-yellow-600 mt-1 flex items-center">
+                                  <Clock className="w-3 h-3 mr-1" />
                                   Esperando validación
                                 </div>
                               )}
@@ -793,6 +901,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                   <Eye className="w-4 h-4" />
                                 </button>
                                 
+                                {/* ⚠️ BOTONES DE VALIDACIÓN SOLO PARA TRANSFERENCIAS PENDIENTES */}
                                 {payment.paymentMethod === 'transfer' && 
                                  payment.status === 'pending' && 
                                  hasPermission('validate_transfers') && (
@@ -822,7 +931,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   </table>
                 </div>
                 
-                {/* Mobile Cards - Mantenidas igual */}
+                {/* Mobile Cards */}
                 <div className="md:hidden divide-y divide-gray-200">
                   {filteredPayments.map((payment) => {
                     const typeInfo = getTypeInfo(payment.paymentType);
@@ -911,7 +1020,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   })}
                 </div>
                 
-                {/* PAGINACIÓN - MANTENIDA IGUAL */}
+                {/* PAGINACIÓN */}
                 {totalPages > 1 && (
                   <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
                     <div className="flex items-center justify-between">
@@ -951,24 +1060,41 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
 
-      {/* CONTENIDO DEL TAB TRANSFERENCIAS */}
+      {/* ================================ */}
+      {/* 🏦 TAB TRANSFERENCIAS - SOLO PENDIENTES CON COMPROBANTE */}
+      {/* ================================ */}
       {activeTab === 'transfers' && hasPermission('validate_transfers') && (
         <div className="space-y-6">
           
-          {/* Lista de transferencias */}
+          {/* Lista de transferencias pendientes */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             {pendingTransfers.length === 0 ? (
               <div className="text-center py-12">
                 <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No hay transferencias pendientes
+                  ✅ No hay transferencias pendientes
                 </h3>
                 <p className="text-gray-600">
-                  Todas las transferencias han sido procesadas
+                  Todas las transferencias con comprobante han sido procesadas
                 </p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
+                <div className="p-4 bg-purple-50 border-b border-purple-200">
+                  <div className="flex items-center">
+                    <Building className="w-5 h-5 text-purple-600 mr-2" />
+                    <h4 className="text-lg font-medium text-purple-900">
+                      Transferencias Esperando Validación
+                    </h4>
+                    <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      {pendingTransfers.length} pendientes
+                    </span>
+                  </div>
+                  <p className="text-sm text-purple-700 mt-1">
+                    Solo se muestran transferencias con comprobante subido
+                  </p>
+                </div>
+                
                 {pendingTransfers.map((transfer) => {
                   const isProcessing = processingPayments.has(transfer.id);
                   
@@ -996,12 +1122,23 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                 {transfer.user?.email || transfer.user?.phone || 'Sin datos de contacto'}
                               </p>
                             </div>
+                            
+                            {/* Indicador de urgencia */}
+                            {transfer.hoursWaiting > 24 && (
+                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                transfer.hoursWaiting > 48 
+                                  ? 'bg-red-100 text-red-800' 
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {transfer.hoursWaiting > 48 ? 'URGENTE' : 'PRIORITARIO'}
+                              </div>
+                            )}
                           </div>
                           
                           {/* Detalles del pago */}
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div className="bg-gray-50 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 mb-1">Monto</div>
+                              <div className="text-xs text-gray-500 mb-1">Monto a Validar</div>
                               <div className="text-lg font-bold text-gray-900 flex items-center">
                                 <Bird className="w-4 h-4 mr-1 text-green-600" />
                                 {formatCurrency(transfer.amount)}
@@ -1009,60 +1146,78 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             </div>
                             
                             <div className="bg-gray-50 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 mb-1">Fecha</div>
+                              <div className="text-xs text-gray-500 mb-1">Fecha de Transferencia</div>
                               <div className="text-sm text-gray-700">
-                                {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy')}
+                                {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy HH:mm')}
                               </div>
                             </div>
                             
                             <div className="bg-gray-50 rounded-lg p-3">
-                              <div className="text-xs text-gray-500 mb-1">Tiempo esperando</div>
-                              <div className="text-sm text-gray-700">
-                                {transfer.hoursWaiting?.toFixed(1) || '0.0'}h
+                              <div className="text-xs text-gray-500 mb-1">Tiempo Esperando</div>
+                              <div className={`text-sm font-medium ${
+                                transfer.hoursWaiting > 48 ? 'text-red-600' :
+                                transfer.hoursWaiting > 24 ? 'text-yellow-600' : 'text-gray-700'
+                              }`}>
+                                {transfer.hoursWaiting?.toFixed(1) || '0.0'} horas
                               </div>
                             </div>
                           </div>
                           
-                          {/* Comprobante */}
+                          {/* ⚠️ COMPROBANTE DE TRANSFERENCIA - CRÍTICO */}
                           {transfer.transferProof && (
-                            <div className="mb-4">
-                              <div className="text-sm text-gray-500 mb-2">Comprobante de transferencia:</div>
+                            <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                              <div className="text-sm font-medium text-blue-900 mb-2 flex items-center">
+                                <FileText className="w-4 h-4 mr-1" />
+                                Comprobante de Transferencia Subido:
+                              </div>
                               <div className="flex items-center space-x-3">
                                 <img
                                   src={transfer.transferProof}
-                                  alt="Comprobante"
-                                  className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80"
+                                  alt="Comprobante de transferencia"
+                                  className="w-24 h-24 object-cover rounded border-2 border-blue-300 cursor-pointer hover:opacity-80 shadow-sm"
                                   onClick={() => window.open(transfer.transferProof, '_blank')}
                                 />
-                                <button
-                                  onClick={() => window.open(transfer.transferProof, '_blank')}
-                                  className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
-                                >
-                                  <ExternalLink className="w-4 h-4 mr-1" />
-                                  Ver comprobante completo
-                                </button>
+                                <div>
+                                  <button
+                                    onClick={() => window.open(transfer.transferProof, '_blank')}
+                                    className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                  >
+                                    <ExternalLink className="w-4 h-4 mr-1" />
+                                    Ver comprobante completo
+                                  </button>
+                                  <p className="text-xs text-blue-600 mt-1">
+                                    Haz clic para ampliar y verificar
+                                  </p>
+                                </div>
                               </div>
+                            </div>
+                          )}
+                          
+                          {/* Información adicional */}
+                          {transfer.description && (
+                            <div className="text-sm text-gray-600 mb-2">
+                              <span className="font-medium">Descripción:</span> {transfer.description}
                             </div>
                           )}
                         </div>
                         
-                        {/* Acciones */}
-                        <div className="flex flex-col space-y-2 ml-6">
+                        {/* ⚠️ BOTONES DE VALIDACIÓN - CRÍTICOS */}
+                        <div className="flex flex-col space-y-3 ml-6">
                           <button
                             onClick={() => handleValidateTransfer(transfer.id, true)}
                             disabled={isProcessing}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
+                            className={`px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center min-w-[140px] ${
                               isProcessing 
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                : 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl'
+                                : 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl transform hover:scale-105'
                             }`}
                           >
                             {isProcessing ? (
                               <Loader className="w-5 h-5 animate-spin" />
                             ) : (
                               <>
-                                <Check className="w-5 h-5 mr-2" />
-                                Aprobar
+                                <CheckCircle className="w-5 h-5 mr-2" />
+                                ✅ APROBAR
                               </>
                             )}
                           </button>
@@ -1070,18 +1225,18 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                           <button
                             onClick={() => handleValidateTransfer(transfer.id, false)}
                             disabled={isProcessing}
-                            className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
+                            className={`px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center min-w-[140px] ${
                               isProcessing 
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg hover:shadow-xl'
+                                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg hover:shadow-xl transform hover:scale-105'
                             }`}
                           >
                             {isProcessing ? (
                               <Loader className="w-5 h-5 animate-spin" />
                             ) : (
                               <>
-                                <X className="w-5 h-5 mr-2" />
-                                Rechazar
+                                <XCircle className="w-5 h-5 mr-2" />
+                                ❌ RECHAZAR
                               </>
                             )}
                           </button>
@@ -1096,109 +1251,156 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
 
-      {/* CONTENIDO DEL TAB EFECTIVO - CORREGIDO */}
+      {/* ================================ */}
+      {/* 💵 TAB EFECTIVO - SOLO MEMBRESÍAS PENDIENTES */}
+      {/* ================================ */}
       {activeTab === 'cash' && hasPermission('activate_cash_memberships') && (
         <div className="space-y-6">
           
-          {/* Lista de membresías en efectivo */}
+          {/* Lista de membresías pendientes de efectivo */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             {pendingCashMemberships.length === 0 ? (
               <div className="text-center py-12">
                 <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No hay membresías esperando pago en efectivo
+                  ✅ No hay membresías esperando pago en efectivo
                 </h3>
                 <p className="text-gray-600">
                   Todas las membresías en efectivo han sido activadas
                 </p>
               </div>
             ) : (
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {pendingCashMemberships.map((membership) => {
-                    const isProcessing = processingPayments.has(membership.id);
-                    
-                    return (
-                      <div key={membership.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                        
-                        {/* Información del cliente */}
-                        <div className="flex items-center mb-4">
-                          <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-4">
-                            <span className="text-xl font-bold text-green-700">
-                              {membership.user ? 
-                                `${membership.user.name[0]}${membership.user.name.split(' ')[1]?.[0] || ''}` :
-                                'A'
-                              }
-                            </span>
-                          </div>
+              <>
+                <div className="p-4 bg-green-50 border-b border-green-200">
+                  <div className="flex items-center">
+                    <Banknote className="w-5 h-5 text-green-600 mr-2" />
+                    <h4 className="text-lg font-medium text-green-900">
+                      Membresías Esperando Pago en Efectivo
+                    </h4>
+                    <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {pendingCashMemberships.length} pendientes
+                    </span>
+                  </div>
+                  <p className="text-sm text-green-700 mt-1">
+                    Solo se muestran membresías pendientes de activación por pago en efectivo
+                  </p>
+                </div>
+                
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {pendingCashMemberships.map((membership) => {
+                      const isProcessing = processingPayments.has(membership.id);
+                      const hoursWaiting = (new Date() - new Date(membership.createdAt)) / (1000 * 60 * 60);
+                      
+                      return (
+                        <div key={membership.id} className={`border rounded-lg p-6 hover:shadow-lg transition-all ${
+                          hoursWaiting > 24 ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200 hover:border-green-300'
+                        }`}>
                           
-                          <div>
-                            <h4 className="text-lg font-medium text-gray-900">
-                              {membership.user?.name || 'Cliente Anónimo'}
-                            </h4>
-                            <p className="text-sm text-gray-500">
-                              {membership.user?.email || membership.user?.phone || 'Sin datos de contacto'}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Detalles de la membresía */}
-                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <div className="text-xs text-gray-500 mb-1">Plan</div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {membership.plan?.name || 'Plan personalizado'}
-                              </div>
+                          {/* Indicador de urgencia */}
+                          {hoursWaiting > 24 && (
+                            <div className="mb-3">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                hoursWaiting > 48 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                {hoursWaiting > 48 ? 'URGENTE' : 'PRIORITARIO'}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Información del cliente */}
+                          <div className="flex items-center mb-4">
+                            <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-4">
+                              <span className="text-xl font-bold text-green-700">
+                                {membership.user ? 
+                                  `${membership.user.name[0]}${membership.user.name.split(' ')[1]?.[0] || ''}` :
+                                  'A'
+                                }
+                              </span>
                             </div>
                             
                             <div>
-                              <div className="text-xs text-gray-500 mb-1">Precio</div>
-                              <div className="text-lg font-bold text-green-600 flex items-center">
-                                <Bird className="w-4 h-4 mr-1" />
-                                {formatCurrency(membership.price)}
+                              <h4 className="text-lg font-medium text-gray-900">
+                                {membership.user?.name || 'Cliente Anónimo'}
+                              </h4>
+                              <p className="text-sm text-gray-500">
+                                {membership.user?.email || membership.user?.phone || 'Sin datos de contacto'}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                Esperando: {hoursWaiting.toFixed(1)}h
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Detalles de la membresía */}
+                          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Plan</div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {membership.plan?.name || 'Plan personalizado'}
+                                </div>
+                              </div>
+                              
+                              <div>
+                                <div className="text-xs text-gray-500 mb-1">Monto a Recibir</div>
+                                <div className="text-lg font-bold text-green-600 flex items-center">
+                                  <Bird className="w-4 h-4 mr-1" />
+                                  {formatCurrency(membership.price)}
+                                </div>
                               </div>
                             </div>
                           </div>
+                          
+                          {/* Información adicional */}
+                          <div className="text-xs text-gray-500 mb-4">
+                            <div>Creada: {formatDate(membership.createdAt, 'dd/MM/yyyy HH:mm')}</div>
+                            {membership.registeredBy && (
+                              <div>Por: {membership.registeredBy.name}</div>
+                            )}
+                          </div>
+                          
+                          {/* ⚠️ BOTÓN DE ACTIVACIÓN - CRÍTICO */}
+                          <button
+                            onClick={() => handleActivateCashMembership(membership.id)}
+                            disabled={isProcessing}
+                            className={`w-full px-6 py-4 rounded-lg font-medium transition-all flex items-center justify-center ${
+                              isProcessing 
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
+                            }`}
+                          >
+                            {isProcessing ? (
+                              <>
+                                <Loader className="w-5 h-5 mr-3 animate-spin" />
+                                Activando...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="w-5 h-5 mr-3" />
+                                💵 RECIBIR {formatCurrency(membership.price)} EN EFECTIVO
+                              </>
+                            )}
+                          </button>
                         </div>
-                        
-                        {/* Botón de activación */}
-                        <button
-                          onClick={() => handleActivateCashMembership(membership.id)}
-                          disabled={isProcessing}
-                          className={`w-full px-6 py-4 rounded-lg font-medium transition-all flex items-center justify-center ${
-                            isProcessing 
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                              : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
-                          }`}
-                        >
-                          {isProcessing ? (
-                            <>
-                              <Loader className="w-5 h-5 mr-3 animate-spin" />
-                              Activando...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="w-5 h-5 mr-3" />
-                              Recibir {formatCurrency(membership.price)} en Efectivo
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
       )}
 
-      {/* CONTENIDO DEL TAB RESUMEN - AHORA AL FINAL CON FILTROS */}
+      {/* ================================ */}
+      {/* 📊 TAB RESUMEN FINANCIERO CON FILTROS */}
+      {/* ================================ */}
       {activeTab === 'dashboard' && (
         <div className="space-y-6">
           
-          {/* NUEVO: Filtros de período para estadísticas */}
+          {/* Filtros de período para estadísticas */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
               
@@ -1262,7 +1464,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 <Building className="w-8 h-8 text-purple-600" />
                 <div className="ml-3">
                   <div className="text-2xl font-bold text-purple-900">
-                    {pendingTransfers.length || 0}
+                    {transferCount || 0}
                   </div>
                   <div className="text-sm text-purple-600">Transferencias</div>
                   <div className="text-xs text-purple-500">
@@ -1277,7 +1479,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 <Banknote className="w-8 h-8 text-blue-600" />
                 <div className="ml-3">
                   <div className="text-2xl font-bold text-blue-900">
-                    {pendingCashMemberships.length || 0}
+                    {cashCount || 0}
                   </div>
                   <div className="text-sm text-blue-600">Efectivo Pendiente</div>
                   <div className="text-xs text-blue-500">
@@ -1343,7 +1545,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             </div>
           )}
 
-          {/* NUEVO: Dashboard financiero básico */}
+          {/* Dashboard financiero básico */}
           {financialDashboard.today && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -1426,111 +1628,3 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default PaymentsManager;
-
-/**
- * 🆕 MEJORAS IMPLEMENTADAS AL PaymentsManager:
- * 
- * ✅ NUEVAS FUNCIONALIDADES:
- * 1. Dashboard de pagos pendientes con métricas en tiempo real
- * 2. Sistema de tabs para organizar diferentes vistas
- * 3. Validación de transferencias bancarias con aprobación/rechazo
- * 4. Activación de membresías en efectivo 
- * 5. Sistema de prioridades por tiempo de espera
- * 6. Auto-refresh configurable cada 30 segundos
- * 7. Items urgentes con alertas visuales
- * 8. Actividad reciente con timeline
- * 9. Filtros avanzados para transferencias
- * 10. Vista de comprobantes con preview
- * 
- * ✅ INTEGRACIÓN CON NUEVOS ENDPOINTS:
- * - GET /api/payments/pending-dashboard
- * - GET /api/payments/transfers/pending-detailed
- * - GET /api/memberships/pending-cash-payment
- * - POST /api/payments/{id}/validate-transfer
- * - POST /api/payments/activate-cash-membership
- * - GET /api/payments/statistics
- * 
- * ✅ MEJORAS EN UX:
- * - Sistema de tabs intuitivo con contadores
- * - Indicadores de carga y procesamiento
- * - Alertas de items urgentes
- * - Diseño responsivo mejorado
- * - Colores por prioridad para transferencias
- * - Iconografía consistente con ave quetzal
- * - Auto-refresh con toggle on/off
- * 
- * ✅ FUNCIONALIDADES DE AUTORIZACIÓN:
- * - Validación de permisos por rol
- * - Separación de funciones por permisos
- * - Logging detallado de acciones
- * - Invalidación de cache automática
- * - Manejo de errores específicos
- * 
- * ✅ COMPATIBILIDAD TOTAL:
- * - Mantiene todas las funcionalidades existentes
- * - Misma interfaz de props (onSave, onUnsavedChanges)
- * - Mismos componentes de formulario
- * - Misma estructura de datos
- * - No rompe integración existente
- * 
- * 🔄 USO EN LA APLICACIÓN:
- * El componente sigue siendo importado y usado igual:
- * <PaymentsManager onSave={handleSave} onUnsavedChanges={handleChanges} />
- * 
- * Pero ahora incluye:
- * - Tab "Dashboard": Vista general con métricas
- * - Tab "Transferencias": Validación de transferencias
- * - Tab "Efectivo": Activación de membresías
- * - Tab "Historial": Lista completa de pagos (funcionalidad original)
- * 
- * 🎯 BENEFICIOS PARA EL GIMNASIO:
- * - Control total sobre autorizaciones de pagos
- * - Gestión eficiente de transferencias bancarias guatemaltecas
- * - Activación inmediata de membresías en efectivo
- * - Seguimiento en tiempo real de pagos pendientes
- * - Alertas de items que requieren atención urgente
- * - Historial completo para auditorías
- */
-/**
- * COMENTARIOS FINALES DEL COMPONENTE
- * 
- * PROPÓSITO:
- * Este componente maneja el sistema completo de pagos del gimnasio.
- * Permite registrar, validar, filtrar y gestionar todos los tipos de pagos en quetzales guatemaltecos.
- * 
- * FUNCIONALIDADES PRINCIPALES:
- * - Registro de pagos para membresías, servicios, productos y pagos diarios
- * - Soporte para pagos de usuarios registrados y clientes anónimos
- * - Múltiples métodos de pago (efectivo, tarjeta, transferencia, pago móvil)
- * - Validación de transferencias bancarias con comprobantes
- * - Filtros avanzados por tipo, método, estado y rango de fechas
- * - Estadísticas financieras en tiempo real
- * - Alertas de transferencias pendientes de validación
- * - Vista responsiva para escritorio y móvil
- * - Paginación para manejo eficiente de grandes volúmenes de datos
- * 
- * CONEXIONES CON OTROS ARCHIVOS:
- * - AuthContext: Para verificar permisos del usuario actual
- * - AppContext: Para mostrar notificaciones y formatear datos en quetzales
- * - apiService: Para comunicación con el backend (/api/payments/*)
- * - Lucide React: Para iconografía del sistema
- * 
- * DATOS QUE MUESTRA AL USUARIO:
- * - Lista completa de pagos con información detallada del cliente
- * - Montos en quetzales guatemaltecos (GTQ)
- * - Estados de pago (completado, pendiente, fallido, cancelado)
- * - Tipos de pago (membresía, diario, múltiple, producto, servicio)
- * - Métodos de pago utilizados
- * - Estadísticas de ingresos totales y promedios
- * - Alertas de transferencias que requieren validación manual
- * 
- * PERMISOS REQUERIDOS:
- * - create_payments: Para registrar nuevos pagos
- * - validate_transfers: Para aprobar o rechazar transferencias bancarias
- * 
- * CASOS DE USO ESPECIALES:
- * - Pagos anónimos para clientes no registrados
- * - Pagos múltiples para varios días consecutivos
- * - Subida y validación de comprobantes de transferencia
- * - Cálculo automático de estadísticas financieras
- */
