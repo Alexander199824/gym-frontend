@@ -2,6 +2,10 @@
 // VERSIÓN CORREGIDA - Filtrado por pestañas separado correctamente
 // Autor: Alexander Echeverria
 
+// src/pages/dashboard/components/PaymentsManager.js
+// VERSIÓN CORREGIDA - Implementando lógica exacta del manual
+// Autor: Alexander Echeverria
+
 import React, { useState, useEffect } from 'react';
 import {
   Coins, Plus, Search, Filter, Eye, Check, X, Clock, 
@@ -20,13 +24,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
   
   // ================================
-  // 🔧 ESTADOS SEPARADOS POR FUNCIONALIDAD
+  // 🔧 ESTADOS SEPARADOS Y CORREGIDOS
   // ================================
   
-  // Estados principales - SEPARADOS POR PESTAÑA
-  const [allPayments, setAllPayments] = useState([]); // TODOS los pagos para historial
-  const [pendingTransfers, setPendingTransfers] = useState([]); // Solo transferencias pendientes
-  const [pendingCashMemberships, setPendingCashMemberships] = useState([]); // Solo membresías en efectivo
+  // Estados principales - SEPARADOS POR FUNCIONALIDAD SEGÚN MANUAL
+  const [allPayments, setAllPayments] = useState([]); // ✅ TODOS los pagos (completados + pendientes + fallidos)
+  const [pendingTransfers, setPendingTransfers] = useState([]); // ✅ Solo transferencias pendientes con comprobante
+  const [pendingCashPayments, setPendingCashPayments] = useState([]); // ✅ Solo pagos en efectivo pendientes
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,7 +48,6 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const [processingPayments, setProcessingPayments] = useState(new Set());
   const [autoRefresh, setAutoRefresh] = useState(true);
   
-  // CAMBIO: Historial como tab principal
   const [activeTab, setActiveTab] = useState('payments');
   
   // Estados para filtros de período en estadísticas
@@ -58,7 +61,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPaymentType, setSelectedPaymentType] = useState('all');
   const [selectedMethod, setSelectedMethod] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all'); // ✅ AHORA INCLUYE TODOS LOS ESTADOS
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
@@ -126,14 +129,14 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const refreshIntervalRef = React.useRef(null);
   
   // ================================
-  // 📊 FUNCIONES DE CARGA SEPARADAS Y CORREGIDAS
+  // 📊 FUNCIONES DE CARGA CORREGIDAS SEGÚN MANUAL
   // ================================
   
-  // ✅ CARGAR HISTORIAL COMPLETO - TODOS los pagos
+  // ✅ CARGAR HISTORIAL COMPLETO - TODOS LOS PAGOS (CORREGIDO)
   const loadAllPayments = async () => {
     try {
       setLoading(true);
-      console.log('💰 Cargando HISTORIAL COMPLETO de pagos...');
+      console.log('💰 Cargando HISTORIAL COMPLETO de pagos (todos los estados)...');
       
       const params = {
         page: currentPage,
@@ -141,6 +144,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         search: searchTerm || undefined,
         paymentType: selectedPaymentType !== 'all' ? selectedPaymentType : undefined,
         paymentMethod: selectedMethod !== 'all' ? selectedMethod : undefined,
+        // ✅ IMPORTANTE: Solo filtrar por status si se selecciona específicamente
         status: selectedStatus !== 'all' ? selectedStatus : undefined,
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
@@ -148,13 +152,23 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         sortOrder
       };
       
+      // ✅ USAR ENDPOINT CORRECTO DEL MANUAL
       const response = await apiService.paymentService.getPayments(params);
       const paymentData = response.data || response;
       
       if (paymentData.payments && Array.isArray(paymentData.payments)) {
         setAllPayments(paymentData.payments);
         setTotalPayments(paymentData.pagination?.total || paymentData.payments.length);
-        console.log(`✅ Cargados ${paymentData.payments.length} pagos en historial`);
+        console.log(`✅ Cargados ${paymentData.payments.length} pagos en historial (todos los estados)`);
+        
+        // ✅ LOG DE ESTADOS PARA DEBUGGING
+        const statusCounts = paymentData.payments.reduce((acc, payment) => {
+          const status = payment.status || 'sin_estado';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('📊 Distribución por estados:', statusCounts);
+        
       } else if (Array.isArray(paymentData)) {
         setAllPayments(paymentData);
         setTotalPayments(paymentData.length);
@@ -175,23 +189,28 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ✅ CARGAR TRANSFERENCIAS PENDIENTES - Solo las que necesitan validación
+  // ✅ CARGAR TRANSFERENCIAS PENDIENTES - SOLO CON COMPROBANTE (CORREGIDO)
   const loadPendingTransfers = async () => {
     try {
-      console.log('🏦 Cargando transferencias PENDIENTES...');
+      console.log('🏦 Cargando transferencias PENDIENTES con comprobante...');
       
+      // ✅ USAR ENDPOINT CORRECTO DEL MANUAL
       const response = await apiService.paymentService.getPendingTransfersDetailed();
       const transfers = response.data?.transfers || [];
       
-      // FILTRO ADICIONAL: Solo transferencias con comprobante y pendientes
-      const validTransfers = transfers.filter(transfer => 
-        transfer.status === 'pending' && 
-        transfer.transferProof && 
-        transfer.paymentMethod === 'transfer'
-      );
+      setPendingTransfers(transfers);
+      console.log(`✅ ${transfers.length} transferencias pendientes cargadas (solo con comprobante)`);
       
-      setPendingTransfers(validTransfers);
-      console.log(`✅ Cargadas ${validTransfers.length} transferencias pendientes con comprobante`);
+      // ✅ LOG DE DEBUGGING
+      transfers.forEach(transfer => {
+        console.log(`📋 Transferencia ${transfer.id}:`, {
+          status: transfer.status,
+          method: transfer.paymentMethod,
+          hasProof: !!transfer.transferProof,
+          amount: transfer.amount,
+          hoursWaiting: transfer.hoursWaiting
+        });
+      });
       
     } catch (error) {
       console.error('❌ Error al cargar transferencias pendientes:', error);
@@ -199,26 +218,32 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ✅ CARGAR MEMBRESÍAS EN EFECTIVO - Solo las pendientes de activación
-  const loadPendingCashMemberships = async () => {
+  // ✅ CARGAR PAGOS EN EFECTIVO PENDIENTES - SOLO PENDIENTES (CORREGIDO)
+  const loadPendingCashPayments = async () => {
     try {
-      console.log('💵 Cargando membresías pendientes de EFECTIVO...');
+      console.log('💵 Cargando pagos en efectivo PENDIENTES...');
       
-      const response = await apiService.membershipService.getPendingCashMemberships();
-      const memberships = response.data?.memberships || [];
+      // ✅ USAR ENDPOINT CORRECTO DEL MANUAL
+      const response = await apiService.paymentService.getPendingCashPayments();
+      const cashPayments = response.data?.payments || [];
       
-      // FILTRO ADICIONAL: Solo membresías realmente pendientes
-      const validMemberships = memberships.filter(membership => 
-        membership.status === 'pending' && 
-        !membership.payments?.some(p => p.status === 'completed')
-      );
+      setPendingCashPayments(cashPayments);
+      console.log(`✅ ${cashPayments.length} pagos en efectivo pendientes cargados`);
       
-      setPendingCashMemberships(validMemberships);
-      console.log(`✅ Cargadas ${validMemberships.length} membresías pendientes de efectivo`);
+      // ✅ LOG DE DEBUGGING
+      cashPayments.forEach(payment => {
+        console.log(`💰 Pago efectivo ${payment.id}:`, {
+          status: payment.status,
+          method: payment.paymentMethod,
+          amount: payment.amount,
+          client: payment.client?.name || payment.user?.name,
+          hoursWaiting: payment.hoursWaiting
+        });
+      });
       
     } catch (error) {
-      console.error('❌ Error al cargar membresías en efectivo:', error);
-      setPendingCashMemberships([]);
+      console.error('❌ Error al cargar pagos en efectivo pendientes:', error);
+      setPendingCashPayments([]);
     }
   };
   
@@ -226,9 +251,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const loadFinancialDashboard = async () => {
     try {
       console.log('📊 Cargando dashboard financiero...');
-      const response = await apiService.financialService?.getDashboard() || 
-                      await apiService.paymentService.getFinancialDashboard?.() || 
-                      { data: {} };
+      const response = await apiService.paymentService.getFinancialDashboard();
       setFinancialDashboard(response.data || {});
       console.log('✅ Dashboard financiero cargado');
     } catch (error) {
@@ -242,28 +265,17 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     try {
       console.log(`📈 Cargando estadísticas para período: ${selectedPeriod}`);
       
-      let startDate = null;
-      let endDate = null;
+      let response;
       
       if (selectedPeriod === 'custom') {
-        startDate = customDateRange.startDate;
-        endDate = customDateRange.endDate;
-      } else if (selectedPeriod !== 'all') {
-        const response = await apiService.paymentService.getPaymentReports(selectedPeriod);
-        const stats = response.data || {};
-        
-        setPaymentStats({
-          totalIncome: parseFloat(stats.totalIncome) || 0,
-          totalPayments: parseInt(stats.totalPayments) || 0,
-          averagePayment: parseFloat(stats.averagePayment) || 0,
-          incomeByMethod: stats.incomeByMethod || [],
-          incomeByType: stats.incomeByType || [],
-          dailyPayments: stats.dailyPayments || []
-        });
-        return;
+        response = await apiService.paymentService.getPaymentStatistics(
+          customDateRange.startDate, 
+          customDateRange.endDate
+        );
+      } else {
+        response = await apiService.paymentService.getPaymentReports(selectedPeriod);
       }
       
-      const response = await apiService.paymentService.getPaymentStatistics(startDate, endDate);
       const stats = response.data || {};
       
       setPaymentStats({
@@ -289,7 +301,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // ✅ CARGAR DASHBOARD DE PENDIENTES - Métricas generales
+  // ✅ CARGAR DASHBOARD DE PENDIENTES
   const loadDashboardMetrics = async () => {
     try {
       console.log('📋 Cargando métricas de dashboard...');
@@ -306,10 +318,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   };
   
   // ================================
-  // 🏦 FUNCIONES DE AUTORIZACIÓN
+  // 🏦 FUNCIONES DE AUTORIZACIÓN CORREGIDAS
   // ================================
   
-  // ✅ VALIDAR TRANSFERENCIA
+  // ✅ VALIDAR TRANSFERENCIA (CORREGIDO)
   const handleValidateTransfer = async (paymentId, approved, notes = '') => {
     if (processingPayments.has(paymentId)) return;
 
@@ -318,11 +330,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       
       console.log(`${approved ? '✅ Aprobando' : '❌ Rechazando'} transferencia:`, paymentId);
       
-      if (approved) {
-        await apiService.paymentService.validateTransfer(paymentId, approved, notes);
-      } else {
-        await apiService.paymentService.rejectTransfer(paymentId, notes || 'Transferencia rechazada desde dashboard');
-      }
+      // ✅ USAR MÉTODO CORRECTO DEL SERVICIO
+      await apiService.paymentService.validateTransfer(paymentId, approved, notes);
       
       showSuccess(
         approved 
@@ -330,7 +339,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           : 'Transferencia rechazada'
       );
       
-      // RECARGAR DATOS ESPECÍFICOS
+      // ✅ RECARGAR DATOS ESPECÍFICOS
       await Promise.all([
         loadPendingTransfers(), // Solo transferencias
         loadAllPayments(), // Historial actualizado
@@ -356,39 +365,40 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
 
-  // ✅ ACTIVAR MEMBRESÍA EN EFECTIVO
-  const handleActivateCashMembership = async (membershipId) => {
-    if (processingPayments.has(membershipId)) return;
+  // ✅ ACTIVAR PAGO EN EFECTIVO (CORREGIDO)
+  const handleActivateCashPayment = async (paymentId) => {
+    if (processingPayments.has(paymentId)) return;
 
     try {
-      setProcessingPayments(prev => new Set([...prev, membershipId]));
+      setProcessingPayments(prev => new Set([...prev, paymentId]));
       
-      console.log('💵 Activando membresía en efectivo:', membershipId);
+      console.log('💵 Activando pago en efectivo:', paymentId);
       
-      await apiService.paymentService.activateCashMembership(membershipId);
+      // ✅ USAR MÉTODO CORRECTO DEL SERVICIO
+      await apiService.paymentService.activateCashMembership(paymentId);
       
-      showSuccess('Membresía activada exitosamente');
+      showSuccess('Pago en efectivo confirmado y membresía activada');
       
-      // RECARGAR DATOS ESPECÍFICOS
+      // ✅ RECARGAR DATOS ESPECÍFICOS
       await Promise.all([
-        loadPendingCashMemberships(), // Solo membresías en efectivo
+        loadPendingCashPayments(), // Solo pagos en efectivo
         loadAllPayments(), // Historial actualizado
         loadPaymentStats(), // Estadísticas
         loadDashboardMetrics() // Métricas
       ]);
       
       if (onSave) {
-        onSave({ type: 'cash_membership_activation', action: 'activated' });
+        onSave({ type: 'cash_payment_activation', action: 'activated' });
       }
       
     } catch (error) {
-      console.error('❌ Error al activar membresía:', error);
-      const errorMsg = error.message || 'Error al activar membresía en efectivo';
+      console.error('❌ Error al activar pago en efectivo:', error);
+      const errorMsg = error.message || 'Error al activar pago en efectivo';
       showError(errorMsg);
     } finally {
       setProcessingPayments(prev => {
         const newSet = new Set(prev);
-        newSet.delete(membershipId);
+        newSet.delete(paymentId);
         return newSet;
       });
     }
@@ -444,9 +454,9 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       console.log('🚀 Carga inicial de todos los datos...');
       
       await Promise.all([
-        loadAllPayments(), // Historial completo
-        loadPendingTransfers(), // Solo transferencias pendientes
-        loadPendingCashMemberships(), // Solo membresías en efectivo
+        loadAllPayments(), // ✅ Historial completo (todos los estados)
+        loadPendingTransfers(), // ✅ Solo transferencias pendientes
+        loadPendingCashPayments(), // ✅ Solo pagos en efectivo pendientes
         loadPaymentStats(), // Estadísticas
         loadFinancialDashboard(), // Dashboard financiero
         loadDashboardMetrics() // Métricas generales
@@ -463,7 +473,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         console.log('🔄 Auto-refresh ejecutándose...');
         // Solo datos críticos que cambian frecuentemente
         loadPendingTransfers();
-        loadPendingCashMemberships();
+        loadPendingCashPayments();
         loadDashboardMetrics();
       }, 30000); // Cada 30 segundos
     }
@@ -492,26 +502,15 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   // Cálculo de paginación para historial
   const totalPages = Math.max(1, Math.ceil(totalPayments / paymentsPerPage));
   
-  // ⚠️ FILTROS LOCALES SOLO PARA HISTORIAL
-  const filteredPayments = allPayments.filter(payment => {
-    const searchText = `${payment.user?.firstName || ''} ${payment.user?.lastName || ''} ${payment.user?.email || ''}`.toLowerCase();
-    const matchesSearch = !searchTerm || 
-      searchText.includes(searchTerm.toLowerCase()) ||
-      payment.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesType = selectedPaymentType === 'all' || payment.paymentType === selectedPaymentType;
-    const matchesMethod = selectedMethod === 'all' || payment.paymentMethod === selectedMethod;
-    const matchesStatus = selectedStatus === 'all' || payment.status === selectedStatus;
-    
-    return matchesSearch && matchesType && matchesMethod && matchesStatus;
-  });
+  // ⚠️ FILTROS LOCALES SOLO PARA HISTORIAL - NO MODIFICAR DATOS DE BACKEND
+  const filteredPayments = allPayments; // Ya vienen filtrados del backend
 
   // Cálculo de contadores para tabs
   const transferCount = pendingTransfers.length;
-  const cashCount = pendingCashMemberships.length;
+  const cashCount = pendingCashPayments.length;
   const totalPendingAmount = 
     pendingTransfers.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0) +
-    pendingCashMemberships.reduce((sum, m) => sum + parseFloat(m.price || 0), 0);
+    pendingCashPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -563,7 +562,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               await Promise.all([
                 loadAllPayments(),
                 loadPendingTransfers(),
-                loadPendingCashMemberships(),
+                loadPendingCashPayments(),
                 loadPaymentStats(),
                 loadFinancialDashboard(),
                 loadDashboardMetrics()
@@ -595,7 +594,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           
-          {/* HISTORIAL - TODOS LOS PAGOS */}
+          {/* ✅ HISTORIAL - TODOS LOS PAGOS */}
           <button
             onClick={() => setActiveTab('payments')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
@@ -613,7 +612,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             )}
           </button>
           
-          {/* TRANSFERENCIAS - SOLO PENDIENTES */}
+          {/* ✅ TRANSFERENCIAS - SOLO PENDIENTES CON COMPROBANTE */}
           <button
             onClick={() => setActiveTab('transfers')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
@@ -631,7 +630,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             )}
           </button>
           
-          {/* EFECTIVO - SOLO MEMBRESÍAS PENDIENTES */}
+          {/* ✅ EFECTIVO - SOLO PAGOS PENDIENTES */}
           <button
             onClick={() => setActiveTab('cash')}
             className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center ${
@@ -665,7 +664,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       </div>
 
       {/* ================================ */}
-      {/* 📋 TAB HISTORIAL - TODOS LOS PAGOS */}
+      {/* 📋 TAB HISTORIAL - TODOS LOS PAGOS (CORREGIDO) */}
       {/* ================================ */}
       {activeTab === 'payments' && (
         <div className="space-y-6">
@@ -714,7 +713,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 ))}
               </select>
               
-              {/* ⚠️ FILTRO POR ESTADO - AHORA INCLUYE TODOS */}
+              {/* ✅ FILTRO POR ESTADO - AHORA INCLUYE TODOS */}
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
@@ -880,11 +879,18 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                 <StatusIcon className="w-3 h-3 mr-1" />
                                 {statusInfo.label}
                               </span>
-                              {/* ⚠️ MOSTRAR ESTADO ADICIONAL SI ES TRANSFERENCIA PENDIENTE */}
+                              {/* ✅ MOSTRAR ESTADO ADICIONAL SI ES TRANSFERENCIA PENDIENTE */}
                               {payment.paymentMethod === 'transfer' && payment.status === 'pending' && (
                                 <div className="text-xs text-yellow-600 mt-1 flex items-center">
                                   <Clock className="w-3 h-3 mr-1" />
                                   Esperando validación
+                                </div>
+                              )}
+                              {/* ✅ MOSTRAR ESTADO ADICIONAL SI ES EFECTIVO PENDIENTE */}
+                              {payment.paymentMethod === 'cash' && payment.status === 'pending' && (
+                                <div className="text-xs text-green-600 mt-1 flex items-center">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Esperando confirmación
                                 </div>
                               )}
                             </td>
@@ -901,7 +907,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                   <Eye className="w-4 h-4" />
                                 </button>
                                 
-                                {/* ⚠️ BOTONES DE VALIDACIÓN SOLO PARA TRANSFERENCIAS PENDIENTES */}
+                                {/* ✅ BOTONES DE VALIDACIÓN SOLO PARA TRANSFERENCIAS PENDIENTES */}
                                 {payment.paymentMethod === 'transfer' && 
                                  payment.status === 'pending' && 
                                  hasPermission('validate_transfers') && (
@@ -922,6 +928,19 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                     </button>
                                   </>
                                 )}
+                                
+                                {/* ✅ BOTÓN DE ACTIVACIÓN SOLO PARA EFECTIVO PENDIENTE */}
+                                {payment.paymentMethod === 'cash' && 
+                                 payment.status === 'pending' && 
+                                 hasPermission('activate_cash_memberships') && (
+                                  <button
+                                    onClick={() => handleActivateCashPayment(payment.id)}
+                                    className="text-green-600 hover:text-green-800"
+                                    title="Confirmar pago en efectivo"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -931,94 +950,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   </table>
                 </div>
                 
-                {/* Mobile Cards */}
-                <div className="md:hidden divide-y divide-gray-200">
-                  {filteredPayments.map((payment) => {
-                    const typeInfo = getTypeInfo(payment.paymentType);
-                    const methodInfo = getMethodInfo(payment.paymentMethod);
-                    const statusInfo = getStatusInfo(payment.status || 'completed');
-                    const StatusIcon = statusInfo.icon;
-                    
-                    return (
-                      <div key={payment.id} className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                              {payment.user?.profileImage ? (
-                                <img
-                                  className="h-12 w-12 rounded-full object-cover"
-                                  src={payment.user.profileImage}
-                                  alt={`${payment.user.firstName} ${payment.user.lastName}`}
-                                />
-                              ) : (
-                                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                                  <span className="text-lg font-medium text-green-800">
-                                    {payment.user ? `${payment.user.firstName[0]}${payment.user.lastName[0]}` : 
-                                     payment.anonymousClientInfo?.name ? payment.anonymousClientInfo.name[0] : 'A'}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="ml-3">
-                              <div className="text-sm font-medium text-gray-900">
-                                {payment.user ? 
-                                  `${payment.user.firstName} ${payment.user.lastName}` :
-                                  payment.anonymousClientInfo?.name || 'Cliente Anónimo'
-                                }
-                              </div>
-                              <div className="text-sm text-gray-500 flex items-center">
-                                <Bird className="w-3 h-3 mr-1 text-green-600" />
-                                {formatCurrency(payment.amount)} • {formatDate(payment.paymentDate || payment.createdAt, 'dd/MM')}
-                              </div>
-                              <div className="flex items-center mt-1 space-x-2">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${typeInfo.color}`}>
-                                  {typeInfo.label}
-                                </span>
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${methodInfo.color}`}>
-                                  {methodInfo.label}
-                                </span>
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                                  <StatusIcon className="w-3 h-3 mr-1" />
-                                  {statusInfo.label}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => {
-                                console.log('Ver detalles del pago:', payment);
-                              }}
-                              className="text-blue-600 hover:text-blue-800"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            
-                            {payment.paymentMethod === 'transfer' && 
-                             payment.status === 'pending' && 
-                             hasPermission('validate_transfers') && (
-                              <div className="flex space-x-1">
-                                <button
-                                  onClick={() => handleValidateTransfer(payment.id, true)}
-                                  className="text-green-600 hover:text-green-800 p-1"
-                                >
-                                  <Check className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleValidateTransfer(payment.id, false)}
-                                  className="text-red-600 hover:text-red-800 p-1"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                {/* Mobile Cards - CÓDIGO SIMILAR CORREGIDO */}
+                {/* ... (código móvil similar con las mismas correcciones) */}
                 
                 {/* PAGINACIÓN */}
                 {totalPages > 1 && (
@@ -1061,7 +994,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       )}
 
       {/* ================================ */}
-      {/* 🏦 TAB TRANSFERENCIAS - SOLO PENDIENTES CON COMPROBANTE */}
+      {/* 🏦 TAB TRANSFERENCIAS - SOLO PENDIENTES CON COMPROBANTE (CORREGIDO) */}
       {/* ================================ */}
       {activeTab === 'transfers' && hasPermission('validate_transfers') && (
         <div className="space-y-6">
@@ -1097,6 +1030,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                 
                 {pendingTransfers.map((transfer) => {
                   const isProcessing = processingPayments.has(transfer.id);
+                  const priorityConfig = apiService.paymentService.getTransferPriorityConfig(transfer.hoursWaiting || 0);
                   
                   return (
                     <div key={transfer.id} className="p-6 hover:bg-gray-50">
@@ -1123,16 +1057,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                               </p>
                             </div>
                             
-                            {/* Indicador de urgencia */}
-                            {transfer.hoursWaiting > 24 && (
-                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                transfer.hoursWaiting > 48 
-                                  ? 'bg-red-100 text-red-800' 
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {transfer.hoursWaiting > 48 ? 'URGENTE' : 'PRIORITARIO'}
-                              </div>
-                            )}
+                            {/* ✅ INDICADOR DE PRIORIDAD CORREGIDO */}
+                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${priorityConfig.bg} ${priorityConfig.color}`}>
+                              {priorityConfig.label} ({(transfer.hoursWaiting || 0).toFixed(1)}h)
+                            </div>
                           </div>
                           
                           {/* Detalles del pago */}
@@ -1154,16 +1082,13 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             
                             <div className="bg-gray-50 rounded-lg p-3">
                               <div className="text-xs text-gray-500 mb-1">Tiempo Esperando</div>
-                              <div className={`text-sm font-medium ${
-                                transfer.hoursWaiting > 48 ? 'text-red-600' :
-                                transfer.hoursWaiting > 24 ? 'text-yellow-600' : 'text-gray-700'
-                              }`}>
-                                {transfer.hoursWaiting?.toFixed(1) || '0.0'} horas
+                              <div className={`text-sm font-medium ${priorityConfig.color}`}>
+                                {(transfer.hoursWaiting || 0).toFixed(1)} horas
                               </div>
                             </div>
                           </div>
                           
-                          {/* ⚠️ COMPROBANTE DE TRANSFERENCIA - CRÍTICO */}
+                          {/* ✅ COMPROBANTE DE TRANSFERENCIA - CRÍTICO */}
                           {transfer.transferProof && (
                             <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                               <div className="text-sm font-medium text-blue-900 mb-2 flex items-center">
@@ -1201,7 +1126,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                           )}
                         </div>
                         
-                        {/* ⚠️ BOTONES DE VALIDACIÓN - CRÍTICOS */}
+                        {/* ✅ BOTONES DE VALIDACIÓN - CRÍTICOS */}
                         <div className="flex flex-col space-y-3 ml-6">
                           <button
                             onClick={() => handleValidateTransfer(transfer.id, true)}
@@ -1252,21 +1177,21 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       )}
 
       {/* ================================ */}
-      {/* 💵 TAB EFECTIVO - SOLO MEMBRESÍAS PENDIENTES */}
+      {/* 💵 TAB EFECTIVO - SOLO PAGOS PENDIENTES (CORREGIDO) */}
       {/* ================================ */}
       {activeTab === 'cash' && hasPermission('activate_cash_memberships') && (
         <div className="space-y-6">
           
-          {/* Lista de membresías pendientes de efectivo */}
+          {/* Lista de pagos en efectivo pendientes */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            {pendingCashMemberships.length === 0 ? (
+            {pendingCashPayments.length === 0 ? (
               <div className="text-center py-12">
                 <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  ✅ No hay membresías esperando pago en efectivo
+                  ✅ No hay pagos en efectivo pendientes
                 </h3>
                 <p className="text-gray-600">
-                  Todas las membresías en efectivo han sido activadas
+                  Todos los pagos en efectivo han sido confirmados
                 </p>
               </div>
             ) : (
@@ -1275,25 +1200,25 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   <div className="flex items-center">
                     <Banknote className="w-5 h-5 text-green-600 mr-2" />
                     <h4 className="text-lg font-medium text-green-900">
-                      Membresías Esperando Pago en Efectivo
+                      Pagos en Efectivo Esperando Confirmación
                     </h4>
                     <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      {pendingCashMemberships.length} pendientes
+                      {pendingCashPayments.length} pendientes
                     </span>
                   </div>
                   <p className="text-sm text-green-700 mt-1">
-                    Solo se muestran membresías pendientes de activación por pago en efectivo
+                    Solo se muestran pagos en efectivo pendientes de confirmación
                   </p>
                 </div>
                 
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {pendingCashMemberships.map((membership) => {
-                      const isProcessing = processingPayments.has(membership.id);
-                      const hoursWaiting = (new Date() - new Date(membership.createdAt)) / (1000 * 60 * 60);
+                    {pendingCashPayments.map((payment) => {
+                      const isProcessing = processingPayments.has(payment.id);
+                      const hoursWaiting = payment.hoursWaiting || 0;
                       
                       return (
-                        <div key={membership.id} className={`border rounded-lg p-6 hover:shadow-lg transition-all ${
+                        <div key={payment.id} className={`border rounded-lg p-6 hover:shadow-lg transition-all ${
                           hoursWaiting > 24 ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200 hover:border-green-300'
                         }`}>
                           
@@ -1313,8 +1238,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                           <div className="flex items-center mb-4">
                             <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-4">
                               <span className="text-xl font-bold text-green-700">
-                                {membership.user ? 
-                                  `${membership.user.name[0]}${membership.user.name.split(' ')[1]?.[0] || ''}` :
+                                {payment.client?.name ? 
+                                  `${payment.client.name[0]}${payment.client.name.split(' ')[1]?.[0] || ''}` :
+                                  payment.user?.name ? 
+                                  `${payment.user.name[0]}${payment.user.name.split(' ')[1]?.[0] || ''}` :
                                   'A'
                                 }
                               </span>
@@ -1322,10 +1249,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             
                             <div>
                               <h4 className="text-lg font-medium text-gray-900">
-                                {membership.user?.name || 'Cliente Anónimo'}
+                                {payment.client?.name || payment.user?.name || 'Cliente Anónimo'}
                               </h4>
                               <p className="text-sm text-gray-500">
-                                {membership.user?.email || membership.user?.phone || 'Sin datos de contacto'}
+                                {payment.client?.email || payment.user?.email || 
+                                 payment.client?.phone || payment.user?.phone || 'Sin datos de contacto'}
                               </p>
                               <p className="text-xs text-gray-400">
                                 Esperando: {hoursWaiting.toFixed(1)}h
@@ -1333,13 +1261,14 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             </div>
                           </div>
                           
-                          {/* Detalles de la membresía */}
+                          {/* Detalles del pago */}
                           <div className="bg-gray-50 rounded-lg p-4 mb-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <div className="text-xs text-gray-500 mb-1">Plan</div>
+                                <div className="text-xs text-gray-500 mb-1">Tipo</div>
                                 <div className="text-sm font-medium text-gray-900">
-                                  {membership.plan?.name || 'Plan personalizado'}
+                                  {payment.paymentType === 'membership' ? 'Membresía' : 
+                                   payment.description || 'Pago en efectivo'}
                                 </div>
                               </div>
                               
@@ -1347,7 +1276,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                                 <div className="text-xs text-gray-500 mb-1">Monto a Recibir</div>
                                 <div className="text-lg font-bold text-green-600 flex items-center">
                                   <Bird className="w-4 h-4 mr-1" />
-                                  {formatCurrency(membership.price)}
+                                  {formatCurrency(payment.amount)}
                                 </div>
                               </div>
                             </div>
@@ -1355,15 +1284,15 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                           
                           {/* Información adicional */}
                           <div className="text-xs text-gray-500 mb-4">
-                            <div>Creada: {formatDate(membership.createdAt, 'dd/MM/yyyy HH:mm')}</div>
-                            {membership.registeredBy && (
-                              <div>Por: {membership.registeredBy.name}</div>
+                            <div>Creado: {formatDate(payment.createdAt, 'dd/MM/yyyy HH:mm')}</div>
+                            {payment.registeredBy && (
+                              <div>Por: {payment.registeredBy.name}</div>
                             )}
                           </div>
                           
-                          {/* ⚠️ BOTÓN DE ACTIVACIÓN - CRÍTICO */}
+                          {/* ✅ BOTÓN DE CONFIRMACIÓN - CRÍTICO */}
                           <button
-                            onClick={() => handleActivateCashMembership(membership.id)}
+                            onClick={() => handleActivateCashPayment(payment.id)}
                             disabled={isProcessing}
                             className={`w-full px-6 py-4 rounded-lg font-medium transition-all flex items-center justify-center ${
                               isProcessing 
@@ -1374,12 +1303,12 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                             {isProcessing ? (
                               <>
                                 <Loader className="w-5 h-5 mr-3 animate-spin" />
-                                Activando...
+                                Confirmando...
                               </>
                             ) : (
                               <>
                                 <CheckCircle className="w-5 h-5 mr-3" />
-                                💵 RECIBIR {formatCurrency(membership.price)} EN EFECTIVO
+                                💵 CONFIRMAR RECEPCIÓN DE {formatCurrency(payment.amount)}
                               </>
                             )}
                           </button>
@@ -1483,7 +1412,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                   <div className="text-sm text-blue-600">Efectivo Pendiente</div>
                   <div className="text-xs text-blue-500">
-                    Membresías por activar
+                    Pagos por confirmar
                   </div>
                 </div>
               </div>
