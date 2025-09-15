@@ -2260,5 +2260,5 @@ export default MembershipCheckout;
    - Ejemplos visuales del botón a buscar
    - Tips sobre cuándo usar cada modo
 
-La interfaz ahora es mucho más clara y educativa, guiando al usuario paso a paso sobre cómo usar la nueva funcionalidad de aplicar el mismo horario a todos los días.hola
+La interfaz ahora es mucho más clara y educativa, guiando al usuario paso a paso sobre cómo usar la nueva funcionalidad de aplicar el mismo horario a todos los días.hola si
 */
