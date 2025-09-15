@@ -2,6 +2,11 @@
 // Author: Alexander Echeverria
 // Componente de tarjeta para transferencias pendientes (vista grid)
 
+// src/pages/dashboard/components/PaymentsManager/components/TransferCard.js
+// Author: Alexander Echeverria
+// Componente de tarjeta para transferencias pendientes (vista grid)
+// CORREGIDO: Ahora muestra SIEMPRE el tiempo de espera como en efectivo
+
 import React, { useState } from 'react';
 import { 
   Check, X, Timer, Bird, Mail, Phone, Loader2, Building, 
@@ -36,6 +41,10 @@ const TransferCard = ({
   const priority = getPriority();
   const isCritical = priority.level === 'critical';
   const isHigh = priority.level === 'high';
+  const isMedium = priority.level === 'medium';
+  
+  // NUEVO: Determinar si debe mostrar header de tiempo (como en efectivo)
+  const shouldShowTimeHeader = (transfer.hoursWaiting || 0) > 0; // Mostrar siempre que haya tiempo
   
   // Manejar la aprobación de la transferencia
   const handleApproval = () => {
@@ -66,34 +75,76 @@ const TransferCard = ({
       return 'bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 ring-2 ring-red-200 border-red-300';
     } else if (isHigh) {
       return 'bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 ring-2 ring-orange-200 border-orange-300';
+    } else if (isMedium) {
+      return 'bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 ring-2 ring-yellow-200 border-yellow-300';
     }
     return 'bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 border-gray-200';
+  };
+
+  // NUEVO: Función para formatear tiempo de forma más detallada (como en efectivo)
+  const formatDetailedTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = now - date;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    
+    const formattedDate = formatDate ? formatDate(dateString, 'dd/MM/yyyy HH:mm') : date.toLocaleString();
+    
+    let timeAgo = '';
+    if (diffDays > 0) {
+      timeAgo = `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
+    } else if (diffHours > 0) {
+      timeAgo = `hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+    } else if (diffMinutes > 0) {
+      timeAgo = `hace ${diffMinutes} minuto${diffMinutes > 1 ? 's' : ''}`;
+    } else {
+      timeAgo = 'ahora mismo';
+    }
+    
+    return `${formattedDate} (${timeAgo})`;
   };
 
   return (
     <div className={getCardClasses()}>
       
-      {/* Header con indicador de prioridad crítica */}
-      {(isCritical || isHigh) && (
+      {/* CORREGIDO: Header con indicador de tiempo SIEMPRE que haya tiempo */}
+      {shouldShowTimeHeader && (
         <div className={`px-4 py-2 border-b ${
           isCritical 
             ? 'bg-red-50 border-red-200' 
-            : 'bg-orange-50 border-orange-200'
+            : isHigh
+              ? 'bg-orange-50 border-orange-200'
+              : isMedium
+                ? 'bg-yellow-50 border-yellow-200'
+                : 'bg-purple-50 border-purple-200'
         }`}>
           <div className={`flex items-center justify-between text-sm ${
-            isCritical ? 'text-red-700' : 'text-orange-700'
+            isCritical ? 'text-red-700' : 
+            isHigh ? 'text-orange-700' : 
+            isMedium ? 'text-yellow-700' : 
+            'text-purple-700'
           }`}>
             <div className="flex items-center">
               <Timer className="w-4 h-4 mr-1" />
               <span className="font-medium">
                 {isCritical 
                   ? `Crítica: ${transfer.hoursWaiting?.toFixed(1) || '0.0'} horas`
-                  : `Alta prioridad: ${transfer.hoursWaiting?.toFixed(1) || '0.0'} horas`
+                  : isHigh
+                    ? `Alta prioridad: ${transfer.hoursWaiting?.toFixed(1) || '0.0'} horas`
+                    : isMedium
+                      ? `Prioridad media: ${transfer.hoursWaiting?.toFixed(1) || '0.0'} horas`
+                      : `Esperando: ${transfer.hoursWaiting?.toFixed(1) || '0.0'} horas`
                 }
               </span>
             </div>
             <span className="text-xs">
-              {isCritical ? 'Requiere atención inmediata' : 'Revisar pronto'}
+              {isCritical ? 'Requiere atención inmediata' : 
+               isHigh ? 'Revisar pronto' : 
+               isMedium ? 'Revisar cuando sea posible' :
+               'Recién recibida'}
             </span>
           </div>
         </div>
@@ -167,19 +218,163 @@ const TransferCard = ({
               </div>
             </div>
             
-            {/* Tiempo de espera */}
+            {/* Tiempo de espera - MEJORADO */}
             <div>
               <div className="text-gray-500 mb-1">Esperando</div>
               <div className={`font-medium ${
                 isCritical ? 'text-red-600' : 
                 isHigh ? 'text-orange-600' : 
-                'text-gray-700'
+                isMedium ? 'text-yellow-600' :
+                'text-purple-600'
               }`}>
                 {transfer.hoursWaiting?.toFixed(1) || '0.0'}h
               </div>
             </div>
           </div>
         </div>
+
+        {/* Información expandida */}
+        {isExpanded && (
+          <div className="space-y-4 mb-4">
+            
+            {/* Información temporal detallada */}
+            <div className="bg-blue-50 rounded-lg p-4">
+              <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                <Clock className="w-4 h-4 mr-2" />
+                Información Temporal
+              </h5>
+              
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start space-x-2">
+                  <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-gray-900">Fecha de transferencia</div>
+                    <div className="text-gray-600">
+                      {formatDetailedTime(transfer.paymentDate || transfer.createdAt)}
+                    </div>
+                  </div>
+                </div>
+                
+                {transfer.updatedAt && transfer.updatedAt !== transfer.createdAt && (
+                  <div className="flex items-start space-x-2">
+                    <Clock className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-medium text-gray-900">Última actualización</div>
+                      <div className="text-gray-600">
+                        {formatDetailedTime(transfer.updatedAt)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex items-start space-x-2">
+                  <Timer className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-gray-900">Estado actual</div>
+                    <div className="text-gray-600">
+                      Esperando validación del comprobante
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Información de membresía detallada */}
+            {transfer.membership && (
+              <div className="bg-purple-50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <Building className="w-4 h-4 mr-2" />
+                  Detalles de la Membresía
+                </h5>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <div className="font-medium text-gray-900">Tipo</div>
+                      <div className="text-gray-600">{transfer.membership.type}</div>
+                    </div>
+                    {transfer.membership.startDate && (
+                      <div>
+                        <div className="font-medium text-gray-900">Inicio</div>
+                        <div className="text-gray-600">
+                          {formatDate && formatDate(transfer.membership.startDate, 'dd/MM/yyyy')}
+                        </div>
+                      </div>
+                    )}
+                    {transfer.membership.endDate && (
+                      <div>
+                        <div className="font-medium text-gray-900">Vencimiento</div>
+                        <div className="text-gray-600">
+                          {formatDate && formatDate(transfer.membership.endDate, 'dd/MM/yyyy')}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Información de quién registró */}
+            {transfer.registeredByUser && (
+              <div className="bg-green-50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <User className="w-4 h-4 mr-2" />
+                  Información de Registro
+                </h5>
+                
+                <div className="text-sm space-y-2">
+                  <div>
+                    <span className="font-medium text-gray-700">Registrado por:</span>
+                    <div className="text-gray-600">
+                      {transfer.registeredByUser.firstName} {transfer.registeredByUser.lastName}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <span className="font-medium text-gray-700">Rol:</span>
+                    <div className="text-gray-600 capitalize">{transfer.registeredByUser.role}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Descripción y notas */}
+            {(transfer.description || transfer.notes) && (
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Notas y Descripción
+                </h5>
+                
+                <div className="space-y-2 text-sm">
+                  {transfer.description && (
+                    <div>
+                      <span className="font-medium text-gray-700">Descripción:</span>
+                      <div className="text-gray-600 mt-1">{transfer.description}</div>
+                    </div>
+                  )}
+                  
+                  {transfer.notes && (
+                    <div>
+                      <span className="font-medium text-gray-700">Notas:</span>
+                      <div className="text-gray-600 mt-1">{transfer.notes}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Información del ID de la transferencia */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="text-xs text-gray-500 space-y-1">
+                <div><span className="font-medium">ID de Transferencia:</span> {transfer.id}</div>
+                {transfer.reference && (
+                  <div><span className="font-medium">Referencia:</span> {transfer.reference}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Comprobante de transferencia */}
         <div className="bg-blue-50 rounded-lg p-4 mb-4">

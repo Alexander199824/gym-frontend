@@ -3,6 +3,11 @@
 // Componente de item para transferencias pendientes (vista lista)
 // NUEVO: Basado en CashMembershipListItem pero adaptado para transferencias
 
+// src/pages/dashboard/components/PaymentsManager/components/TransferListItem.js
+// Author: Alexander Echeverria
+// Componente de item para transferencias pendientes (vista lista)
+// CORREGIDO: Ahora muestra SIEMPRE el tiempo de espera como en efectivo
+
 import React, { useState } from 'react';
 import { 
   Check, X, Timer, Bird, Phone, Mail, Loader2, Building,
@@ -35,6 +40,10 @@ const TransferListItem = ({
   const priority = getPriority();
   const isCritical = priority.level === 'critical';
   const isHigh = priority.level === 'high';
+  const isMedium = priority.level === 'medium';
+  
+  // NUEVO: Siempre mostrar tiempo si existe
+  const hasWaitingTime = (transfer.hoursWaiting || 0) > 0;
 
   // Función para formatear tiempo de forma detallada
   const formatDetailedTime = (dateString) => {
@@ -66,6 +75,7 @@ const TransferListItem = ({
     <div className={`bg-white border rounded-lg transition-all duration-200 ${
       isCritical ? 'border-red-300 bg-red-50' : 
       isHigh ? 'border-orange-300 bg-orange-50' : 
+      isMedium ? 'border-yellow-300 bg-yellow-50' :
       'border-gray-200 hover:shadow-md'
     }`}>
       
@@ -89,12 +99,20 @@ const TransferListItem = ({
                    `${transfer.user?.firstName || ''} ${transfer.user?.lastName || ''}`.trim() || 
                    'Cliente Anónimo'}
                 </h3>
-                {(isCritical || isHigh) && (
+                {/* CORREGIDO: Mostrar tiempo SIEMPRE que exista */}
+                {hasWaitingTime && (
                   <div className={`flex items-center text-sm ml-2 ${
-                    isCritical ? 'text-red-600' : 'text-orange-600'
+                    isCritical ? 'text-red-600' : 
+                    isHigh ? 'text-orange-600' : 
+                    isMedium ? 'text-yellow-600' :
+                    'text-purple-600'
                   }`}>
                     <Timer className="w-4 h-4 mr-1" />
                     <span>{transfer.hoursWaiting?.toFixed(1) || '0.0'}h</span>
+                    {/* Indicador de prioridad */}
+                    {isCritical && <span className="ml-1 text-xs font-bold">CRÍTICA</span>}
+                    {isHigh && <span className="ml-1 text-xs font-bold">ALTA</span>}
+                    {isMedium && <span className="ml-1 text-xs font-bold">MEDIA</span>}
                   </div>
                 )}
               </div>
@@ -219,11 +237,11 @@ const TransferListItem = ({
               </div>
             </div>
 
-            {/* Información temporal */}
+            {/* Información temporal MEJORADA */}
             <div className="bg-blue-50 rounded-lg p-4">
               <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
                 <Clock className="w-4 h-4 mr-2" />
-                Información Temporal
+                Información Temporal Detallada
               </h5>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -239,15 +257,28 @@ const TransferListItem = ({
                 </div>
                 
                 <div className="flex items-start space-x-2">
-                  <Timer className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <Timer className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                    isCritical ? 'text-red-500' : 
+                    isHigh ? 'text-orange-500' : 
+                    isMedium ? 'text-yellow-500' :
+                    'text-purple-500'
+                  }`} />
                   <div>
                     <div className="font-medium text-gray-900">Tiempo esperando</div>
                     <div className={`font-medium ${
                       isCritical ? 'text-red-600' : 
                       isHigh ? 'text-orange-600' : 
-                      'text-gray-600'
+                      isMedium ? 'text-yellow-600' :
+                      'text-purple-600'
                     }`}>
                       {transfer.hoursWaiting?.toFixed(1) || '0.0'} horas
+                    </div>
+                    {/* Descripción de prioridad */}
+                    <div className="text-xs text-gray-500 mt-1">
+                      {isCritical ? 'Requiere atención inmediata' :
+                       isHigh ? 'Revisar pronto' :
+                       isMedium ? 'Revisar cuando sea posible' :
+                       'Recién recibida'}
                     </div>
                   </div>
                 </div>
@@ -373,6 +404,18 @@ const TransferListItem = ({
                 {transfer.reference && (
                   <div><span className="font-medium">Referencia:</span> {transfer.reference}</div>
                 )}
+                {/* NUEVO: Información de prioridad */}
+                <div>
+                  <span className="font-medium">Prioridad:</span> 
+                  <span className={`ml-1 ${
+                    isCritical ? 'text-red-600 font-bold' : 
+                    isHigh ? 'text-orange-600 font-bold' : 
+                    isMedium ? 'text-yellow-600 font-bold' :
+                    'text-purple-600'
+                  }`}>
+                    {priority.label}
+                  </span>
+                </div>
               </div>
             </div>
 

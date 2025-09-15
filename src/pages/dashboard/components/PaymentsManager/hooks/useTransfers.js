@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/hooks/useTransfers.js
 // Author: Alexander Echeverria
 // Hook personalizado para manejar toda la lógica de transferencias bancarias
-// CORREGIDO: Eliminados errores de hooks y claves duplicadas
+// CORREGIDO: Mejorado cálculo de tiempo de espera y sincronización
 
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../../../../../services/apiService';
@@ -18,6 +18,8 @@ const useTransfers = (onSave) => {
     total: 0,
     critical: 0, // Más de 24h
     high: 0,     // Más de 12h
+    medium: 0,   // Más de 4h
+    normal: 0,   // Menos de 4h
     totalAmount: 0,
     avgAmount: 0,
     avgHours: 0,
@@ -35,11 +37,25 @@ const useTransfers = (onSave) => {
   const [transferSortBy, setTransferSortBy] = useState('waiting_time');
   const [transferPriorityFilter, setTransferPriorityFilter] = useState('all');
 
-  // Función para calcular estadísticas de transferencias
+  // NUEVO: Función para calcular tiempo de espera si no viene del backend
+  const calculateHoursWaiting = useCallback((createdAt, paymentDate) => {
+    if (!createdAt && !paymentDate) return 0;
+    
+    const transferDate = new Date(paymentDate || createdAt);
+    const now = new Date();
+    const diffTime = now - transferDate;
+    const diffHours = diffTime / (1000 * 60 * 60); // Convertir a horas
+    
+    return Math.max(0, diffHours); // No permitir valores negativos
+  }, []);
+
+  // Función para calcular estadísticas de transferencias - MEJORADA
   const calculateTransferStats = useCallback((transfers) => {
     const total = transfers.length;
     const critical = transfers.filter(t => (t.hoursWaiting || 0) > 24).length;
     const high = transfers.filter(t => (t.hoursWaiting || 0) > 12 && (t.hoursWaiting || 0) <= 24).length;
+    const medium = transfers.filter(t => (t.hoursWaiting || 0) > 4 && (t.hoursWaiting || 0) <= 12).length;
+    const normal = transfers.filter(t => (t.hoursWaiting || 0) <= 4).length;
     const totalAmount = transfers.reduce((sum, t) => sum + (t.amount || 0), 0);
     const avgAmount = total > 0 ? totalAmount / total : 0;
     const avgHours = total > 0 ? 
@@ -51,6 +67,8 @@ const useTransfers = (onSave) => {
       total,
       critical,
       high,
+      medium,
+      normal,
       totalAmount,
       avgAmount,
       avgHours,
@@ -59,7 +77,7 @@ const useTransfers = (onSave) => {
     };
   }, []);
 
-  // Función principal para cargar transferencias pendientes - CORREGIDA con useCallback
+  // Función principal para cargar transferencias pendientes - MEJORADA
   const loadPendingTransfers = useCallback(async () => {
     try {
       console.log('🏦 useTransfers: Cargando transferencias pendientes...');
@@ -74,26 +92,40 @@ const useTransfers = (onSave) => {
       if (response?.success && response.data) {
         const transfers = response.data.transfers || [];
         
-        // Procesar transferencias para asegurar campos necesarios
-        const processedTransfers = transfers.map(transfer => ({
-          ...transfer,
-          id: transfer.id || transfer.paymentId,
-          amount: parseFloat(transfer.amount || 0),
-          user: transfer.user || {
-            name: transfer.clientName || `${transfer.user?.firstName || ''} ${transfer.user?.lastName || ''}`.trim() || 'Cliente Anónimo',
-            firstName: transfer.user?.firstName || transfer.clientName?.split(' ')[0] || '',
-            lastName: transfer.user?.lastName || transfer.clientName?.split(' ').slice(1).join(' ') || '',
-            email: transfer.user?.email || ''
-          },
-          hoursWaiting: transfer.hoursWaiting || 0,
-          paymentDate: transfer.paymentDate || transfer.createdAt,
-          transferProof: transfer.transferProof || transfer.hasProof || false,
-          transferValidated: transfer.transferValidated,
-          transferValidatedAt: transfer.transferValidatedAt,
-          transferValidator: transfer.transferValidator,
-          registeredByUser: transfer.registeredByUser,
-          reference: transfer.reference || transfer.transferReference || ''
-        }));
+        // MEJORADO: Procesar transferencias con cálculo de tiempo de espera
+        const processedTransfers = transfers.map(transfer => {
+          // Calcular hoursWaiting si no viene del backend o es 0
+          let hoursWaiting = transfer.hoursWaiting || 0;
+          
+          if (!hoursWaiting || hoursWaiting === 0) {
+            hoursWaiting = calculateHoursWaiting(
+              transfer.createdAt, 
+              transfer.paymentDate
+            );
+          }
+
+          return {
+            ...transfer,
+            id: transfer.id || transfer.paymentId,
+            amount: parseFloat(transfer.amount || 0),
+            user: transfer.user || {
+              name: transfer.clientName || 
+                    `${transfer.user?.firstName || ''} ${transfer.user?.lastName || ''}`.trim() || 
+                    'Cliente Anónimo',
+              firstName: transfer.user?.firstName || transfer.clientName?.split(' ')[0] || '',
+              lastName: transfer.user?.lastName || transfer.clientName?.split(' ').slice(1).join(' ') || '',
+              email: transfer.user?.email || ''
+            },
+            hoursWaiting: hoursWaiting, // CORREGIDO: Asegurar que siempre tenga un valor calculado
+            paymentDate: transfer.paymentDate || transfer.createdAt,
+            transferProof: transfer.transferProof || transfer.hasProof || false,
+            transferValidated: transfer.transferValidated,
+            transferValidatedAt: transfer.transferValidatedAt,
+            transferValidator: transfer.transferValidator,
+            registeredByUser: transfer.registeredByUser,
+            reference: transfer.reference || transfer.transferReference || ''
+          };
+        });
         
         setPendingTransfers(processedTransfers);
         
@@ -102,12 +134,23 @@ const useTransfers = (onSave) => {
         setTransferStats(calculatedStats);
         
         console.log(`✅ ${processedTransfers.length} transferencias pendientes cargadas`);
+        console.log('📊 Estadísticas calculadas:', {
+          total: calculatedStats.total,
+          critical: calculatedStats.critical,
+          high: calculatedStats.high,
+          medium: calculatedStats.medium,
+          normal: calculatedStats.normal,
+          avgHours: calculatedStats.avgHours.toFixed(1)
+        });
+        
       } else {
         setPendingTransfers([]);
         setTransferStats({
           total: 0,
           critical: 0,
           high: 0,
+          medium: 0,
+          normal: 0,
           totalAmount: 0,
           avgAmount: 0,
           avgHours: 0,
@@ -123,6 +166,8 @@ const useTransfers = (onSave) => {
         total: 0,
         critical: 0,
         high: 0,
+        medium: 0,
+        normal: 0,
         totalAmount: 0,
         avgAmount: 0,
         avgHours: 0,
@@ -132,7 +177,7 @@ const useTransfers = (onSave) => {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, transferSortBy, transferPriorityFilter, calculateTransferStats]);
+  }, [searchTerm, transferSortBy, transferPriorityFilter, calculateTransferStats, calculateHoursWaiting]);
 
   // Función para validar una transferencia (aprobar o rechazar)
   const handleValidateTransfer = useCallback(async (paymentId, approved, showSuccess, showError) => {
@@ -234,7 +279,7 @@ const useTransfers = (onSave) => {
     return filtered;
   }, [pendingTransfers, transferPriorityFilter, searchTerm, transferSortBy]);
 
-  // Función para determinar la prioridad de una transferencia
+  // Función para determinar la prioridad de una transferencia - MEJORADA
   const getTransferPriority = useCallback((hoursWaiting) => {
     if (hoursWaiting > 24) {
       return 'critical'; // Más de 24 horas - crítica
@@ -247,35 +292,39 @@ const useTransfers = (onSave) => {
     }
   }, []);
 
-  // Función para obtener configuración de prioridad
+  // Función para obtener configuración de prioridad - MEJORADA
   const getTransferPriorityConfig = useCallback((hoursWaiting) => {
     if (hoursWaiting > 24) {
       return {
         priority: 'critical',
         color: 'red',
         label: 'Crítica',
-        description: 'Más de 24 horas - Requiere atención inmediata'
+        description: 'Más de 24 horas - Requiere atención inmediata',
+        urgency: 4
       };
     } else if (hoursWaiting > 12) {
       return {
         priority: 'high',
         color: 'orange',
         label: 'Alta',
-        description: 'Más de 12 horas - Requiere atención pronto'
+        description: 'Más de 12 horas - Requiere atención pronto',
+        urgency: 3
       };
     } else if (hoursWaiting > 4) {
       return {
         priority: 'medium',
         color: 'yellow',
         label: 'Media',
-        description: 'Más de 4 horas - Revisar cuando sea posible'
+        description: 'Más de 4 horas - Revisar cuando sea posible',
+        urgency: 2
       };
     } else {
       return {
         priority: 'normal',
         color: 'purple',
         label: 'Normal',
-        description: 'Recién recibida'
+        description: 'Recién recibida',
+        urgency: 1
       };
     }
   }, []);
@@ -302,6 +351,37 @@ const useTransfers = (onSave) => {
     }
     return null;
   }, [processingIds]);
+
+  // NUEVA: Función para obtener distribución por prioridad
+  const getPriorityDistribution = useCallback(() => {
+    return {
+      critical: transferStats.critical,
+      high: transferStats.high,
+      medium: transferStats.medium,
+      normal: transferStats.normal,
+      total: transferStats.total
+    };
+  }, [transferStats]);
+
+  // NUEVA: Función para obtener transferencias críticas
+  const getCriticalTransfers = useCallback(() => {
+    return pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24);
+  }, [pendingTransfers]);
+
+  // NUEVA: Función para obtener resumen de urgencia
+  const getUrgencySummary = useCallback(() => {
+    const critical = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24);
+    const high = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 12 && (t.hoursWaiting || 0) <= 24);
+    const needsAttention = critical.length + high.length;
+    
+    return {
+      needsAttention,
+      criticalCount: critical.length,
+      highCount: high.length,
+      totalAmount: [...critical, ...high].reduce((sum, t) => sum + (t.amount || 0), 0),
+      oldestHours: Math.max(...pendingTransfers.map(t => t.hoursWaiting || 0), 0)
+    };
+  }, [pendingTransfers]);
 
   // Función para ordenar transferencias por prioridad (MANTENER para compatibilidad)
   const getSortedTransfers = useCallback(() => {
@@ -344,7 +424,9 @@ const useTransfers = (onSave) => {
         currentState: {
           pendingCount: pendingTransfers.length,
           stats: getTransferStats(),
-          processed: Array.from(processingIds)
+          processed: Array.from(processingIds),
+          avgHours: transferStats.avgHours,
+          priorityDistribution: getPriorityDistribution()
         }
       });
       
@@ -352,7 +434,9 @@ const useTransfers = (onSave) => {
         response: transferResponse,
         currentState: {
           pendingCount: pendingTransfers.length,
-          stats: getTransferStats()
+          stats: getTransferStats(),
+          avgHours: transferStats.avgHours,
+          priorityDistribution: getPriorityDistribution()
         }
       };
       
@@ -360,7 +444,7 @@ const useTransfers = (onSave) => {
       console.error('❌ Error en debug transfers:', error);
       return { error: error.message };
     }
-  }, [pendingTransfers, getTransferStats, processingIds]);
+  }, [pendingTransfers, getTransferStats, processingIds, transferStats.avgHours, getPriorityDistribution]);
 
   // Efecto inicial de carga
   useEffect(() => {
@@ -393,11 +477,17 @@ const useTransfers = (onSave) => {
     setTransferSortBy,
     setTransferPriorityFilter,
     
-    // Utilidades
+    // Utilidades MEJORADAS
     isTransferProcessing,
     getProcessingType,
     getTransferPriority,
     getTransferPriorityConfig,
+    
+    // NUEVAS funciones de análisis
+    getPriorityDistribution,
+    getCriticalTransfers,
+    getUrgencySummary,
+    calculateHoursWaiting,
     
     // Funciones de compatibilidad (MANTENER)
     getSortedTransfers,

@@ -488,72 +488,121 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
   // 🏦 MÉTODOS ESPECÍFICOS PARA TRANSFERENCIAS (MEJORADO PARA SINCRONIZACIÓN)
   // ================================
 
-  /**
-   * Obtener SOLO transferencias pendientes - MEJORADO para el test
-   * @param {Object} params - Parámetros de filtro
-   * @returns {Promise<Object>} Lista de transferencias pendientes
-   */
-  async getPendingTransfers(params = {}) {
-    try {
-      console.log('🏦 PaymentService: Obteniendo SOLO TRANSFERENCIAS pendientes...');
-      
-      const queryParams = {
-        paymentMethod: 'transfer', // FORZAR solo transferencias
-        status: 'pending',         // FORZAR solo pendientes
-        search: params.search?.trim() || undefined,
-        sortBy: params.sortBy || 'waiting_time'
-      };
+    /**
+     * Obtener SOLO transferencias pendientes - MEJORADO para asegurar hoursWaiting
+     * @param {Object} params - Parámetros de filtro
+     * @returns {Promise<Object>} Lista de transferencias pendientes
+     */
+    async getPendingTransfers(params = {}) {
+      try {
+        console.log('🏦 PaymentService: Obteniendo SOLO TRANSFERENCIAS pendientes...');
+        
+        const queryParams = {
+          paymentMethod: 'transfer', // FORZAR solo transferencias
+          status: 'pending',         // FORZAR solo pendientes
+          search: params.search?.trim() || undefined,
+          sortBy: params.sortBy || 'waiting_time',
+          priority: params.priority === 'all' ? undefined : params.priority,
+          includeWaitingTime: true   // NUEVO: Solicitar cálculo de tiempo de espera
+        };
 
-      // Limpiar parámetros undefined
-      Object.keys(queryParams).forEach(key => {
-        if (queryParams[key] === undefined) {
-          delete queryParams[key];
-        }
-      });
-      
-      const response = await this.get('/api/payments/transfers/pending', { params: queryParams });
-      
-      // Manejar respuesta del backend como en el test
-      if (response?.data) {
-        if (response.data.success) {
-          const transfers = response.data.data?.transfers || [];
-          
-          console.log(`✅ PaymentService: ${transfers.length} TRANSFERENCIAS pendientes`);
-          
-          return {
-            success: true,
-            data: {
-              transfers: transfers,
-              summary: {
-                totalAmount: transfers.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0),
-                count: transfers.length
+        // Limpiar parámetros undefined
+        Object.keys(queryParams).forEach(key => {
+          if (queryParams[key] === undefined) {
+            delete queryParams[key];
+          }
+        });
+        
+        const response = await this.get('/api/payments/transfers/pending', { params: queryParams });
+        
+        // MEJORADO: Procesar respuesta y asegurar campo hoursWaiting
+        if (response?.data) {
+          if (response.data.success) {
+            const transfers = response.data.data?.transfers || [];
+            
+            // NUEVO: Procesar cada transferencia para asegurar hoursWaiting
+            const processedTransfers = transfers.map(transfer => {
+              let hoursWaiting = transfer.hoursWaiting || 0;
+              
+              // Si no viene calculado del backend, calcularlo en el frontend
+              if (!hoursWaiting || hoursWaiting === 0) {
+                const transferDate = new Date(transfer.paymentDate || transfer.createdAt);
+                const now = new Date();
+                const diffTime = now - transferDate;
+                hoursWaiting = Math.max(0, diffTime / (1000 * 60 * 60)); // Convertir a horas
               }
+              
+              return {
+                ...transfer,
+                hoursWaiting: hoursWaiting,
+                // Asegurar otros campos críticos
+                amount: parseFloat(transfer.amount || 0),
+                paymentDate: transfer.paymentDate || transfer.createdAt,
+                user: transfer.user || {
+                  name: transfer.clientName || 'Cliente Anónimo',
+                  email: transfer.clientEmail || '',
+                  phone: transfer.clientPhone || ''
+                }
+              };
+            });
+            
+            console.log(`✅ PaymentService: ${processedTransfers.length} TRANSFERENCIAS pendientes procesadas`);
+            
+            // Log de debug para verificar tiempos de espera
+            if (processedTransfers.length > 0) {
+              const avgHours = processedTransfers.reduce((sum, t) => sum + t.hoursWaiting, 0) / processedTransfers.length;
+              const maxHours = Math.max(...processedTransfers.map(t => t.hoursWaiting));
+              console.log(`⏱️ Tiempos de espera - Promedio: ${avgHours.toFixed(1)}h, Máximo: ${maxHours.toFixed(1)}h`);
             }
-          };
-        } else {
-          return {
-            success: true,
-            data: {
-              transfers: response.data.transfers || [],
-              summary: response.data.summary || { totalAmount: 0, count: 0 }
-            }
-          };
+            
+            return {
+              success: true,
+              data: {
+                transfers: processedTransfers,
+                summary: {
+                  totalAmount: processedTransfers.reduce((sum, t) => sum + (t.amount || 0), 0),
+                  count: processedTransfers.length,
+                  avgHours: processedTransfers.length > 0 ? 
+                    processedTransfers.reduce((sum, t) => sum + t.hoursWaiting, 0) / processedTransfers.length : 0,
+                  critical: processedTransfers.filter(t => t.hoursWaiting > 24).length,
+                  high: processedTransfers.filter(t => t.hoursWaiting > 12 && t.hoursWaiting <= 24).length,
+                  medium: processedTransfers.filter(t => t.hoursWaiting > 4 && t.hoursWaiting <= 12).length,
+                  normal: processedTransfers.filter(t => t.hoursWaiting <= 4).length
+                }
+              }
+            };
+          } else {
+            return {
+              success: true,
+              data: {
+                transfers: response.data.transfers || [],
+                summary: response.data.summary || { totalAmount: 0, count: 0 }
+              }
+            };
+          }
         }
+        
+        return response;
+        
+      } catch (error) {
+        console.error('❌ PaymentService: Error obteniendo transferencias:', error);
+        return {
+          success: true,
+          data: {
+            transfers: [],
+            summary: { 
+              totalAmount: 0, 
+              count: 0,
+              avgHours: 0,
+              critical: 0,
+              high: 0,
+              medium: 0,
+              normal: 0
+            }
+          }
+        };
       }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error obteniendo transferencias:', error);
-      return {
-        success: true,
-        data: {
-          transfers: [],
-          summary: { totalAmount: 0, count: 0 }
-        }
-      };
     }
-  }
 
   /**
    * Obtener transferencias pendientes con detalles completos
