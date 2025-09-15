@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
 
-export const usePaymentsData = () => {
+const usePaymentsData = () => {
   // Estados principales de pagos
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,13 +39,12 @@ export const usePaymentsData = () => {
           setPayments(response.data);
           setTotalPayments(response.data.length);
         }
-        console.log(`${payments.length} pagos cargados exitosamente`);
+        console.log(`${response.data.payments?.length || response.data.length || 0} pagos cargados exitosamente`);
       }
     } catch (error) {
       console.error('Error cargando pagos:', error);
       setPayments([]);
       setTotalPayments(0);
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -128,6 +127,8 @@ export const usePaymentsData = () => {
     setSearchTerm: handleSearch
   };
 };
+
+export default usePaymentsData;
 
 // Este hook encapsula toda la lógica relacionada con la gestión de pagos
 // Maneja la carga de datos, paginación, búsqueda y utilidades de formateo

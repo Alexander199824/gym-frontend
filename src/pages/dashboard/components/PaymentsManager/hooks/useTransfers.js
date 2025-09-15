@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
 
-export const useTransfers = (onSave) => {
+const useTransfers = (onSave) => {
   // Estados principales de transferencias
   const [pendingTransfers, setPendingTransfers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,6 @@ export const useTransfers = (onSave) => {
     } catch (error) {
       console.error('Error cargando transferencias:', error);
       setPendingTransfers([]);
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -75,7 +74,6 @@ export const useTransfers = (onSave) => {
     } catch (error) {
       console.error('Error validando transferencia:', error);
       showError('Error al procesar transferencia');
-      throw error;
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev);
@@ -188,6 +186,8 @@ export const useTransfers = (onSave) => {
     getTransferStats
   };
 };
+
+export default useTransfers;
 
 // Este hook encapsula toda la lógica relacionada con transferencias bancarias
 // Maneja la validación, aprobación y rechazo de transferencias pendientes

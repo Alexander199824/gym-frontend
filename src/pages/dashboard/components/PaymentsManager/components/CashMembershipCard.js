@@ -12,8 +12,8 @@ import {
 const CashMembershipCard = ({ 
   membership, 
   onActivate, 
-  isProcessing, 
-  formatCurrency, 
+  isProcessing = false, 
+  formatCurrency,
   formatDate,
   showSuccess,
   showError 
@@ -24,7 +24,9 @@ const CashMembershipCard = ({
   
   // Manejar la activación de la membresía
   const handleActivation = () => {
-    onActivate(membership.id, showSuccess, showError, formatCurrency);
+    if (onActivate && formatCurrency) {
+      onActivate(membership.id, showSuccess, showError, formatCurrency);
+    }
   };
   
   // Generar iniciales del usuario
@@ -106,7 +108,7 @@ const CashMembershipCard = ({
               <div className="text-gray-500 mb-1">Precio</div>
               <div className="text-xl font-bold text-green-600 flex items-center">
                 <Bird className="w-4 h-4 mr-1" />
-                {formatCurrency(membership.price)}
+                {formatCurrency && formatCurrency(membership.price)}
               </div>
             </div>
             
@@ -114,7 +116,7 @@ const CashMembershipCard = ({
             <div>
               <div className="text-gray-500 mb-1">Creada</div>
               <div className="text-gray-700">
-                {formatDate(membership.createdAt, 'dd/MM/yyyy')}
+                {formatDate && formatDate(membership.createdAt, 'dd/MM/yyyy')}
               </div>
             </div>
             
@@ -185,7 +187,7 @@ const CashMembershipCard = ({
           ) : (
             <>
               <CheckCircle className="w-4 h-4 mr-2" />
-              Recibir {formatCurrency(membership.price)}
+              Recibir {formatCurrency && formatCurrency(membership.price)}
             </>
           )}
         </button>
@@ -193,7 +195,7 @@ const CashMembershipCard = ({
         {/* Información de última actualización */}
         {membership.updatedAt && membership.updatedAt !== membership.createdAt && (
           <div className="mt-2 text-xs text-gray-400 text-center">
-            Actualizada: {formatDate(membership.updatedAt, 'dd/MM/yyyy HH:mm')}
+            Actualizada: {formatDate && formatDate(membership.updatedAt, 'dd/MM/yyyy HH:mm')}
           </div>
         )}
       </div>

@@ -9,10 +9,10 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
 
 // Importación de hooks personalizados
-import { usePaymentsData } from './PaymentsManager/hooks/usePaymentsData';
-import { useCashMemberships } from './PaymentsManager/hooks/useCashMemberships';
-import { useTransfers } from './PaymentsManager/hooks/useTransfers';
-import { useStatistics } from './PaymentsManager/hooks/useStatistics';
+import usePaymentsData from './PaymentsManager/hooks/usePaymentsData';
+import useCashMemberships from './PaymentsManager/hooks/useCashMemberships';
+import useTransfers from './PaymentsManager/hooks/useTransfers';
+import useStatistics from './PaymentsManager/hooks/useStatistics';
 
 // Importación de componentes de tabs
 import PaymentsTab from './PaymentsManager/components/PaymentsTab';
@@ -36,13 +36,18 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   
   // Función para refrescar todos los datos
   const handleRefreshAll = async () => {
-    await Promise.all([
-      paymentsData.loadPayments(),
-      cashData.loadPendingCashMemberships(),
-      transfersData.loadPendingTransfers(),
-      statisticsData.loadStatistics(),
-      statisticsData.loadFinancialDashboard()
-    ]);
+    try {
+      await Promise.all([
+        paymentsData.loadPayments(),
+        cashData.loadPendingCashMemberships(),
+        transfersData.loadPendingTransfers(),
+        statisticsData.loadStatistics(),
+        statisticsData.loadFinancialDashboard()
+      ]);
+    } catch (error) {
+      console.error('Error refrescando datos:', error);
+      showError('Error al actualizar los datos');
+    }
   };
   
   // Renderizado del tab activo

@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
 
-export const useStatistics = () => {
+const useStatistics = () => {
   // Estados principales de estadísticas
   const [statistics, setStatistics] = useState({});
   const [financialDashboard, setFinancialDashboard] = useState({});
@@ -26,7 +26,6 @@ export const useStatistics = () => {
     } catch (error) {
       console.error('Error cargando estadísticas:', error);
       setStatistics({});
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -44,7 +43,6 @@ export const useStatistics = () => {
     } catch (error) {
       console.error('Error cargando dashboard financiero:', error);
       setFinancialDashboard({});
-      throw error;
     }
   };
 
@@ -60,7 +58,6 @@ export const useStatistics = () => {
     } catch (error) {
       console.error('Error cargando dashboard de pendientes:', error);
       setPendingDashboard({});
-      throw error;
     }
   };
 
@@ -187,6 +184,8 @@ export const useStatistics = () => {
     getPerformanceStats
   };
 };
+
+export default useStatistics;
 
 // Este hook encapsula toda la lógica relacionada con estadísticas y métricas financieras
 // Maneja el dashboard de resumen, métricas por períodos y análisis de tendencias

@@ -5,14 +5,13 @@
 
 import React from 'react';
 import { 
-  CheckCircle, XCircle, Check, X, Loader2, Bird, 
-  Calendar, User, Phone, Mail, Building, AlertTriangle,
-  Timer, TrendingUp
+  CheckCircle, Check, X, Loader2, Bird, 
+  Calendar, Building, AlertTriangle, Timer 
 } from 'lucide-react';
 
 const TransfersTab = ({ 
-  pendingTransfers,
-  loading,
+  pendingTransfers = [],
+  loading = false,
   handleValidateTransfer,
   isTransferProcessing,
   getTransferPriority,
@@ -26,19 +25,46 @@ const TransfersTab = ({
 }) => {
 
   // Obtener transferencias ordenadas por prioridad
-  const sortedTransfers = getSortedTransfers();
+  const sortedTransfers = getSortedTransfers ? getSortedTransfers() : [...pendingTransfers].sort((a, b) => (b.hoursWaiting || 0) - (a.hoursWaiting || 0));
   
   // Obtener estadísticas de transferencias
-  const transferStats = getTransferStats();
+  const transferStats = getTransferStats ? getTransferStats() : {
+    total: pendingTransfers.length,
+    critical: pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24).length,
+    high: pendingTransfers.filter(t => (t.hoursWaiting || 0) > 12).length,
+    totalAmount: pendingTransfers.reduce((sum, t) => sum + (t.amount || 0), 0),
+    avgWaitingTime: pendingTransfers.length > 0 ? pendingTransfers.reduce((sum, t) => sum + (t.hoursWaiting || 0), 0) / pendingTransfers.length : 0
+  };
 
   // Función para manejar aprobación
   const handleApprove = (transferId) => {
-    handleValidateTransfer(transferId, true, showSuccess, showError);
+    if (handleValidateTransfer) {
+      handleValidateTransfer(transferId, true, showSuccess, showError);
+    }
   };
 
   // Función para manejar rechazo
   const handleReject = (transferId) => {
-    handleValidateTransfer(transferId, false, showSuccess, showError);
+    if (handleValidateTransfer) {
+      handleValidateTransfer(transferId, false, showSuccess, showError);
+    }
+  };
+
+  // Función para obtener información de prioridad
+  const getPriority = (transfer) => {
+    if (getTransferPriority) {
+      return getTransferPriority(transfer);
+    }
+    
+    const hoursWaiting = transfer.hoursWaiting || 0;
+    if (hoursWaiting > 24) {
+      return { level: 'critical', color: 'red', label: 'Crítica' };
+    } else if (hoursWaiting > 12) {
+      return { level: 'high', color: 'orange', label: 'Alta' };
+    } else if (hoursWaiting > 4) {
+      return { level: 'medium', color: 'yellow', label: 'Media' };
+    }
+    return { level: 'normal', color: 'green', label: 'Normal' };
   };
 
   // Función para obtener clases CSS de prioridad
@@ -98,7 +124,7 @@ const TransfersTab = ({
               <div className="text-lg font-bold text-blue-900 flex items-center justify-center">
                 <Bird className="w-4 h-4 mr-1" />
                 <span className="text-sm">
-                  {formatCurrency(transferStats.totalAmount)}
+                  {formatCurrency && formatCurrency(transferStats.totalAmount)}
                 </span>
               </div>
               <div className="text-xs text-blue-600">Total GTQ</div>
@@ -137,8 +163,8 @@ const TransfersTab = ({
           /* Lista de transferencias pendientes */
           <div className="divide-y divide-gray-200">
             {sortedTransfers.map((transfer) => {
-              const isProcessing = isTransferProcessing(transfer.id);
-              const priority = getTransferPriority(transfer);
+              const isProcessing = isTransferProcessing ? isTransferProcessing(transfer.id) : false;
+              const priority = getPriority(transfer);
               
               return (
                 <div 
@@ -174,21 +200,21 @@ const TransfersTab = ({
                       {/* Monto destacado */}
                       <div className="text-2xl font-bold text-green-600 flex items-center mb-3">
                         <Bird className="w-6 h-6 mr-2" />
-                        {formatCurrency(transfer.amount)}
+                        {formatCurrency && formatCurrency(transfer.amount)}
                       </div>
                       
                       {/* Información detallada */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                         
                         {/* Fecha y tiempo */}
                         <div className="flex items-center">
                           <Calendar className="w-4 h-4 mr-2" />
                           <div>
                             <div className="font-medium text-gray-900">
-                              {formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy')}
+                              {formatDate && formatDate(transfer.paymentDate || transfer.createdAt, 'dd/MM/yyyy')}
                             </div>
                             <div className="text-xs">
-                              {formatDate(transfer.paymentDate || transfer.createdAt, 'HH:mm')}
+                              {formatDate && formatDate(transfer.paymentDate || transfer.createdAt, 'HH:mm')}
                             </div>
                           </div>
                         </div>
@@ -208,32 +234,6 @@ const TransfersTab = ({
                             <div className="text-xs">esperando</div>
                           </div>
                         </div>
-                        
-                        {/* Email */}
-                        {transfer.user?.email && (
-                          <div className="flex items-center">
-                            <Mail className="w-4 h-4 mr-2" />
-                            <div>
-                              <div className="font-medium text-gray-900 truncate">
-                                {transfer.user.email}
-                              </div>
-                              <div className="text-xs">Email</div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Teléfono */}
-                        {transfer.user?.phone && (
-                          <div className="flex items-center">
-                            <Phone className="w-4 h-4 mr-2" />
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {transfer.user.phone}
-                              </div>
-                              <div className="text-xs">Teléfono</div>
-                            </div>
-                          </div>
-                        )}
                       </div>
                       
                       {/* Información adicional */}
@@ -241,13 +241,6 @@ const TransfersTab = ({
                         <div className="mt-3 text-sm">
                           <span className="font-medium text-gray-700">Referencia:</span>
                           <span className="ml-2 text-gray-600">{transfer.reference}</span>
-                        </div>
-                      )}
-                      
-                      {transfer.notes && (
-                        <div className="mt-2 text-sm">
-                          <span className="font-medium text-gray-700">Notas:</span>
-                          <span className="ml-2 text-gray-600">{transfer.notes}</span>
                         </div>
                       )}
                     </div>

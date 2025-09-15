@@ -5,26 +5,26 @@
 
 import React from 'react';
 import { 
-  Search, CheckCircle, Grid3X3, List, Filter, Bird, AlertTriangle 
+  Search, CheckCircle, Grid3X3, List, Bird, AlertTriangle 
 } from 'lucide-react';
 import CashMembershipCard from './CashMembershipCard';
 import CashMembershipListItem from './CashMembershipListItem';
 
 const CashTab = ({ 
-  pendingCashMemberships,
-  cashMembershipStats,
-  loading,
-  searchTerm,
+  pendingCashMemberships = [],
+  cashMembershipStats = {},
+  loading = false,
+  searchTerm = '',
   setSearchTerm,
-  cashViewMode,
+  cashViewMode = 'grid',
   setCashViewMode,
-  cashSortBy,
+  cashSortBy = 'waiting_time',
   setCashSortBy,
-  cashPriorityFilter,
+  cashPriorityFilter = 'all',
   setCashPriorityFilter,
   getFilteredCashMemberships,
   handleActivateCashMembership,
-  processingIds,
+  processingIds = new Set(),
   formatCurrency,
   formatDate,
   showSuccess,
@@ -33,7 +33,7 @@ const CashTab = ({
 }) => {
 
   // Obtener las membresías filtradas
-  const filteredMemberships = getFilteredCashMemberships();
+  const filteredMemberships = getFilteredCashMemberships ? getFilteredCashMemberships() : pendingCashMemberships;
 
   return (
     <div className="space-y-6">
@@ -67,7 +67,7 @@ const CashTab = ({
             <div className="text-lg font-bold text-blue-900 flex items-center justify-center">
               <Bird className="w-4 h-4 mr-1" />
               <span className="text-sm">
-                {formatCurrency(cashMembershipStats.totalAmount || 0)}
+                {formatCurrency && formatCurrency(cashMembershipStats.totalAmount || 0)}
               </span>
             </div>
             <div className="text-xs text-blue-600">Total GTQ</div>
@@ -80,7 +80,7 @@ const CashTab = ({
             <div className="text-lg font-bold text-purple-900 flex items-center justify-center">
               <Bird className="w-4 h-4 mr-1" />
               <span className="text-sm">
-                {formatCurrency(cashMembershipStats.avgAmount || 0)}
+                {formatCurrency && formatCurrency(cashMembershipStats.avgAmount || 0)}
               </span>
             </div>
             <div className="text-xs text-purple-600">Promedio</div>
@@ -108,7 +108,7 @@ const CashTab = ({
             type="text"
             placeholder="Buscar por nombre, email o plan..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm && setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
           />
         </div>
@@ -119,7 +119,7 @@ const CashTab = ({
           {/* Filtro de prioridad */}
           <select
             value={cashPriorityFilter}
-            onChange={(e) => setCashPriorityFilter(e.target.value)}
+            onChange={(e) => setCashPriorityFilter && setCashPriorityFilter(e.target.value)}
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
           >
             <option value="all">Todas las prioridades</option>
@@ -130,7 +130,7 @@ const CashTab = ({
           {/* Selector de ordenamiento */}
           <select
             value={cashSortBy}
-            onChange={(e) => setCashSortBy(e.target.value)}
+            onChange={(e) => setCashSortBy && setCashSortBy(e.target.value)}
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
           >
             <option value="waiting_time">Tiempo de espera</option>
@@ -142,7 +142,7 @@ const CashTab = ({
           {/* Selector de vista */}
           <div className="flex border border-gray-300 rounded-lg overflow-hidden">
             <button
-              onClick={() => setCashViewMode('grid')}
+              onClick={() => setCashViewMode && setCashViewMode('grid')}
               className={`p-2 ${
                 cashViewMode === 'grid' 
                   ? 'bg-green-100 text-green-600' 
@@ -154,7 +154,7 @@ const CashTab = ({
             </button>
             
             <button
-              onClick={() => setCashViewMode('list')}
+              onClick={() => setCashViewMode && setCashViewMode('list')}
               className={`p-2 ${
                 cashViewMode === 'list' 
                   ? 'bg-green-100 text-green-600' 
@@ -202,7 +202,7 @@ const CashTab = ({
             : 'space-y-4'
         }`}>
           {filteredMemberships.map((membership) => {
-            const isProcessing = processingIds.has(membership.id);
+            const isProcessing = processingIds.has && processingIds.has(membership.id);
             
             return cashViewMode === 'grid' ? (
               <CashMembershipCard
@@ -223,8 +223,6 @@ const CashTab = ({
                 isProcessing={isProcessing}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
-                showSuccess={showSuccess}
-                showError={showError}
               />
             );
           })}

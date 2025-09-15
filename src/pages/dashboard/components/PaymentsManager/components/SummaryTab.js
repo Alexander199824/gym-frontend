@@ -6,14 +6,13 @@
 import React from 'react';
 import { 
   Bird, CreditCard, Building, TrendingUp, TrendingDown, 
-  Calendar, Users, Activity, DollarSign, Banknote,
-  BarChart3, PieChart, LineChart
+  Calendar, Activity, Banknote, BarChart3 
 } from 'lucide-react';
 
 const SummaryTab = ({ 
-  statistics,
-  financialDashboard,
-  pendingDashboard,
+  statistics = {},
+  financialDashboard = {},
+  pendingDashboard = {},
   getMainMetrics,
   getPaymentMethodMetrics,
   getPeriodMetrics,
@@ -23,12 +22,44 @@ const SummaryTab = ({
   formatDate 
 }) => {
 
-  // Obtener todas las métricas
-  const mainMetrics = getMainMetrics();
-  const paymentMethods = getPaymentMethodMetrics();
-  const periodMetrics = getPeriodMetrics();
-  const trends = getTrends();
-  const performanceStats = getPerformanceStats();
+  // Obtener métricas principales con valores por defecto
+  const mainMetrics = getMainMetrics ? getMainMetrics() : {
+    totalIncome: statistics.totalIncome || 0,
+    totalPayments: statistics.totalPayments || 0,
+    averagePayment: statistics.averagePayment || 0,
+    completedTransactions: statistics.completedTransactions || 0,
+    failedTransactions: statistics.failedTransactions || 0
+  };
+
+  // Obtener métricas por método de pago
+  const paymentMethods = getPaymentMethodMetrics ? getPaymentMethodMetrics() : {
+    cash: statistics.cashPayments || 0,
+    card: statistics.cardPayments || 0,
+    transfer: statistics.transferPayments || 0,
+    mobile: statistics.mobilePayments || 0
+  };
+
+  // Obtener métricas por período
+  const periodMetrics = getPeriodMetrics ? getPeriodMetrics() : {
+    today: financialDashboard.today || { income: 0, expenses: 0 },
+    thisWeek: financialDashboard.thisWeek || { income: 0, expenses: 0 },
+    thisMonth: financialDashboard.thisMonth || { income: 0, expenses: 0 }
+  };
+
+  // Obtener tendencias
+  const trends = getTrends ? getTrends() : {
+    dailyTrend: { percentage: 0, direction: 'neutral' },
+    weeklyTrend: { percentage: 0, direction: 'neutral' },
+    monthlyTrend: { percentage: 0, direction: 'neutral' }
+  };
+
+  // Obtener estadísticas de rendimiento
+  const performanceStats = getPerformanceStats ? getPerformanceStats() : {
+    successRate: statistics.successRate || 0,
+    conversionRate: statistics.conversionRate || 0,
+    averageProcessingTime: statistics.averageProcessingTime || 0,
+    customerSatisfaction: statistics.customerSatisfaction || 0
+  };
 
   // Función para obtener icono de tendencia
   const getTrendIcon = (direction) => {
@@ -66,7 +97,7 @@ const SummaryTab = ({
             <Bird className="w-8 h-8 text-green-600" />
             <div className="ml-3">
               <div className="text-2xl font-bold text-green-900">
-                {formatCurrency(mainMetrics.totalIncome)}
+                {formatCurrency && formatCurrency(mainMetrics.totalIncome)}
               </div>
               <div className="text-sm text-green-600">Ingresos Totales</div>
               {trends.monthlyTrend && (
@@ -101,7 +132,7 @@ const SummaryTab = ({
             <TrendingUp className="w-8 h-8 text-orange-600" />
             <div className="ml-3">
               <div className="text-2xl font-bold text-orange-900">
-                {formatCurrency(mainMetrics.averagePayment)}
+                {formatCurrency && formatCurrency(mainMetrics.averagePayment)}
               </div>
               <div className="text-sm text-orange-600">Promedio</div>
               <div className="text-xs text-orange-500 mt-1">
@@ -131,7 +162,7 @@ const SummaryTab = ({
       {/* Métricas por método de pago */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <PieChart className="w-5 h-5 mr-2" />
+          <BarChart3 className="w-5 h-5 mr-2" />
           Métodos de Pago
         </h4>
         
@@ -166,7 +197,7 @@ const SummaryTab = ({
           
           {/* Móvil */}
           <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <DollarSign className="w-8 h-8 text-orange-600 mx-auto mb-2" />
+            <Activity className="w-8 h-8 text-orange-600 mx-auto mb-2" />
             <div className="text-2xl font-bold text-orange-900">
               {paymentMethods.mobile}
             </div>
@@ -189,14 +220,14 @@ const SummaryTab = ({
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Ingresos:</span>
               <span className="text-sm font-medium text-green-600">
-                {formatCurrency(periodMetrics.today.income)}
+                {formatCurrency && formatCurrency(periodMetrics.today.income)}
               </span>
             </div>
             
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Gastos:</span>
               <span className="text-sm font-medium text-red-600">
-                {formatCurrency(periodMetrics.today.expenses)}
+                {formatCurrency && formatCurrency(periodMetrics.today.expenses)}
               </span>
             </div>
             
@@ -208,7 +239,7 @@ const SummaryTab = ({
                     ? 'text-green-600' 
                     : 'text-red-600'
                 }`}>
-                  {formatCurrency(periodMetrics.today.income - periodMetrics.today.expenses)}
+                  {formatCurrency && formatCurrency(periodMetrics.today.income - periodMetrics.today.expenses)}
                 </span>
               </div>
             </div>
@@ -225,7 +256,7 @@ const SummaryTab = ({
         {/* Esta semana */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-            <LineChart className="w-5 h-5 mr-2" />
+            <BarChart3 className="w-5 h-5 mr-2" />
             Esta Semana
           </h4>
           
@@ -233,14 +264,14 @@ const SummaryTab = ({
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Ingresos:</span>
               <span className="text-sm font-medium text-green-600">
-                {formatCurrency(periodMetrics.thisWeek.income)}
+                {formatCurrency && formatCurrency(periodMetrics.thisWeek.income)}
               </span>
             </div>
             
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Gastos:</span>
               <span className="text-sm font-medium text-red-600">
-                {formatCurrency(periodMetrics.thisWeek.expenses)}
+                {formatCurrency && formatCurrency(periodMetrics.thisWeek.expenses)}
               </span>
             </div>
             
@@ -252,24 +283,17 @@ const SummaryTab = ({
                     ? 'text-green-600' 
                     : 'text-red-600'
                 }`}>
-                  {formatCurrency(periodMetrics.thisWeek.income - periodMetrics.thisWeek.expenses)}
+                  {formatCurrency && formatCurrency(periodMetrics.thisWeek.income - periodMetrics.thisWeek.expenses)}
                 </span>
               </div>
             </div>
-            
-            {trends.weeklyTrend && (
-              <div className={`text-xs flex items-center justify-center mt-2 ${getTrendColor(trends.weeklyTrend.direction)}`}>
-                {getTrendIcon(trends.weeklyTrend.direction)}
-                <span className="ml-1">{trends.weeklyTrend.percentage.toFixed(1)}% vs promedio</span>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Este mes */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-            <BarChart3 className="w-5 h-5 mr-2" />
+            <TrendingUp className="w-5 h-5 mr-2" />
             Este Mes
           </h4>
           
@@ -277,14 +301,14 @@ const SummaryTab = ({
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Ingresos:</span>
               <span className="text-sm font-medium text-green-600">
-                {formatCurrency(periodMetrics.thisMonth.income)}
+                {formatCurrency && formatCurrency(periodMetrics.thisMonth.income)}
               </span>
             </div>
             
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Gastos:</span>
               <span className="text-sm font-medium text-red-600">
-                {formatCurrency(periodMetrics.thisMonth.expenses)}
+                {formatCurrency && formatCurrency(periodMetrics.thisMonth.expenses)}
               </span>
             </div>
             
@@ -296,17 +320,10 @@ const SummaryTab = ({
                     ? 'text-green-600' 
                     : 'text-red-600'
                 }`}>
-                  {formatCurrency(periodMetrics.thisMonth.income - periodMetrics.thisMonth.expenses)}
+                  {formatCurrency && formatCurrency(periodMetrics.thisMonth.income - periodMetrics.thisMonth.expenses)}
                 </span>
               </div>
             </div>
-            
-            {trends.monthlyTrend && (
-              <div className={`text-xs flex items-center justify-center mt-2 ${getTrendColor(trends.monthlyTrend.direction)}`}>
-                {getTrendIcon(trends.monthlyTrend.direction)}
-                <span className="ml-1">{trends.monthlyTrend.percentage.toFixed(1)}% vs promedio</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -357,7 +374,7 @@ const SummaryTab = ({
       {/* Información adicional */}
       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
         <div className="text-sm text-gray-600 text-center">
-          Última actualización: {formatDate(new Date(), 'dd/MM/yyyy HH:mm')}
+          Última actualización: {formatDate && formatDate(new Date(), 'dd/MM/yyyy HH:mm')}
         </div>
         
         {pendingDashboard && Object.keys(pendingDashboard).length > 0 && (

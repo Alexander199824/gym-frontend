@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
 
-export const useCashMemberships = (onSave) => {
+const useCashMemberships = (onSave) => {
   // Estados principales de membresías en efectivo
   const [pendingCashMemberships, setPendingCashMemberships] = useState([]);
   const [cashMembershipStats, setCashMembershipStats] = useState({});
@@ -44,7 +44,6 @@ export const useCashMemberships = (onSave) => {
       console.error('Error cargando membresías en efectivo:', error);
       setPendingCashMemberships([]);
       setCashMembershipStats({});
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -93,7 +92,6 @@ export const useCashMemberships = (onSave) => {
     } catch (error) {
       console.error('Error activando membresía:', error);
       showError('Error al activar membresía en efectivo');
-      throw error;
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev);
@@ -212,6 +210,8 @@ export const useCashMemberships = (onSave) => {
     getCashMembershipPriorityConfig
   };
 };
+
+export default useCashMemberships;
 
 // Este hook encapsula toda la lógica específica de membresías en efectivo
 // Maneja la carga, activación, filtros y estadísticas de pagos en efectivo

@@ -47,14 +47,26 @@ const TabNavigation = ({ activeTab, onTabChange, counters }) => {
     const baseClasses = "py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center transition-colors duration-200";
     
     if (activeTab === tab.id) {
-      return `${baseClasses} border-${tab.color}-500 text-${tab.color}-600`;
+      const activeClasses = {
+        blue: 'border-blue-500 text-blue-600',
+        purple: 'border-purple-500 text-purple-600',
+        green: 'border-green-500 text-green-600',
+        orange: 'border-orange-500 text-orange-600'
+      };
+      return `${baseClasses} ${activeClasses[tab.color]}`;
     }
     
     return `${baseClasses} border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300`;
   };
 
   const getCounterClasses = (tab) => {
-    return `ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-${tab.color}-100 text-${tab.color}-800`;
+    const counterClasses = {
+      blue: 'bg-blue-100 text-blue-800',
+      purple: 'bg-purple-100 text-purple-800',
+      green: 'bg-green-100 text-green-800',
+      orange: 'bg-orange-100 text-orange-800'
+    };
+    return `ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs ${counterClasses[tab.color]}`;
   };
 
   const getUrgentClasses = () => {
