@@ -6,13 +6,13 @@
 // src/pages/dashboard/components/PaymentsManager/components/CashMembershipCard.js
 // Author: Alexander Echeverria
 // Componente de tarjeta para membresías en efectivo pendientes (vista grid)
-// MEJORADO: Ahora muestra información detallada como en el test y transferencias
+// MEJORADO: Ahora incluye el estado del pago como en el historial
 
 import React, { useState } from 'react';
 import { 
   CheckCircle, Timer, Bird, Mail, Phone, Loader2, CreditCard, 
   Calendar, X, AlertTriangle, User, Clock, Building, FileText,
-  MapPin, Eye, EyeOff, ChevronDown, ChevronUp
+  MapPin, Eye, EyeOff, ChevronDown, ChevronUp, Check
 } from 'lucide-react';
 
 const CashMembershipCard = ({ 
@@ -30,9 +30,24 @@ const CashMembershipCard = ({
   // Estado para expandir/contraer información detallada
   const [isExpanded, setIsExpanded] = useState(false);
   
+  // Función para obtener configuración del estado del pago
+  const getStatusConfig = (status) => {
+    const configs = {
+      completed: { label: 'Completado', color: 'text-green-600', bg: 'bg-green-100', icon: Check },
+      pending: { label: 'Pendiente', color: 'text-yellow-600', bg: 'bg-yellow-100', icon: Clock },
+      failed: { label: 'Fallido', color: 'text-red-600', bg: 'bg-red-100', icon: X },
+      cancelled: { label: 'Cancelado', color: 'text-gray-600', bg: 'bg-gray-100', icon: X },
+      waiting_payment: { label: 'Esperando Pago', color: 'text-orange-600', bg: 'bg-orange-100', icon: Timer }
+    };
+    return configs[status] || configs.pending;
+  };
+  
   // Determinar si es candidato a cancelar (no urgente)
   const isCandidateForCancellation = (membership.hoursWaiting || 0) > 24;
   const isVeryOld = (membership.hoursWaiting || 0) > 48;
+  
+  const statusConfig = getStatusConfig(membership.status || 'pending');
+  const StatusIcon = statusConfig.icon;
   
   // Manejar la activación de la membresía
   const handleActivation = () => {
@@ -136,9 +151,17 @@ const CashMembershipCard = ({
           
           {/* Datos del cliente */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
-              {membership.user?.name || 'Cliente Anónimo'}
-            </h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 truncate">
+                {membership.user?.name || 'Cliente Anónimo'}
+              </h3>
+              
+              {/* NUEVO: Badge de estado del pago */}
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bg}`}>
+                <StatusIcon className="w-3 h-3 mr-1" />
+                {statusConfig.label}
+              </span>
+            </div>
             
             <div className="text-sm text-gray-500 space-y-1">
               {membership.user?.email && (
@@ -213,6 +236,39 @@ const CashMembershipCard = ({
         {/* Información expandida */}
         {isExpanded && (
           <div className="space-y-4 mb-4">
+            
+            {/* Información del estado del pago */}
+            <div className="bg-indigo-50 rounded-lg p-4">
+              <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                <StatusIcon className="w-4 h-4 mr-2" />
+                Estado del Pago
+              </h5>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-700">Estado actual:</span>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bg}`}>
+                    <StatusIcon className="w-3 h-3 mr-1" />
+                    {statusConfig.label}
+                  </span>
+                </div>
+                
+                <div>
+                  <span className="font-medium text-gray-700">Descripción:</span>
+                  <div className="text-gray-600 mt-1">
+                    {membership.status === 'pending' || membership.status === 'waiting_payment' ? 
+                      'Cliente puede llegar cuando guste a realizar el pago en efectivo' :
+                     membership.status === 'completed' ? 
+                      'Pago en efectivo recibido y membresía activada' :
+                     membership.status === 'cancelled' ? 
+                      'Membresía cancelada - Cliente no llegó a pagar' :
+                     membership.status === 'failed' ? 
+                      'El pago no pudo ser procesado' :
+                      'Estado del pago en efectivo'}
+                  </div>
+                </div>
+              </div>
+            </div>
             
             {/* Información temporal detallada */}
             <div className="bg-blue-50 rounded-lg p-4">
@@ -380,67 +436,85 @@ const CashMembershipCard = ({
                 {membership.paymentType && (
                   <div><span className="font-medium">Tipo de Pago:</span> {membership.paymentType}</div>
                 )}
+                <div><span className="font-medium">Estado:</span> {statusConfig.label}</div>
               </div>
             </div>
           </div>
         )}
         
-        {/* Botones de acción - Recibir Y Cancelar */}
-        <div className="space-y-3">
-          
-          {/* Botón principal: Recibir pago */}
-          <button
-            onClick={handleActivation}
-            disabled={isProcessing || !membership.canActivate}
-            className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
-              isProcessing && processingType === 'activating'
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : (membership.canActivate !== false)
-                  ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {isProcessing && processingType === 'activating' ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Activando...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Recibir {formatCurrency && formatCurrency(membership.price)}
-              </>
-            )}
-          </button>
-          
-          {/* Botón secundario: Cancelar (si es candidato) */}
-          {(isCandidateForCancellation || membership.canCancel) && (
+        {/* Botones de acción - Solo mostrar si está pendiente */}
+        {(membership.status === 'pending' || membership.status === 'waiting_payment') && (
+          <div className="space-y-3">
+            
+            {/* Botón principal: Recibir pago */}
             <button
-              onClick={handleCancellation}
-              disabled={isProcessing || !onCancel}
-              className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm border-2 ${
-                isProcessing && processingType === 'cancelling'
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' 
-                  : isVeryOld
-                    ? 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 hover:border-red-400'
-                    : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 hover:border-orange-400'
+              onClick={handleActivation}
+              disabled={isProcessing || !membership.canActivate}
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+                isProcessing && processingType === 'activating'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : (membership.canActivate !== false)
+                    ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
-              title={onCancel ? "Cancelar membresía - Cliente no llegó" : "Funcionalidad en desarrollo"}
             >
-              {isProcessing && processingType === 'cancelling' ? (
+              {isProcessing && processingType === 'activating' ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Cancelando...
+                  Activando...
                 </>
               ) : (
                 <>
-                  <X className="w-4 h-4 mr-2" />
-                  {onCancel ? 'Cliente no llegó' : 'Cancelar (próximamente)'}
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Recibir {formatCurrency && formatCurrency(membership.price)}
                 </>
               )}
             </button>
-          )}
-        </div>
+            
+            {/* Botón secundario: Cancelar (si es candidato) */}
+            {(isCandidateForCancellation || membership.canCancel) && (
+              <button
+                onClick={handleCancellation}
+                disabled={isProcessing || !onCancel}
+                className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm border-2 ${
+                  isProcessing && processingType === 'cancelling'
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' 
+                    : isVeryOld
+                      ? 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 hover:border-red-400'
+                      : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 hover:border-orange-400'
+                }`}
+                title={onCancel ? "Cancelar membresía - Cliente no llegó" : "Funcionalidad en desarrollo"}
+              >
+                {isProcessing && processingType === 'cancelling' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Cancelando...
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4 mr-2" />
+                    {onCancel ? 'Cliente no llegó' : 'Cancelar (próximamente)'}
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+        
+        {/* Mensaje para pagos ya procesados */}
+        {membership.status !== 'pending' && membership.status !== 'waiting_payment' && (
+          <div className={`text-center py-3 px-4 rounded-lg text-sm ${
+            membership.status === 'completed' ? 'bg-green-100 text-green-800' :
+            membership.status === 'failed' ? 'bg-red-100 text-red-800' :
+            membership.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+            'bg-blue-100 text-blue-800'
+          }`}>
+            {membership.status === 'completed' ? '✅ Pago en efectivo ya recibido' :
+             membership.status === 'failed' ? '❌ Pago fallido' :
+             membership.status === 'cancelled' ? '⚪ Membresía cancelada' :
+             '🔄 Membresía en proceso'}
+          </div>
+        )}
         
         {/* Nota explicativa para efectivo */}
         <div className="mt-3 text-xs text-gray-500 text-center italic">

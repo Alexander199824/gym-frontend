@@ -3,8 +3,7 @@
 // Componente completo del tab de efectivo con estadísticas, filtros y lista de membresías
 // Maneja tanto vista grid como lista y todos los controles de filtrado
 
-// src/pages/dashboard/components/PaymentsManager/components/CashTab.js
-// Tab de efectivo con nueva lógica y botones de cancelación
+
 import React from 'react';
 import { 
   Search, CheckCircle, Grid3X3, List, Bird, AlertTriangle, 
