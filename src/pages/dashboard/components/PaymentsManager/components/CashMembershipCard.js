@@ -4,11 +4,15 @@
 // Muestra información detallada del cliente, plan y permite activación de membresía
 
 // src/pages/dashboard/components/PaymentsManager/components/CashMembershipCard.js
-// Lógica corregida: Sin urgentes por tiempo + Botón de cancelar
-import React from 'react';
+// Author: Alexander Echeverria
+// Componente de tarjeta para membresías en efectivo pendientes (vista grid)
+// MEJORADO: Ahora muestra información detallada como en el test y transferencias
+
+import React, { useState } from 'react';
 import { 
-  CheckCircle, Timer, Bird, Mail, Phone, Loader2, 
-  CreditCard, Calendar, X, AlertTriangle 
+  CheckCircle, Timer, Bird, Mail, Phone, Loader2, CreditCard, 
+  Calendar, X, AlertTriangle, User, Clock, Building, FileText,
+  MapPin, Eye, EyeOff, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 const CashMembershipCard = ({ 
@@ -22,6 +26,9 @@ const CashMembershipCard = ({
   showSuccess,
   showError 
 }) => {
+
+  // Estado para expandir/contraer información detallada
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // Determinar si es candidato a cancelar (no urgente)
   const isCandidateForCancellation = (membership.hoursWaiting || 0) > 24;
@@ -60,6 +67,32 @@ const CashMembershipCard = ({
     return 'bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 border-gray-200';
   };
 
+  // Función para formatear tiempo de forma más detallada
+  const formatDetailedTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = now - date;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    
+    const formattedDate = formatDate ? formatDate(dateString, 'dd/MM/yyyy HH:mm') : date.toLocaleString();
+    
+    let timeAgo = '';
+    if (diffDays > 0) {
+      timeAgo = `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
+    } else if (diffHours > 0) {
+      timeAgo = `hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+    } else if (diffMinutes > 0) {
+      timeAgo = `hace ${diffMinutes} minuto${diffMinutes > 1 ? 's' : ''}`;
+    } else {
+      timeAgo = 'ahora mismo';
+    }
+    
+    return `${formattedDate} (${timeAgo})`;
+  };
+
   return (
     <div className={getCardClasses()}>
       
@@ -70,15 +103,20 @@ const CashMembershipCard = ({
             ? 'bg-red-50 border-red-200' 
             : 'bg-orange-50 border-orange-200'
         }`}>
-          <div className={`flex items-center text-sm ${
+          <div className={`flex items-center justify-between text-sm ${
             isVeryOld ? 'text-red-700' : 'text-orange-700'
           }`}>
-            <Timer className="w-4 h-4 mr-1" />
-            <span className="font-medium">
-              {isVeryOld 
-                ? `Muy antiguo: ${membership.hoursWaiting?.toFixed(1) || '0.0'} horas - Considerar cancelar`
-                : `Esperando: ${membership.hoursWaiting?.toFixed(1) || '0.0'} horas - Evaluar cancelar`
-              }
+            <div className="flex items-center">
+              <Timer className="w-4 h-4 mr-1" />
+              <span className="font-medium">
+                {isVeryOld 
+                  ? `Muy antiguo: ${membership.hoursWaiting?.toFixed(1) || '0.0'} horas`
+                  : `Esperando: ${membership.hoursWaiting?.toFixed(1) || '0.0'} horas`
+                }
+              </span>
+            </div>
+            <span className="text-xs">
+              {isVeryOld ? 'Considerar cancelar' : 'Evaluar cancelar'}
             </span>
           </div>
         </div>
@@ -118,9 +156,18 @@ const CashMembershipCard = ({
               )}
             </div>
           </div>
+
+          {/* Botón para expandir/contraer */}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            title={isExpanded ? 'Contraer información' : 'Ver más información'}
+          >
+            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
         </div>
         
-        {/* Detalles del plan */}
+        {/* Detalles del plan - información básica */}
         <div className="bg-gray-50 rounded-lg p-4 mb-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             
@@ -145,7 +192,7 @@ const CashMembershipCard = ({
             <div>
               <div className="text-gray-500 mb-1">Creada</div>
               <div className="text-gray-700">
-                {formatDate && formatDate(membership.createdAt, 'dd/MM/yyyy')}
+                {formatDate && formatDate(membership.createdAt, 'dd/MM/yyyy HH:mm')}
               </div>
             </div>
             
@@ -162,41 +209,179 @@ const CashMembershipCard = ({
             </div>
           </div>
         </div>
-        
-        {/* Horarios reservados */}
-        {membership.schedule && Object.keys(membership.schedule).length > 0 && (
-          <div className="mb-4">
-            <div className="text-sm font-medium text-gray-700 mb-2">Horarios reservados:</div>
-            <div className="bg-blue-50 rounded-lg p-3">
-              <div className="space-y-1">
-                {Object.entries(membership.schedule).slice(0, 3).map(([day, slots]) => (
-                  <div key={day} className="text-xs">
-                    <span className="font-medium text-blue-900 capitalize">
-                      {day.substring(0, 3)}:
-                    </span>{' '}
-                    <span className="text-blue-700">
-                      {Array.isArray(slots) 
-                        ? slots.map(slot => slot.timeRange || slot).join(', ')
-                        : 'Horario no especificado'
-                      }
-                    </span>
+
+        {/* Información expandida */}
+        {isExpanded && (
+          <div className="space-y-4 mb-4">
+            
+            {/* Información temporal detallada */}
+            <div className="bg-blue-50 rounded-lg p-4">
+              <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                <Clock className="w-4 h-4 mr-2" />
+                Información Temporal
+              </h5>
+              
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start space-x-2">
+                  <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-gray-900">Fecha de creación</div>
+                    <div className="text-gray-600">
+                      {formatDetailedTime(membership.createdAt)}
+                    </div>
                   </div>
-                ))}
+                </div>
                 
-                {Object.keys(membership.schedule).length > 3 && (
-                  <div className="text-xs text-blue-600">
-                    +{Object.keys(membership.schedule).length - 3} días más...
+                {membership.updatedAt && membership.updatedAt !== membership.createdAt && (
+                  <div className="flex items-start space-x-2">
+                    <Clock className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-medium text-gray-900">Última actualización</div>
+                      <div className="text-gray-600">
+                        {formatDetailedTime(membership.updatedAt)}
+                      </div>
+                    </div>
                   </div>
+                )}
+                
+                <div className="flex items-start space-x-2">
+                  <Timer className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-medium text-gray-900">Estado actual</div>
+                    <div className="text-gray-600">
+                      Cliente puede llegar cuando guste durante el día
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Información de membresía detallada */}
+            {(membership.plan?.description || membership.membership) && (
+              <div className="bg-purple-50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <Building className="w-4 h-4 mr-2" />
+                  Detalles de la Membresía
+                </h5>
+                
+                <div className="space-y-2 text-sm">
+                  {membership.plan?.description && (
+                    <div>
+                      <span className="font-medium text-gray-700">Descripción del plan:</span>
+                      <div className="text-gray-600 mt-1">{membership.plan.description}</div>
+                    </div>
+                  )}
+                  
+                  {membership.membership && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                      {membership.membership.startDate && (
+                        <div>
+                          <span className="font-medium text-gray-700">Fecha de inicio:</span>
+                          <div className="text-gray-600">
+                            {formatDate && formatDate(membership.membership.startDate, 'dd/MM/yyyy')}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {membership.membership.endDate && (
+                        <div>
+                          <span className="font-medium text-gray-700">Fecha de vencimiento:</span>
+                          <div className="text-gray-600">
+                            {formatDate && formatDate(membership.membership.endDate, 'dd/MM/yyyy')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Horarios reservados */}
+            {membership.schedule && Object.keys(membership.schedule).length > 0 && (
+              <div className="bg-indigo-50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Horarios Reservados
+                </h5>
+                
+                <div className="space-y-2">
+                  {Object.entries(membership.schedule).map(([day, slots]) => (
+                    <div key={day} className="flex items-center space-x-3 text-sm">
+                      <span className="font-medium text-indigo-900 capitalize min-w-[80px]">
+                        {day}:
+                      </span>
+                      <span className="text-indigo-700">
+                        {Array.isArray(slots) 
+                          ? slots.map(slot => slot.timeRange || slot).join(', ')
+                          : 'Horario no especificado'
+                        }
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Información de quién registró */}
+            {membership.registeredByUser && (
+              <div className="bg-green-50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <User className="w-4 h-4 mr-2" />
+                  Información de Registro
+                </h5>
+                
+                <div className="text-sm space-y-2">
+                  <div>
+                    <span className="font-medium text-gray-700">Registrado por:</span>
+                    <div className="text-gray-600">
+                      {membership.registeredByUser.firstName} {membership.registeredByUser.lastName}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <span className="font-medium text-gray-700">Rol:</span>
+                    <div className="text-gray-600 capitalize">{membership.registeredByUser.role}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Descripción y notas */}
+            {(membership.description || membership.notes) && (
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Notas y Descripción
+                </h5>
+                
+                <div className="space-y-2 text-sm">
+                  {membership.description && (
+                    <div>
+                      <span className="font-medium text-gray-700">Descripción:</span>
+                      <div className="text-gray-600 mt-1">{membership.description}</div>
+                    </div>
+                  )}
+                  
+                  {membership.notes && (
+                    <div>
+                      <span className="font-medium text-gray-700">Notas:</span>
+                      <div className="text-gray-600 mt-1">{membership.notes}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Información del ID de la membresía */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="text-xs text-gray-500 space-y-1">
+                <div><span className="font-medium">ID de Membresía:</span> {membership.id}</div>
+                {membership.paymentType && (
+                  <div><span className="font-medium">Tipo de Pago:</span> {membership.paymentType}</div>
                 )}
               </div>
             </div>
-          </div>
-        )}
-        
-        {/* Información adicional del plan */}
-        {membership.plan?.description && (
-          <div className="mb-4 text-sm text-gray-600">
-            <span className="font-medium">Descripción:</span> {membership.plan.description}
           </div>
         )}
         
@@ -256,13 +441,6 @@ const CashMembershipCard = ({
             </button>
           )}
         </div>
-        
-        {/* Información de última actualización */}
-        {membership.updatedAt && membership.updatedAt !== membership.createdAt && (
-          <div className="mt-2 text-xs text-gray-400 text-center">
-            Actualizada: {formatDate && formatDate(membership.updatedAt, 'dd/MM/yyyy HH:mm')}
-          </div>
-        )}
         
         {/* Nota explicativa para efectivo */}
         <div className="mt-3 text-xs text-gray-500 text-center italic">
