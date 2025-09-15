@@ -4,7 +4,7 @@
 // Incluye contadores dinámicos y indicadores visuales de estado
 
 import React from 'react';
-import { Coins, Building, Banknote, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Coins, Building, Banknote, TrendingUp, Clock } from 'lucide-react';
 
 const TabNavigation = ({ activeTab, onTabChange, counters }) => {
   const tabs = [
@@ -30,9 +30,9 @@ const TabNavigation = ({ activeTab, onTabChange, counters }) => {
       icon: Banknote,
       color: 'green',
       counter: counters?.pendingCash || 0,
-      urgentCounter: counters?.urgentCash || 0,
+      oldCounter: counters?.urgentCash || 0,
       showCounter: true,
-      showUrgent: true
+      showOld: true
     },
     {
       id: 'summary',
@@ -69,7 +69,7 @@ const TabNavigation = ({ activeTab, onTabChange, counters }) => {
     return `ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs ${counterClasses[tab.color]}`;
   };
 
-  const getUrgentClasses = () => {
+  const getOldClasses = () => {
     return "ml-1 inline-flex items-center px-1 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800";
   };
 
@@ -95,10 +95,10 @@ const TabNavigation = ({ activeTab, onTabChange, counters }) => {
                 </span>
               )}
               
-              {/* Contador de urgentes (solo para efectivo) */}
-              {tab.showUrgent && tab.urgentCounter > 0 && (
-                <span className={getUrgentClasses()}>
-                  <AlertTriangle className="w-3 h-3" />
+              {/* Contador de antiguos (solo para efectivo) */}
+              {tab.showOld && tab.oldCounter > 0 && (
+                <span className={getOldClasses()}>
+                  <Clock className="w-3 h-3" />
                 </span>
               )}
             </button>

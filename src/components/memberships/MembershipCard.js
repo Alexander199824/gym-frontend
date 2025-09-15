@@ -3,7 +3,7 @@
 // FUNCIÓN: Componente para mostrar información de membresías - CON TRADUCCIÓN AUTOMÁTICA
 // USADO EN: ClientDashboard, páginas de membresías
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Calendar, 
@@ -17,20 +17,17 @@ import {
   Edit,
   Trash2,
   User,
-  Banknote
+  Banknote,
+  Loader2
 } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useMembershipTranslation } from '../../hooks/useTranslation';
+import apiService from '../../services/apiService';
 
 // FUNCIÓN HELPER: Convertir precio a número y formatear de forma segura
 const formatPrice = (price) => {
   const numPrice = parseFloat(price) || 0;
   return numPrice.toFixed(2);
-};
-
-// FUNCIÓN HELPER: Formatear precio con símbolo
-const formatPriceWithSymbol = (price) => {
-  return `Q${formatPrice(price)}`;
 };
 
 const MembershipCard = ({ 
@@ -42,8 +39,44 @@ const MembershipCard = ({
   onEdit = null,
   className = ''
 }) => {
-  const { formatCurrency, formatDate } = useApp();
+  const { formatCurrency, formatDate, showError } = useApp();
   const { translateMembershipType, translateMembershipStatus, translatePaymentMethod } = useMembershipTranslation();
+  
+  // Estados para datos dinámicos del backend
+  const [gymConfig, setGymConfig] = useState(null);
+  const [contactInfo, setContactInfo] = useState(null);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  
+  // Cargar configuración del gimnasio y datos de contacto al montar
+  useEffect(() => {
+    loadGymConfiguration();
+  }, []);
+
+  const loadGymConfiguration = async () => {
+    try {
+      setLoadingConfig(true);
+      
+      // Obtener configuración del gimnasio del backend
+      const [configResponse, contactResponse] = await Promise.all([
+        apiService.getGymConfig(),
+        apiService.getGymContactInfo() // Nuevo endpoint necesario
+      ]);
+      
+      if (configResponse?.success) {
+        setGymConfig(configResponse.data);
+      }
+      
+      if (contactResponse?.success) {
+        setContactInfo(contactResponse.data);
+      }
+      
+    } catch (error) {
+      console.error('Error cargando configuración del gimnasio:', error);
+      showError('Error cargando información del gimnasio');
+    } finally {
+      setLoadingConfig(false);
+    }
+  };
   
   // Calcular días hasta vencimiento
   const getDaysUntilExpiry = (endDate) => {
@@ -56,16 +89,17 @@ const MembershipCard = ({
   
   const daysUntilExpiry = getDaysUntilExpiry(membership.endDate);
   
-  // Estado de la membresía - COMPLETAMENTE EN ESPAÑOL CON TRADUCCIÓN AUTOMÁTICA
+  // Estado de la membresía - DINÁMICO basado en backend
   const getStatusConfig = () => {
-    // Traducir el estado automáticamente
+    // Usar traducción automática del backend
     const translatedStatus = translateMembershipStatus(membership.status);
     
+    // Estados específicos que vienen del backend
     switch (membership.status) {
       case 'active':
         if (daysUntilExpiry < 0) {
           return {
-            label: 'Vencida',
+            label: translatedStatus || 'Vencida',
             color: 'red',
             bg: 'bg-red-50',
             text: 'text-red-700',
@@ -74,7 +108,7 @@ const MembershipCard = ({
           };
         } else if (daysUntilExpiry <= 3) {
           return {
-            label: 'Por vencer',
+            label: translatedStatus || 'Por vencer',
             color: 'yellow',
             bg: 'bg-yellow-50',
             text: 'text-yellow-700',
@@ -83,7 +117,7 @@ const MembershipCard = ({
           };
         } else if (daysUntilExpiry <= 7) {
           return {
-            label: 'Vence pronto',
+            label: translatedStatus || 'Vence pronto',
             color: 'orange',
             bg: 'bg-orange-50',
             text: 'text-orange-700',
@@ -92,7 +126,7 @@ const MembershipCard = ({
           };
         } else {
           return {
-            label: 'Activa',
+            label: translatedStatus || 'Activa',
             color: 'green',
             bg: 'bg-green-50',
             text: 'text-green-700',
@@ -100,62 +134,25 @@ const MembershipCard = ({
             icon: CheckCircle
           };
         }
-      case 'expired':
+      case 'pending_validation':
         return {
-          label: 'Vencida',
-          color: 'red',
-          bg: 'bg-red-50',
-          text: 'text-red-700',
-          border: 'border-red-200',
-          icon: XCircle
-        };
-      case 'suspended':
-        return {
-          label: 'Suspendida',
-          color: 'gray',
-          bg: 'bg-gray-50',
-          text: 'text-gray-700',
-          border: 'border-gray-200',
-          icon: AlertCircle
-        };
-      case 'cancelled':
-        return {
-          label: 'Cancelada',
-          color: 'gray',
-          bg: 'bg-gray-50',
-          text: 'text-gray-700',
-          border: 'border-gray-200',
-          icon: XCircle
-        };
-      case 'pending':
-        return {
-          label: 'Pendiente',
-          color: 'blue',
-          bg: 'bg-blue-50',
-          text: 'text-blue-700',
-          border: 'border-blue-200',
+          label: translatedStatus || 'Pendiente de validación',
+          color: 'yellow',
+          bg: 'bg-yellow-50',
+          text: 'text-yellow-700',
+          border: 'border-yellow-200',
           icon: Clock
         };
       case 'pending_payment':
         return {
-          label: 'Pendiente de pago',
-          color: 'yellow',
-          bg: 'bg-yellow-50',
-          text: 'text-yellow-700',
-          border: 'border-yellow-200',
+          label: translatedStatus || 'Pendiente de pago',
+          color: 'blue',
+          bg: 'bg-blue-50',
+          text: 'text-blue-700',
+          border: 'border-blue-200',
           icon: AlertCircle
         };
-      case 'pending_validation':
-        return {
-          label: 'Pendiente de validación',
-          color: 'yellow',
-          bg: 'bg-yellow-50',
-          text: 'text-yellow-700',
-          border: 'border-yellow-200',
-          icon: Clock
-        };
       default:
-        // Usar traducción automática para estados desconocidos
         return {
           label: translatedStatus || 'Estado desconocido',
           color: 'gray',
@@ -183,75 +180,42 @@ const MembershipCard = ({
   
   const progress = calculateProgress();
   
-  // Función para obtener tipo de membresía en español - CON TRADUCCIÓN AUTOMÁTICA
+  // Función para obtener tipo de membresía - DINÁMICO
   const getMembershipTypeName = () => {
-    // Usar el hook de traducción para obtener el nombre en español
+    // Usar traducción del backend
     const translatedType = translateMembershipType(membership);
     
-    // Si ya tenemos una traducción, usarla
-    if (translatedType && translatedType !== membership.type) {
-      return translatedType;
-    }
-    
-    // Fallback con traducciones manuales para casos específicos
-    if (membership.plan && membership.plan.name) {
+    // Si hay plan con nombre, usarlo
+    if (membership.plan?.name) {
       return membership.plan.name;
     }
     
-    switch (membership.type) {
-      case 'monthly':
-        return 'Membresía Mensual';
-      case 'daily':
-        return 'Pase Diario';
-      case 'weekly':
-        return 'Membresía Semanal';
-      case 'annual':
-        return 'Membresía Anual';
-      case 'yearly':
-        return 'Membresía Anual';
-      case 'quarterly':
-        return 'Membresía Trimestral';
-      case 'premium':
-        return 'Membresía Premium';
-      case 'basic':
-        return 'Membresía Básica';
-      case 'vip':
-        return 'Membresía VIP';
-      case 'student':
-        return 'Membresía Estudiantil';
-      default:
-        // Si no hay traducción específica, usar la traducción automática
-        return translatedType || 'Membresía';
-    }
+    // Usar traducción del backend o tipo original
+    return translatedType || membership.type || 'Membresía';
   };
 
-  // Función para traducir método de pago
+  // Función para traducir método de pago - DINÁMICO
   const getPaymentMethodName = () => {
     if (!membership.paymentMethod) return 'No especificado';
     
-    // Usar traducción automática
+    // Usar traducción automática del backend
     const translated = translatePaymentMethod(membership.paymentMethod);
     
-    // Si la traducción es diferente al original, usarla
-    if (translated && translated !== membership.paymentMethod) {
-      return translated;
-    }
-    
-    // Fallback manual para casos específicos
-    const methodMap = {
-      'card': 'Tarjeta',
-      'cash': 'Efectivo',
-      'transfer': 'Transferencia',
-      'bank_transfer': 'Transferencia Bancaria',
-      'credit_card': 'Tarjeta de Crédito',
-      'debit_card': 'Tarjeta de Débito',
-      'mobile_payment': 'Pago Móvil',
-      'stripe': 'Tarjeta (Stripe)',
-      'paypal': 'PayPal'
-    };
-    
-    return methodMap[membership.paymentMethod] || translated || membership.paymentMethod;
+    // Usar traducción del backend o valor original
+    return translated || membership.paymentMethod;
   };
+
+  // Mostrar loader mientras carga configuración
+  if (loadingConfig) {
+    return (
+      <div className={`bg-white rounded-lg shadow-lg border border-gray-200 p-6 ${className}`}>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-primary-600 mr-2" />
+          <span className="text-gray-600">Cargando información...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`
@@ -260,7 +224,7 @@ const MembershipCard = ({
       ${className}
     `}>
       
-      {/* ENCABEZADO MEJORADO CON TRADUCCIÓN */}
+      {/* ENCABEZADO CON INFORMACIÓN DINÁMICA */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <div className={`
@@ -306,7 +270,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* INFORMACIÓN DE FECHAS - TEXTOS EN ESPAÑOL */}
+      {/* INFORMACIÓN DE FECHAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <div className="flex items-center text-sm text-gray-600 mb-1">
@@ -329,21 +293,21 @@ const MembershipCard = ({
         </div>
       </div>
       
-      {/* PRECIO EN QUETZALES - MANEJO SEGURO DE PRECIOS */}
+      {/* PRECIO - FORMATO DINÁMICO DESDE BACKEND */}
       <div className="mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Banknote className="w-4 h-4 text-green-600 mr-2" />
             <span className="text-sm text-gray-600">Precio pagado:</span>
           </div>
-          <span className="text-lg font-bold text-green-600 flex items-center">
-            <span className="mr-1">Q</span>
-            {membership.price ? formatPrice(membership.price) : formatCurrency(membership.amount || 0)}
+          <span className="text-lg font-bold text-green-600">
+            {/* Usar formatCurrency del backend */}
+            {formatCurrency(membership.price || membership.amount || 0)}
           </span>
         </div>
       </div>
       
-      {/* PROGRESO - MEJORADO */}
+      {/* PROGRESO - SOLO PARA MEMBRESÍAS ACTIVAS */}
       {membership.status === 'active' && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
@@ -366,7 +330,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* TIEMPO RESTANTE - MEJORADO */}
+      {/* TIEMPO RESTANTE - SOLO PARA ACTIVAS */}
       {membership.status === 'active' && (
         <div className="mb-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg border">
           <div className="text-center">
@@ -400,9 +364,58 @@ const MembershipCard = ({
           </div>
         </div>
       )}
+
+      {/* ESTADO DE VALIDACIÓN PARA TRANSFERENCIAS */}
+      {membership.status === 'pending_validation' && (
+        <div className="mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div className="flex items-center">
+            <Clock className="w-5 h-5 text-yellow-600 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-yellow-800">
+                Membresía pendiente de validación
+              </p>
+              <p className="text-xs text-yellow-700 mt-1">
+                Nuestro equipo está validando tu pago. Te notificaremos cuando esté lista.
+              </p>
+              {contactInfo?.supportEmail && (
+                <p className="text-xs text-yellow-700 mt-1">
+                  ¿Dudas? Contacta: {contactInfo.supportEmail}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ESTADO DE PAGO PENDIENTE PARA EFECTIVO */}
+      {membership.status === 'pending_payment' && (
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center">
+            <Banknote className="w-5 h-5 text-blue-600 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-blue-800">
+                Completa tu pago en el gimnasio
+              </p>
+              <p className="text-xs text-blue-700 mt-1">
+                Visita nuestras instalaciones para activar tu membresía.
+              </p>
+              {gymConfig?.location && (
+                <p className="text-xs text-blue-700 mt-1">
+                  📍 {gymConfig.location}
+                </p>
+              )}
+              {gymConfig?.businessHours && (
+                <p className="text-xs text-blue-700 mt-1">
+                  🕒 {gymConfig.businessHours}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* RENOVACIÓN AUTOMÁTICA */}
-      {membership.autoRenew && (
+      {membership.autoRenew && membership.status === 'active' && (
         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center">
             <RefreshCw className="w-4 h-4 text-blue-600 mr-2" />
@@ -416,7 +429,7 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* MÉTODO DE PAGO - ESPAÑOL CON TRADUCCIÓN AUTOMÁTICA */}
+      {/* MÉTODO DE PAGO - DINÁMICO */}
       {membership.paymentMethod && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-between">
@@ -437,13 +450,11 @@ const MembershipCard = ({
         </div>
       )}
       
-      {/* ACCIONES - TEXTOS EN ESPAÑOL */}
+      {/* ACCIONES */}
       {showActions && (
         <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
           
-        
-          
-          {/* Renovar */}
+          {/* Renovar - Solo para activas o vencidas */}
           {(membership.status === 'active' || membership.status === 'expired') && onRenew && (
             <button
               onClick={onRenew}
@@ -454,7 +465,7 @@ const MembershipCard = ({
             </button>
           )}
           
-          {/* Editar */}
+          {/* Editar - Solo para no canceladas */}
           {onEdit && membership.status !== 'cancelled' && (
             <button
               onClick={onEdit}
@@ -465,7 +476,7 @@ const MembershipCard = ({
             </button>
           )}
           
-          {/* Cancelar */}
+          {/* Cancelar - Solo para activas */}
           {onCancel && membership.status === 'active' && (
             <button
               onClick={onCancel}
@@ -482,7 +493,7 @@ const MembershipCard = ({
   );
 };
 
-// VARIANTE: Tarjeta compacta - CON TRADUCCIÓN AUTOMÁTICA
+// VARIANTE: Tarjeta compacta - TAMBIÉN DINÁMICA
 export const CompactMembershipCard = ({ 
   membership, 
   onClick = null,
@@ -494,6 +505,8 @@ export const CompactMembershipCard = ({
   const daysUntilExpiry = Math.ceil((new Date(membership.endDate) - new Date()) / (1000 * 60 * 60 * 24));
   
   const getStatusColor = () => {
+    if (membership.status === 'pending_validation') return 'text-yellow-500';
+    if (membership.status === 'pending_payment') return 'text-blue-500';
     if (membership.status !== 'active') return 'text-gray-500';
     if (daysUntilExpiry < 0) return 'text-red-500';
     if (daysUntilExpiry <= 3) return 'text-yellow-500';
@@ -501,32 +514,23 @@ export const CompactMembershipCard = ({
   };
   
   const getStatusText = () => {
-    if (membership.status !== 'active') {
-      // Usar traducción automática para el estado
-      return translateMembershipStatus(membership.status);
-    }
+    // Usar traducción del backend
+    const translatedStatus = translateMembershipStatus(membership.status);
+    
+    if (membership.status === 'pending_validation') return translatedStatus || 'Pendiente validación';
+    if (membership.status === 'pending_payment') return translatedStatus || 'Pendiente pago';
+    if (membership.status !== 'active') return translatedStatus || 'Inactiva';
     if (daysUntilExpiry < 0) return 'Vencida';
     if (daysUntilExpiry <= 3) return 'Por vencer';
     return 'Activa';
   };
   
   const getMembershipTypeName = () => {
-    // Usar traducción automática
+    // Usar traducción del backend
     const translated = translateMembershipType(membership);
-    if (translated && translated !== membership.type) {
-      return translated;
-    }
     
-    // Fallback manual
-    if (membership.plan) return membership.plan.name;
-    
-    switch (membership.type) {
-      case 'monthly': return 'Mensual';
-      case 'daily': return 'Diario';
-      case 'weekly': return 'Semanal';
-      case 'annual': return 'Anual';
-      default: return translated || 'Membresía';
-    }
+    if (membership.plan?.name) return membership.plan.name;
+    return translated || membership.type || 'Membresía';
   };
   
   return (
@@ -556,7 +560,7 @@ export const CompactMembershipCard = ({
           <div className="flex items-center justify-end mb-1">
             <Banknote className="w-3 h-3 text-green-600 mr-1" />
             <p className="text-sm font-medium text-gray-900">
-              Q{membership.price ? formatPrice(membership.price) : formatCurrency(membership.amount || 0)}
+              {formatCurrency(membership.price || membership.amount || 0)}
             </p>
           </div>
           <p className={`text-xs font-medium ${getStatusColor()}`}>

@@ -3,9 +3,12 @@
 // Componente completo del tab de efectivo con estadísticas, filtros y lista de membresías
 // Maneja tanto vista grid como lista y todos los controles de filtrado
 
+// src/pages/dashboard/components/PaymentsManager/components/CashTab.js
+// Tab de efectivo con nueva lógica y botones de cancelación
 import React from 'react';
 import { 
-  Search, CheckCircle, Grid3X3, List, Bird, AlertTriangle 
+  Search, CheckCircle, Grid3X3, List, Bird, AlertTriangle, 
+  Clock, X 
 } from 'lucide-react';
 import CashMembershipCard from './CashMembershipCard';
 import CashMembershipListItem from './CashMembershipListItem';
@@ -24,7 +27,11 @@ const CashTab = ({
   setCashPriorityFilter,
   getFilteredCashMemberships,
   handleActivateCashMembership,
+  handleCancelCashMembership,
   processingIds = new Set(),
+  cancellingIds = new Set(),
+  isMembershipProcessing,
+  getProcessingType,
   formatCurrency,
   formatDate,
   showSuccess,
@@ -38,7 +45,7 @@ const CashTab = ({
   return (
     <div className="space-y-6">
       
-      {/* Estadísticas de efectivo */}
+      {/* Estadísticas de efectivo sin "urgentes" */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         
         {/* Total esperando */}
@@ -51,13 +58,14 @@ const CashTab = ({
           </div>
         </div>
         
-        {/* Urgentes */}
+        {/* "Antiguos" en lugar de "Urgentes" */}
         <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
           <div className="text-center">
             <div className="text-2xl font-bold text-orange-900">
-              {cashMembershipStats.urgent || 0}
+              {cashMembershipStats.old || 0}
             </div>
-            <div className="text-xs text-orange-600">Urgentes</div>
+            <div className="text-xs text-orange-600">Antiguos</div>
+            <div className="text-xs text-orange-500">+24h</div>
           </div>
         </div>
         
@@ -116,15 +124,16 @@ const CashTab = ({
         {/* Controles de filtros y vista */}
         <div className="flex items-center space-x-3">
           
-          {/* Filtro de prioridad */}
+          {/* Filtro de prioridad sin "urgentes" */}
           <select
             value={cashPriorityFilter}
             onChange={(e) => setCashPriorityFilter && setCashPriorityFilter(e.target.value)}
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
           >
-            <option value="all">Todas las prioridades</option>
-            <option value="urgent">🟠 Urgentes (+4h)</option>
-            <option value="normal">🟢 Normales (&lt;4h)</option>
+            <option value="all">Todas</option>
+            <option value="normal">Esperando normal</option>
+            <option value="old">Antiguos (+24h)</option>
+            <option value="very_old">Muy antiguos (+48h)</option>
           </select>
           
           {/* Selector de ordenamiento */}
@@ -182,7 +191,7 @@ const CashTab = ({
           <h3 className="text-xl font-medium text-gray-900 mb-2">
             {searchTerm || cashPriorityFilter !== 'all'
               ? 'No se encontraron membresías con ese criterio'
-              : '¡Excelente! No hay membresías esperando pago en efectivo'
+              : 'Excelente! No hay membresías esperando pago en efectivo'
             }
           </h3>
           <p className="text-gray-600">
@@ -202,14 +211,17 @@ const CashTab = ({
             : 'space-y-4'
         }`}>
           {filteredMemberships.map((membership) => {
-            const isProcessing = processingIds.has && processingIds.has(membership.id);
+            const isProcessing = isMembershipProcessing ? isMembershipProcessing(membership.id) : false;
+            const processingType = getProcessingType ? getProcessingType(membership.id) : null;
             
             return cashViewMode === 'grid' ? (
               <CashMembershipCard
                 key={membership.id}
                 membership={membership}
                 onActivate={handleActivateCashMembership}
+                onCancel={handleCancelCashMembership}
                 isProcessing={isProcessing}
+                processingType={processingType}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
                 showSuccess={showSuccess}
@@ -220,7 +232,9 @@ const CashTab = ({
                 key={membership.id}
                 membership={membership}
                 onActivate={handleActivateCashMembership}
+                onCancel={handleCancelCashMembership}
                 isProcessing={isProcessing}
+                processingType={processingType}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
               />
@@ -229,7 +243,7 @@ const CashTab = ({
         </div>
       )}
       
-      {/* Información adicional al final */}
+      {/* Información adicional sin "urgentes" */}
       {filteredMemberships.length > 0 && (
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <div className="text-sm text-gray-600 text-center">
@@ -242,15 +256,20 @@ const CashTab = ({
             )}
           </div>
           
-          {/* Resumen de urgencias */}
-          {cashMembershipStats.urgent > 0 && (
+          {/* Resumen de membresías antiguas */}
+          {cashMembershipStats.old > 0 && (
             <div className="mt-2 flex items-center justify-center text-sm text-orange-600">
-              <AlertTriangle className="w-4 h-4 mr-1" />
+              <Clock className="w-4 h-4 mr-1" />
               <span className="font-medium">
-                {cashMembershipStats.urgent} membresías requieren atención urgente
+                {cashMembershipStats.old} membresías llevan más de 24 horas esperando
               </span>
             </div>
           )}
+          
+          {/* Nota sobre la naturaleza del efectivo */}
+          <div className="mt-2 text-xs text-center text-gray-500 italic">
+            Los clientes pueden llegar a pagar cuando gusten. Solo cancela si estás seguro que no vendrán.
+          </div>
         </div>
       )}
     </div>

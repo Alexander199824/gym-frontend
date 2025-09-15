@@ -3,6 +3,8 @@
 // Hook personalizado para manejar toda la lógica de transferencias bancarias
 // Incluye validación, aprobación, rechazo y gestión de estados de procesamiento
 
+// src/pages/dashboard/components/PaymentsManager/hooks/useTransfers.js - ACTUALIZADO
+// Sincronizado con los endpoints del backend que funcionan correctamente
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
 
@@ -17,15 +19,44 @@ const useTransfers = (onSave) => {
   // Función principal para cargar transferencias pendientes
   const loadPendingTransfers = async () => {
     try {
-      console.log('Cargando transferencias pendientes...');
+      console.log('🏦 useTransfers: Cargando transferencias pendientes...');
       setLoading(true);
       
       const response = await apiService.paymentService.getPendingTransfers();
-      setPendingTransfers(response?.data?.transfers || []);
       
-      console.log(`${response?.data?.transfers?.length || 0} transferencias cargadas`);
+      if (response?.success && response.data) {
+        const transfers = response.data.transfers || [];
+        
+        // Procesar transferencias para asegurar campos necesarios
+        const processedTransfers = transfers.map(transfer => ({
+          ...transfer,
+          // Asegurar que tenemos los campos necesarios
+          id: transfer.id || transfer.paymentId,
+          amount: parseFloat(transfer.amount || 0),
+          user: transfer.user || {
+            name: transfer.clientName || `${transfer.user?.firstName || ''} ${transfer.user?.lastName || ''}`.trim() || 'Cliente Anónimo',
+            firstName: transfer.user?.firstName || transfer.clientName?.split(' ')[0] || '',
+            lastName: transfer.user?.lastName || transfer.clientName?.split(' ').slice(1).join(' ') || '',
+            email: transfer.user?.email || ''
+          },
+          hoursWaiting: transfer.hoursWaiting || 0,
+          paymentDate: transfer.paymentDate || transfer.createdAt,
+          transferProof: transfer.transferProof || transfer.hasProof || false,
+          transferValidated: transfer.transferValidated,
+          transferValidatedAt: transfer.transferValidatedAt,
+          transferValidator: transfer.transferValidator,
+          registeredByUser: transfer.registeredByUser,
+          reference: transfer.reference || transfer.transferReference || ''
+        }));
+        
+        setPendingTransfers(processedTransfers);
+        console.log(`✅ ${processedTransfers.length} transferencias pendientes cargadas`);
+      } else {
+        setPendingTransfers([]);
+      }
+      
     } catch (error) {
-      console.error('Error cargando transferencias:', error);
+      console.error('❌ Error cargando transferencias:', error);
       setPendingTransfers([]);
     } finally {
       setLoading(false);
@@ -36,10 +67,13 @@ const useTransfers = (onSave) => {
   const handleValidateTransfer = async (paymentId, approved, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
+    const transfer = pendingTransfers.find(t => t.id === paymentId);
+    const clientName = transfer?.user?.name || 'cliente';
+    
     const confirmed = window.confirm(
       approved 
-        ? '¿Confirmar que quieres aprobar esta transferencia?' 
-        : '¿Confirmar que quieres rechazar esta transferencia?'
+        ? `¿Confirmar que quieres APROBAR la transferencia de ${clientName} por Q${transfer?.amount || 0}?`
+        : `¿Confirmar que quieres RECHAZAR la transferencia de ${clientName}?`
     );
     
     if (!confirmed) return;
@@ -47,15 +81,19 @@ const useTransfers = (onSave) => {
     try {
       setProcessingIds(prev => new Set([...prev, paymentId]));
       
-      console.log(`${approved ? 'Aprobando' : 'Rechazando'} transferencia:`, paymentId);
+      console.log(`🏦 ${approved ? 'Aprobando' : 'Rechazando'} transferencia:`, paymentId);
       
       await apiService.paymentService.validateTransfer(
         paymentId, 
         approved, 
-        approved ? 'Transferencia aprobada' : 'Transferencia rechazada'
+        approved ? 'Transferencia aprobada por administrador' : 'Transferencia rechazada por administrador'
       );
       
-      showSuccess(approved ? 'Transferencia aprobada' : 'Transferencia rechazada');
+      showSuccess(
+        approved 
+          ? `Transferencia de ${clientName} aprobada exitosamente`
+          : `Transferencia de ${clientName} rechazada`
+      );
       
       // Remover de la lista local inmediatamente
       setPendingTransfers(prev => prev.filter(t => t.id !== paymentId));
@@ -67,13 +105,15 @@ const useTransfers = (onSave) => {
         onSave({ 
           type: 'transfer_validation', 
           approved,
-          transferId: paymentId
+          transferId: paymentId,
+          clientName: clientName,
+          amount: transfer?.amount || 0
         });
       }
       
     } catch (error) {
-      console.error('Error validando transferencia:', error);
-      showError('Error al procesar transferencia');
+      console.error('❌ Error validando transferencia:', error);
+      showError('Error al procesar transferencia: ' + (error.message || 'Error desconocido'));
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev);
@@ -162,6 +202,36 @@ const useTransfers = (onSave) => {
     };
   };
 
+  // Función para debug - obtener todos los datos como en el test
+  const debugTransferData = async () => {
+    try {
+      console.log('🔍 useTransfers: Obteniendo datos de debug...');
+      
+      const transferResponse = await apiService.paymentService.getPendingTransfers();
+      
+      console.log('📊 Debug Transfers:', {
+        response: transferResponse,
+        currentState: {
+          pendingCount: pendingTransfers.length,
+          stats: getTransferStats(),
+          processed: Array.from(processingIds)
+        }
+      });
+      
+      return {
+        response: transferResponse,
+        currentState: {
+          pendingCount: pendingTransfers.length,
+          stats: getTransferStats()
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Error en debug transfers:', error);
+      return { error: error.message };
+    }
+  };
+
   // Efecto inicial de carga
   useEffect(() => {
     loadPendingTransfers();
@@ -183,7 +253,10 @@ const useTransfers = (onSave) => {
     isTransferProcessing,
     getTransferPriority,
     getSortedTransfers,
-    getTransferStats
+    getTransferStats,
+    
+    // Debug
+    debugTransferData
   };
 };
 

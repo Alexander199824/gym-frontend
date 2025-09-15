@@ -3,6 +3,8 @@
 // Componente principal para la gestión completa de pagos del sistema
 // Maneja navegación entre tabs y orquesta todos los subcomponentes
 
+// src/pages/dashboard/components/PaymentsManager.js
+// Componente principal con nueva funcionalidad de cancelación para efectivo
 import React, { useState } from 'react';
 import { Coins, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -44,6 +46,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         statisticsData.loadStatistics(),
         statisticsData.loadFinancialDashboard()
       ]);
+      showSuccess('Datos actualizados correctamente');
     } catch (error) {
       console.error('Error refrescando datos:', error);
       showError('Error al actualizar los datos');
@@ -64,7 +67,18 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       case 'payments':
         return <PaymentsTab {...paymentsData} {...commonProps} onSave={onSave} />;
       case 'cash': 
-        return <CashTab {...cashData} {...commonProps} onSave={onSave} />;
+        return (
+          <CashTab 
+            {...cashData} 
+            {...commonProps} 
+            onSave={onSave}
+            handleCancelCashMembership={cashData.handleCancelCashMembership}
+            cancellingIds={cashData.cancellingIds}
+            isMembershipProcessing={cashData.isMembershipProcessing}
+            getProcessingType={cashData.getProcessingType}
+            isCandidateForCancellation={cashData.isCandidateForCancellation}
+          />
+        );
       case 'transfers':
         return <TransfersTab {...transfersData} {...commonProps} onSave={onSave} />;
       case 'summary':
@@ -109,7 +123,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           totalPayments: paymentsData.totalPayments,
           pendingTransfers: transfersData.pendingTransfers?.length || 0,
           pendingCash: cashData.cashMembershipStats?.total || 0,
-          urgentCash: cashData.cashMembershipStats?.urgent || 0
+          urgentCash: cashData.cashMembershipStats?.old || 0
         }}
       />
       

@@ -3,29 +3,41 @@
 // Componente de tarjeta para membresías en efectivo pendientes (vista grid)
 // Muestra información detallada del cliente, plan y permite activación de membresía
 
+// src/pages/dashboard/components/PaymentsManager/components/CashMembershipCard.js
+// Lógica corregida: Sin urgentes por tiempo + Botón de cancelar
 import React from 'react';
 import { 
   CheckCircle, Timer, Bird, Mail, Phone, Loader2, 
-  CreditCard, Calendar 
+  CreditCard, Calendar, X, AlertTriangle 
 } from 'lucide-react';
 
 const CashMembershipCard = ({ 
   membership, 
   onActivate, 
-  isProcessing = false, 
+  onCancel,
+  isProcessing = false,
+  processingType = null,
   formatCurrency,
   formatDate,
   showSuccess,
   showError 
 }) => {
   
-  // Determinar si es urgente basado en tiempo de espera
-  const isUrgent = (membership.hoursWaiting || 0) > 4;
+  // Determinar si es candidato a cancelar (no urgente)
+  const isCandidateForCancellation = (membership.hoursWaiting || 0) > 24;
+  const isVeryOld = (membership.hoursWaiting || 0) > 48;
   
   // Manejar la activación de la membresía
   const handleActivation = () => {
     if (onActivate && formatCurrency) {
       onActivate(membership.id, showSuccess, showError, formatCurrency);
+    }
+  };
+  
+  // Manejar la cancelación de la membresía
+  const handleCancellation = () => {
+    if (onCancel && formatCurrency) {
+      onCancel(membership.id, showSuccess, showError, formatCurrency);
     }
   };
   
@@ -38,18 +50,35 @@ const CashMembershipCard = ({
       : names[0][0];
   };
 
+  // Función para obtener clase CSS según tiempo de espera
+  const getCardClasses = () => {
+    if (isVeryOld) {
+      return 'bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 ring-2 ring-red-200 border-red-300';
+    } else if (isCandidateForCancellation) {
+      return 'bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 ring-2 ring-orange-200 border-orange-300';
+    }
+    return 'bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 border-gray-200';
+  };
+
   return (
-    <div className={`bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 ${
-      isUrgent ? 'ring-2 ring-orange-200 border-orange-300' : 'border-gray-200'
-    }`}>
+    <div className={getCardClasses()}>
       
-      {/* Header con indicador de urgencia */}
-      {isUrgent && (
-        <div className="bg-orange-50 px-4 py-2 border-b border-orange-200">
-          <div className="flex items-center text-orange-700 text-sm">
+      {/* Header con indicador de tiempo */}
+      {isCandidateForCancellation && (
+        <div className={`px-4 py-2 border-b ${
+          isVeryOld 
+            ? 'bg-red-50 border-red-200' 
+            : 'bg-orange-50 border-orange-200'
+        }`}>
+          <div className={`flex items-center text-sm ${
+            isVeryOld ? 'text-red-700' : 'text-orange-700'
+          }`}>
             <Timer className="w-4 h-4 mr-1" />
             <span className="font-medium">
-              Esperando {membership.hoursWaiting?.toFixed(1) || '0.0'} horas
+              {isVeryOld 
+                ? `Muy antiguo: ${membership.hoursWaiting?.toFixed(1) || '0.0'} horas - Considerar cancelar`
+                : `Esperando: ${membership.hoursWaiting?.toFixed(1) || '0.0'} horas - Evaluar cancelar`
+              }
             </span>
           </div>
         </div>
@@ -123,7 +152,11 @@ const CashMembershipCard = ({
             {/* Tiempo de espera */}
             <div>
               <div className="text-gray-500 mb-1">Esperando</div>
-              <div className={`font-medium ${isUrgent ? 'text-orange-600' : 'text-gray-700'}`}>
+              <div className={`font-medium ${
+                isVeryOld ? 'text-red-600' : 
+                isCandidateForCancellation ? 'text-orange-600' : 
+                'text-gray-700'
+              }`}>
                 {membership.hoursWaiting?.toFixed(1) || '0.0'}h
               </div>
             </div>
@@ -167,30 +200,62 @@ const CashMembershipCard = ({
           </div>
         )}
         
-        {/* Botón de activación */}
-        <button
-          onClick={handleActivation}
-          disabled={isProcessing || !membership.canActivate}
-          className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
-            isProcessing 
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-              : (membership.canActivate !== false)
-                ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Activando...
-            </>
-          ) : (
-            <>
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Recibir {formatCurrency && formatCurrency(membership.price)}
-            </>
+        {/* Botones de acción - Recibir Y Cancelar */}
+        <div className="space-y-3">
+          
+          {/* Botón principal: Recibir pago */}
+          <button
+            onClick={handleActivation}
+            disabled={isProcessing || !membership.canActivate}
+            className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+              isProcessing && processingType === 'activating'
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : (membership.canActivate !== false)
+                  ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {isProcessing && processingType === 'activating' ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Activando...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Recibir {formatCurrency && formatCurrency(membership.price)}
+              </>
+            )}
+          </button>
+          
+          {/* Botón secundario: Cancelar (si es candidato) */}
+          {(isCandidateForCancellation || membership.canCancel) && (
+            <button
+              onClick={handleCancellation}
+              disabled={isProcessing || !onCancel}
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm border-2 ${
+                isProcessing && processingType === 'cancelling'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' 
+                  : isVeryOld
+                    ? 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 hover:border-red-400'
+                    : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 hover:border-orange-400'
+              }`}
+              title={onCancel ? "Cancelar membresía - Cliente no llegó" : "Funcionalidad en desarrollo"}
+            >
+              {isProcessing && processingType === 'cancelling' ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                <>
+                  <X className="w-4 h-4 mr-2" />
+                  {onCancel ? 'Cliente no llegó' : 'Cancelar (próximamente)'}
+                </>
+              )}
+            </button>
           )}
-        </button>
+        </div>
         
         {/* Información de última actualización */}
         {membership.updatedAt && membership.updatedAt !== membership.createdAt && (
@@ -198,6 +263,11 @@ const CashMembershipCard = ({
             Actualizada: {formatDate && formatDate(membership.updatedAt, 'dd/MM/yyyy HH:mm')}
           </div>
         )}
+        
+        {/* Nota explicativa para efectivo */}
+        <div className="mt-3 text-xs text-gray-500 text-center italic">
+          El cliente puede llegar a pagar cuando guste durante el día
+        </div>
       </div>
     </div>
   );

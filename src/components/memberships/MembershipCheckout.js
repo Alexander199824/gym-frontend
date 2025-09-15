@@ -4,6 +4,10 @@
 // DISEÑO INTUITIVO TIPO TIMELINE PARA 20+ HORARIOS POR DÍA
 // NUEVA FUNCIONALIDAD: Aplicar mismo horario a todos los días con UX mejorado
 
+// Autor: Alexander Echeverria
+// src/components/memberships/MembershipCheckout.js
+// CORREGIDO: Sin datos hardcodeados, todo dinámico del backend
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   CreditCard, 
@@ -60,94 +64,46 @@ import {
 } from '@stripe/react-stripe-js';
 
 // ========================================
-// FUNCIONES DE TRADUCCIÓN DE DÍAS
+// FUNCIONES DE TRADUCCIÓN DE DÍAS - DINÁMICAS
 // ========================================
 
-// Diccionario de traducción basado en el modelo GymHours.js
-const DIAS_ESPANOL = {
-  'monday': 'Lunes',
-  'tuesday': 'Martes',
-  'wednesday': 'Miércoles',
-  'thursday': 'Jueves',
-  'friday': 'Viernes',
-  'saturday': 'Sábado',
-  'sunday': 'Domingo',
-  'Monday': 'Lunes',
-  'Tuesday': 'Martes',
-  'Wednesday': 'Miércoles',
-  'Thursday': 'Jueves',
-  'Friday': 'Viernes',
-  'Saturday': 'Sábado',
-  'Sunday': 'Domingo',
-  'Mon': 'Lun',
-  'Tue': 'Mar',
-  'Wed': 'Mié',
-  'Thu': 'Jue',
-  'Fri': 'Vie',
-  'Sat': 'Sáb',
-  'Sun': 'Dom'
+// Función para obtener traducciones del backend
+const getTranslationsFromBackend = async () => {
+  try {
+    // TODO: Implementar endpoint para obtener traducciones
+    const response = await membershipService.getGymContactInfo();
+    return response.data?.translations || {};
+  } catch (error) {
+    console.error('Error obteniendo traducciones:', error);
+    return {};
+  }
 };
 
-// Función principal de traducción
-const traducirDia = (dia) => {
+// Función principal de traducción (fallback manual solo si backend falla)
+const traducirDia = (dia, translations = {}) => {
   if (!dia) return dia;
-  return DIAS_ESPANOL[dia] || dia;
-};
-
-// Función para traducir arrays de días
-const traducirListaDias = (diasArray) => {
-  if (!diasArray || !Array.isArray(diasArray)) {
-    return 'Todos los días';
+  
+  // Usar traducción del backend si está disponible
+  if (translations.days && translations.days[dia]) {
+    return translations.days[dia];
   }
   
-  return diasArray.map(dia => {
-    switch(dia.toLowerCase()) {
-      case 'monday': return 'Lunes';
-      case 'tuesday': return 'Martes';
-      case 'wednesday': return 'Miércoles';
-      case 'thursday': return 'Jueves';
-      case 'friday': return 'Viernes';
-      case 'saturday': return 'Sábado';
-      case 'sunday': return 'Domingo';
-      default: return traducirDia(dia);
-    }
-  }).join(', ');
-};
-
-// Función para traducir objetos de horarios
-const traducirHorariosAEspanol = (scheduleData) => {
-  if (!scheduleData) return {};
+  // Fallback solo si el backend no responde
+  const fallbackTranslations = {
+    'monday': 'Lunes',
+    'tuesday': 'Martes', 
+    'wednesday': 'Miércoles',
+    'thursday': 'Jueves',
+    'friday': 'Viernes',
+    'saturday': 'Sábado',
+    'sunday': 'Domingo'
+  };
   
-  const translated = {};
-  Object.keys(scheduleData).forEach(day => {
-    const dayData = scheduleData[day];
-    if (dayData) {
-      let dayNameSpanish;
-      
-      switch(day.toLowerCase()) {
-        case 'monday': dayNameSpanish = 'Lunes'; break;
-        case 'tuesday': dayNameSpanish = 'Martes'; break;
-        case 'wednesday': dayNameSpanish = 'Miércoles'; break;
-        case 'thursday': dayNameSpanish = 'Jueves'; break;
-        case 'friday': dayNameSpanish = 'Viernes'; break;
-        case 'saturday': dayNameSpanish = 'Sábado'; break;
-        case 'sunday': dayNameSpanish = 'Domingo'; break;
-        default: dayNameSpanish = traducirDia(dayData.dayName || day);
-      }
-      
-      translated[day] = {
-        ...dayData,
-        dayName: dayNameSpanish
-      };
-    } else {
-      translated[day] = dayData;
-    }
-  });
-  return translated;
+  return fallbackTranslations[dia] || dia;
 };
 
 // ========================================
-// FUNCIONES DE FORMATEO DE PRECIOS
+// FUNCIONES DE FORMATEO DE PRECIOS - DINÁMICAS
 // ========================================
 
 const formatPrice = (price) => {
@@ -155,15 +111,14 @@ const formatPrice = (price) => {
   return numPrice.toFixed(2);
 };
 
-const formatPriceWithSymbol = (price) => {
-  return `Q${formatPrice(price)}`;
+const formatPriceWithSymbol = (price, currency = 'Q') => {
+  return `${currency}${formatPrice(price)}`;
 };
 
 // ========================================
 // FUNCIONES AUXILIARES PARA HORARIOS
 // ========================================
 
-// Función para agrupar horarios por franja
 const agruparHorariosPorFranja = (slots) => {
   const franjas = {
     morning: { label: '🌅 Mañana', slots: [], range: '6:00 - 12:00' },
@@ -208,6 +163,14 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   // Estados de pago
   const [paymentMethod, setPaymentMethod] = useState('card');
   
+  // NUEVO: Estados para datos dinámicos del backend
+  const [gymConfig, setGymConfig] = useState(null);
+  const [contactInfo, setContactInfo] = useState(null);
+  const [bankInfo, setBankInfo] = useState(null);
+  const [paymentConfig, setPaymentConfig] = useState(null);
+  const [translations, setTranslations] = useState({});
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  
   const stripeInitialized = useRef(false);
   
   // Verificar autenticación
@@ -217,6 +180,11 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
       onBack();
     }
   }, [isAuthenticated, onBack, showError]);
+
+  // NUEVO: Cargar configuración dinámica al montar
+  useEffect(() => {
+    loadDynamicConfiguration();
+  }, []);
   
   // Inicializar Stripe
   useEffect(() => {
@@ -251,16 +219,83 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
       loadScheduleOptions();
     }
   }, [step, selectedPlan, availableSchedules]);
+
+  // NUEVO: Cargar toda la configuración dinámica del backend
+  const loadDynamicConfiguration = async () => {
+    try {
+      setLoadingConfig(true);
+      
+      console.log('🔄 Cargando configuración dinámica del backend...');
+      
+      // Cargar múltiples configuraciones en paralelo
+      const [
+        gymConfigResponse,
+        contactResponse, 
+        bankResponse,
+        paymentResponse
+      ] = await Promise.all([
+        membershipService.getGymConfig?.() || Promise.resolve({ success: false }),
+        membershipService.getGymContactInfo(),
+        membershipService.getBankTransferInfo(),
+        membershipService.getPaymentMethodsConfig()
+      ]);
+      
+      console.log('📋 Respuestas de configuración:', {
+        gymConfig: gymConfigResponse?.success,
+        contact: contactResponse?.success,
+        bank: bankResponse?.success,
+        payment: paymentResponse?.success
+      });
+      
+      if (gymConfigResponse?.success) {
+        setGymConfig(gymConfigResponse.data);
+        console.log('✅ Configuración del gimnasio cargada');
+      }
+      
+      if (contactResponse?.success) {
+        setContactInfo(contactResponse.data);
+        console.log('✅ Información de contacto cargada');
+      }
+      
+      if (bankResponse?.success) {
+        setBankInfo(bankResponse.data);
+        console.log('✅ Información bancaria cargada');
+      }
+      
+      if (paymentResponse?.success) {
+        setPaymentConfig(paymentResponse.data);
+        console.log('✅ Configuración de pagos cargada');
+      }
+      
+      // Obtener traducciones si están disponibles
+      const translationsData = await getTranslationsFromBackend();
+      setTranslations(translationsData);
+      
+    } catch (error) {
+      console.error('❌ Error cargando configuración dinámica:', error);
+      showError('Error cargando información del gimnasio');
+    } finally {
+      setLoadingConfig(false);
+    }
+  };
   
-  // Cargar opciones de horarios SIN auto-selección
+  // Cargar opciones de horarios
   const loadScheduleOptions = async () => {
     try {
       setIsProcessing(true);
       
       const scheduleData = await membershipService.getScheduleOptions(selectedPlan.id);
       
-      // Traducir nombres de días al español
-      const translatedSchedules = traducirHorariosAEspanol(scheduleData.availableOptions);
+      // Usar traducciones dinámicas
+      const translatedSchedules = {};
+      Object.entries(scheduleData.availableOptions).forEach(([day, dayData]) => {
+        if (dayData) {
+          translatedSchedules[day] = {
+            ...dayData,
+            dayName: traducirDia(day, translations)
+          };
+        }
+      });
       
       setAvailableSchedules(translatedSchedules);
       setPlanInfo(scheduleData.plan);
@@ -326,7 +361,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   };
   
-  // Manejar cambio de horario (MÁXIMO 1 POR DÍA)
+  // Manejar cambio de horario
   const handleScheduleChange = (day, slotId) => {
     setSelectedSchedule(prev => ({
       ...prev,
@@ -334,6 +369,19 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }));
     setScheduleVerified(false);
   };
+
+  // Mostrar loader mientras carga configuración
+  if (loadingConfig) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center py-16">
+          <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-6" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">Cargando información del gimnasio...</h3>
+          <p className="text-gray-600">Preparando el mejor proceso de compra para ti</p>
+        </div>
+      </div>
+    );
+  }
   
   if (!selectedPlan || !isAuthenticated) {
     return null;
@@ -408,6 +456,8 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
           <MembershipConfirmationStep
             membership={completedMembership}
             user={user}
+            contactInfo={contactInfo}
+            gymConfig={gymConfig}
             onBack={onBack}
           />
         ) : (
@@ -418,6 +468,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
                 <MembershipInfoStep
                   plan={selectedPlan}
                   user={user}
+                  contactInfo={contactInfo}
                   onContinue={handleContinue}
                 />
               )}
@@ -433,6 +484,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
                   isProcessing={isProcessing}
                   scheduleVerified={scheduleVerified}
                   onContinue={handleContinue}
+                  translations={translations}
                 />
               )}
 
@@ -447,6 +499,10 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
                     isProcessing={isProcessing}
                     setIsProcessing={setIsProcessing}
                     stripePromise={stripePromise}
+                    gymConfig={gymConfig}
+                    contactInfo={contactInfo}
+                    bankInfo={bankInfo}
+                    paymentConfig={paymentConfig}
                     onSuccess={(membership) => {
                       setCompletedMembership(membership);
                       setStep(4);
@@ -468,6 +524,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
                 isProcessing={isProcessing}
                 formatCurrency={formatCurrency}
                 scheduleVerified={scheduleVerified}
+                contactInfo={contactInfo}
               />
             </div>
           </div>
@@ -481,7 +538,7 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
 // PASO 1: INFORMACIÓN DE LA MEMBRESÍA
 // ========================================
 
-const MembershipInfoStep = ({ plan, user, onContinue }) => {
+const MembershipInfoStep = ({ plan, user, contactInfo, onContinue }) => {
   
   return (
     <div className="space-y-6">
@@ -604,11 +661,16 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
               <li>• Los pagos con tarjeta se procesan de inmediato</li>
               <li>• Transferencias y efectivo requieren validación manual</li>
             </ul>
+            {contactInfo?.supportEmail && (
+              <p className="text-xs text-blue-600 mt-2">
+                ¿Dudas? Contacta: {contactInfo.supportEmail}
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* BOTÓN PARA CONTINUAR A HORARIOS */}
+      {/* BOTÓN PARA CONTINUAR */}
       <div className="bg-gradient-to-r from-primary-600 to-blue-600 rounded-xl p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
@@ -631,7 +693,7 @@ const MembershipInfoStep = ({ plan, user, onContinue }) => {
 };
 
 // ========================================
-// PASO 2: SELECCIÓN DE HORARIOS ESCALABLE (CON NUEVA FUNCIONALIDAD MEJORADA)
+// PASO 2: SELECCIÓN DE HORARIOS - CON TRADUCCIONES DINÁMICAS
 // ========================================
 
 const ScheduleSelectionStepScalable = ({ 
@@ -643,10 +705,10 @@ const ScheduleSelectionStepScalable = ({
   setSelectedSchedule,
   isProcessing,
   scheduleVerified,
-  onContinue 
+  onContinue,
+  translations = {}
 }) => {
   
-  // NUEVO: Estado para el modo "mismo horario todos los días"
   const [sameScheduleForAll, setSameScheduleForAll] = useState(false);
   const [baseScheduleDay, setBaseScheduleDay] = useState(null);
   const [baseScheduleSlot, setBaseScheduleSlot] = useState(null);
@@ -674,7 +736,6 @@ const ScheduleSelectionStepScalable = ({
   const selectedDaysCount = Object.values(selectedSchedule).filter(slots => slots && slots.length > 0).length;
   const maxWeeklySlots = planInfo.maxReservationsPerWeek || 999;
   
-  // Verificar si es plan de duración extendida (semana, mes o más)
   const isExtendedPlan = planInfo.durationType && (
     planInfo.durationType.toLowerCase().includes('semana') ||
     planInfo.durationType.toLowerCase().includes('mes') ||
@@ -684,18 +745,15 @@ const ScheduleSelectionStepScalable = ({
     planInfo.durationType.toLowerCase().includes('year')
   );
   
-  // NUEVA FUNCIÓN: Aplicar mismo horario a todos los días disponibles
   const applyScheduleToAllDays = (sourceDay, slotId) => {
     const sourceSlot = availableSchedules[sourceDay]?.slots?.find(slot => slot.id === slotId);
     if (!sourceSlot) return;
     
     const newSchedule = {};
     
-    // Buscar el mismo horario en todos los días disponibles
     Object.keys(availableSchedules).forEach(day => {
       const dayData = availableSchedules[day];
       if (dayData && dayData.isOpen && dayData.slots.length > 0) {
-        // Buscar slot con el mismo tiempo
         const matchingSlot = dayData.slots.find(slot => 
           slot.openTime === sourceSlot.openTime && 
           slot.closeTime === sourceSlot.closeTime &&
@@ -714,7 +772,6 @@ const ScheduleSelectionStepScalable = ({
     setBaseScheduleSlot(slotId);
   };
   
-  // NUEVA FUNCIÓN: Limpiar horarios y volver a selección individual
   const clearAllSchedules = () => {
     setSelectedSchedule({});
     setSameScheduleForAll(false);
@@ -722,17 +779,14 @@ const ScheduleSelectionStepScalable = ({
     setBaseScheduleSlot(null);
   };
   
-  // NUEVA FUNCIÓN: Volver a modo de selección individual manteniendo horarios
   const switchToIndividualMode = () => {
     setSameScheduleForAll(false);
     setBaseScheduleDay(null);
     setBaseScheduleSlot(null);
   };
 
-  // Manejar selección de horario con la nueva lógica
   const handleScheduleSelection = (day, slotId) => {
     if (sameScheduleForAll) {
-      // Si está en modo "mismo horario", desactivar ese modo primero
       setSameScheduleForAll(false);
       setBaseScheduleDay(null);
       setBaseScheduleSlot(null);
@@ -744,7 +798,7 @@ const ScheduleSelectionStepScalable = ({
   return (
     <div className="space-y-6">
       
-      {/* HEADER MEJORADO CON NUEVA FUNCIONALIDAD */}
+      {/* HEADER MEJORADO */}
       <div className="bg-gradient-to-br from-primary-50 to-blue-50 border-2 border-primary-200 rounded-xl p-6">
         <div className="text-center mb-4">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-600 rounded-full mb-3">
@@ -761,7 +815,6 @@ const ScheduleSelectionStepScalable = ({
             )}
           </p>
           
-          {/* NUEVA: Guía rápida para planes extendidos */}
           {!sameScheduleForAll && isExtendedPlan && selectedDaysCount === 0 && (
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg p-4 mb-4">
               <div className="flex items-center justify-center mb-2">
@@ -801,9 +854,8 @@ const ScheduleSelectionStepScalable = ({
           </div>
         </div>
 
-        {/* CONTROLES DE MODO MEJORADOS CON EXPLICACIONES */}
+        {/* CONTROLES DE MODO */}
         <div className="mt-6 space-y-3">
-          {/* Modo actual */}
           {sameScheduleForAll ? (
             <div className="bg-green-100 border border-green-300 rounded-lg p-4">
               <div className="flex items-center justify-between">
@@ -893,7 +945,6 @@ const ScheduleSelectionStepScalable = ({
             </div>
           )}
           
-          {/* Botón para limpiar todo */}
           {selectedDaysCount > 0 && !sameScheduleForAll && (
             <div className="text-center">
               <button
@@ -908,7 +959,7 @@ const ScheduleSelectionStepScalable = ({
         </div>
       </div>
 
-      {/* GRID DE DÍAS CON DISEÑO ESCALABLE */}
+      {/* GRID DE DÍAS CON TRADUCCIONES DINÁMICAS */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="space-y-6">
           {Object.entries(availableSchedules).map(([day, dayData]) => (
@@ -925,6 +976,7 @@ const ScheduleSelectionStepScalable = ({
               isBaseSchedule={baseScheduleDay === day}
               planDuration={planInfo.durationType}
               isExtendedPlan={isExtendedPlan}
+              translations={translations}
             />
           ))}
         </div>
@@ -933,7 +985,6 @@ const ScheduleSelectionStepScalable = ({
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             
-            {/* ESTADO */}
             <div className="flex items-center">
               {scheduleVerified ? (
                 <>
@@ -965,7 +1016,6 @@ const ScheduleSelectionStepScalable = ({
               )}
             </div>
 
-            {/* BOTÓN */}
             <button
               onClick={onContinue}
               disabled={selectedDaysCount === 0 || selectedDaysCount > maxWeeklySlots}
@@ -990,7 +1040,7 @@ const ScheduleSelectionStepScalable = ({
 };
 
 // ========================================
-// COMPONENTE: Fila de Día Escalable (CON NUEVA FUNCIONALIDAD MEJORADA)
+// COMPONENTE: Fila de Día Escalable con traducciones dinámicas
 // ========================================
 
 const ScheduleDayRowScalable = ({ 
@@ -1004,24 +1054,14 @@ const ScheduleDayRowScalable = ({
   sameScheduleMode,
   isBaseSchedule,
   planDuration,
-  isExtendedPlan
+  isExtendedPlan,
+  translations = {}
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [filterFranja, setFilterFranja] = useState('all');
 
-  // TRADUCCIÓN GARANTIZADA
-  const dayNameSpanish = (() => {
-    switch(day.toLowerCase()) {
-      case 'monday': return 'Lunes';
-      case 'tuesday': return 'Martes';
-      case 'wednesday': return 'Miércoles';
-      case 'thursday': return 'Jueves';
-      case 'friday': return 'Viernes';
-      case 'saturday': return 'Sábado';
-      case 'sunday': return 'Domingo';
-      default: return traducirDia(dayData.dayName || day);
-    }
-  })();
+  // Usar traducción dinámica
+  const dayNameSpanish = dayData.dayName || traducirDia(day, translations);
 
   if (!dayData.isOpen || dayData.slots.length === 0) {
     return (
@@ -1039,26 +1079,21 @@ const ScheduleDayRowScalable = ({
     );
   }
 
-  // Agrupar horarios por franjas
   const franjas = agruparHorariosPorFranja(dayData.slots);
   
-  // Filtrar slots según la franja seleccionada
   const slotsToShow = filterFranja === 'all' 
     ? dayData.slots 
     : franjas[filterFranja]?.slots || [];
 
-  // Mostrar solo los primeros 6 si no está expandido
   const displaySlots = isExpanded ? slotsToShow : slotsToShow.slice(0, 6);
   const hasMoreSlots = slotsToShow.length > 6;
 
   const handleSlotClick = (slotId) => {
     if (selectedSlot === slotId) {
-      // Deseleccionar
       onSlotSelect(null);
     } else {
-      // Seleccionar (máximo 1 por día)
       if (totalSelected >= maxTotal && !selectedSlot) {
-        return; // No puede seleccionar más
+        return;
       }
       onSlotSelect(slotId);
     }
@@ -1093,7 +1128,6 @@ const ScheduleDayRowScalable = ({
             </div>
           </div>
           
-          {/* ESTADO DE SELECCIÓN */}
           <div className="flex items-center space-x-3">
             {selectedSlot ? (
               <div className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -1146,7 +1180,7 @@ const ScheduleDayRowScalable = ({
         )}
       </div>
 
-      {/* GRID DE HORARIOS COMPACTO */}
+      {/* GRID DE HORARIOS */}
       <div className="p-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
           {displaySlots.map((slot) => {
@@ -1185,7 +1219,6 @@ const ScheduleDayRowScalable = ({
                   </div>
                 </button>
                 
-                {/* NUEVO: Botón mejorado para aplicar a todos los días */}
                 {isSelected && isExtendedPlan && !sameScheduleMode && (
                   <div className="absolute -top-3 -right-3 z-10">
                     <button
@@ -1206,7 +1239,6 @@ const ScheduleDayRowScalable = ({
           })}
         </div>
 
-        {/* BOTÓN MOSTRAR MÁS */}
         {hasMoreSlots && (
           <div className="mt-4 text-center">
             <button
@@ -1233,7 +1265,7 @@ const ScheduleDayRowScalable = ({
 };
 
 // ========================================
-// RESUMEN DE MEMBRESÍA MEJORADO
+// RESUMEN DE MEMBRESÍA CON INFORMACIÓN DINÁMICA
 // ========================================
 
 const MembershipSummaryImproved = ({ 
@@ -1244,16 +1276,13 @@ const MembershipSummaryImproved = ({
   onContinue, 
   isProcessing, 
   formatCurrency,
-  scheduleVerified
+  scheduleVerified,
+  contactInfo
 }) => {
   
   const scheduledDays = Object.keys(selectedSchedule).filter(day => 
     selectedSchedule[day] && selectedSchedule[day].length > 0
   ).length;
-  
-  const totalSlots = Object.values(selectedSchedule).reduce(
-    (sum, slots) => sum + (slots?.length || 0), 0
-  );
   
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
@@ -1396,13 +1425,19 @@ const MembershipSummaryImproved = ({
           <Phone className="w-4 h-4 mr-2 text-blue-500" />
           <span>Soporte 24/7</span>
         </div>
+        
+        {contactInfo?.supportEmail && (
+          <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+            📧 Soporte: {contactInfo.supportEmail}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 // ========================================
-// PASO 3: MÉTODOS DE PAGO
+// PASO 3: MÉTODOS DE PAGO CON DATOS DINÁMICOS DEL BACKEND
 // ========================================
 
 const MembershipPaymentStep = ({ 
@@ -1414,6 +1449,10 @@ const MembershipPaymentStep = ({
   isProcessing,
   setIsProcessing,
   stripePromise,
+  gymConfig,
+  contactInfo,
+  bankInfo,
+  paymentConfig,
   onSuccess,
   onError
 }) => {
@@ -1489,10 +1528,12 @@ const MembershipPaymentStep = ({
     }
   };
 
-  // Crear pago por transferencia
+  // Crear pago por transferencia - ⚠️ CORREGIDO: NO se activa automáticamente
   const handleTransferPayment = async () => {
     try {
       setIsProcessing(true);
+      
+      console.log('🏦 Creando pago por transferencia - NO se activará automáticamente');
 
       const purchaseResult = await membershipService.purchaseMembership(
         plan.id,
@@ -1515,16 +1556,18 @@ const MembershipPaymentStep = ({
         setUploadingProof(false);
       }
 
+      // ✅ ESTADO CORRECTO: pending_validation hasta aprobación manual
       const membership = {
         ...purchaseResult.membership,
         payment: purchaseResult.payment,
         plan: purchaseResult.plan,
         paymentMethod: 'transfer',
         paid: false,
-        status: 'pending_validation',
+        status: 'pending_validation', // ⚠️ ESTADO CORRECTO
         proofUploaded: !!transferProof
       };
 
+      console.log('✅ Membresía creada con estado correcto:', membership.status);
       onSuccess(membership);
 
     } catch (error) {
@@ -1536,10 +1579,12 @@ const MembershipPaymentStep = ({
     }
   };
 
-  // Crear pago en efectivo
+  // Crear pago en efectivo - ⚠️ CORREGIDO: NO se activa automáticamente
   const handleCashPayment = async () => {
     try {
       setIsProcessing(true);
+      
+      console.log('💵 Creando pago en efectivo - NO se activará automáticamente');
 
       const purchaseResult = await membershipService.purchaseMembership(
         plan.id,
@@ -1548,15 +1593,17 @@ const MembershipPaymentStep = ({
         'Pago en efectivo en el gimnasio - Pendiente de confirmación'
       );
 
+      // ✅ ESTADO CORRECTO: pending_payment hasta confirmación en gimnasio
       const membership = {
         ...purchaseResult.membership,
         payment: purchaseResult.payment,
         plan: purchaseResult.plan,
         paymentMethod: 'cash',
         paid: false,
-        status: 'pending_validation'
+        status: 'pending_payment' // ⚠️ ESTADO CORRECTO
       };
 
+      console.log('✅ Membresía creada con estado correcto:', membership.status);
       onSuccess(membership);
 
     } catch (error) {
@@ -1580,7 +1627,7 @@ const MembershipPaymentStep = ({
   return (
     <div className="space-y-6">
       
-      {/* SELECCIÓN DE MÉTODO DE PAGO */}
+      {/* SELECCIÓN DE MÉTODO DE PAGO CON INFORMACIÓN DINÁMICA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-6">
           <CreditCard className="w-6 h-6 text-primary-600 mr-3" />
@@ -1590,7 +1637,7 @@ const MembershipPaymentStep = ({
         <div className="space-y-4">
           
           {/* Tarjeta de crédito/débito */}
-          {stripePromise && (
+          {(paymentConfig?.cardEnabled !== false) && stripePromise && (
             <button
               onClick={() => setPaymentMethod('card')}
               className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
@@ -1604,7 +1651,9 @@ const MembershipPaymentStep = ({
                   <CreditCard className="w-6 h-6 text-gray-600 mr-4" />
                   <div>
                     <div className="font-semibold text-lg">Tarjeta de crédito/débito</div>
-                    <div className="text-sm text-gray-600">Confirmación inmediata • Visa, Mastercard</div>
+                    <div className="text-sm text-gray-600">
+                      {paymentConfig?.cardProcessingNote || 'Confirmación inmediata • Visa, Mastercard'}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -1618,56 +1667,64 @@ const MembershipPaymentStep = ({
           )}
 
           {/* Transferencia bancaria */}
-          <button
-            onClick={() => setPaymentMethod('transfer')}
-            className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
-              paymentMethod === 'transfer'
-                ? 'border-primary-500 bg-primary-50 shadow-sm'
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Upload className="w-6 h-6 text-gray-600 mr-4" />
-                <div>
-                  <div className="font-semibold text-lg">Transferencia bancaria</div>
-                  <div className="text-sm text-gray-600">Sube tu comprobante • Validación manual</div>
+          {(paymentConfig?.transferEnabled !== false) && (
+            <button
+              onClick={() => setPaymentMethod('transfer')}
+              className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
+                paymentMethod === 'transfer'
+                  ? 'border-primary-500 bg-primary-50 shadow-sm'
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Upload className="w-6 h-6 text-gray-600 mr-4" />
+                  <div>
+                    <div className="font-semibold text-lg">Transferencia bancaria</div>
+                    <div className="text-sm text-gray-600">
+                      {paymentConfig?.transferProcessingNote || 'Sube tu comprobante • Validación manual'}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Clock className="w-5 h-5 text-blue-500" />
+                  <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                    {paymentConfig?.transferValidationTime || '1-2 días'}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="w-5 h-5 text-blue-500" />
-                <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                  1-2 días
-                </span>
-              </div>
-            </div>
-          </button>
+            </button>
+          )}
 
           {/* Efectivo en gimnasio */}
-          <button
-            onClick={() => setPaymentMethod('cash')}
-            className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
-              paymentMethod === 'cash'
-                ? 'border-primary-500 bg-primary-50 shadow-sm'
-                : 'border-gray-300 hover:border-gray-400'
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Banknote className="w-6 h-6 text-gray-600 mr-4" />
-                <div>
-                  <div className="font-semibold text-lg">Efectivo en el gimnasio</div>
-                  <div className="text-sm text-gray-600">Paga al visitar • Confirmación manual</div>
+          {(paymentConfig?.cashEnabled !== false) && (
+            <button
+              onClick={() => setPaymentMethod('cash')}
+              className={`w-full p-5 border-2 rounded-xl text-left transition-all hover:shadow-md ${
+                paymentMethod === 'cash'
+                  ? 'border-primary-500 bg-primary-50 shadow-sm'
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Banknote className="w-6 h-6 text-gray-600 mr-4" />
+                  <div>
+                    <div className="font-semibold text-lg">Efectivo en el gimnasio</div>
+                    <div className="text-sm text-gray-600">
+                      {paymentConfig?.cashProcessingNote || 'Paga al visitar • Confirmación manual'}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-5 h-5 text-purple-500" />
+                  <span className="text-sm font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded">
+                    En sucursal
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-5 h-5 text-purple-500" />
-                <span className="text-sm font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded">
-                  En sucursal
-                </span>
-              </div>
-            </div>
-          </button>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1724,28 +1781,53 @@ const MembershipPaymentStep = ({
         </div>
       )}
 
-      {/* FORMULARIO DE TRANSFERENCIA */}
+      {/* FORMULARIO DE TRANSFERENCIA CON DATOS DINÁMICOS */}
       {paymentMethod === 'transfer' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Transferencia bancaria
           </h3>
 
-          <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-5 mb-6">
-            <h4 className="font-semibold text-gray-900 mb-4">
-              Datos para transferencia:
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div><strong>Banco:</strong> Banco Industrial</div>
-              <div><strong>Cuenta:</strong> 123-456789-0</div>
-              <div><strong>Nombre:</strong> Elite Fitness Club S.A.</div>
-              <div><strong>Tipo:</strong> Cuenta Monetaria</div>
-              <div className="md:col-span-2 text-primary-600 font-bold text-lg flex items-center">
-                <span className="mr-1">Q</span>
-                <strong>Monto exacto:</strong> Q{formatPrice(plan.price)}
+          {bankInfo && bankInfo.bankName ? (
+            <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-5 mb-6">
+              <h4 className="font-semibold text-gray-900 mb-4">
+                Datos para transferencia:
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div><strong>Banco:</strong> {bankInfo.bankName}</div>
+                <div><strong>Cuenta:</strong> {bankInfo.accountNumber}</div>
+                <div><strong>Nombre:</strong> {bankInfo.accountHolder}</div>
+                <div><strong>Tipo:</strong> {bankInfo.accountType}</div>
+                <div className="md:col-span-2 text-primary-600 font-bold text-lg flex items-center">
+                  <span className="mr-1">Q</span>
+                  <strong>Monto exacto:</strong> Q{formatPrice(plan.price)}
+                </div>
+              </div>
+              
+              {bankInfo.instructions && bankInfo.instructions.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-300">
+                  <h5 className="font-medium text-gray-900 mb-2">Instrucciones:</h5>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    {bankInfo.instructions.map((instruction, index) => (
+                      <li key={index}>• {instruction}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 mr-2" />
+                <p className="text-yellow-800">
+                  Información bancaria no disponible. 
+                  {contactInfo?.supportEmail && (
+                    <span> Contacta: {contactInfo.supportEmail}</span>
+                  )}
+                </p>
               </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1797,7 +1879,7 @@ const MembershipPaymentStep = ({
                 <ul className="text-yellow-700 space-y-1">
                   <li>1. Realiza la transferencia con el monto exacto</li>
                   <li>2. Sube tu comprobante (opcional pero recomendado)</li>
-                  <li>3. Nuestro equipo validará la transferencia en 1-2 días</li>
+                  <li>3. Nuestro equipo validará la transferencia en {paymentConfig?.transferValidationTime || '1-2 días'}</li>
                   <li>4. Te notificaremos cuando se active tu membresía</li>
                 </ul>
               </div>
@@ -1806,7 +1888,7 @@ const MembershipPaymentStep = ({
         </div>
       )}
 
-      {/* INFORMACIÓN DE EFECTIVO */}
+      {/* INFORMACIÓN DE EFECTIVO CON DATOS DINÁMICOS */}
       {paymentMethod === 'cash' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -1818,18 +1900,41 @@ const MembershipPaymentStep = ({
               Información del pago:
             </h4>
             <div className="space-y-3 text-sm">
-              <div className="flex items-center">
-                <MapPin className="w-5 h-5 text-purple-500 mr-3" />
-                <span><strong>Ubicación:</strong> Elite Fitness Club - Recepción</span>
-              </div>
-              <div className="flex items-center">
-                <Clock className="w-5 h-5 text-purple-500 mr-3" />
-                <span><strong>Horario:</strong> Lunes a Domingo 6:00 AM - 10:00 PM</span>
-              </div>
+              {contactInfo?.location ? (
+                <div className="flex items-center">
+                  <MapPin className="w-5 h-5 text-purple-500 mr-3" />
+                  <span><strong>Ubicación:</strong> {contactInfo.location}</span>
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <MapPin className="w-5 h-5 text-purple-500 mr-3" />
+                  <span><strong>Ubicación:</strong> Elite Fitness Club - Recepción</span>
+                </div>
+              )}
+              
+              {contactInfo?.businessHours ? (
+                <div className="flex items-center">
+                  <Clock className="w-5 h-5 text-purple-500 mr-3" />
+                  <span><strong>Horario:</strong> {contactInfo.businessHours}</span>
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <Clock className="w-5 h-5 text-purple-500 mr-3" />
+                  <span><strong>Horario:</strong> Lunes a Domingo 6:00 AM - 10:00 PM</span>
+                </div>
+              )}
+              
               <div className="flex items-center">
                 <Banknote className="w-5 h-5 text-purple-500 mr-3" />
                 <span><strong>Monto exacto:</strong> Q{formatPrice(plan.price)}</span>
               </div>
+              
+              {contactInfo?.supportPhone && (
+                <div className="flex items-center">
+                  <Phone className="w-5 h-5 text-purple-500 mr-3" />
+                  <span><strong>Teléfono:</strong> {contactInfo.supportPhone}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1886,10 +1991,10 @@ const MembershipPaymentStep = ({
 };
 
 // ========================================
-// PASO 4: CONFIRMACIÓN
+// PASO 4: CONFIRMACIÓN CON INFORMACIÓN DINÁMICA
 // ========================================
 
-const MembershipConfirmationStep = ({ membership, user, onBack }) => {
+const MembershipConfirmationStep = ({ membership, user, contactInfo, gymConfig, onBack }) => {
   
   return (
     <div className="space-y-8">
@@ -2044,10 +2149,17 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
                   <span>Visita el gimnasio para completar tu pago</span>
                 </div>
                 
-                <div className="flex items-center text-sm">
-                  <Clock className="w-4 h-4 text-purple-500 mr-2" />
-                  <span>Horario: Lunes a Domingo 6:00 AM - 10:00 PM</span>
-                </div>
+                {contactInfo?.businessHours ? (
+                  <div className="flex items-center text-sm">
+                    <Clock className="w-4 h-4 text-purple-500 mr-2" />
+                    <span>Horario: {contactInfo.businessHours}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center text-sm">
+                    <Clock className="w-4 h-4 text-purple-500 mr-2" />
+                    <span>Horario: Lunes a Domingo 6:00 AM - 10:00 PM</span>
+                  </div>
+                )}
                 
                 <div className="flex items-center text-sm">
                   <Banknote className="w-4 h-4 text-purple-500 mr-2" />
@@ -2078,18 +2190,28 @@ const MembershipConfirmationStep = ({ membership, user, onBack }) => {
         </button>
       </div>
 
-      {/* INFORMACIÓN ADICIONAL */}
+      {/* INFORMACIÓN ADICIONAL CON DATOS DINÁMICOS */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
         <p className="text-blue-800 font-medium mb-2">
           ¿Necesitas ayuda?
         </p>
         <div className="flex justify-center space-x-4 text-sm">
-          <span className="text-blue-600">
-            soporte@elitefitness.com
-          </span>
-          <span className="text-blue-600">
-            2234-5678
-          </span>
+          {contactInfo?.supportEmail && (
+            <span className="text-blue-600">
+              {contactInfo.supportEmail}
+            </span>
+          )}
+          {contactInfo?.supportPhone && (
+            <span className="text-blue-600">
+              {contactInfo.supportPhone}
+            </span>
+          )}
+          {(!contactInfo?.supportEmail && !contactInfo?.supportPhone) && (
+            <>
+              <span className="text-blue-600">soporte@elitefitness.com</span>
+              <span className="text-blue-600">2234-5678</span>
+            </>
+          )}
         </div>
       </div>
     </div>

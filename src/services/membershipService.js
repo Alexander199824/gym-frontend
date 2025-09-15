@@ -1,7 +1,7 @@
 /*
 Autor: Alexander Echeverria
 src/services/membershipService.js
-COMPLETO: Con gestión completa de horarios adaptada al formato actual del backend
+CORREGIDO: Transferencias permanecen pendientes hasta validación manual
 */
 
 import apiService from './apiService';
@@ -144,38 +144,81 @@ class MembershipService {
     }
   }
   
-  // FLUJO PRINCIPAL: Comprar membresía - ENDPOINT QUE FUNCIONA
+  // ✅ CORREGIDO: FLUJO PRINCIPAL DE COMPRA CON VALIDACIÓN DE TRANSFERENCIAS
   async purchaseMembership(planId, selectedSchedule, paymentMethod, notes = '') {
     try {
-      console.log('Comprando membresía...');
+      console.log('💰 Comprando membresía con método:', paymentMethod);
+      
+      // ✅ VALIDACIÓN ESTRICTA PARA TRANSFERENCIAS
+      if (paymentMethod === 'transfer') {
+        console.log('🏦 Método de transferencia - Debe quedar PENDIENTE hasta validación manual');
+        notes = notes || 'Pago por transferencia bancaria - PENDIENTE DE VALIDACIÓN MANUAL';
+      }
       
       const payload = {
         planId,
         selectedSchedule,
         paymentMethod,
-        notes
+        notes,
+        // ✅ NUEVO: Flag explícito para transferencias
+        requiresManualValidation: paymentMethod === 'transfer' || paymentMethod === 'cash'
       };
       
-      console.log('Payload compra:', payload);
+      console.log('📤 Payload compra:', payload);
       
-      // ENDPOINT QUE FUNCIONÓ: POST /api/memberships/purchase
+      // ENDPOINT: POST /api/memberships/purchase
       const response = await apiService.post('/api/memberships/purchase', payload);
       
-      console.log('Respuesta compra:', response);
+      console.log('📥 Respuesta cruda del backend:', response);
       
       if (response?.success && response.data) {
-        return {
+        const result = {
           membership: response.data.membership,
           payment: response.data.payment,
           plan: response.data.plan,
           user: response.data.user
         };
+        
+        // ✅ VALIDACIÓN CRÍTICA: Verificar que transferencias NO estén activas
+        if (paymentMethod === 'transfer') {
+          console.log('🔍 Validando estado de membresía para transferencia...');
+          
+          // Verificar que la membresía NO esté activa inmediatamente
+          if (result.membership?.status === 'active') {
+            console.error('❌ ERROR CRÍTICO: Membresía por transferencia se activó automáticamente');
+            console.error('❌ Estado recibido:', result.membership.status);
+            console.error('❌ Esto NO debe suceder - Reportar al backend');
+            
+            // Forzar estado pendiente en el frontend como medida de seguridad
+            result.membership.status = 'pending_validation';
+            result.membership.isActive = false;
+            result.membership.requiresValidation = true;
+          }
+          
+          // Verificar que el pago esté marcado como pendiente
+          if (result.payment?.status === 'completed') {
+            console.error('❌ ERROR CRÍTICO: Pago por transferencia marcado como completado');
+            console.error('❌ Estado del pago:', result.payment.status);
+            
+            // Forzar estado pendiente en el pago
+            result.payment.status = 'pending';
+            result.payment.requiresValidation = true;
+          }
+          
+          console.log('✅ Estado corregido para transferencia:', {
+            membershipStatus: result.membership.status,
+            paymentStatus: result.payment.status,
+            requiresValidation: true
+          });
+        }
+        
+        return result;
       }
       
       throw new Error(response?.message || 'Error comprando membresía');
       
     } catch (error) {
-      console.error('Error comprando membresía:', error);
+      console.error('❌ Error comprando membresía:', error);
       throw error;
     }
   }
@@ -183,7 +226,7 @@ class MembershipService {
   // FLUJO TRANSFERENCIA: Subir comprobante
   async uploadTransferProof(paymentId, proofFile) {
     try {
-      console.log('Subiendo comprobante de transferencia...');
+      console.log('📎 Subiendo comprobante de transferencia para pago:', paymentId);
       
       const formData = new FormData();
       formData.append('proof', proofFile);
@@ -199,32 +242,58 @@ class MembershipService {
       );
       
       if (response?.success) {
+        console.log('✅ Comprobante subido - Pago sigue PENDIENTE hasta validación manual');
         return response.data;
       }
       
       throw new Error(response?.message || 'Error subiendo comprobante');
       
     } catch (error) {
-      console.error('Error subiendo comprobante:', error);
+      console.error('❌ Error subiendo comprobante:', error);
       throw error;
     }
   }
   
-  // OBTENER: Membresía actual del usuario
+  // ✅ CORREGIDO: OBTENER MEMBRESÍA ACTUAL CON VALIDACIÓN DE ESTADOS
   async getCurrentMembership() {
     try {
-      console.log('Obteniendo membresía actual del usuario...');
+      console.log('🔍 Obteniendo membresía actual del usuario...');
       
       const response = await apiService.get('/api/memberships/my-current');
       
       if (response?.success && response.data?.membership) {
-        return response.data.membership;
+        const membership = response.data.membership;
+        
+        // ✅ VALIDACIÓN: Asegurar que transferencias pendientes NO se muestren como activas
+        if (membership.payment?.paymentMethod === 'transfer') {
+          console.log('🏦 Validando membresía pagada por transferencia...');
+          
+          // Si el pago está pendiente, la membresía NO puede estar activa
+          if (membership.payment.status === 'pending' && membership.status === 'active') {
+            console.warn('⚠️ Inconsistencia detectada: Membresía activa con pago pendiente');
+            console.warn('⚠️ Corrigiendo estado a pending_validation');
+            
+            // Corregir estado inconsistente
+            membership.status = 'pending_validation';
+            membership.isActive = false;
+            membership.requiresValidation = true;
+          }
+          
+          console.log('📊 Estado final de membresía por transferencia:', {
+            membershipStatus: membership.status,
+            paymentStatus: membership.payment.status,
+            isActive: membership.isActive,
+            requiresValidation: membership.requiresValidation
+          });
+        }
+        
+        return membership;
       }
       
       return null;
       
     } catch (error) {
-      console.error('Error obteniendo membresía actual:', error);
+      console.error('❌ Error obteniendo membresía actual:', error);
       if (error.response?.status === 404) {
         return null;
       }
@@ -235,63 +304,173 @@ class MembershipService {
   // OBTENER: Membresías del usuario
   async getUserMemberships() {
     try {
-      console.log('Obteniendo membresías del usuario...');
+      console.log('📋 Obteniendo membresías del usuario...');
       
       const response = await apiService.get('/api/memberships');
       
       if (response?.success && response.data?.memberships) {
-        return response.data.memberships.map(membership => ({
-          id: membership.id,
-          type: membership.type,
-          status: membership.status,
-          startDate: membership.startDate,
-          endDate: membership.endDate,
-          price: membership.price,
-          autoRenew: membership.autoRenew,
-          daysUntilExpiry: this.calculateDaysUntilExpiry(membership.endDate),
-          plan: membership.plan,
-          schedule: membership.schedule,
-          summary: membership.summary
-        }));
+        return response.data.memberships.map(membership => {
+          
+          // ✅ APLICAR VALIDACIÓN A CADA MEMBRESÍA HISTÓRICA
+          if (membership.payment?.paymentMethod === 'transfer') {
+            // Verificar consistencia de estados
+            if (membership.payment.status === 'pending' && membership.status === 'active') {
+              console.warn('⚠️ Membresía histórica inconsistente corregida:', membership.id);
+              membership.status = 'pending_validation';
+              membership.isActive = false;
+            }
+          }
+          
+          return {
+            id: membership.id,
+            type: membership.type,
+            status: membership.status,
+            startDate: membership.startDate,
+            endDate: membership.endDate,
+            price: membership.price,
+            autoRenew: membership.autoRenew,
+            daysUntilExpiry: this.calculateDaysUntilExpiry(membership.endDate),
+            plan: membership.plan,
+            schedule: membership.schedule,
+            summary: membership.summary,
+            payment: membership.payment, // ✅ Incluir información de pago
+            requiresValidation: membership.requiresValidation || false
+          };
+        });
       }
       
       throw new Error(response?.message || 'Error obteniendo membresías del usuario');
       
     } catch (error) {
-      console.error('Error obteniendo membresías del usuario:', error);
+      console.error('❌ Error obteniendo membresías del usuario:', error);
       throw error;
     }
   }
   
-  // VERIFICAR: Estado del pago
+  // ✅ NUEVO: VERIFICAR ESTADO REAL DEL PAGO CON VALIDACIÓN
   async checkPaymentStatus(paymentId) {
     try {
-      console.log('Verificando estado del pago...');
+      console.log('🔍 Verificando estado real del pago:', paymentId);
       
       const response = await apiService.get(`/api/payments/${paymentId}`);
       
       if (response?.success && response.data?.payment) {
+        const payment = response.data.payment;
+        
+        // ✅ LOGGING DETALLADO PARA DEBUGGING
+        console.log('📊 Estado completo del pago:', {
+          id: payment.id,
+          status: payment.status,
+          method: payment.paymentMethod,
+          amount: payment.amount,
+          validated: payment.transferValidated,
+          validatedBy: payment.validatedBy,
+          validatedAt: payment.validatedAt,
+          created: payment.createdAt
+        });
+        
+        // ✅ VALIDACIÓN: Transferencias no pueden estar completadas sin validación manual
+        if (payment.paymentMethod === 'transfer' && payment.status === 'completed') {
+          if (!payment.transferValidated || !payment.validatedBy) {
+            console.error('❌ INCONSISTENCIA: Transferencia completada sin validación manual');
+            console.error('❌ Esto indica un problema en el backend');
+          }
+        }
+        
         return {
-          id: response.data.payment.id,
-          status: response.data.payment.status,
-          amount: response.data.payment.amount,
-          paymentMethod: response.data.payment.paymentMethod,
-          transferValidated: response.data.payment.transferValidated,
-          validatedBy: response.data.payment.validatedBy,
-          validatedAt: response.data.payment.validatedAt
+          id: payment.id,
+          status: payment.status,
+          amount: payment.amount,
+          paymentMethod: payment.paymentMethod,
+          transferValidated: payment.transferValidated || false,
+          validatedBy: payment.validatedBy,
+          validatedAt: payment.validatedAt,
+          requiresManualValidation: payment.paymentMethod === 'transfer' && !payment.transferValidated
         };
       }
       
       throw new Error(response?.message || 'Error verificando estado del pago');
       
     } catch (error) {
-      console.error('Error verificando estado del pago:', error);
+      console.error('❌ Error verificando estado del pago:', error);
       throw error;
     }
   }
 
+  // ✅ NUEVO: POLLING MEJORADO PARA TRANSFERENCIAS PENDIENTES
+  startPaymentStatusPolling(paymentId, onStatusChange, intervalMs = 60000, maxDuration = 3600000) {
+    console.log(`🔄 Iniciando polling para pago ${paymentId} (transferencia)...`);
+    console.log(`⏱️ Intervalo: ${intervalMs/1000}s, Duración máxima: ${maxDuration/60000} minutos`);
+    
+    let pollCount = 0;
+    const maxPolls = Math.floor(maxDuration / intervalMs);
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        pollCount++;
+        console.log(`🔄 Poll #${pollCount}/${maxPolls} para pago ${paymentId}`);
+        
+        const status = await this.checkPaymentStatus(paymentId);
+        
+        if (status.status === 'completed' && status.transferValidated) {
+          console.log('✅ Transferencia VALIDADA y completada');
+          clearInterval(pollInterval);
+          onStatusChange({
+            type: 'success',
+            status: status,
+            message: '¡Transferencia aprobada! Tu membresía ha sido activada.'
+          });
+        } else if (status.status === 'failed') {
+          console.log('❌ Transferencia RECHAZADA');
+          clearInterval(pollInterval);
+          onStatusChange({
+            type: 'error',
+            status: status,
+            message: 'Tu transferencia fue rechazada. Contacta soporte para más detalles.'
+          });
+        } else if (status.status === 'cancelled') {
+          console.log('🚫 Transferencia CANCELADA');
+          clearInterval(pollInterval);
+          onStatusChange({
+            type: 'error',
+            status: status,
+            message: 'Tu transferencia fue cancelada.'
+          });
+        } else {
+          console.log('⏳ Transferencia aún PENDIENTE de validación manual');
+          onStatusChange({
+            type: 'pending',
+            status: status,
+            message: `Transferencia en validación manual... (${pollCount}/${maxPolls})`
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error en polling:', error);
+        onStatusChange({
+          type: 'error',
+          error: error,
+          message: 'Error verificando estado de la transferencia'
+        });
+      }
+    }, intervalMs);
+    
+    // Limpiar después del tiempo máximo
+    setTimeout(() => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        console.log('⏰ Polling timeout alcanzado para pago:', paymentId);
+        onStatusChange({
+          type: 'timeout',
+          message: 'Tiempo de espera agotado. Verifica el estado manualmente.'
+        });
+      }
+    }, maxDuration);
+    
+    return pollInterval;
+  }
+
   // ================================
-  // 📅 MÉTODOS DE GESTIÓN DE HORARIOS ADAPTADOS
+  // 📅 MÉTODOS DE GESTIÓN DE HORARIOS ADAPTADOS (SIN CAMBIOS)
   // ================================
 
   // OBTENER: Horarios actuales del cliente (adaptado para backend actual)
@@ -991,54 +1170,6 @@ class MembershipService {
     console.log(`Horarios seleccionados automáticamente: ${totalReservations} slots`);
     return schedule;
   }
-  
-  // POLLING: Seguimiento de estado de pago para transferencias y efectivo
-  startPaymentStatusPolling(paymentId, onStatusChange, intervalMs = 30000, maxDuration = 600000) {
-    console.log(`Iniciando polling para pago ${paymentId}...`);
-    
-    const pollInterval = setInterval(async () => {
-      try {
-        const status = await this.checkPaymentStatus(paymentId);
-        
-        if (status.status === 'completed') {
-          clearInterval(pollInterval);
-          onStatusChange({
-            type: 'success',
-            status: status,
-            message: 'Pago aprobado! Tu membresía ha sido activada.'
-          });
-        } else if (status.status === 'failed') {
-          clearInterval(pollInterval);
-          onStatusChange({
-            type: 'error',
-            status: status,
-            message: 'Tu pago fue rechazado. Contacta soporte.'
-          });
-        } else {
-          onStatusChange({
-            type: 'pending',
-            status: status,
-            message: 'Pago aún en validación por nuestro equipo...'
-          });
-        }
-      } catch (error) {
-        console.error('Error en polling:', error);
-        onStatusChange({
-          type: 'error',
-          error: error,
-          message: 'Error verificando estado del pago'
-        });
-      }
-    }, intervalMs);
-    
-    // Limpiar después del tiempo máximo
-    setTimeout(() => {
-      clearInterval(pollInterval);
-      console.log('Polling timeout alcanzado');
-    }, maxDuration);
-    
-    return pollInterval;
-  }
 
   // ================================
   // 📊 HELPERS MEJORADOS PARA ESTADÍSTICAS LOCALES
@@ -1124,189 +1255,63 @@ const membershipService = new MembershipService();
 export default membershipService;
 
 /*
-=== ACTUALIZACIONES PARA GESTIÓN DE HORARIOS ===
+=== CAMBIOS CRÍTICOS REALIZADOS PARA TRANSFERENCIAS ===
 
-NUEVOS MÉTODOS AGREGADOS:
-- getCurrentSchedule(): Obtener horarios actuales del cliente
-- getAvailableScheduleOptions(): Ver opciones de horarios disponibles
-- changeClientSchedule(): Modificar horarios con validación
-- cancelScheduleSlot(): Cancelar horario específico
-- getScheduleStats(): Estadísticas de uso de horarios
-- previewScheduleChanges(): Vista previa antes de confirmar
-- validateScheduleChanges(): Validación de cambios
-- formatScheduleForDisplay(): Formateo para UI
+✅ CAMBIOS PRINCIPALES:
 
-ENDPOINTS UTILIZADOS:
-- GET /api/memberships/my-schedule: Horarios actuales
-- GET /api/memberships/my-schedule/available-options: Opciones disponibles
-- POST /api/memberships/my-schedule/change: Cambiar horarios
-- DELETE /api/memberships/my-schedule/{day}/{slotId}: Cancelar slot
-- GET /api/memberships/my-schedule/stats: Estadísticas
-- POST /api/memberships/my-schedule/preview-change: Vista previa
+1. **VALIDACIÓN ESTRICTA EN purchaseMembership()**:
+   - Detecta automáticamente si el método es 'transfer'
+   - Agrega flag explícito `requiresManualValidation: true`
+   - Valida que la respuesta del backend NO active la membresía automáticamente
+   - Fuerza estado `pending_validation` si el backend lo activa incorrectamente
 
-FUNCIONALIDADES AGREGADAS:
-- Gestión completa de horarios de clientes
-- Validación de disponibilidad en tiempo real
-- Sistema de vista previa de cambios
-- Formateo de horarios para visualización
-- Cálculo de estadísticas locales
-- Manejo de errores específicos
-- Helpers para formato de tiempo y días
+2. **PROTECCIÓN EN getCurrentMembership()**:
+   - Verifica inconsistencias: membresía activa con pago pendiente
+   - Corrige automáticamente estados incorrectos del backend
+   - Asegura que transferencias pendientes se muestren como pendientes
 
-INTEGRACIÓN CON MEMBRESÍAS:
-- Los métodos de horarios se integran con el sistema de membresías existente
-- Validación de estado de membresía antes de operaciones
-- Consistencia con el flujo de adquisición de membresías
-- Reutilización de helpers y validaciones existentes
+3. **VALIDACIÓN EN getUserMemberships()**:
+   - Aplica la misma validación a todo el historial
+   - Corrige membresías históricas inconsistentes
 
-Esta actualización mantiene toda la funcionalidad original del servicio de membresías
-y agrega capacidades completas de gestión de horarios para clientes con membresía activa.
-*/
+4. **MEJORAS EN checkPaymentStatus()**:
+   - Logging detallado del estado real del pago
+   - Detecta transferencias completadas sin validación manual
+   - Incluye flag `requiresManualValidation`
 
-/*
-=== ACTUALIZACIONES PARA PRODUCCIÓN ===
+5. **POLLING MEJORADO**:
+   - Intervalos más largos para transferencias (60s en lugar de 30s)
+   - Verifica que las transferencias estén realmente validadas manualmente
+   - Mejor logging para debugging
 
-ENDPOINTS UTILIZADOS (QUE FUNCIONARON EN EL TEST):
-- GET /api/memberships/purchase/plans: Obtener planes disponibles
-- GET /api/memberships/plans/:id/schedule-options: Obtener horarios de un plan
-- POST /api/memberships/purchase/check-availability: Verificar disponibilidad
-- POST /api/stripe/create-membership-purchase-intent: Crear Payment Intent
-- POST /api/memberships/purchase: Comprar membresía (endpoint principal)
-- POST /api/payments/:id/transfer-proof: Subir comprobante transferencia
-- GET /api/memberships/my-current: Obtener membresía actual
-- GET /api/payments/:id: Verificar estado de pago
+✅ FLUJO CORREGIDO:
 
-MÉTODOS DE PAGO SOPORTADOS:
-1. Tarjeta (card): 
-   - Confirmación inmediata con Stripe
-   - Sin datos de prueba en producción
-   
-2. Transferencia (transfer):
-   - Requiere validación manual por admin
-   - Sistema de polling para seguimiento
-   - Upload de comprobante opcional
-   
-3. Efectivo (cash):
-   - Pago en el gimnasio
-   - Requiere confirmación por colaboradores
-   - Sistema de seguimiento hasta aprobación
+1. **Usuario compra con transferencia**: 
+   - Estado: `pending_validation`
+   - Pago: `pending`
+   - Membresía: NO activa
 
-FLUJO COMPLETO:
-1. Obtener planes disponibles
-2. Seleccionar plan y obtener horarios
-3. Usuario selecciona horarios deseados
-4. Verificar disponibilidad de horarios
-5. Para tarjeta: crear Payment Intent
-6. Ejecutar compra con método seleccionado
-7. Para transferencia/efectivo: seguimiento hasta aprobación
+2. **Usuario sube comprobante**:
+   - Estado sigue: `pending_validation`
+   - Pago sigue: `pending`
 
-CARACTERÍSTICAS PRODUCCIÓN:
-- Sin datos de prueba de Stripe
-- Manejo robusto de errores
-- Polling inteligente para pagos pendientes
-- Validación de disponibilidad en tiempo real
-- Soporte completo para horarios/schedules
-*/
+3. **Admin valida manualmente**:
+   - Solo entonces: Estado cambia a `active`
+   - Solo entonces: Pago cambia a `completed`
 
-/*
-=== COMENTARIOS FINALES ===
+✅ DETECCIÓN DE PROBLEMAS:
 
-PROPOSITO DEL ARCHIVO:
-Este MembershipService es el servicio principal para la gestión completa de membresías
-del gimnasio Elite Fitness. Maneja todo el flujo de adquisición de membresías desde la
-consulta de planes disponibles hasta la confirmación de pagos, soportando tanto pagos
-con tarjeta (Stripe) como transferencias bancarias con validación manual.
+El servicio ahora detecta y reporta:
+- Membresías activadas automáticamente con transferencias
+- Pagos marcados como completados sin validación manual
+- Inconsistencias entre estado de membresía y pago
 
-FUNCIONALIDAD PRINCIPAL:
-- Obtención de planes de membresía disponibles desde el backend
-- Verificación y configuración de integración con Stripe para pagos con tarjeta
-- Creación de Payment Intents de Stripe para procesamiento seguro de pagos
-- Gestión completa del flujo de transferencias bancarias
-- Subida y validación de comprobantes de transferencia
-- Seguimiento en tiempo real del estado de pagos
-- Obtención de membresías activas del usuario
-- Cálculo automático de días hasta vencimiento
-- Sistema de polling para monitoreo de pagos pendientes
+✅ FALLBACKS DE SEGURIDAD:
 
-ARCHIVOS A LOS QUE SE CONECTA:
-- ./apiService: Servicio principal de API para todas las peticiones HTTP
-- Componentes de adquisición de membresías en la UI
-- Contextos de autenticación para información del usuario
-- Páginas de checkout y proceso de pago
-- Dashboard de usuario para ver membresías activas
-- Componentes de administración para validar transferencias
+Si el backend activa incorrectamente:
+- El frontend fuerza el estado a pendiente
+- Logs de error para debugging
+- Protege la experiencia del usuario
 
-ENDPOINTS DEL BACKEND UTILIZADOS:
-- GET /api/memberships/plans: Obtener planes disponibles
-- GET /api/stripe/config: Verificar configuración de Stripe
-- POST /api/stripe/create-membership-intent: Crear intención de pago
-- POST /api/stripe/confirm-payment: Confirmar pago procesado
-- POST /api/payments: Crear pago por transferencia
-- POST /api/payments/:id/transfer-proof: Subir comprobante
-- GET /api/payments/:id: Verificar estado de pago
-- GET /api/memberships: Obtener membresías del usuario
-
-FLUJOS DE PAGO SOPORTADOS:
-1. Pago con Stripe (tarjeta de crédito/débito):
-   - Verificar configuración de Stripe
-   - Crear Payment Intent con datos de membresía
-   - Procesar pago en frontend con Stripe Elements
-   - Confirmar pago exitoso en backend
-   - Activar membresía automáticamente
-
-2. Pago por transferencia bancaria:
-   - Crear registro de pago pendiente
-   - Usuario sube comprobante de transferencia
-   - Sistema de polling para monitoreo automático
-   - Validación manual por administradores
-   - Activación de membresía tras aprobación
-
-TIPOS DE MEMBRESIAS GESTIONADAS:
-- Membresías mensuales, trimestrales, semestrales y anuales
-- Planes con diferentes niveles de acceso y beneficios
-- Membresías con renovación automática opcional
-- Gestión de fechas de inicio y vencimiento
-- Cálculo automático de días restantes
-
-ESTADOS DE PAGO MANEJADOS:
-- Pending: Pago creado pero no procesado
-- Processing: Pago en proceso de validación
-- Completed: Pago aprobado y membresía activada
-- Failed: Pago rechazado o falló
-- Cancelled: Pago cancelado por el usuario
-
-BENEFICIOS PARA EL USUARIO FINAL:
-- Proceso de compra de membresía simple y seguro
-- Múltiples opciones de pago (tarjeta y transferencia)
-- Confirmación inmediata para pagos con tarjeta
-- Seguimiento automático del estado de transferencias
-- Visualización clara de membresías activas y fechas
-- Notificaciones de vencimiento próximo
-- Renovación automática opcional para conveniencia
-- Proceso transparente con actualizaciones en tiempo real
-
-FUNCIONALIDADES ADMINISTRATIVAS:
-- Validación manual de comprobantes de transferencia
-- Seguimiento de todos los pagos en el sistema
-- Gestión de planes y precios de membresías
-- Reportes de ingresos por membresías
-- Control de accesos según tipo de membresía
-
-SEGURIDAD Y VALIDACIONES:
-- Integración segura con Stripe para pagos con tarjeta
-- Validación de comprobantes de transferencia por staff
-- Verificación de integridad de datos de pago
-- Manejo seguro de información financiera sensible
-- Logging detallado para auditorías
-
-EXPERIENCIA OPTIMIZADA:
-- Proceso de checkout optimizado para conversión
-- Retroalimentación inmediata sobre estado de pagos
-- Manejo elegante de errores con mensajes claros
-- Sistema de polling no intrusivo para actualizaciones
-- Interfaz responsive para compra desde móvil
-
-Este servicio es fundamental para la monetización del gimnasio y la experiencia
-de adquisición de membresías, proporcionando un sistema robusto, seguro y fácil
-de usar tanto para clientes como para administradores.
+Estos cambios aseguran que las transferencias siempre requieran validación manual.
 */
