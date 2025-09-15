@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager.js
 // Author: Alexander Echeverria
 // Componente principal para la gestión completa de pagos del sistema
-// ACTUALIZADO: Incluye nuevas funcionalidades y componentes mejorados
+// ACTUALIZADO: Integración completa con transferencias mejoradas
 
 import React, { useState } from 'react';
 import { Coins, RefreshCw } from 'lucide-react';
@@ -36,7 +36,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   // Hooks personalizados para manejo de datos
   const paymentsData = usePaymentsData();
   const cashData = useCashMemberships(onSave);
-  const transfersData = useTransfers(onSave);
+  const transfersData = useTransfers(onSave); // ACTUALIZADO: Ahora incluye filtros y vistas
   const statisticsData = useStatistics();
   
   // Función para refrescar todos los datos
@@ -45,7 +45,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       await Promise.all([
         paymentsData.loadPayments(),
         cashData.loadPendingCashMemberships(),
-        transfersData.loadPendingTransfers(),
+        transfersData.loadPendingTransfers(), // ACTUALIZADO
         statisticsData.loadStatistics(),
         statisticsData.loadFinancialDashboard()
       ]);
@@ -83,7 +83,27 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           />
         );
       case 'transfers':
-        return <TransfersTab {...transfersData} {...commonProps} onSave={onSave} />;
+        return (
+          <TransfersTab 
+            {...transfersData} 
+            {...commonProps} 
+            onSave={onSave}
+            // NUEVO: Pasar todas las props necesarias para transferencias
+            transferStats={transfersData.transferStats}
+            searchTerm={transfersData.searchTerm}
+            setSearchTerm={transfersData.setSearchTerm}
+            transferViewMode={transfersData.transferViewMode}
+            setTransferViewMode={transfersData.setTransferViewMode}
+            transferSortBy={transfersData.transferSortBy}
+            setTransferSortBy={transfersData.setTransferSortBy}
+            transferPriorityFilter={transfersData.transferPriorityFilter}
+            setTransferPriorityFilter={transfersData.setTransferPriorityFilter}
+            getFilteredTransfers={transfersData.getFilteredTransfers}
+            processingIds={transfersData.processingIds}
+            isTransferProcessing={transfersData.isTransferProcessing}
+            getProcessingType={transfersData.getProcessingType}
+          />
+        );
       case 'summary':
         return <SummaryTab {...statisticsData} {...commonProps} />;
       default:
@@ -109,10 +129,12 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         <div className="flex items-center space-x-3 mt-4 lg:mt-0">
           <button
             onClick={handleRefreshAll}
-            disabled={paymentsData.loading}
+            disabled={paymentsData.loading || cashData.loading || transfersData.loading}
             className="btn-secondary btn-sm"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${paymentsData.loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 mr-2 ${
+              (paymentsData.loading || cashData.loading || transfersData.loading) ? 'animate-spin' : ''
+            }`} />
             Actualizar
           </button>
         </div>
@@ -124,7 +146,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         onTabChange={setActiveTab}
         counters={{
           totalPayments: paymentsData.totalPayments,
-          pendingTransfers: transfersData.pendingTransfers?.length || 0,
+          pendingTransfers: transfersData.transferStats?.total || 0, // ACTUALIZADO
+          criticalTransfers: transfersData.transferStats?.critical || 0, // NUEVO
           pendingCash: cashData.cashMembershipStats?.total || 0,
           urgentCash: cashData.cashMembershipStats?.old || 0
         }}
@@ -144,10 +167,11 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
               Sistema Mejorado con Información Detallada
             </h4>
             <div className="text-sm text-blue-800 space-y-1">
-              <p>• <strong>Transferencias:</strong> Comprobantes se muestran directamente en el dashboard con visualización completa</p>
+              <p>• <strong>Transferencias:</strong> Vista rediseñada con grid/lista, estadísticas y comprobantes compactos</p>
               <p>• <strong>Efectivo:</strong> Información expandible con detalles completos del cliente y membresía</p>
               <p>• <strong>Historial:</strong> Vista detallada expandible para cada pago con toda la información disponible</p>
-              <p>• <strong>Tiempo real:</strong> URLs de comprobantes funcionales como en el test del backend</p>
+              <p>• <strong>Filtros:</strong> Búsqueda y filtros avanzados en todas las secciones</p>
+              <p>• <strong>Tiempo real:</strong> Contadores de tiempo de espera y prioridades automáticas</p>
             </div>
           </div>
         </div>
@@ -157,6 +181,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default PaymentsManager;
+
+// Este componente sirve como orquestador principal del sistema de pagos
+// Mantiene la navegación entre tabs y coordina todos los subcomponentes
+// ACTUALIZADO: Ahora incluye integración completa con transferencias mejoradas
 
 // Este componente sirve como orquestador principal del sistema de pagos
 // Mantiene la navegación entre tabs y coordina todos los subcomponentes

@@ -3,8 +3,13 @@
 // Componente de navegación por tabs para el sistema de gestión de pagos
 // Incluye contadores dinámicos y indicadores visuales de estado
 
+// src/pages/dashboard/components/PaymentsManager/components/TabNavigation.js
+// Author: Alexander Echeverria
+// Componente de navegación por tabs para el sistema de gestión de pagos
+// ACTUALIZADO: Mejores contadores para transferencias y estados más claros
+
 import React from 'react';
-import { Coins, Building, Banknote, TrendingUp, Clock } from 'lucide-react';
+import { Coins, Building, Banknote, TrendingUp, Clock, AlertTriangle } from 'lucide-react';
 
 const TabNavigation = ({ activeTab, onTabChange, counters }) => {
   const tabs = [
@@ -22,7 +27,9 @@ const TabNavigation = ({ activeTab, onTabChange, counters }) => {
       icon: Building,
       color: 'purple',
       counter: counters?.pendingTransfers || 0,
-      showCounter: true
+      criticalCounter: counters?.criticalTransfers || 0, // NUEVO: Transferencias críticas
+      showCounter: true,
+      showCritical: true // NUEVO: Mostrar contador crítico
     },
     {
       id: 'cash',
@@ -69,6 +76,10 @@ const TabNavigation = ({ activeTab, onTabChange, counters }) => {
     return `ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs ${counterClasses[tab.color]}`;
   };
 
+  const getCriticalClasses = () => {
+    return "ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-red-100 text-red-800";
+  };
+
   const getOldClasses = () => {
     return "ml-1 inline-flex items-center px-1 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800";
   };
@@ -95,7 +106,15 @@ const TabNavigation = ({ activeTab, onTabChange, counters }) => {
                 </span>
               )}
               
-              {/* Contador de antiguos (solo para efectivo) */}
+              {/* Contador crítico para transferencias */}
+              {tab.showCritical && tab.criticalCounter > 0 && (
+                <span className={getCriticalClasses()}>
+                  <AlertTriangle className="w-3 h-3 mr-0.5" />
+                  {tab.criticalCounter}
+                </span>
+              )}
+              
+              {/* Contador de antiguos para efectivo */}
               {tab.showOld && tab.oldCounter > 0 && (
                 <span className={getOldClasses()}>
                   <Clock className="w-3 h-3" />
