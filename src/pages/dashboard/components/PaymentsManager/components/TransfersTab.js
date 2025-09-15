@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/components/TransfersTab.js
 // Author: Alexander Echeverria
 // Componente del tab de transferencias bancarias pendientes de validación
-// MEJORADO: Ahora muestra comprobantes inline y más información detallada
+// CORREGIDO: Manejo robusto de fechas inválidas para evitar errores de formateo
 
 import React, { useState } from 'react';
 import { 
@@ -33,6 +33,81 @@ const TransfersTab = ({
 
   // Estado para controlar qué comprobantes están expandidos
   const [expandedProofs, setExpandedProofs] = useState(new Set());
+
+  // ✅ FUNCIÓN CORREGIDA: Validar y formatear fechas de forma segura
+  const formatDateSafely = (dateString, format = 'dd/MM/yyyy HH:mm') => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      // Intentar crear la fecha
+      const date = new Date(dateString);
+      
+      // Verificar si la fecha es válida
+      if (isNaN(date.getTime())) {
+        console.warn('Fecha inválida detectada:', dateString);
+        return 'Fecha inválida';
+      }
+      
+      // Si tenemos formatDate disponible, usarlo
+      if (formatDate && typeof formatDate === 'function') {
+        return formatDate(dateString, format);
+      }
+      
+      // Fallback: formateo manual básico
+      return date.toLocaleString('es-ES', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+    } catch (error) {
+      console.error('Error formateando fecha:', error, 'dateString:', dateString);
+      return 'Error de fecha';
+    }
+  };
+
+  // ✅ FUNCIÓN CORREGIDA: Formatear tiempo detallado con validación robusta
+  const formatDetailedTimeSafely = (dateString) => {
+    if (!dateString) return 'N/A';
+    
+    try {
+      const date = new Date(dateString);
+      
+      // Verificar si la fecha es válida
+      if (isNaN(date.getTime())) {
+        console.warn('Fecha inválida en formatDetailedTime:', dateString);
+        return 'Fecha inválida';
+      }
+      
+      const now = new Date();
+      const diffTime = now - date;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+      const diffMinutes = Math.floor(diffTime / (1000 * 60));
+      
+      // Formatear la fecha base
+      const formattedDate = formatDateSafely(dateString, 'dd/MM/yyyy HH:mm');
+      
+      let timeAgo = '';
+      if (diffDays > 0) {
+        timeAgo = `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
+      } else if (diffHours > 0) {
+        timeAgo = `hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+      } else if (diffMinutes > 0) {
+        timeAgo = `hace ${diffMinutes} minuto${diffMinutes > 1 ? 's' : ''}`;
+      } else {
+        timeAgo = 'ahora mismo';
+      }
+      
+      return `${formattedDate} (${timeAgo})`;
+      
+    } catch (error) {
+      console.error('Error en formatDetailedTimeSafely:', error, 'dateString:', dateString);
+      return 'Error calculando tiempo';
+    }
+  };
 
   // Obtener transferencias ordenadas por prioridad
   const sortedTransfers = getSortedTransfers ? getSortedTransfers() : [...pendingTransfers].sort((a, b) => (b.hoursWaiting || 0) - (a.hoursWaiting || 0));
@@ -104,32 +179,6 @@ const TransfersTab = ({
       default:
         return 'bg-green-50 border-green-200 text-green-800';
     }
-  };
-
-  // Función para formatear tiempo de forma más detallada
-  const formatDetailedTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = now - date;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-    const diffMinutes = Math.floor(diffTime / (1000 * 60));
-    
-    const formattedDate = formatDate ? formatDate(dateString, 'dd/MM/yyyy HH:mm') : date.toLocaleString();
-    
-    let timeAgo = '';
-    if (diffDays > 0) {
-      timeAgo = `hace ${diffDays} día${diffDays > 1 ? 's' : ''}`;
-    } else if (diffHours > 0) {
-      timeAgo = `hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
-    } else if (diffMinutes > 0) {
-      timeAgo = `hace ${diffMinutes} minuto${diffMinutes > 1 ? 's' : ''}`;
-    } else {
-      timeAgo = 'ahora mismo';
-    }
-    
-    return `${formattedDate} (${timeAgo})`;
   };
 
   return (
@@ -316,7 +365,7 @@ const TransfersTab = ({
                           </div>
                         </div>
                         
-                        {/* Información de tiempo y fechas */}
+                        {/* ✅ INFORMACIÓN DE TIEMPO CORREGIDA - Usar funciones seguras */}
                         <div className="bg-blue-50 rounded-lg p-4">
                           <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
                             <Clock className="w-4 h-4 mr-2" />
@@ -331,7 +380,7 @@ const TransfersTab = ({
                               <div>
                                 <div className="font-medium text-gray-900">Fecha de pago</div>
                                 <div className="text-gray-600">
-                                  {formatDetailedTime(transfer.paymentDate || transfer.createdAt)}
+                                  {formatDetailedTimeSafely(transfer.paymentDate || transfer.createdAt)}
                                 </div>
                               </div>
                             </div>
@@ -373,7 +422,7 @@ const TransfersTab = ({
                           </div>
                         </div>
                         
-                        {/* Información de membresía (si existe) */}
+                        {/* ✅ INFORMACIÓN DE MEMBRESÍA CORREGIDA - Usar función segura */}
                         {transfer.membership && (
                           <div className="bg-purple-50 rounded-lg p-4">
                             <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
@@ -389,13 +438,13 @@ const TransfersTab = ({
                               <div>
                                 <div className="font-medium text-gray-900">Inicio</div>
                                 <div className="text-gray-600">
-                                  {formatDate && formatDate(transfer.membership.startDate, 'dd/MM/yyyy')}
+                                  {formatDateSafely(transfer.membership.startDate, 'dd/MM/yyyy')}
                                 </div>
                               </div>
                               <div>
                                 <div className="font-medium text-gray-900">Vencimiento</div>
                                 <div className="text-gray-600">
-                                  {formatDate && formatDate(transfer.membership.endDate, 'dd/MM/yyyy')}
+                                  {formatDateSafely(transfer.membership.endDate, 'dd/MM/yyyy')}
                                 </div>
                               </div>
                             </div>
