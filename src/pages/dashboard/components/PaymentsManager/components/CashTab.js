@@ -6,11 +6,12 @@
 // src/pages/dashboard/components/PaymentsManager/components/CashTab.js
 // Author: Alexander Echeverria
 // Componente completo del tab de efectivo con estadísticas, filtros y lista de membresías
-// OPTIMIZADO: Completamente responsive para móvil sin perder funcionalidad
+// MEJORADO: Filtros móviles completamente rediseñados para mejor UX
 
 import React from 'react';
 import { 
-  Search, CheckCircle, Grid3X3, List, Bird, Clock, Filter, X
+  Search, CheckCircle, Grid3X3, List, Bird, Clock, Filter, X,
+  SlidersHorizontal, ChevronDown, Timer, AlertTriangle, Eye
 } from 'lucide-react';
 import CashMembershipCard from './CashMembershipCard';
 import CashMembershipListItem from './CashMembershipListItem';
@@ -65,6 +66,20 @@ const CashTab = ({
     }
     
     handleCancelCashMembership(membershipId, showSuccess, showError, formatCurrency);
+  };
+
+  // Verificar si hay filtros activos
+  const hasActiveFilters = () => {
+    return cashPriorityFilter !== 'all' || 
+           cashSortBy !== 'waiting_time' || 
+           (searchTerm && searchTerm.length > 0);
+  };
+
+  // Limpiar todos los filtros
+  const clearAllFilters = () => {
+    setCashPriorityFilter && setCashPriorityFilter('all');
+    setCashSortBy && setCashSortBy('waiting_time');
+    setSearchTerm && setSearchTerm('');
   };
 
   return (
@@ -131,49 +146,117 @@ const CashTab = ({
         </div>
       </div>
 
-      {/* Controles de filtros y vista - COMPLETAMENTE RESPONSIVE */}
+      {/* CONTROLES PRINCIPALES - REDISEÑADOS PARA MÓVIL */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         
-        {/* Header con búsqueda y controles principales */}
-        <div className="p-4 space-y-4">
+        {/* Header principal - Siempre visible */}
+        <div className="p-4">
           
-          {/* Búsqueda y botón de filtros móvil */}
-          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+          {/* Búsqueda - Siempre visible */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, email o plan..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm && setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm && setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Controles principales móvil/desktop */}
+          <div className="flex flex-col sm:flex-row gap-3">
             
-            {/* Campo de búsqueda */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, email o plan..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm && setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm && setSearchTerm('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+            {/* Panel de controles móvil */}
+            <div className="sm:hidden">
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                
+                {/* Selector de vista - PROMINENTE EN MÓVIL */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Vista</label>
+                  <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setCashViewMode && setCashViewMode('grid')}
+                      className={`flex-1 p-2.5 flex items-center justify-center text-sm font-medium transition-colors ${
+                        cashViewMode === 'grid'
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Grid3X3 className="w-4 h-4 mr-1" />
+                      Cards
+                    </button>
+                    <button
+                      onClick={() => setCashViewMode && setCashViewMode('list')}
+                      className={`flex-1 p-2.5 flex items-center justify-center text-sm font-medium transition-colors ${
+                        cashViewMode === 'list'
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <List className="w-4 h-4 mr-1" />
+                      Lista
+                    </button>
+                  </div>
+                </div>
+
+                {/* Botón de filtros con indicador */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Filtros</label>
+                  <button
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                    className={`w-full p-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center relative ${
+                      hasActiveFilters()
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-4 h-4 mr-2" />
+                    Filtros
+                    {hasActiveFilters() && (
+                      <div className="ml-2 w-2 h-2 bg-white rounded-full"></div>
+                    )}
+                    <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${
+                      showMobileFilters ? 'rotate-180' : ''
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Indicador de filtros activos */}
+              {hasActiveFilters() && !showMobileFilters && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-2 mb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Filter className="w-4 h-4 text-green-600 mr-2" />
+                      <span className="text-sm text-green-700 font-medium">Filtros activos</span>
+                    </div>
+                    <button
+                      onClick={clearAllFilters}
+                      className="text-xs text-green-600 hover:text-green-800 font-medium"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                  <div className="mt-1 text-xs text-green-600">
+                    {cashPriorityFilter !== 'all' && `Prioridad: ${cashPriorityFilter} • `}
+                    {cashSortBy !== 'waiting_time' && `Orden: ${cashSortBy} • `}
+                    {searchTerm && `Búsqueda activa`}
+                  </div>
+                </div>
               )}
             </div>
-            
-            {/* Botón de filtros para móvil */}
-            <button
-              onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className="sm:hidden flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium text-sm"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Filtros
-              {(cashPriorityFilter !== 'all' || cashSortBy !== 'waiting_time') && (
-                <div className="ml-2 w-2 h-2 bg-green-300 rounded-full"></div>
-              )}
-            </button>
-            
+
             {/* Controles para desktop */}
-            <div className="hidden sm:flex items-center space-x-3">
+            <div className="hidden sm:flex items-center space-x-3 flex-1">
               
               {/* Filtro de prioridad */}
               <select
@@ -230,28 +313,81 @@ const CashTab = ({
               <div className="text-sm text-gray-500 whitespace-nowrap">
                 {filteredMemberships.length} membresías
               </div>
+              
+              {/* Botón limpiar filtros */}
+              {hasActiveFilters() && (
+                <button
+                  onClick={clearAllFilters}
+                  className="text-sm text-green-600 hover:text-green-800 font-medium whitespace-nowrap"
+                >
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           </div>
-          
-          {/* Panel de filtros móvil */}
-          {showMobileFilters && (
-            <div className="sm:hidden bg-gray-50 rounded-lg p-4 space-y-4 border-t border-gray-200">
+        </div>
+        
+        {/* Panel de filtros móvil expandido */}
+        {showMobileFilters && (
+          <div className="sm:hidden bg-gray-50 border-t border-gray-200 p-4">
+            <div className="space-y-4">
+              
+              {/* Header del panel */}
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-gray-900 flex items-center">
+                  <SlidersHorizontal className="w-4 h-4 mr-2" />
+                  Filtros de búsqueda
+                </h4>
+                <button
+                  onClick={() => setShowMobileFilters(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
               
               {/* Filtro de prioridad móvil */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Filtrar por prioridad
+                  Filtrar por tiempo de espera
                 </label>
-                <select
-                  value={cashPriorityFilter}
-                  onChange={(e) => setCashPriorityFilter && setCashPriorityFilter(e.target.value)}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                >
-                  <option value="all">Todas las membresías</option>
-                  <option value="normal">Esperando normal</option>
-                  <option value="old">Antiguos (+24h)</option>
-                  <option value="very_old">Muy antiguos (+48h)</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'all', label: 'Todas', icon: Eye, color: 'gray' },
+                    { value: 'normal', label: 'Normal', icon: Clock, color: 'green' },
+                    { value: 'old', label: 'Antiguos', icon: Timer, color: 'orange' },
+                    { value: 'very_old', label: 'Críticos', icon: AlertTriangle, color: 'red' }
+                  ].map((priority) => {
+                    const IconComponent = priority.icon;
+                    const colorClasses = {
+                      gray: 'border-gray-200 bg-white text-gray-700 hover:border-gray-300',
+                      green: 'border-green-500 bg-green-50 text-green-700',
+                      orange: 'border-orange-500 bg-orange-50 text-orange-700',
+                      red: 'border-red-500 bg-red-50 text-red-700'
+                    };
+                    
+                    return (
+                      <button
+                        key={priority.value}
+                        onClick={() => setCashPriorityFilter && setCashPriorityFilter(priority.value)}
+                        className={`p-3 rounded-lg border-2 transition-all text-sm font-medium flex flex-col items-center justify-center ${
+                          cashPriorityFilter === priority.value
+                            ? colorClasses[priority.color]
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <IconComponent className="w-5 h-5 mb-1" />
+                        {priority.label}
+                        {priority.value === 'old' && (
+                          <span className="text-xs mt-1">+24h</span>
+                        )}
+                        {priority.value === 'very_old' && (
+                          <span className="text-xs mt-1">+48h</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               
               {/* Ordenamiento móvil */}
@@ -264,61 +400,40 @@ const CashTab = ({
                   onChange={(e) => setCashSortBy && setCashSortBy(e.target.value)}
                   className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 >
-                  <option value="waiting_time">Tiempo de espera</option>
-                  <option value="amount">Monto</option>
+                  <option value="waiting_time">Tiempo de espera (mayor a menor)</option>
+                  <option value="amount">Monto (mayor a menor)</option>
                   <option value="name">Nombre del cliente</option>
                   <option value="created">Fecha de creación</option>
                 </select>
               </div>
               
-              {/* Vista móvil */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de vista
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setCashViewMode && setCashViewMode('grid')}
-                    className={`flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      cashViewMode === 'grid'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Grid3X3 className="w-4 h-4 mr-2" />
-                    Tarjetas
-                  </button>
-                  <button
-                    onClick={() => setCashViewMode && setCashViewMode('list')}
-                    className={`flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      cashViewMode === 'list'
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <List className="w-4 h-4 mr-2" />
-                    Lista
-                  </button>
-                </div>
-              </div>
-              
               {/* Contador de resultados móvil */}
-              <div className="text-center">
+              <div className="text-center bg-white rounded-lg p-3 border border-gray-200">
                 <span className="text-sm text-gray-600">
                   {filteredMemberships.length} membresía{filteredMemberships.length !== 1 ? 's' : ''} encontrada{filteredMemberships.length !== 1 ? 's' : ''}
                 </span>
               </div>
               
-              {/* Botón para cerrar filtros */}
-              <button
-                onClick={() => setShowMobileFilters(false)}
-                className="w-full px-4 py-2.5 bg-gray-600 text-white rounded-lg font-medium text-sm"
-              >
-                Aplicar filtros
-              </button>
+              {/* Botones de acción */}
+              <div className="flex gap-3">
+                {hasActiveFilters() && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="flex-1 px-4 py-2.5 bg-gray-600 text-white rounded-lg font-medium text-sm"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowMobileFilters(false)}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium text-sm"
+                >
+                  Ver resultados
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Contenido principal de membresías */}
@@ -339,6 +454,14 @@ const CashTab = ({
               : 'Todas las membresías en efectivo han sido procesadas'
             }
           </p>
+          {hasActiveFilters() && (
+            <button
+              onClick={clearAllFilters}
+              className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
         
       ) : (
@@ -388,8 +511,8 @@ const CashTab = ({
               ? 'Mostrando 1 membresía pendiente'
               : `Mostrando ${filteredMemberships.length} membresías pendientes`
             }
-            {(searchTerm || cashPriorityFilter !== 'all') && (
-              <span> con los filtros aplicados</span>
+            {hasActiveFilters() && (
+              <span> con filtros aplicados</span>
             )}
           </div>
           

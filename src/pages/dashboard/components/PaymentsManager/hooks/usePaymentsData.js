@@ -4,9 +4,7 @@
 // Incluye paginación, búsqueda y filtros de historial de pagos
 
 // src/pages/dashboard/components/PaymentsManager/hooks/usePaymentsData.js
-// Author: Alexander Echeverria
-// Hook personalizado para manejar toda la lógica de carga y gestión de pagos
-// Incluye paginación, búsqueda y filtros de historial de pagos
+// ACTUALIZADO: Para usar la misma lógica del test en el historial general de pagos
 
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
@@ -56,12 +54,13 @@ const usePaymentsData = (onSave) => {
     }
   };
 
-  // Función para confirmar un pago pendiente
+  // FUNCIÓN PRINCIPAL: Confirmar pago pendiente - LÓGICA DEL TEST
   const handleConfirmPayment = async (paymentId, clientName, amount, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
+    // Confirmar sin pedir razón como en el test
     const confirmed = window.confirm(
-      `¿Confirmar que el pago de ${clientName} por ${amount} se realizó correctamente?`
+      `¿Confirmar que el pago de ${clientName} por ${amount} se realizó correctamente?\n\n✅ Se enviará email de confirmación automáticamente`
     );
     
     if (!confirmed) return;
@@ -69,14 +68,23 @@ const usePaymentsData = (onSave) => {
     try {
       setProcessingIds(prev => new Set([...prev, paymentId]));
       
-      // Llamada al API para confirmar el pago
-      await apiService.paymentService.confirmPayment(paymentId, {
-        notes: `Pago confirmado para ${clientName}`,
-        confirmedBy: 'admin'
-      });
+      // Determinar el método de pago para usar el endpoint correcto
+      const payment = payments.find(p => p.id === paymentId);
+      const paymentMethod = payment?.paymentMethod || 'cash';
+      
+      if (paymentMethod === 'cash') {
+        // Usar endpoint de efectivo
+        await apiService.paymentService.activateCashMembership(paymentId);
+      } else if (paymentMethod === 'transfer') {
+        // Usar endpoint de transferencias
+        await apiService.paymentService.approveTransfer(paymentId);
+      } else {
+        // Para otros métodos, intentar endpoint genérico
+        await apiService.paymentService.activateCashMembership(paymentId);
+      }
       
       showSuccess(
-        `¡Pago confirmado! El pago de ${clientName} ha sido marcado como completado.`
+        `¡Pago CONFIRMADO! ${clientName} - ${amount} → Status: completed + Email automático`
       );
       
       // Actualizar el pago en la lista local inmediatamente
@@ -94,7 +102,8 @@ const usePaymentsData = (onSave) => {
           type: 'payment_confirmation',
           paymentId,
           clientName,
-          amount
+          amount,
+          method: paymentMethod
         });
       }
       
@@ -110,12 +119,22 @@ const usePaymentsData = (onSave) => {
     }
   };
 
-  // Función para cancelar un pago pendiente
+  // FUNCIÓN PRINCIPAL: Cancelar pago pendiente - LÓGICA DEL TEST
   const handleCancelPayment = async (paymentId, clientName, amount, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
+    // Pedir razón obligatoria como en el test
+    const reason = window.prompt(
+      `Razón DETALLADA de cancelación (OBLIGATORIA para email al cliente):\n\nEjemplos: "Cliente canceló", "Error en el registro", "Pago duplicado"`
+    );
+    
+    if (!reason || !reason.trim()) {
+      showError('La razón de cancelación es obligatoria');
+      return;
+    }
+
     const confirmed = window.confirm(
-      `¿Confirmar que quieres CANCELAR el pago de ${clientName} por ${amount}?\n\nEsto marcará el pago como cancelado.`
+      `¿Confirmar CANCELACIÓN del pago de ${clientName} por ${amount}?\n\nRazón: "${reason.trim()}"\n\n❌ Se enviará email de cancelación automáticamente`
     );
     
     if (!confirmed) return;
@@ -123,15 +142,23 @@ const usePaymentsData = (onSave) => {
     try {
       setProcessingIds(prev => new Set([...prev, paymentId]));
       
-      // Llamada al API para cancelar el pago
-      await apiService.paymentService.cancelPayment(paymentId, {
-        reason: 'Pago cancelado por administrador',
-        notes: `Pago de ${clientName} cancelado`,
-        cancelledBy: 'admin'
-      });
+      // Determinar el método de pago para usar el endpoint correcto
+      const payment = payments.find(p => p.id === paymentId);
+      const paymentMethod = payment?.paymentMethod || 'cash';
+      
+      if (paymentMethod === 'cash') {
+        // Usar endpoint de efectivo
+        await apiService.paymentService.cancelCashPayment(paymentId, reason.trim());
+      } else if (paymentMethod === 'transfer') {
+        // Usar endpoint de transferencias
+        await apiService.paymentService.rejectTransfer(paymentId, reason.trim());
+      } else {
+        // Para otros métodos, intentar endpoint de efectivo
+        await apiService.paymentService.cancelCashPayment(paymentId, reason.trim());
+      }
       
       showSuccess(
-        `Pago cancelado. El pago de ${clientName} ha sido marcado como cancelado.`
+        `Pago CANCELADO: ${clientName} → Status: cancelled + Email automático con motivo`
       );
       
       // Actualizar el pago en la lista local inmediatamente
@@ -149,7 +176,9 @@ const usePaymentsData = (onSave) => {
           type: 'payment_cancellation',
           paymentId,
           clientName,
-          amount
+          amount,
+          reason: reason.trim(),
+          method: paymentMethod
         });
       }
       
@@ -223,29 +252,6 @@ const usePaymentsData = (onSave) => {
     );
   };
 
-  // Función para obtener icono del método de pago
-  const getPaymentMethodIcon = (method) => {
-    const icons = {
-      cash: 'Banknote',
-      card: 'CreditCard',
-      transfer: 'Building',
-      mobile: 'Building'
-    };
-    return icons[method] || 'CreditCard';
-  };
-
-  // Función para obtener color del estado
-  const getStatusColor = (status) => {
-    const colors = {
-      completed: 'text-green-600 bg-green-100',
-      pending: 'text-yellow-600 bg-yellow-100',
-      failed: 'text-red-600 bg-red-100',
-      cancelled: 'text-gray-600 bg-gray-100',
-      waiting_payment: 'text-orange-600 bg-orange-100'
-    };
-    return colors[status] || colors.completed;
-  };
-
   // Función para determinar si un pago puede ser gestionado
   const canManagePayment = (payment) => {
     return payment.status === 'pending' || payment.status === 'waiting_payment';
@@ -288,9 +294,9 @@ const usePaymentsData = (onSave) => {
     handleSearch,
     handlePageChange,
     
-    // Funciones de gestión de pagos
-    handleConfirmPayment,
-    handleCancelPayment,
+    // Funciones de gestión de pagos - USA LÓGICA DEL TEST
+    handleConfirmPayment,   // CONFIRMAR automático según método
+    handleCancelPayment,    // CANCELAR con razón obligatoria
     isPaymentProcessing,
     getProcessingType,
     
@@ -298,10 +304,6 @@ const usePaymentsData = (onSave) => {
     getPendingPaymentsStats,
     getPendingPayments,
     canManagePayment,
-    
-    // Utilidades
-    getPaymentMethodIcon,
-    getStatusColor,
     
     // Función para actualizar búsqueda
     setSearchTerm: handleSearch

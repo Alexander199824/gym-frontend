@@ -6,12 +6,13 @@
 // src/pages/dashboard/components/PaymentsManager/components/PaymentsTab.js
 // Author: Alexander Echeverria
 // Componente del tab de historial de pagos con búsqueda y paginación
-// OPTIMIZADO: Completamente responsive para móvil sin perder funcionalidad
+// MEJORADO: Filtros móviles completamente rediseñados para mejor UX
 
 import React from 'react';
 import { 
   Search, CheckCircle, Grid3X3, List, Bird, Coins, 
-  Clock, Building, FileText, Timer, CreditCard, Banknote, AlertTriangle, Filter, X
+  Clock, Building, FileText, Timer, CreditCard, Banknote, AlertTriangle, 
+  Filter, X, ChevronDown, SlidersHorizontal, Eye
 } from 'lucide-react';
 import PaymentCard from './PaymentCard';
 import PaymentListItem from './PaymentListItem';
@@ -42,7 +43,7 @@ const PaymentsTab = ({
 
   // Estados locales para filtros y vista
   const [viewMode, setViewMode] = React.useState('list');
-  const [sortBy, setSortBy] = React.useState('status'); // Pendientes primero por defecto
+  const [sortBy, setSortBy] = React.useState('status');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [methodFilter, setMethodFilter] = React.useState('all');
   const [showMobileFilters, setShowMobileFilters] = React.useState(false);
@@ -144,6 +145,19 @@ const PaymentsTab = ({
     return filtered;
   };
 
+  // Verificar si hay filtros activos
+  const hasActiveFilters = () => {
+    return statusFilter !== 'all' || methodFilter !== 'all' || sortBy !== 'status' || (searchTerm && searchTerm.length > 0);
+  };
+
+  // Limpiar todos los filtros
+  const clearAllFilters = () => {
+    setStatusFilter('all');
+    setMethodFilter('all');
+    setSortBy('status');
+    setSearchTerm && setSearchTerm('');
+  };
+
   const paymentStats = calculatePaymentStats();
   const methodStats = calculateMethodStats();
   const filteredPayments = getFilteredPayments();
@@ -229,49 +243,118 @@ const PaymentsTab = ({
         </div>
       </div>
 
-      {/* Controles de filtros y vista - COMPLETAMENTE RESPONSIVE */}
+      {/* CONTROLES PRINCIPALES - REDISEÑADOS PARA MÓVIL */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         
-        {/* Header con búsqueda y controles principales */}
-        <div className="p-4 space-y-4">
+        {/* Header principal - Siempre visible */}
+        <div className="p-4">
           
-          {/* Búsqueda y botón de filtros móvil */}
-          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+          {/* Búsqueda - Siempre visible */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, email o referencia..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm && setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm && setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Controles principales móvil/desktop */}
+          <div className="flex flex-col sm:flex-row gap-3">
             
-            {/* Campo de búsqueda */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, email o referencia..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm && setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm && setSearchTerm('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+            {/* Panel de controles móvil */}
+            <div className="sm:hidden">
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                
+                {/* Selector de vista - PROMINENTE EN MÓVIL */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Vista</label>
+                  <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`flex-1 p-2.5 flex items-center justify-center text-sm font-medium transition-colors ${
+                        viewMode === 'grid'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Grid3X3 className="w-4 h-4 mr-1" />
+                      Cards
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`flex-1 p-2.5 flex items-center justify-center text-sm font-medium transition-colors ${
+                        viewMode === 'list'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <List className="w-4 h-4 mr-1" />
+                      Lista
+                    </button>
+                  </div>
+                </div>
+
+                {/* Botón de filtros con indicador */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Filtros</label>
+                  <button
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                    className={`w-full p-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center relative ${
+                      hasActiveFilters()
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-4 h-4 mr-2" />
+                    Filtros
+                    {hasActiveFilters() && (
+                      <div className="ml-2 w-2 h-2 bg-white rounded-full"></div>
+                    )}
+                    <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${
+                      showMobileFilters ? 'rotate-180' : ''
+                    }`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Indicador de filtros activos */}
+              {hasActiveFilters() && !showMobileFilters && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Filter className="w-4 h-4 text-blue-600 mr-2" />
+                      <span className="text-sm text-blue-700 font-medium">Filtros activos</span>
+                    </div>
+                    <button
+                      onClick={clearAllFilters}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                  <div className="mt-1 text-xs text-blue-600">
+                    {statusFilter !== 'all' && `Estado: ${statusFilter} • `}
+                    {methodFilter !== 'all' && `Método: ${methodFilter} • `}
+                    {sortBy !== 'status' && `Orden: ${sortBy} • `}
+                    {searchTerm && `Búsqueda activa`}
+                  </div>
+                </div>
               )}
             </div>
-            
-            {/* Botón de filtros para móvil */}
-            <button
-              onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className="sm:hidden flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Filtros
-              {(statusFilter !== 'all' || methodFilter !== 'all' || sortBy !== 'status') && (
-                <div className="ml-2 w-2 h-2 bg-blue-300 rounded-full"></div>
-              )}
-            </button>
-            
+
             {/* Controles para desktop */}
-            <div className="hidden sm:flex items-center space-x-3">
+            <div className="hidden sm:flex items-center space-x-3 flex-1">
               
               {/* Filtro de estado */}
               <select
@@ -342,17 +425,43 @@ const PaymentsTab = ({
               <div className="text-sm text-gray-500 whitespace-nowrap">
                 {filteredPayments.length} pagos
               </div>
+              
+              {/* Botón limpiar filtros */}
+              {hasActiveFilters() && (
+                <button
+                  onClick={clearAllFilters}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+                >
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           </div>
-          
-          {/* Panel de filtros móvil */}
-          {showMobileFilters && (
-            <div className="sm:hidden bg-gray-50 rounded-lg p-4 space-y-4 border-t border-gray-200">
+        </div>
+        
+        {/* Panel de filtros móvil expandido */}
+        {showMobileFilters && (
+          <div className="sm:hidden bg-gray-50 border-t border-gray-200 p-4">
+            <div className="space-y-4">
               
-              {/* Filtro de estado móvil */}
+              {/* Header del panel */}
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-gray-900 flex items-center">
+                  <SlidersHorizontal className="w-4 h-4 mr-2" />
+                  Filtros de búsqueda
+                </h4>
+                <button
+                  onClick={() => setShowMobileFilters(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Filtro de estado */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Filtrar por estado
+                  Estado del pago
                 </label>
                 <select
                   value={statusFilter}
@@ -367,24 +476,38 @@ const PaymentsTab = ({
                 </select>
               </div>
 
-              {/* Filtro de método móvil */}
+              {/* Filtro de método */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Método de pago
                 </label>
-                <select
-                  value={methodFilter}
-                  onChange={(e) => setMethodFilter(e.target.value)}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="all">Todos los métodos</option>
-                  <option value="cash">Efectivo</option>
-                  <option value="card">Tarjeta</option>
-                  <option value="transfer">Transferencia</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'all', label: 'Todos', icon: Eye },
+                    { value: 'cash', label: 'Efectivo', icon: Banknote },
+                    { value: 'card', label: 'Tarjeta', icon: CreditCard },
+                    { value: 'transfer', label: 'Transfer.', icon: Building }
+                  ].map((method) => {
+                    const IconComponent = method.icon;
+                    return (
+                      <button
+                        key={method.value}
+                        onClick={() => setMethodFilter(method.value)}
+                        className={`p-3 rounded-lg border-2 transition-all text-sm font-medium flex items-center justify-center ${
+                          methodFilter === method.value
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <IconComponent className="w-4 h-4 mr-1" />
+                        {method.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               
-              {/* Ordenamiento móvil */}
+              {/* Ordenamiento */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Ordenar por
@@ -397,59 +520,38 @@ const PaymentsTab = ({
                   <option value="status">Estado (pendientes primero)</option>
                   <option value="date">Fecha de pago</option>
                   <option value="amount">Monto</option>
-                  <option value="name">Nombre</option>
-                  <option value="method">Método</option>
+                  <option value="name">Nombre del cliente</option>
+                  <option value="method">Método de pago</option>
                 </select>
               </div>
               
-              {/* Vista móvil */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de vista
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      viewMode === 'grid'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Grid3X3 className="w-4 h-4 mr-2" />
-                    Tarjetas
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      viewMode === 'list'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <List className="w-4 h-4 mr-2" />
-                    Lista
-                  </button>
-                </div>
-              </div>
-              
               {/* Contador de resultados móvil */}
-              <div className="text-center">
+              <div className="text-center bg-white rounded-lg p-3 border border-gray-200">
                 <span className="text-sm text-gray-600">
                   {filteredPayments.length} pago{filteredPayments.length !== 1 ? 's' : ''} encontrado{filteredPayments.length !== 1 ? 's' : ''}
                 </span>
               </div>
               
-              {/* Botón para cerrar filtros */}
-              <button
-                onClick={() => setShowMobileFilters(false)}
-                className="w-full px-4 py-2.5 bg-gray-600 text-white rounded-lg font-medium text-sm"
-              >
-                Aplicar filtros
-              </button>
+              {/* Botones de acción */}
+              <div className="flex gap-3">
+                {hasActiveFilters() && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="flex-1 px-4 py-2.5 bg-gray-600 text-white rounded-lg font-medium text-sm"
+                  >
+                    Limpiar filtros
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowMobileFilters(false)}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm"
+                >
+                  Ver resultados
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Contenido principal de pagos */}
@@ -475,6 +577,14 @@ const PaymentsTab = ({
               : 'Los pagos aparecerán aquí una vez que se procesen'
             }
           </p>
+          {hasActiveFilters() && (
+            <button
+              onClick={clearAllFilters}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
         
       ) : (
@@ -596,8 +706,8 @@ const PaymentsTab = ({
               ? 'Mostrando 1 pago'
               : `Mostrando ${filteredPayments.length} pagos`
             }
-            {(searchTerm || statusFilter !== 'all' || methodFilter !== 'all') && (
-              <span> con los filtros aplicados</span>
+            {hasActiveFilters() && (
+              <span> con filtros aplicados</span>
             )}
           </div>
           

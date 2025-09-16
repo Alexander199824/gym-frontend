@@ -4,9 +4,7 @@
 // Incluye activación, filtros, estadísticas y gestión de estados de procesamiento
 
 // src/pages/dashboard/components/PaymentsManager/hooks/useCashMemberships.js
-// Author: Alexander Echeverria
-// Hook personalizado para manejar toda la lógica de membresías en efectivo
-// Incluye activación, filtros, estadísticas y gestión de estados de procesamiento
+// ACTUALIZADO: Para usar exactamente la misma lógica que el test funcional
 
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../../../../../services/apiService';
@@ -38,39 +36,35 @@ const useCashMemberships = (onSave) => {
     try {
       setLoading(true);
       
-      const response = await apiService.paymentService.getPendingCashMemberships({
+      const response = await apiService.paymentService.getPendingCashPayments({
         search: searchTerm,
         sortBy: cashSortBy,
         priority: cashPriorityFilter === 'all' ? undefined : cashPriorityFilter
       });
       
       if (response?.success && response.data) {
-        const memberships = response.data.memberships || [];
+        const payments = response.data.payments || [];
         
-        // Procesar membresías para agregar campos necesarios
-        const processedMemberships = memberships.map(membership => ({
-          ...membership,
-          id: membership.id || membership.membershipId,
-          price: membership.amount || membership.price || 0,
-          user: membership.user || {
-            name: membership.clientName || membership.client?.name || 'Cliente Anónimo',
-            email: membership.client?.email || membership.user?.email || '',
-            phone: membership.client?.phone || membership.user?.phone || ''
+        // Procesar pagos en efectivo para agregar campos necesarios
+        const processedPayments = payments.map(payment => ({
+          ...payment,
+          id: payment.id || payment.paymentId,
+          price: payment.amount || payment.price || 0,
+          user: payment.user || payment.client || {
+            name: payment.clientName || payment.client?.name || 'Cliente Anónimo',
+            email: payment.client?.email || payment.user?.email || '',
+            phone: payment.client?.phone || payment.user?.phone || ''
           },
-          plan: membership.plan || membership.membership || {
-            name: membership.planName || 'Plan personalizado'
-          },
-          hoursWaiting: membership.hoursWaiting || 0,
-          paymentType: membership.paymentType || 'membership',
-          status: membership.status || 'pending',
-          canActivate: true,
-          canCancel: true
+          hoursWaiting: payment.hoursWaiting || 0,
+          paymentType: payment.paymentType || 'membership',
+          status: payment.status || 'pending',
+          priority: payment.priority || getPriorityByHours(payment.hoursWaiting || 0)
         }));
         
-        setPendingCashMemberships(processedMemberships);
+        setPendingCashMemberships(processedPayments);
         
         // Calcular estadísticas
-        const calculatedStats = calculateCashStats(processedMemberships);
+        const calculatedStats = calculateCashStats(processedPayments);
         setCashMembershipStats(calculatedStats);
         
       } else {
@@ -85,7 +79,7 @@ const useCashMemberships = (onSave) => {
       }
       
     } catch (error) {
-      console.error('Error cargando membresías en efectivo:', error);
+      console.error('Error cargando pagos en efectivo:', error);
       setPendingCashMemberships([]);
       setCashMembershipStats({
         total: 0,
@@ -100,13 +94,13 @@ const useCashMemberships = (onSave) => {
   }, [searchTerm, cashSortBy, cashPriorityFilter]);
 
   // Función para calcular estadísticas de efectivo
-  const calculateCashStats = useCallback((memberships) => {
-    const total = memberships.length;
-    const old = memberships.filter(m => (m.hoursWaiting || 0) > 24).length;
-    const totalAmount = memberships.reduce((sum, m) => sum + (m.price || m.amount || 0), 0);
+  const calculateCashStats = useCallback((payments) => {
+    const total = payments.length;
+    const old = payments.filter(p => (p.hoursWaiting || 0) > 24).length;
+    const totalAmount = payments.reduce((sum, p) => sum + (p.price || p.amount || 0), 0);
     const avgAmount = total > 0 ? totalAmount / total : 0;
     const avgHours = total > 0 ? 
-      memberships.reduce((sum, m) => sum + (m.hoursWaiting || 0), 0) / total : 0;
+      payments.reduce((sum, p) => sum + (p.hoursWaiting || 0), 0) / total : 0;
 
     return {
       total,
@@ -117,44 +111,40 @@ const useCashMemberships = (onSave) => {
     };
   }, []);
 
-  // Función para activar una membresía en efectivo
-  const handleActivateCashMembership = useCallback(async (membershipId, showSuccess, showError, formatCurrency) => {
-    if (processingIds.has(membershipId) || cancellingIds.has(membershipId)) {
+  // FUNCIÓN PRINCIPAL: Activar membresía en efectivo - EXACTAMENTE COMO EL TEST
+  const handleActivateCashMembership = useCallback(async (paymentId, showSuccess, showError, formatCurrency) => {
+    if (processingIds.has(paymentId) || cancellingIds.has(paymentId)) {
       return;
     }
 
-    const membershipData = pendingCashMemberships.find(m => m.id === membershipId);
+    const paymentData = pendingCashMemberships.find(p => p.id === paymentId);
     
-    if (!membershipData) {
-      showError && showError('No se encontró la membresía');
+    if (!paymentData) {
+      showError && showError('No se encontró el pago');
       return;
     }
     
-    const clientName = membershipData?.user?.name || 'cliente';
-    const amount = membershipData?.price || 0;
+    const clientName = paymentData?.user?.name || 'cliente';
+    const amount = paymentData?.price || paymentData?.amount || 0;
     
+    // Lógica exacta del test - CONFIRMAR sin pedir razón
     const confirmed = window.confirm(
-      `¿Confirmar que recibiste ${formatCurrency ? formatCurrency(amount) : `Q${amount}`} en efectivo de ${clientName}?`
+      `¿Confirmar que recibiste Q${amount} en EFECTIVO de ${clientName}?\n\n✅ Se enviará email de confirmación automáticamente`
     );
     
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
-      setProcessingIds(prev => new Set([...prev, membershipId]));
+      setProcessingIds(prev => new Set([...prev, paymentId]));
       
-      await apiService.paymentService.activateCashMembership(membershipId, {
-        notes: `Pago en efectivo recibido de ${clientName}`,
-        amount: amount,
-        confirmedBy: 'admin'
-      });
+      // MISMO ENDPOINT Y LÓGICA QUE EL TEST
+      await apiService.paymentService.activateCashMembership(paymentId);
       
-      const successMessage = `¡Membresía activada! Pago de ${formatCurrency ? formatCurrency(amount) : `Q${amount}`} registrado correctamente.`;
+      const successMessage = `¡Pago CONFIRMADO! ${clientName} - Q${amount} → Status: completed + Email automático`;
       showSuccess && showSuccess(successMessage);
       
       // Remover de la lista local inmediatamente
-      setPendingCashMemberships(prev => prev.filter(m => m.id !== membershipId));
+      setPendingCashMemberships(prev => prev.filter(p => p.id !== paymentId));
       
       // Recargar datos completos
       await loadPendingCashMemberships();
@@ -162,72 +152,69 @@ const useCashMemberships = (onSave) => {
       if (onSave) {
         onSave({ 
           type: 'cash_membership_activation',
-          membershipId,
+          paymentId,
           clientName,
-          amount
+          amount,
+          action: 'confirmed'
         });
       }
       
     } catch (error) {
       console.error('Error activando membresía:', error);
-      const errorMessage = 'Error al activar membresía en efectivo: ' + (error.message || 'Error desconocido');
+      const errorMessage = 'Error al confirmar pago en efectivo: ' + (error.message || 'Error desconocido');
       showError && showError(errorMessage);
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(membershipId);
+        newSet.delete(paymentId);
         return newSet;
       });
     }
   }, [processingIds, cancellingIds, pendingCashMemberships, loadPendingCashMemberships, onSave]);
 
-  // Función para cancelar una membresía en efectivo
-  const handleCancelCashMembership = useCallback(async (membershipId, showSuccess, showError, formatCurrency) => {
-    if (cancellingIds.has(membershipId) || processingIds.has(membershipId)) {
+  // FUNCIÓN PRINCIPAL: Cancelar pago en efectivo - EXACTAMENTE COMO EL TEST
+  const handleCancelCashMembership = useCallback(async (paymentId, showSuccess, showError, formatCurrency) => {
+    if (cancellingIds.has(paymentId) || processingIds.has(paymentId)) {
       return;
     }
 
-    const membershipData = pendingCashMemberships.find(m => m.id === membershipId);
+    const paymentData = pendingCashMemberships.find(p => p.id === paymentId);
     
-    if (!membershipData) {
-      showError && showError('No se encontró la membresía');
+    if (!paymentData) {
+      showError && showError('No se encontró el pago');
       return;
     }
     
-    const clientName = membershipData?.user?.name || 'cliente';
-    const amount = membershipData?.price || 0;
+    const clientName = paymentData?.user?.name || 'cliente';
+    const amount = paymentData?.price || paymentData?.amount || 0;
     
-    const confirmed = window.confirm(
-      `¿Confirmar que quieres CANCELAR la membresía de ${clientName} por ${formatCurrency ? formatCurrency(amount) : `Q${amount}`}?\n\nEsto marcará que el cliente nunca llegó a pagar.`
+    // Lógica exacta del test - Pedir razón obligatoria
+    const reason = window.prompt(
+      `Razón DETALLADA de anulación (OBLIGATORIA para email al cliente):\n\nEjemplos: "Cliente no se presentó a pagar", "Cliente canceló", "Error en el registro"`
     );
     
-    if (!confirmed) {
+    if (!reason || !reason.trim()) {
+      showError && showError('La razón de anulación es obligatoria');
       return;
     }
 
+    const confirmed = window.confirm(
+      `¿Confirmar ANULACIÓN del pago de ${clientName} por Q${amount}?\n\nRazón: "${reason.trim()}"\n\n❌ Se enviará email de anulación automáticamente`
+    );
+    
+    if (!confirmed) return;
+
     try {
-      setCancellingIds(prev => new Set([...prev, membershipId]));
+      setCancellingIds(prev => new Set([...prev, paymentId]));
       
-      // Intentar usar endpoint específico si existe, sino usar el genérico
-      try {
-        await apiService.paymentService.cancelCashMembership(membershipId, {
-          reason: 'Cliente no llegó a realizar el pago',
-          notes: `Membresía cancelada - Cliente ${clientName} no llegó a pagar`,
-          cancelledBy: 'admin'
-        });
-      } catch (error) {
-        await apiService.paymentService.cancelCashPayment(membershipId, {
-          reason: 'Cliente no llegó a realizar el pago',
-          notes: `Membresía cancelada - Cliente ${clientName} no llegó a pagar`,
-          cancelledBy: 'admin'
-        });
-      }
+      // MISMO ENDPOINT Y LÓGICA QUE EL TEST
+      await apiService.paymentService.cancelCashPayment(paymentId, reason.trim());
       
-      const successMessage = `Membresía de ${clientName} cancelada correctamente.`;
+      const successMessage = `Pago ANULADO: ${clientName} → Status: cancelled + Email automático con motivo`;
       showSuccess && showSuccess(successMessage);
       
       // Remover de la lista local inmediatamente
-      setPendingCashMemberships(prev => prev.filter(m => m.id !== membershipId));
+      setPendingCashMemberships(prev => prev.filter(p => p.id !== paymentId));
       
       // Recargar datos completos
       await loadPendingCashMemberships();
@@ -235,33 +222,35 @@ const useCashMemberships = (onSave) => {
       if (onSave) {
         onSave({ 
           type: 'cash_membership_cancellation',
-          membershipId,
+          paymentId,
           clientName,
-          amount
+          amount,
+          reason: reason.trim(),
+          action: 'cancelled'
         });
       }
       
     } catch (error) {
-      console.error('Error cancelando membresía:', error);
-      const errorMessage = 'Error al cancelar membresía: ' + (error.message || 'Error desconocido');
+      console.error('Error cancelando pago:', error);
+      const errorMessage = 'Error al anular pago: ' + (error.message || 'Error desconocido');
       showError && showError(errorMessage);
     } finally {
       setCancellingIds(prev => {
         const newSet = new Set(prev);
-        newSet.delete(membershipId);
+        newSet.delete(paymentId);
         return newSet;
       });
     }
   }, [cancellingIds, processingIds, pendingCashMemberships, loadPendingCashMemberships, onSave]);
 
-  // Función para filtrar y ordenar membresías en efectivo
+  // Función para filtrar y ordenar pagos en efectivo
   const getFilteredCashMemberships = useCallback(() => {
     let filtered = [...pendingCashMemberships];
 
     // Filtrar por prioridad
     if (cashPriorityFilter !== 'all') {
-      filtered = filtered.filter(membership => {
-        const priority = getCashMembershipPriority(membership.hoursWaiting || 0);
+      filtered = filtered.filter(payment => {
+        const priority = getCashMembershipPriority(payment.hoursWaiting || 0);
         return priority === cashPriorityFilter;
       });
     }
@@ -269,8 +258,8 @@ const useCashMemberships = (onSave) => {
     // Filtrar por búsqueda
     if (searchTerm && searchTerm.length >= 2) {
       const searchText = searchTerm.toLowerCase();
-      filtered = filtered.filter(membership => {
-        const clientInfo = `${membership.user?.name || ''} ${membership.user?.email || ''} ${membership.plan?.name || ''}`.toLowerCase();
+      filtered = filtered.filter(payment => {
+        const clientInfo = `${payment.user?.name || ''} ${payment.user?.email || ''}`.toLowerCase();
         return clientInfo.includes(searchText);
       });
     }
@@ -294,7 +283,7 @@ const useCashMemberships = (onSave) => {
     return filtered;
   }, [pendingCashMemberships, cashPriorityFilter, searchTerm, cashSortBy]);
 
-  // Función para determinar la prioridad de una membresía en efectivo
+  // Función para determinar la prioridad de un pago en efectivo
   const getCashMembershipPriority = useCallback((hoursWaiting) => {
     if (hoursWaiting > 48) {
       return 'very_old';
@@ -305,57 +294,30 @@ const useCashMemberships = (onSave) => {
     }
   }, []);
 
-  // Función para obtener configuración de prioridad
-  const getCashMembershipPriorityConfig = useCallback((hoursWaiting) => {
-    if (hoursWaiting > 48) {
-      return {
-        priority: 'very_old',
-        color: 'red',
-        label: 'Muy Antiguo',
-        description: 'Más de 2 días - Considerar cancelar',
-        canCancel: true
-      };
-    } else if (hoursWaiting > 24) {
-      return {
-        priority: 'old',
-        color: 'orange',
-        label: 'Antiguo',
-        description: 'Más de 1 día - Evaluar cancelar',
-        canCancel: true
-      };
-    } else {
-      return {
-        priority: 'normal',
-        color: 'green',
-        label: 'Esperando',
-        description: 'Cliente puede llegar cuando guste',
-        canCancel: false
-      };
-    }
-  }, []);
+  // Función auxiliar para calcular prioridad por horas
+  const getPriorityByHours = (hours) => {
+    if (hours > 48) return 'very_old';
+    if (hours > 24) return 'old';
+    return 'normal';
+  };
 
-  // Función para obtener si una membresía es candidata a cancelar
-  const isCandidateForCancellation = useCallback((membership) => {
-    const hoursWaiting = membership.hoursWaiting || 0;
+  // Función para obtener si un pago es candidato a cancelar
+  const isCandidateForCancellation = useCallback((payment) => {
+    const hoursWaiting = payment.hoursWaiting || 0;
     return hoursWaiting > 24;
   }, []);
 
   // Función para obtener el estado de procesamiento
-  const isMembershipProcessing = useCallback((membershipId) => {
-    return processingIds.has(membershipId) || cancellingIds.has(membershipId);
+  const isMembershipProcessing = useCallback((paymentId) => {
+    return processingIds.has(paymentId) || cancellingIds.has(paymentId);
   }, [processingIds, cancellingIds]);
 
   // Función para obtener el tipo de procesamiento
-  const getProcessingType = useCallback((membershipId) => {
-    if (processingIds.has(membershipId)) return 'activating';
-    if (cancellingIds.has(membershipId)) return 'cancelling';
+  const getProcessingType = useCallback((paymentId) => {
+    if (processingIds.has(paymentId)) return 'activating';
+    if (cancellingIds.has(paymentId)) return 'cancelling';
     return null;
   }, [processingIds, cancellingIds]);
-
-  // Efecto para recargar cuando cambien los filtros específicos de efectivo
-  useEffect(() => {
-    loadPendingCashMemberships();
-  }, [loadPendingCashMemberships]);
 
   // Efecto inicial de carga
   useEffect(() => {
@@ -376,10 +338,10 @@ const useCashMemberships = (onSave) => {
     cashSortBy,
     cashPriorityFilter,
     
-    // Funciones principales
+    // Funciones principales - USA LA LÓGICA EXACTA DEL TEST
     loadPendingCashMemberships,
-    handleActivateCashMembership,
-    handleCancelCashMembership,
+    handleActivateCashMembership,   // CONFIRMAR automático
+    handleCancelCashMembership,     // ANULAR con razón obligatoria
     
     // Funciones de filtros
     getFilteredCashMemberships,
@@ -390,7 +352,6 @@ const useCashMemberships = (onSave) => {
     
     // Utilidades
     getCashMembershipPriority,
-    getCashMembershipPriorityConfig,
     isCandidateForCancellation,
     isMembershipProcessing,
     getProcessingType

@@ -4,6 +4,13 @@
 // USO: Interfaz entre componentes React y API backend para transacciones en quetzales
 // VERSIÓN: Completa con métodos separados por tipo de pago + Sincronización con backend
 
+// Autor: Alexander Echeverria
+// src/services/paymentService.js
+// FUNCIÓN: Servicio especializado para gestión de pagos del gimnasio guatemalteco
+// USO: Interfaz entre componentes React y API backend para transacciones en quetzales
+// VERSIÓN: Completa con métodos separados por tipo de pago + Sincronización con backend
+// ACTUALIZADO: Para usar exactamente los mismos endpoints que el test funcional
+
 import { BaseService } from './baseService.js';
 
 // ================================
@@ -17,40 +24,75 @@ class PaymentService extends BaseService {
   }
 
   // ================================
-  // 💰 MÉTODOS DE HISTORIAL DE PAGOS GENERAL (MANTENER FUNCIONALIDAD ACTUAL)
+  // 🏦 MÉTODOS DE TRANSFERENCIAS - EXACTAMENTE COMO EL TEST (ACTUALIZADOS)
   // ================================
 
   /**
-   * Obtener historial de pagos con filtros y paginación - MEJORADO
-   * @param {Object} params - Parámetros de filtro
-   * @param {number} params.page - Página actual (default: 1)
-   * @param {number} params.limit - Registros por página (default: 20)
-   * @param {string} params.search - Término de búsqueda por cliente
-   * @param {string} params.status - Filtro por estado (completed, pending, failed, cancelled)
-   * @param {string} params.paymentMethod - Filtro por método (cash, card, transfer, mobile)
-   * @param {string} params.paymentType - Filtro por tipo (membership, daily, bulk_daily)
-   * @param {string} params.startDate - Fecha de inicio (YYYY-MM-DD)
-   * @param {string} params.endDate - Fecha de fin (YYYY-MM-DD)
-   * @param {boolean} params.includeAll - Incluir todos los estados (default: false)
-   * @returns {Promise<Object>} Lista de pagos con paginación
+   * Validar transferencia (aprobar o rechazar) - MISMO ENDPOINT DEL TEST
+   * @param {string} paymentId - ID del pago
+   * @param {boolean} approved - true para aprobar, false para rechazar
+   * @param {string} notes - Notas de validación (obligatorio para rechazos)
+   * @returns {Promise<Object>} Resultado de la validación
    */
-  async getPayments(params = {}) {
+  async validateTransfer(paymentId, approved, notes = '') {
     try {
-      console.log('💰 PaymentService: Obteniendo historial de pagos...', params);
+      console.log(`${approved ? '✅' : '❌'} PaymentService: Validando transferencia:`, paymentId);
       
-      // Preparar parámetros con valores por defecto
+      // MISMO ENDPOINT Y ESTRUCTURA QUE EL TEST
+      const response = await this.post(`/api/payments/${paymentId}/validate-transfer`, {
+        approved,
+        notes: notes.trim() || undefined // undefined para nota automática si está vacío
+      });
+      
+      console.log(`✅ PaymentService: Transferencia ${approved ? 'aprobada' : 'rechazada'}`);
+      
+      // Invalidar cache relacionado
+      this.invalidatePaymentCache();
+      
+      return response;
+      
+    } catch (error) {
+      console.error('❌ PaymentService: Error validando transferencia:', error);
+      throw this.handleError(error, `Error al ${approved ? 'aprobar' : 'rechazar'} transferencia`);
+    }
+  }
+
+  /**
+   * Aprobar transferencia específicamente - WRAPPER PARA CLARIDAD
+   * @param {string} paymentId - ID del pago  
+   * @param {string} notes - Notas opcionales
+   * @returns {Promise<Object>} Resultado de la aprobación
+   */
+  async approveTransfer(paymentId, notes = '') {
+    return await this.validateTransfer(paymentId, true, notes);
+  }
+
+  /**
+   * Rechazar transferencia específicamente - WRAPPER PARA CLARIDAD
+   * @param {string} paymentId - ID del pago
+   * @param {string} reason - Razón obligatoria del rechazo
+   * @returns {Promise<Object>} Resultado del rechazo
+   */
+  async rejectTransfer(paymentId, reason) {
+    if (!reason || !reason.trim()) {
+      throw new Error('La razón de rechazo es obligatoria');
+    }
+    return await this.validateTransfer(paymentId, false, reason.trim());
+  }
+
+  /**
+   * Obtener SOLO transferencias pendientes - MEJORADO para asegurar hoursWaiting
+   * @param {Object} params - Parámetros de filtro
+   * @returns {Promise<Object>} Lista de transferencias pendientes
+   */
+  async getPendingTransfers(params = {}) {
+    try {
+      console.log('🏦 PaymentService: Obteniendo transferencias pendientes...');
+      
       const queryParams = {
-        page: params.page || 1,
-        limit: params.limit || 20,
         search: params.search?.trim() || undefined,
-        status: params.status || undefined,
-        paymentMethod: params.paymentMethod || undefined,
-        paymentType: params.paymentType || undefined,
-        startDate: params.startDate || undefined,
-        endDate: params.endDate || undefined,
-        includeAll: params.includeAll || true,
-        sortBy: params.sortBy || 'paymentDate',
-        sortOrder: params.sortOrder || 'desc'
+        sortBy: params.sortBy || 'waiting_time',
+        priority: params.priority === 'all' ? undefined : params.priority
       };
 
       // Limpiar parámetros undefined
@@ -59,64 +101,235 @@ class PaymentService extends BaseService {
           delete queryParams[key];
         }
       });
+      
+      const response = await this.get('/api/payments/transfers/pending-detailed', { 
+        params: queryParams 
+      });
+      
+      console.log(`✅ PaymentService: ${response.data?.transfers?.length || 0} transferencias obtenidas`);
+      return response;
+      
+    } catch (error) {
+      console.error('❌ PaymentService: Error obteniendo transferencias:', error);
+      return {
+        success: true,
+        data: { transfers: [], summary: { totalAmount: 0, count: 0 } }
+      };
+    }
+  }
+
+  /**
+   * Obtener transferencias pendientes con detalles completos
+   * @param {number} urgentHours - Horas para considerar urgente (default: 72)
+   * @returns {Promise<Object>} Lista detallada de transferencias
+   */
+  async getPendingTransfersDetailed(urgentHours = 72) {
+    try {
+      console.log('🏦 PaymentService: Obteniendo transferencias detalladas...');
+      
+      const response = await this.get('/api/payments/transfers/pending-detailed', {
+        params: { urgentHours }
+      });
+      
+      console.log(`✅ PaymentService: Transferencias detalladas obtenidas`);
+      return response;
+      
+    } catch (error) {
+      console.error('❌ PaymentService: Error obteniendo transferencias detalladas:', error);
+      return this.getPendingTransfers(); // Fallback a básicas
+    }
+  }
+
+  // ================================
+  // 💵 MÉTODOS DE EFECTIVO - EXACTAMENTE COMO EL TEST (ACTUALIZADOS)
+  // ================================
+
+  /**
+   * Activar membresía en efectivo (confirmar pago) - MISMO ENDPOINT DEL TEST
+   * @param {string} paymentId - ID del pago
+   * @param {Object} activationData - Datos opcionales de activación
+   * @returns {Promise<Object>} Resultado de la activación
+   */
+  async activateCashMembership(paymentId, activationData = {}) {
+    try {
+      console.log('💵 PaymentService: Activando membresía en efectivo:', paymentId);
+      
+      // MISMO ENDPOINT Y ESTRUCTURA QUE EL TEST
+      const response = await this.post('/api/payments/activate-cash-membership', {
+        paymentId: paymentId, // Usar paymentId como en el test
+        notes: activationData.notes || undefined // Opcional, backend genera automática
+      });
+      
+      console.log('✅ PaymentService: Membresía activada exitosamente');
+      
+      // Invalidar cache
+      this.invalidatePaymentCache();
+      
+      return response;
+      
+    } catch (error) {
+      console.error('❌ PaymentService: Error activando membresía:', error);
+      throw this.handleError(error, 'Error al activar membresía en efectivo');
+    }
+  }
+
+  /**
+   * Cancelar pago en efectivo - MISMO ENDPOINT DEL TEST
+   * @param {string} paymentId - ID del pago
+   * @param {string} reason - Razón obligatoria de cancelación
+   * @returns {Promise<Object>} Resultado de la cancelación
+   */
+  async cancelCashPayment(paymentId, reason) {
+    try {
+      console.log('❌ PaymentService: Cancelando pago en efectivo:', paymentId);
+      
+      if (!reason || !reason.trim()) {
+        throw new Error('La razón de cancelación es obligatoria');
+      }
+      
+      // MISMO ENDPOINT Y ESTRUCTURA QUE EL TEST
+      const response = await this.post(`/api/payments/${paymentId}/cancel-cash-payment`, {
+        reason: reason.trim()
+      });
+      
+      console.log('✅ PaymentService: Pago en efectivo cancelado exitosamente');
+      
+      // Invalidar cache
+      this.invalidatePaymentCache();
+      
+      return response;
+      
+    } catch (error) {
+      console.error('❌ PaymentService: Error cancelando pago en efectivo:', error);
+      throw this.handleError(error, 'Error al cancelar pago en efectivo');
+    }
+  }
+
+  /**
+   * Obtener SOLO pagos en efectivo pendientes - MEJORADO para el test
+   * @param {Object} params - Parámetros de filtro
+   * @returns {Promise<Object>} Lista de pagos en efectivo pendientes
+   */
+  async getPendingCashPayments(params = {}) {
+    try {
+      console.log('💵 PaymentService: Obteniendo pagos en efectivo pendientes...');
+      
+      const queryParams = {
+        search: params.search?.trim() || undefined,
+        sortBy: params.sortBy || 'waiting_time',
+        priority: params.priority === 'all' ? undefined : params.priority
+      };
+
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] === undefined) {
+          delete queryParams[key];
+        }
+      });
+      
+      const response = await this.get('/api/payments/cash/pending', { 
+        params: queryParams 
+      });
+      
+      console.log(`✅ PaymentService: ${response.data?.payments?.length || 0} pagos en efectivo obtenidos`);
+      return response;
+      
+    } catch (error) {
+      console.error('❌ PaymentService: Error obteniendo pagos en efectivo:', error);
+      return {
+        success: true,
+        data: { payments: [], summary: { totalAmount: 0, count: 0 } }
+      };
+    }
+  }
+
+  /**
+   * Confirmar pago en efectivo recibido físicamente
+   * @param {string} paymentId - ID del pago
+   * @param {Object} confirmationData - Datos de confirmación
+   * @returns {Promise<Object>} Resultado de la confirmación
+   */
+  async confirmCashPayment(paymentId, confirmationData = {}) {
+    try {
+      console.log('💵 PaymentService: Confirmando pago en EFECTIVO:', paymentId);
+      
+      const response = await this.post(`/api/payments/${paymentId}/confirm-cash`, {
+        notes: confirmationData.notes?.trim() || 'Pago en efectivo recibido',
+        receivedAmount: confirmationData.receivedAmount || undefined,
+        confirmedBy: confirmationData.confirmedBy || undefined
+      });
+      
+      console.log('✅ PaymentService: Pago en EFECTIVO confirmado exitosamente');
+      
+      // Invalidar cache
+      this.invalidatePaymentCache();
+      
+      return response;
+      
+    } catch (error) {
+      console.error('❌ PaymentService: Error confirmando pago en efectivo:', error);
+      throw this.handleError(error, 'Error al confirmar pago en efectivo');
+    }
+  }
+
+  /**
+   * Obtener estadísticas específicas de pagos en efectivo
+   * @returns {Promise<Object>} Estadísticas de efectivo
+   */
+  async getCashPaymentStats() {
+    try {
+      console.log('📊 PaymentService: Obteniendo estadísticas de EFECTIVO...');
+      
+      const response = await this.get('/api/payments/cash/stats');
+      
+      console.log('✅ PaymentService: Estadísticas de efectivo obtenidas');
+      return response;
+      
+    } catch (error) {
+      console.error('❌ PaymentService: Error obteniendo estadísticas de efectivo:', error);
+      return {
+        success: true,
+        data: {
+          total: 0,
+          urgent: 0,
+          totalAmount: 0,
+          avgAmount: 0,
+          avgHours: 0
+        }
+      };
+    }
+  }
+
+  // ================================
+  // 💰 MÉTODOS DE HISTORIAL DE PAGOS GENERAL (MANTENER FUNCIONALIDAD ACTUAL)
+  // ================================
+
+  /**
+   * Obtener pagos generales con filtros - ACTUALIZADO
+   * @param {Object} params - Parámetros de filtro
+   * @returns {Promise<Object>} Lista de pagos
+   */
+  async getPayments(params = {}) {
+    try {
+      console.log('💰 PaymentService: Obteniendo historial de pagos...');
+      
+      const queryParams = {
+        page: params.page || 1,
+        limit: params.limit || 20,
+        search: params.search?.trim() || undefined,
+        status: params.status || undefined,
+        paymentMethod: params.paymentMethod || undefined,
+        includeAll: true
+      };
+
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] === undefined) {
+          delete queryParams[key];
+        }
+      });
 
       const response = await this.get('/api/payments', { params: queryParams });
       
-      console.log(`✅ PaymentService: ${response.data?.payments?.length || response.data?.length || 0} pagos obtenidos`);
-      
-      // Normalizar respuesta para diferentes formatos del backend
-      if (response.data) {
-        if (response.data.success) {
-          // Backend con estructura { success: true, data: {...} }
-          return {
-            success: true,
-            data: {
-              payments: response.data.data?.payments || response.data.data || [],
-              pagination: response.data.data?.pagination || {
-                total: response.data.data?.payments?.length || 0,
-                page: queryParams.page,
-                pages: Math.ceil((response.data.data?.payments?.length || 0) / queryParams.limit),
-                limit: queryParams.limit
-              }
-            }
-          };
-        } else if (response.data.payments && Array.isArray(response.data.payments)) {
-          // Formato con paginación directa
-          return {
-            success: true,
-            data: {
-              payments: response.data.payments,
-              pagination: response.data.pagination || {
-                total: response.data.payments.length,
-                page: queryParams.page,
-                pages: Math.ceil(response.data.payments.length / queryParams.limit),
-                limit: queryParams.limit
-              }
-            }
-          };
-        } else if (Array.isArray(response.data)) {
-          // Formato de array directo
-          const total = response.data.length;
-          const page = queryParams.page;
-          const limit = queryParams.limit;
-          const startIndex = (page - 1) * limit;
-          const endIndex = startIndex + limit;
-          
-          return {
-            success: true,
-            data: {
-              payments: response.data.slice(startIndex, endIndex),
-              pagination: {
-                total: total,
-                page: page,
-                pages: Math.ceil(total / limit),
-                limit: limit
-              }
-            }
-          };
-        }
-      }
-      
+      console.log(`✅ PaymentService: ${response.data?.payments?.length || 0} pagos obtenidos`);
       return response;
       
     } catch (error) {
@@ -124,7 +337,6 @@ class PaymentService extends BaseService {
       throw this.handleError(error, 'Error al obtener historial de pagos');
     }
   }
-
 
   /**
    * Obtener pago específico por ID
@@ -169,516 +381,6 @@ class PaymentService extends BaseService {
     } catch (error) {
       console.error('❌ PaymentService: Error en búsqueda:', error);
       throw this.handleError(error, 'Error al buscar pagos');
-    }
-  }
-
-  // ================================
-  // 📊 MÉTODOS DE ESTADÍSTICAS GENERALES (MEJORADO)
-  // ================================
-
-  /**
-   * Obtener estadísticas generales de pagos - MEJORADO con manejo de respuestas del backend
-   * @param {Object} dateRange - Rango de fechas opcional
-   * @param {string} dateRange.startDate - Fecha de inicio
-   * @param {string} dateRange.endDate - Fecha de fin
-   * @returns {Promise<Object>} Estadísticas de pagos
-   */
-  async getPaymentStatistics(dateRange = {}) {
-    try {
-      console.log('📊 PaymentService: Obteniendo estadísticas de pagos...');
-      
-      const params = {};
-      if (dateRange.startDate) params.startDate = dateRange.startDate;
-      if (dateRange.endDate) params.endDate = dateRange.endDate;
-      
-      const response = await this.get('/api/payments/statistics', { params });
-      
-      // Manejar diferentes formatos de respuesta del backend
-      if (response?.data) {
-        if (response.data.success) {
-          console.log('✅ PaymentService: Estadísticas obtenidas exitosamente');
-          return {
-            success: true,
-            data: response.data.data || response.data
-          };
-        } else {
-          return {
-            success: true,
-            data: response.data
-          };
-        }
-      }
-      
-      console.log('✅ PaymentService: Estadísticas obtenidas exitosamente');
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error obteniendo estadísticas:', error);
-      // Fallback con estructura básica
-      return {
-        success: true,
-        data: {
-          totalIncome: 0,
-          totalPayments: 0,
-          averagePayment: 0,
-          completedPayments: 0,
-          pendingPayments: 0,
-          failedPayments: 0,
-          incomeByMethod: [],
-          dailyIncome: []
-        }
-      };
-    }
-  }
-
-  // Agregar estos métodos al PaymentService existente:
-
-async cancelCashMembership(membershipId, cancellationData = {}) {
-  try {
-    // Intentar endpoint específico
-    const response = await this.post('/api/payments/cancel-cash-membership', {
-      membershipId,
-      reason: cancellationData.reason || 'Cliente no llegó a realizar el pago',
-      notes: cancellationData.notes || 'Membresía cancelada por falta de pago'
-    });
-    
-    this.invalidatePaymentCache();
-    return response;
-    
-  } catch (error) {
-    // Fallback a método genérico
-    return await this.cancelCashPayment(membershipId, cancellationData);
-  }
-}
-
-async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
-  const response = await this.patch(`/api/payments/${paymentId}/status`, {
-    status: newStatus,
-    reason: updateData.reason || `Estado cambiado a ${newStatus}`,
-    notes: updateData.notes || ''
-  });
-  
-  this.invalidatePaymentCache();
-  return response;
-}
-  // ================================
-  // 🎯 MÉTODOS DE DASHBOARD PENDIENTES GENERAL (MEJORADO)
-  // ================================
-
-  /**
-   * Obtener dashboard de pagos pendientes - MEJORADO para sincronizar con el test
-   * @returns {Promise<Object>} Dashboard con resumen de pendientes
-   */
-  async getPendingPaymentsDashboard() {
-    try {
-      console.log('🎯 PaymentService: Obteniendo dashboard de pendientes...');
-      
-      const response = await this.get('/api/payments/pending-dashboard');
-      
-      // Manejar diferentes formatos de respuesta del backend
-      if (response?.data) {
-        if (response.data.success) {
-          console.log('✅ PaymentService: Dashboard de pendientes obtenido');
-          return {
-            success: true,
-            data: response.data.data || response.data
-          };
-        } else {
-          return {
-            success: true,
-            data: response.data
-          };
-        }
-      }
-      
-      console.log('✅ PaymentService: Dashboard de pendientes obtenido');
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error obteniendo dashboard:', error);
-      // Fallback con estructura básica
-      return {
-        success: true,
-        data: {
-          summary: {
-            pendingTransfers: { count: 0, totalAmount: 0, oldestHours: 0 },
-            pendingCashPayments: { count: 0, totalAmount: 0, oldestHours: 0 },
-            pendingCardPayments: { count: 0, totalAmount: 0, oldestHours: 0 },
-            totalPendingActions: 0
-          },
-          urgentItems: [],
-          recentActivity: []
-        }
-      };
-    }
-  }
-
-  // ================================
-  // 💵 MÉTODOS ESPECÍFICOS PARA EFECTIVO (MEJORADO PARA SINCRONIZACIÓN)
-  // ================================
-
-  /**
-   * Obtener SOLO pagos en efectivo pendientes - MEJORADO para el test
-   * @param {Object} params - Parámetros de filtro
-   * @returns {Promise<Object>} Lista de pagos en efectivo pendientes
-   */
-  async getPendingCashPayments(params = {}) {
-    try {
-      console.log('💵 PaymentService: Obteniendo SOLO pagos en EFECTIVO pendientes...', params);
-      
-      const queryParams = {
-        paymentMethod: 'cash', // FORZAR solo efectivo
-        status: 'pending',     // FORZAR solo pendientes
-        search: params.search?.trim() || undefined,
-        sortBy: params.sortBy || 'waiting_time',
-        priority: params.priority === 'all' ? undefined : params.priority
-      };
-
-      // Limpiar parámetros undefined
-      Object.keys(queryParams).forEach(key => {
-        if (queryParams[key] === undefined) {
-          delete queryParams[key];
-        }
-      });
-      
-      const response = await this.get('/api/payments/cash/pending', { params: queryParams });
-      
-      // Manejar respuesta del backend como en el test
-      if (response?.data) {
-        if (response.data.success) {
-          const payments = response.data.data?.payments || [];
-          const summary = response.data.data?.summary || {};
-          
-          console.log(`✅ PaymentService: ${payments.length} pagos en EFECTIVO pendientes`);
-          
-          return {
-            success: true,
-            data: {
-              payments: payments,
-              summary: {
-                totalAmount: summary.totalAmount || 0,
-                count: payments.length,
-                urgent: payments.filter(p => (p.hoursWaiting || 0) > 4).length,
-                avgHours: payments.length > 0 ? 
-                  payments.reduce((sum, p) => sum + (p.hoursWaiting || 0), 0) / payments.length : 0,
-                avgAmount: summary.totalAmount && payments.length > 0 ? 
-                  summary.totalAmount / payments.length : 0,
-                total: payments.length
-              }
-            }
-          };
-        } else {
-          return {
-            success: true,
-            data: {
-              payments: response.data.payments || [],
-              summary: response.data.summary || { totalAmount: 0, count: 0 }
-            }
-          };
-        }
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error obteniendo pagos en efectivo:', error);
-      return {
-        success: true,
-        data: {
-          payments: [],
-          summary: { 
-            totalAmount: 0, 
-            count: 0, 
-            urgent: 0,
-            avgHours: 0,
-            avgAmount: 0,
-            total: 0
-          }
-        }
-      };
-    }
-  }
-
-  /**
-   * Obtener estadísticas específicas de pagos en efectivo
-   * @returns {Promise<Object>} Estadísticas de efectivo
-   */
-  async getCashPaymentStats() {
-    try {
-      console.log('📊 PaymentService: Obteniendo estadísticas de EFECTIVO...');
-      
-      const response = await this.get('/api/payments/cash/stats');
-      
-      console.log('✅ PaymentService: Estadísticas de efectivo obtenidas');
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error obteniendo estadísticas de efectivo:', error);
-      return {
-        success: true,
-        data: {
-          total: 0,
-          urgent: 0,
-          totalAmount: 0,
-          avgAmount: 0,
-          avgHours: 0
-        }
-      };
-    }
-  }
-
-  /**
-   * Confirmar pago en efectivo recibido físicamente
-   * @param {string} paymentId - ID del pago
-   * @param {Object} confirmationData - Datos de confirmación
-   * @returns {Promise<Object>} Resultado de la confirmación
-   */
-  async confirmCashPayment(paymentId, confirmationData = {}) {
-    try {
-      console.log('💵 PaymentService: Confirmando pago en EFECTIVO:', paymentId);
-      
-      const response = await this.post(`/api/payments/${paymentId}/confirm-cash`, {
-        notes: confirmationData.notes?.trim() || 'Pago en efectivo recibido',
-        receivedAmount: confirmationData.receivedAmount || undefined,
-        confirmedBy: confirmationData.confirmedBy || undefined
-      });
-      
-      console.log('✅ PaymentService: Pago en EFECTIVO confirmado exitosamente');
-      
-      // Invalidar cache
-      this.invalidatePaymentCache();
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error confirmando pago en efectivo:', error);
-      throw this.handleError(error, 'Error al confirmar pago en efectivo');
-    }
-  }
-
-  /**
-   * Cancelar/anular pago en efectivo
-   * @param {string} paymentId - ID del pago
-   * @param {Object} cancellationData - Datos de cancelación
-   * @returns {Promise<Object>} Resultado de la cancelación
-   */
-  async cancelCashPayment(paymentId, cancellationData = {}) {
-    try {
-      console.log('❌ PaymentService: Cancelando pago en EFECTIVO:', paymentId);
-      
-      const response = await this.post(`/api/payments/${paymentId}/cancel-cash`, {
-        reason: cancellationData.reason?.trim() || 'Cancelado por administrador',
-        notes: cancellationData.notes?.trim() || ''
-      });
-      
-      console.log('✅ PaymentService: Pago en EFECTIVO cancelado exitosamente');
-      
-      // Invalidar cache
-      this.invalidatePaymentCache();
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error cancelando pago en efectivo:', error);
-      throw this.handleError(error, 'Error al cancelar pago en efectivo');
-    }
-  }
-
-  // ================================
-  // 🏦 MÉTODOS ESPECÍFICOS PARA TRANSFERENCIAS (MEJORADO PARA SINCRONIZACIÓN)
-  // ================================
-
-    /**
-     * Obtener SOLO transferencias pendientes - MEJORADO para asegurar hoursWaiting
-     * @param {Object} params - Parámetros de filtro
-     * @returns {Promise<Object>} Lista de transferencias pendientes
-     */
-    async getPendingTransfers(params = {}) {
-      try {
-        console.log('🏦 PaymentService: Obteniendo SOLO TRANSFERENCIAS pendientes...');
-        
-        const queryParams = {
-          paymentMethod: 'transfer', // FORZAR solo transferencias
-          status: 'pending',         // FORZAR solo pendientes
-          search: params.search?.trim() || undefined,
-          sortBy: params.sortBy || 'waiting_time',
-          priority: params.priority === 'all' ? undefined : params.priority,
-          includeWaitingTime: true   // NUEVO: Solicitar cálculo de tiempo de espera
-        };
-
-        // Limpiar parámetros undefined
-        Object.keys(queryParams).forEach(key => {
-          if (queryParams[key] === undefined) {
-            delete queryParams[key];
-          }
-        });
-        
-        const response = await this.get('/api/payments/transfers/pending', { params: queryParams });
-        
-        // MEJORADO: Procesar respuesta y asegurar campo hoursWaiting
-        if (response?.data) {
-          if (response.data.success) {
-            const transfers = response.data.data?.transfers || [];
-            
-            // NUEVO: Procesar cada transferencia para asegurar hoursWaiting
-            const processedTransfers = transfers.map(transfer => {
-              let hoursWaiting = transfer.hoursWaiting || 0;
-              
-              // Si no viene calculado del backend, calcularlo en el frontend
-              if (!hoursWaiting || hoursWaiting === 0) {
-                const transferDate = new Date(transfer.paymentDate || transfer.createdAt);
-                const now = new Date();
-                const diffTime = now - transferDate;
-                hoursWaiting = Math.max(0, diffTime / (1000 * 60 * 60)); // Convertir a horas
-              }
-              
-              return {
-                ...transfer,
-                hoursWaiting: hoursWaiting,
-                // Asegurar otros campos críticos
-                amount: parseFloat(transfer.amount || 0),
-                paymentDate: transfer.paymentDate || transfer.createdAt,
-                user: transfer.user || {
-                  name: transfer.clientName || 'Cliente Anónimo',
-                  email: transfer.clientEmail || '',
-                  phone: transfer.clientPhone || ''
-                }
-              };
-            });
-            
-            console.log(`✅ PaymentService: ${processedTransfers.length} TRANSFERENCIAS pendientes procesadas`);
-            
-            // Log de debug para verificar tiempos de espera
-            if (processedTransfers.length > 0) {
-              const avgHours = processedTransfers.reduce((sum, t) => sum + t.hoursWaiting, 0) / processedTransfers.length;
-              const maxHours = Math.max(...processedTransfers.map(t => t.hoursWaiting));
-              console.log(`⏱️ Tiempos de espera - Promedio: ${avgHours.toFixed(1)}h, Máximo: ${maxHours.toFixed(1)}h`);
-            }
-            
-            return {
-              success: true,
-              data: {
-                transfers: processedTransfers,
-                summary: {
-                  totalAmount: processedTransfers.reduce((sum, t) => sum + (t.amount || 0), 0),
-                  count: processedTransfers.length,
-                  avgHours: processedTransfers.length > 0 ? 
-                    processedTransfers.reduce((sum, t) => sum + t.hoursWaiting, 0) / processedTransfers.length : 0,
-                  critical: processedTransfers.filter(t => t.hoursWaiting > 24).length,
-                  high: processedTransfers.filter(t => t.hoursWaiting > 12 && t.hoursWaiting <= 24).length,
-                  medium: processedTransfers.filter(t => t.hoursWaiting > 4 && t.hoursWaiting <= 12).length,
-                  normal: processedTransfers.filter(t => t.hoursWaiting <= 4).length
-                }
-              }
-            };
-          } else {
-            return {
-              success: true,
-              data: {
-                transfers: response.data.transfers || [],
-                summary: response.data.summary || { totalAmount: 0, count: 0 }
-              }
-            };
-          }
-        }
-        
-        return response;
-        
-      } catch (error) {
-        console.error('❌ PaymentService: Error obteniendo transferencias:', error);
-        return {
-          success: true,
-          data: {
-            transfers: [],
-            summary: { 
-              totalAmount: 0, 
-              count: 0,
-              avgHours: 0,
-              critical: 0,
-              high: 0,
-              medium: 0,
-              normal: 0
-            }
-          }
-        };
-      }
-    }
-
-  /**
-   * Obtener transferencias pendientes con detalles completos
-   * @param {number} urgentHours - Horas para considerar urgente (default: 72)
-   * @returns {Promise<Object>} Lista detallada de transferencias
-   */
-  async getPendingTransfersDetailed(urgentHours = 72) {
-    try {
-      console.log('🏦 PaymentService: Obteniendo transferencias detalladas...');
-      
-      const response = await this.get('/api/payments/transfers/pending-detailed', {
-        params: { urgentHours }
-      });
-      
-      console.log(`✅ PaymentService: Transferencias detalladas obtenidas`);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error obteniendo transferencias detalladas:', error);
-      return this.getPendingTransfers(); // Fallback a básicas
-    }
-  }
-
-  /**
-   * Validar transferencia (aprobar o rechazar)
-   * @param {string} paymentId - ID del pago
-   * @param {boolean} approved - true para aprobar, false para rechazar
-   * @param {string} notes - Notas de validación
-   * @returns {Promise<Object>} Resultado de la validación
-   */
-  async validateTransfer(paymentId, approved, notes = '') {
-    try {
-      console.log(`${approved ? '✅' : '❌'} PaymentService: Validando transferencia:`, paymentId);
-      
-      const response = await this.post(`/api/payments/${paymentId}/validate-transfer`, {
-        approved,
-        notes: notes.trim()
-      });
-      
-      console.log(`✅ PaymentService: Transferencia ${approved ? 'aprobada' : 'rechazada'}`);
-      
-      // Invalidar cache relacionado
-      this.invalidatePaymentCache();
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error validando transferencia:', error);
-      throw this.handleError(error, `Error al ${approved ? 'aprobar' : 'rechazar'} transferencia`);
-    }
-  }
-
-  /**
-   * Rechazar transferencia con razón específica
-   * @param {string} paymentId - ID del pago
-   * @param {string} reason - Razón del rechazo
-   * @returns {Promise<Object>} Resultado del rechazo
-   */
-  async rejectTransfer(paymentId, reason) {
-    try {
-      console.log('❌ PaymentService: Rechazando transferencia:', paymentId);
-      
-      const response = await this.post(`/api/payments/${paymentId}/reject-transfer`, {
-        reason: reason.trim()
-      });
-      
-      console.log('✅ PaymentService: Transferencia rechazada');
-      
-      // Invalidar cache
-      this.invalidatePaymentCache();
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error rechazando transferencia:', error);
-      throw this.handleError(error, 'Error al rechazar transferencia');
     }
   }
 
@@ -930,42 +632,6 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
   }
 
   // ================================
-  // 💼 MÉTODOS DE DASHBOARD FINANCIERO
-  // ================================
-
-  /**
-   * Obtener dashboard financiero completo
-   * @returns {Promise<Object>} Dashboard con métricas financieras
-   */
-  async getFinancialDashboard() {
-    try {
-      console.log('💼 PaymentService: Obteniendo dashboard financiero...');
-      
-      const response = await this.get('/api/financial/dashboard');
-      
-      console.log('✅ PaymentService: Dashboard financiero obtenido');
-      return response;
-      
-    } catch (error) {
-      console.error('❌ PaymentService: Error obteniendo dashboard financiero:', error);
-      // Fallback con estructura básica
-      return {
-        success: true,
-        data: {
-          today: { income: 0, expenses: 0, net: 0 },
-          thisWeek: { income: 0, expenses: 0, net: 0 },
-          thisMonth: { income: 0, expenses: 0, net: 0 },
-          charts: {
-            incomeChart: [],
-            expensesChart: [],
-            netChart: []
-          }
-        }
-      };
-    }
-  }
-
-  // ================================
   // 💵 MÉTODOS DE MEMBRESÍAS EN EFECTIVO (MANTENER COMPATIBILIDAD + MEJORAR)
   // ================================
 
@@ -1031,30 +697,26 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
   }
 
   /**
-   * Activar membresía en efectivo (confirmar pago recibido)
+   * Cancelar membresía en efectivo
    * @param {string} membershipId - ID de la membresía
-   * @param {Object} activationData - Datos de activación
-   * @returns {Promise<Object>} Resultado de la activación
+   * @param {Object} cancellationData - Datos de cancelación
+   * @returns {Promise<Object>} Resultado de la cancelación
    */
-  async activateCashMembership(membershipId, activationData = {}) {
+  async cancelCashMembership(membershipId, cancellationData = {}) {
     try {
-      console.log('💵 PaymentService: Activando membresía en efectivo:', membershipId);
-      
-      const response = await this.post('/api/payments/activate-cash-membership', {
+      // Intentar endpoint específico
+      const response = await this.post('/api/payments/cancel-cash-membership', {
         membershipId,
-        notes: activationData.notes || 'Pago en efectivo recibido'
+        reason: cancellationData.reason || 'Cliente no llegó a realizar el pago',
+        notes: cancellationData.notes || 'Membresía cancelada por falta de pago'
       });
       
-      console.log('✅ PaymentService: Membresía activada exitosamente');
-      
-      // Invalidar cache
       this.invalidatePaymentCache();
-      
       return response;
       
     } catch (error) {
-      console.error('❌ PaymentService: Error activando membresía:', error);
-      throw this.handleError(error, 'Error al activar membresía en efectivo');
+      // Fallback a método genérico
+      return await this.cancelCashPayment(membershipId, cancellationData.reason || 'Cliente no llegó a realizar el pago');
     }
   }
 
@@ -1087,7 +749,105 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
   }
 
   // ================================
-  // 🔧 MÉTODOS DE CONFIGURACIÓN Y UTILIDADES (MANTENER TODOS)
+  // 📊 MÉTODOS DE ESTADÍSTICAS GENERALES (ACTUALIZADOS)
+  // ================================
+
+  /**
+   * Obtener estadísticas de pagos - ACTUALIZADO
+   * @returns {Promise<Object>} Estadísticas generales
+   */
+  async getPaymentStatistics() {
+    try {
+      const response = await this.get('/api/payments/statistics');
+      return response;
+    } catch (error) {
+      console.error('❌ Error obteniendo estadísticas:', error);
+      return {
+        success: true,
+        data: {
+          totalIncome: 0,
+          totalPayments: 0,
+          averagePayment: 0
+        }
+      };
+    }
+  }
+
+  /**
+   * Obtener dashboard financiero - ACTUALIZADO
+   * @returns {Promise<Object>} Dashboard financiero
+   */
+  async getFinancialDashboard() {
+    try {
+      const response = await this.get('/api/financial/dashboard');
+      return response;
+    } catch (error) {
+      console.error('❌ Error obteniendo dashboard financiero:', error);
+      return {
+        success: true,
+        data: {
+          today: { income: 0, expenses: 0 },
+          thisWeek: { income: 0, expenses: 0 },
+          thisMonth: { income: 0, expenses: 0 }
+        }
+      };
+    }
+  }
+
+  /**
+   * Obtener dashboard de pendientes - ACTUALIZADO
+   * @returns {Promise<Object>} Dashboard de pendientes
+   */
+  async getPendingPaymentsDashboard() {
+    try {
+      const response = await this.get('/api/payments/pending-dashboard');
+      return response;
+    } catch (error) {
+      console.error('❌ Error obteniendo dashboard de pendientes:', error);
+      return {
+        success: true,
+        data: {
+          summary: {
+            pendingTransfers: { count: 0, totalAmount: 0 },
+            pendingCashPayments: { count: 0, totalAmount: 0 }
+          }
+        }
+      };
+    }
+  }
+
+  // ================================
+  // 🔧 MÉTODOS DE UTILIDAD (ACTUALIZADOS)
+  // ================================
+
+  /**
+   * Invalidar cache de pagos - ACTUALIZADO
+   */
+  invalidatePaymentCache() {
+    console.log('🗑️ PaymentService: Invalidando cache de pagos');
+    this.cache.clear();
+  }
+
+  /**
+   * Actualizar estado de pago
+   * @param {string} paymentId - ID del pago
+   * @param {string} newStatus - Nuevo estado
+   * @param {Object} updateData - Datos de actualización
+   * @returns {Promise<Object>} Resultado de la actualización
+   */
+  async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
+    const response = await this.patch(`/api/payments/${paymentId}/status`, {
+      status: newStatus,
+      reason: updateData.reason || `Estado cambiado a ${newStatus}`,
+      notes: updateData.notes || ''
+    });
+    
+    this.invalidatePaymentCache();
+    return response;
+  }
+
+  // ================================
+  // 🎯 MÉTODOS DE CONFIGURACIÓN Y UTILIDADES (MANTENER TODOS)
   // ================================
 
   /**
@@ -1347,14 +1107,6 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
   }
 
   /**
-   * Invalidar cache de pagos
-   */
-  invalidatePaymentCache() {
-    console.log('🗑️ PaymentService: Invalidando cache de pagos');
-    this.cache.clear();
-  }
-
-  /**
    * Obtener dashboard de pendientes con cache
    * @returns {Promise<Object>} Dashboard con cache optimizado
    */
@@ -1437,13 +1189,16 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
   getPaymentServiceInfo() {
     return {
       name: 'PaymentService',
-      version: '2.1.0',
+      version: '2.2.0',
       features: [
+        'Validación de transferencias (exactamente como el test)',
+        'Activación de membresías en efectivo (exactamente como el test)',
+        'Cancelación de pagos en efectivo (exactamente como el test)',
+        'Obtener pendientes por método (exactamente como el test)',
         'Historial de pagos con filtros avanzados',
         'Gestión separada por método de pago',
-        'Validación de transferencias',
-        'Confirmación de pagos en efectivo',
         'Procesamiento de pagos con tarjeta',
+        'Integración con Stripe',
         'Dashboard financiero completo',
         'Estadísticas detalladas por método',
         'Cache inteligente optimizado',
@@ -1456,6 +1211,17 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
       supportedTypes: ['membership', 'daily', 'bulk_daily', 'store_cash_delivery', 'store_card_delivery', 'store_online', 'store_transfer'],
       supportedStatuses: ['completed', 'pending', 'failed', 'cancelled'],
       apiEndpoints: {
+        // ENDPOINTS ACTUALIZADOS - EXACTAMENTE COMO EL TEST
+        transfers: [
+          'GET /api/payments/transfers/pending-detailed',
+          'POST /api/payments/:id/validate-transfer',
+        ],
+        cash: [
+          'GET /api/payments/cash/pending',
+          'POST /api/payments/activate-cash-membership',
+          'POST /api/payments/:id/cancel-cash-payment'
+        ],
+        // ENDPOINTS MANTENIDOS DEL SISTEMA COMPLETO
         general: [
           'GET /api/payments',
           'GET /api/payments/:id',
@@ -1463,18 +1229,14 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
           'GET /api/payments/statistics',
           'GET /api/payments/pending-dashboard'
         ],
-        cash: [
-          'GET /api/payments/cash/pending',
+        cashExtended: [
           'GET /api/payments/cash/stats',
           'GET /api/payments/cash/pending-memberships',
           'POST /api/payments/:id/confirm-cash',
-          'POST /api/payments/:id/cancel-cash',
-          'POST /api/payments/activate-cash-membership'
+          'POST /api/payments/cancel-cash-membership'
         ],
-        transfers: [
+        transfersExtended: [
           'GET /api/payments/transfers/pending',
-          'GET /api/payments/transfers/pending-detailed',
-          'POST /api/payments/:id/validate-transfer',
           'POST /api/payments/:id/reject-transfer'
         ],
         cards: [
@@ -1488,6 +1250,10 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
         ],
         financial: [
           'GET /api/financial/dashboard'
+        ],
+        utilities: [
+          'GET /api/payments/health',
+          'PATCH /api/payments/:id/status'
         ]
       }
     };
@@ -1528,7 +1294,7 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
   }
 
   /**
-   * NUEVO: Método para obtener todos los datos como en el script de testing
+   * Método para obtener todos los datos como en el script de testing
    * @returns {Promise<Object>} Todos los datos del sistema de pagos
    */
   async getAllPaymentData() {
@@ -1578,10 +1344,8 @@ async updatePaymentStatus(paymentId, newStatus, updateData = {}) {
   }
 }
 
-
 // ================================
 // 🏭 EXPORTAR INSTANCIA SINGLETON
 // ================================
 const paymentService = new PaymentService();
-
 export default paymentService;

@@ -4,9 +4,7 @@
 // Incluye validación, aprobación, rechazo y gestión de estados de procesamiento
 
 // src/pages/dashboard/components/PaymentsManager/hooks/useTransfers.js
-// Author: Alexander Echeverria
-// Hook personalizado para manejar toda la lógica de transferencias bancarias
-// Incluye validación, aprobación, rechazo y gestión de estados de procesamiento
+// ACTUALIZADO: Para usar exactamente la misma lógica que el test funcional
 
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../../../../../services/apiService';
@@ -22,9 +20,7 @@ const useTransfers = (onSave) => {
     normal: 0,
     totalAmount: 0,
     avgAmount: 0,
-    avgHours: 0,
-    withProof: 0,
-    withoutProof: 0
+    avgHours: 0
   });
   const [loading, setLoading] = useState(false);
   
@@ -37,18 +33,6 @@ const useTransfers = (onSave) => {
   const [transferSortBy, setTransferSortBy] = useState('waiting_time');
   const [transferPriorityFilter, setTransferPriorityFilter] = useState('all');
 
-  // Función para calcular tiempo de espera si no viene del backend
-  const calculateHoursWaiting = useCallback((createdAt, paymentDate) => {
-    if (!createdAt && !paymentDate) return 0;
-    
-    const transferDate = new Date(paymentDate || createdAt);
-    const now = new Date();
-    const diffTime = now - transferDate;
-    const diffHours = diffTime / (1000 * 60 * 60);
-    
-    return Math.max(0, diffHours);
-  }, []);
-
   // Función para calcular estadísticas de transferencias
   const calculateTransferStats = useCallback((transfers) => {
     const total = transfers.length;
@@ -60,8 +44,6 @@ const useTransfers = (onSave) => {
     const avgAmount = total > 0 ? totalAmount / total : 0;
     const avgHours = total > 0 ? 
       transfers.reduce((sum, t) => sum + (t.hoursWaiting || 0), 0) / total : 0;
-    const withProof = transfers.filter(t => t.transferProof).length;
-    const withoutProof = transfers.filter(t => !t.transferProof).length;
 
     return {
       total,
@@ -71,9 +53,7 @@ const useTransfers = (onSave) => {
       normal,
       totalAmount,
       avgAmount,
-      avgHours,
-      withProof,
-      withoutProof
+      avgHours
     };
   }, []);
 
@@ -91,40 +71,20 @@ const useTransfers = (onSave) => {
       if (response?.success && response.data) {
         const transfers = response.data.transfers || [];
         
-        // Procesar transferencias con cálculo de tiempo de espera
-        const processedTransfers = transfers.map(transfer => {
-          // Calcular hoursWaiting si no viene del backend o es 0
-          let hoursWaiting = transfer.hoursWaiting || 0;
-          
-          if (!hoursWaiting || hoursWaiting === 0) {
-            hoursWaiting = calculateHoursWaiting(
-              transfer.createdAt, 
-              transfer.paymentDate
-            );
-          }
-
-          return {
-            ...transfer,
-            id: transfer.id || transfer.paymentId,
-            amount: parseFloat(transfer.amount || 0),
-            user: transfer.user || {
-              name: transfer.clientName || 
-                    `${transfer.user?.firstName || ''} ${transfer.user?.lastName || ''}`.trim() || 
-                    'Cliente Anónimo',
-              firstName: transfer.user?.firstName || transfer.clientName?.split(' ')[0] || '',
-              lastName: transfer.user?.lastName || transfer.clientName?.split(' ').slice(1).join(' ') || '',
-              email: transfer.user?.email || ''
-            },
-            hoursWaiting: hoursWaiting,
-            paymentDate: transfer.paymentDate || transfer.createdAt,
-            transferProof: transfer.transferProof || transfer.hasProof || false,
-            transferValidated: transfer.transferValidated,
-            transferValidatedAt: transfer.transferValidatedAt,
-            transferValidator: transfer.transferValidator,
-            registeredByUser: transfer.registeredByUser,
-            reference: transfer.reference || transfer.transferReference || ''
-          };
-        });
+        // Procesar transferencias para asegurar campos necesarios
+        const processedTransfers = transfers.map(transfer => ({
+          ...transfer,
+          id: transfer.id || transfer.paymentId,
+          amount: parseFloat(transfer.amount || 0),
+          hoursWaiting: transfer.hoursWaiting || 0,
+          user: transfer.user || {
+            name: transfer.clientName || 'Cliente Anónimo',
+            email: transfer.clientEmail || transfer.user?.email || '',
+            phone: transfer.clientPhone || transfer.user?.phone || ''
+          },
+          transferProof: transfer.transferProof || false,
+          priority: transfer.priority || getPriorityByHours(transfer.hoursWaiting || 0)
+        }));
         
         setPendingTransfers(processedTransfers);
         
@@ -142,9 +102,7 @@ const useTransfers = (onSave) => {
           normal: 0,
           totalAmount: 0,
           avgAmount: 0,
-          avgHours: 0,
-          withProof: 0,
-          withoutProof: 0
+          avgHours: 0
         });
       }
       
@@ -159,70 +117,121 @@ const useTransfers = (onSave) => {
         normal: 0,
         totalAmount: 0,
         avgAmount: 0,
-        avgHours: 0,
-        withProof: 0,
-        withoutProof: 0
+        avgHours: 0
       });
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, transferSortBy, transferPriorityFilter, calculateTransferStats, calculateHoursWaiting]);
+  }, [searchTerm, transferSortBy, transferPriorityFilter, calculateTransferStats]);
 
-  // Función para validar una transferencia (aprobar o rechazar)
+  // FUNCIÓN PRINCIPAL: Validar transferencia - EXACTAMENTE COMO EL TEST
   const handleValidateTransfer = useCallback(async (paymentId, approved, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
     const transfer = pendingTransfers.find(t => t.id === paymentId);
     const clientName = transfer?.user?.name || 'cliente';
+    const amount = transfer?.amount || 0;
     
-    const confirmed = window.confirm(
-      approved 
-        ? `¿Confirmar que quieres APROBAR la transferencia de ${clientName} por ${transfer?.amount || 0}?`
-        : `¿Confirmar que quieres RECHAZAR la transferencia de ${clientName}?`
-    );
-    
-    if (!confirmed) return;
+    // Lógica exacta del test
+    if (approved) {
+      // APROBAR - Confirmar con usuario pero sin pedir razón
+      const confirmed = window.confirm(
+        `¿Confirmar que quieres APROBAR la transferencia de ${clientName} por Q${amount}?`
+      );
+      
+      if (!confirmed) return;
 
-    try {
-      setProcessingIds(prev => new Set([...prev, paymentId]));
-      
-      await apiService.paymentService.validateTransfer(
-        paymentId, 
-        approved, 
-        approved ? 'Transferencia aprobada por administrador' : 'Transferencia rechazada por administrador'
-      );
-      
-      showSuccess(
-        approved 
-          ? `Transferencia de ${clientName} aprobada exitosamente`
-          : `Transferencia de ${clientName} rechazada`
-      );
-      
-      // Remover de la lista local inmediatamente
-      setPendingTransfers(prev => prev.filter(t => t.id !== paymentId));
-      
-      // Recargar datos completos
-      await loadPendingTransfers();
-      
-      if (onSave) {
-        onSave({ 
-          type: 'transfer_validation', 
-          approved,
-          transferId: paymentId,
-          clientName: clientName,
-          amount: transfer?.amount || 0
+      try {
+        setProcessingIds(prev => new Set([...prev, paymentId]));
+        
+        // MISMO ENDPOINT Y LÓGICA QUE EL TEST
+        await apiService.paymentService.approveTransfer(paymentId);
+        
+        showSuccess && showSuccess(
+          `¡Transferencia APROBADA! ${clientName} - Q${amount} → Status: completed + Email automático`
+        );
+        
+        // Remover de la lista local inmediatamente
+        setPendingTransfers(prev => prev.filter(t => t.id !== paymentId));
+        
+        // Recargar datos completos
+        await loadPendingTransfers();
+        
+        if (onSave) {
+          onSave({ 
+            type: 'transfer_approval',
+            transferId: paymentId,
+            clientName,
+            amount,
+            action: 'approved'
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error aprobando transferencia:', error);
+        showError && showError('Error al aprobar transferencia: ' + (error.message || 'Error desconocido'));
+      } finally {
+        setProcessingIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(paymentId);
+          return newSet;
         });
       }
       
-    } catch (error) {
-      console.error('Error validando transferencia:', error);
-      showError('Error al procesar transferencia: ' + (error.message || 'Error desconocido'));
-    } finally {
-      setProcessingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(paymentId);
-        return newSet;
-      });
+    } else {
+      // RECHAZAR - Pedir razón obligatoria como en el test
+      const reason = window.prompt(
+        `Razón DETALLADA de rechazo (OBLIGATORIA para email al cliente):\n\nEjemplos: "Comprobante ilegible", "Monto incorrecto", "Transferencia duplicada"`
+      );
+      
+      if (!reason || !reason.trim()) {
+        showError && showError('La razón de rechazo es obligatoria');
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `¿Confirmar RECHAZO de transferencia de ${clientName}?\n\nRazón: "${reason.trim()}"`
+      );
+      
+      if (!confirmed) return;
+
+      try {
+        setProcessingIds(prev => new Set([...prev, paymentId]));
+        
+        // MISMO ENDPOINT Y LÓGICA QUE EL TEST
+        await apiService.paymentService.rejectTransfer(paymentId, reason.trim());
+        
+        showSuccess && showSuccess(
+          `Transferencia RECHAZADA: ${clientName} → Status: cancelled + Email automático con motivo`
+        );
+        
+        // Remover de la lista local inmediatamente
+        setPendingTransfers(prev => prev.filter(t => t.id !== paymentId));
+        
+        // Recargar datos completos
+        await loadPendingTransfers();
+        
+        if (onSave) {
+          onSave({ 
+            type: 'transfer_rejection',
+            transferId: paymentId,
+            clientName,
+            amount,
+            reason: reason.trim(),
+            action: 'rejected'
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error rechazando transferencia:', error);
+        showError && showError('Error al rechazar transferencia: ' + (error.message || 'Error desconocido'));
+      } finally {
+        setProcessingIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(paymentId);
+          return newSet;
+        });
+      }
     }
   }, [processingIds, pendingTransfers, loadPendingTransfers, onSave]);
 
@@ -279,52 +288,13 @@ const useTransfers = (onSave) => {
     }
   }, []);
 
-  // Función para obtener configuración de prioridad
-  const getTransferPriorityConfig = useCallback((hoursWaiting) => {
-    if (hoursWaiting > 24) {
-      return {
-        priority: 'critical',
-        color: 'red',
-        label: 'Crítica',
-        description: 'Más de 24 horas - Requiere atención inmediata',
-        urgency: 4
-      };
-    } else if (hoursWaiting > 12) {
-      return {
-        priority: 'high',
-        color: 'orange',
-        label: 'Alta',
-        description: 'Más de 12 horas - Requiere atención pronto',
-        urgency: 3
-      };
-    } else if (hoursWaiting > 4) {
-      return {
-        priority: 'medium',
-        color: 'yellow',
-        label: 'Media',
-        description: 'Más de 4 horas - Revisar cuando sea posible',
-        urgency: 2
-      };
-    } else {
-      return {
-        priority: 'normal',
-        color: 'purple',
-        label: 'Normal',
-        description: 'Recién recibida',
-        urgency: 1
-      };
-    }
-  }, []);
-
-  // Función para aprobar una transferencia específicamente
-  const handleApproveTransfer = useCallback(async (paymentId, showSuccess, showError) => {
-    await handleValidateTransfer(paymentId, true, showSuccess, showError);
-  }, [handleValidateTransfer]);
-
-  // Función para rechazar una transferencia específicamente
-  const handleRejectTransfer = useCallback(async (paymentId, showSuccess, showError) => {
-    await handleValidateTransfer(paymentId, false, showSuccess, showError);
-  }, [handleValidateTransfer]);
+  // Función auxiliar para calcular prioridad por horas
+  const getPriorityByHours = (hours) => {
+    if (hours > 24) return 'critical';
+    if (hours > 12) return 'high'; 
+    if (hours > 4) return 'medium';
+    return 'normal';
+  };
 
   // Función para obtener el estado de procesamiento de una transferencia
   const isTransferProcessing = useCallback((transferId) => {
@@ -338,65 +308,6 @@ const useTransfers = (onSave) => {
     }
     return null;
   }, [processingIds]);
-
-  // Función para obtener distribución por prioridad
-  const getPriorityDistribution = useCallback(() => {
-    return {
-      critical: transferStats.critical,
-      high: transferStats.high,
-      medium: transferStats.medium,
-      normal: transferStats.normal,
-      total: transferStats.total
-    };
-  }, [transferStats]);
-
-  // Función para obtener transferencias críticas
-  const getCriticalTransfers = useCallback(() => {
-    return pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24);
-  }, [pendingTransfers]);
-
-  // Función para obtener resumen de urgencia
-  const getUrgencySummary = useCallback(() => {
-    const critical = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24);
-    const high = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 12 && (t.hoursWaiting || 0) <= 24);
-    const needsAttention = critical.length + high.length;
-    
-    return {
-      needsAttention,
-      criticalCount: critical.length,
-      highCount: high.length,
-      totalAmount: [...critical, ...high].reduce((sum, t) => sum + (t.amount || 0), 0),
-      oldestHours: Math.max(...pendingTransfers.map(t => t.hoursWaiting || 0), 0)
-    };
-  }, [pendingTransfers]);
-
-  // Función para ordenar transferencias por prioridad
-  const getSortedTransfers = useCallback(() => {
-    return [...pendingTransfers].sort((a, b) => {
-      return (b.hoursWaiting || 0) - (a.hoursWaiting || 0);
-    });
-  }, [pendingTransfers]);
-
-  // Función para obtener estadísticas de transferencias
-  const getTransferStats = useCallback(() => {
-    const total = pendingTransfers.length;
-    const critical = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24).length;
-    const high = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 12 && (t.hoursWaiting || 0) <= 24).length;
-    const totalAmount = pendingTransfers.reduce((sum, t) => sum + (t.amount || 0), 0);
-    const avgAmount = total > 0 ? totalAmount / total : 0;
-    const avgWaitingTime = total > 0 
-      ? pendingTransfers.reduce((sum, t) => sum + (t.hoursWaiting || 0), 0) / total 
-      : 0;
-
-    return {
-      total,
-      critical,
-      high,
-      totalAmount,
-      avgAmount,
-      avgWaitingTime
-    };
-  }, [pendingTransfers]);
 
   // Efecto inicial de carga
   useEffect(() => {
@@ -418,9 +329,7 @@ const useTransfers = (onSave) => {
     
     // Funciones principales
     loadPendingTransfers,
-    handleValidateTransfer,
-    handleApproveTransfer,
-    handleRejectTransfer,
+    handleValidateTransfer, // FUNCIÓN PRINCIPAL QUE USA LA LÓGICA DEL TEST
     
     // Funciones de filtros
     getFilteredTransfers,
@@ -432,18 +341,7 @@ const useTransfers = (onSave) => {
     // Utilidades
     isTransferProcessing,
     getProcessingType,
-    getTransferPriority,
-    getTransferPriorityConfig,
-    
-    // Funciones de análisis
-    getPriorityDistribution,
-    getCriticalTransfers,
-    getUrgencySummary,
-    calculateHoursWaiting,
-    
-    // Funciones de compatibilidad
-    getSortedTransfers,
-    getTransferStats
+    getTransferPriority
   };
 };
 
