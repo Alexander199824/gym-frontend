@@ -3,10 +3,15 @@
 // Componente del tab de historial de pagos con búsqueda y paginación
 // Muestra lista completa de transacciones realizadas con filtros y detalles
 
+// src/pages/dashboard/components/PaymentsManager/components/PaymentsTab.js
+// Author: Alexander Echeverria
+// Componente del tab de historial de pagos con búsqueda y paginación
+// ACTUALIZADO: Integradas funciones para confirmar/cancelar pagos pendientes
+
 import React from 'react';
 import { 
   Search, CheckCircle, Grid3X3, List, Bird, Coins, 
-  Clock, Building, FileText, Timer, CreditCard, Banknote
+  Clock, Building, FileText, Timer, CreditCard, Banknote, AlertTriangle
 } from 'lucide-react';
 import PaymentCard from './PaymentCard';
 import PaymentListItem from './PaymentListItem';
@@ -15,6 +20,7 @@ const PaymentsTab = ({
   payments = [], 
   loading = false, 
   totalPayments = 0,
+  processingIds = new Set(), // NUEVO
   searchTerm = '',
   setSearchTerm,
   currentPage = 1,
@@ -22,8 +28,15 @@ const PaymentsTab = ({
   hasNextPage = false,
   hasPrevPage = false,
   handlePageChange,
+  handleConfirmPayment, // NUEVO
+  handleCancelPayment, // NUEVO
+  isPaymentProcessing, // NUEVO
+  getProcessingType, // NUEVO
+  getPendingPaymentsStats, // NUEVO
   formatCurrency,
   formatDate,
+  showSuccess, // NUEVO
+  showError, // NUEVO
   onSave 
 }) => {
 
@@ -32,6 +45,14 @@ const PaymentsTab = ({
   const [sortBy, setSortBy] = React.useState('date');
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [methodFilter, setMethodFilter] = React.useState('all');
+
+  // NUEVO: Obtener estadísticas de pagos pendientes
+  const pendingStats = getPendingPaymentsStats ? getPendingPaymentsStats() : {
+    total: 0,
+    old: 0,
+    totalAmount: 0,
+    avgAmount: 0
+  };
 
   // Calcular estadísticas de los pagos
   const calculatePaymentStats = () => {
@@ -44,7 +65,9 @@ const PaymentsTab = ({
     }
 
     const completed = payments.filter(p => (p.status || 'completed') === 'completed').length;
-    const pending = payments.filter(p => p.status === 'pending').length;
+    const pending = payments.filter(p => 
+      p.status === 'pending' || p.status === 'waiting_payment'
+    ).length;
     const failed = payments.filter(p => p.status === 'failed').length;
 
     return {
@@ -73,7 +96,14 @@ const PaymentsTab = ({
 
     // Filtrar por estado
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(payment => (payment.status || 'completed') === statusFilter);
+      if (statusFilter === 'pending') {
+        // Incluir tanto 'pending' como 'waiting_payment'
+        filtered = filtered.filter(payment => 
+          payment.status === 'pending' || payment.status === 'waiting_payment'
+        );
+      } else {
+        filtered = filtered.filter(payment => (payment.status || 'completed') === statusFilter);
+      }
     }
 
     // Filtrar por método de pago
@@ -103,6 +133,9 @@ const PaymentsTab = ({
           return nameA.localeCompare(nameB);
         case 'method':
           return (a.paymentMethod || '').localeCompare(b.paymentMethod || '');
+        case 'status': // NUEVO: Ordenar por estado (pendientes primero)
+          const statusOrder = { 'pending': 0, 'waiting_payment': 1, 'completed': 2, 'failed': 3, 'cancelled': 4 };
+          return (statusOrder[a.status] || 2) - (statusOrder[b.status] || 2);
         default:
           return 0;
       }
@@ -118,8 +151,23 @@ const PaymentsTab = ({
   return (
     <div className="space-y-6">
       
-      {/* Estadísticas de pagos - Todas en una línea */}
-      <div className="grid grid-cols-4 gap-4">
+      {/* ACTUALIZADO: Estadísticas de pagos - Agregada sección de pendientes */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        
+        {/* Pagos pendientes - NUEVO */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-yellow-900">
+              {pendingStats.total}
+            </div>
+            <div className="text-xs text-yellow-600">Pendientes</div>
+            {pendingStats.old > 0 && (
+              <div className="text-xs text-orange-600">
+                {pendingStats.old} antiguos
+              </div>
+            )}
+          </div>
+        </div>
         
         {/* Pagos completados */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
@@ -169,6 +217,16 @@ const PaymentsTab = ({
             <div className="text-xs text-purple-600">Transferencia</div>
           </div>
         </div>
+        
+        {/* Total de pagos */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-900">
+              {totalPayments}
+            </div>
+            <div className="text-xs text-gray-600">Total</div>
+          </div>
+        </div>
       </div>
 
       {/* Controles de filtros y vista */}
@@ -189,15 +247,15 @@ const PaymentsTab = ({
         {/* Controles de filtros y vista */}
         <div className="flex items-center space-x-3">
           
-          {/* Filtro de estado */}
+          {/* Filtro de estado - ACTUALIZADO */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Todos los estados</option>
-            <option value="completed">Completados</option>
             <option value="pending">Pendientes</option>
+            <option value="completed">Completados</option>
             <option value="failed">Fallidos</option>
             <option value="cancelled">Cancelados</option>
           </select>
@@ -214,12 +272,13 @@ const PaymentsTab = ({
             <option value="transfer">Transferencia</option>
           </select>
           
-          {/* Selector de ordenamiento */}
+          {/* Selector de ordenamiento - ACTUALIZADO */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
+            <option value="status">Estado (pendientes primero)</option>
             <option value="date">Fecha de pago</option>
             <option value="amount">Monto</option>
             <option value="name">Nombre</option>
@@ -287,19 +346,29 @@ const PaymentsTab = ({
         
       ) : (
         
-        /* Lista de pagos */
+        /* Lista de pagos - ACTUALIZADA con nuevas props */
         <div className={`${
           viewMode === 'grid' 
             ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
             : 'space-y-4'
         }`}>
           {filteredPayments.map((payment) => {
+            // NUEVO: Obtener estado de procesamiento
+            const processing = isPaymentProcessing ? isPaymentProcessing(payment.id) : false;
+            const processType = getProcessingType ? getProcessingType(payment.id) : null;
+            
             return viewMode === 'grid' ? (
               <PaymentCard
                 key={payment.id}
                 payment={payment}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
+                onConfirmPayment={handleConfirmPayment} // NUEVO
+                onCancelPayment={handleCancelPayment} // NUEVO
+                isProcessing={processing} // NUEVO
+                processingType={processType} // NUEVO
+                showSuccess={showSuccess} // NUEVO
+                showError={showError} // NUEVO
               />
             ) : (
               <PaymentListItem
@@ -307,6 +376,12 @@ const PaymentsTab = ({
                 payment={payment}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
+                onConfirmPayment={handleConfirmPayment} // NUEVO
+                onCancelPayment={handleCancelPayment} // NUEVO
+                isProcessing={processing} // NUEVO
+                processingType={processType} // NUEVO
+                showSuccess={showSuccess} // NUEVO
+                showError={showError} // NUEVO
               />
             );
           })}
@@ -376,7 +451,7 @@ const PaymentsTab = ({
         </div>
       )}
 
-      {/* Información adicional */}
+      {/* Información adicional - ACTUALIZADA */}
       {filteredPayments.length > 0 && (
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <div className="text-sm text-gray-600 text-center">
@@ -389,6 +464,17 @@ const PaymentsTab = ({
             )}
           </div>
           
+          {/* NUEVO: Resumen de pagos pendientes */}
+          {pendingStats.total > 0 && (
+            <div className="mt-2 flex items-center justify-center text-sm text-yellow-600">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              <span className="font-medium">
+                {pendingStats.total} pagos esperando confirmación
+                {pendingStats.old > 0 && ` (${pendingStats.old} antiguos)`}
+              </span>
+            </div>
+          )}
+          
           {/* Resumen de métodos de pago */}
           <div className="mt-2 flex items-center justify-center text-sm text-gray-500 space-x-4">
             <span>💵 {methodStats.cash} efectivo</span>
@@ -398,7 +484,7 @@ const PaymentsTab = ({
           
           {/* Nota sobre el historial */}
           <div className="mt-2 text-xs text-center text-gray-500 italic">
-            Historial completo de todas las transacciones procesadas en el sistema
+            Historial completo de todas las transacciones. Los pagos pendientes aparecen destacados y pueden ser gestionados.
           </div>
         </div>
       )}
@@ -407,6 +493,9 @@ const PaymentsTab = ({
 };
 
 export default PaymentsTab;
+// Este componente maneja la visualización del historial completo de pagos
+// ACTUALIZADO: Ahora incluye funcionalidad para gestionar pagos pendientes
+// Incluye búsqueda, filtros, paginación y vista detallada de cada transacción
 // Este componente maneja la visualización del historial completo de pagos
 // Incluye búsqueda, filtros, paginación y vista detallada de cada transacción
 // Proporciona una interfaz clara para revisar todo el historial financiero

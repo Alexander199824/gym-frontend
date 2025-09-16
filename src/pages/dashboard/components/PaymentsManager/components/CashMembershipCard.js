@@ -6,13 +6,13 @@
 // src/pages/dashboard/components/PaymentsManager/components/CashMembershipCard.js
 // Author: Alexander Echeverria
 // Componente de tarjeta para membresías en efectivo pendientes (vista grid)
-// MEJORADO: Ahora incluye el estado del pago como en el historial
+// ACTUALIZADO: Botones claros de "Confirmar" y "Anular" siempre visibles
 
 import React, { useState } from 'react';
 import { 
   CheckCircle, Timer, Bird, Mail, Phone, Loader2, CreditCard, 
   Calendar, X, AlertTriangle, User, Clock, Building, FileText,
-  MapPin, Eye, EyeOff, ChevronDown, ChevronUp, Check
+  MapPin, Eye, EyeOff, ChevronDown, ChevronUp, Check, Ban
 } from 'lucide-react';
 
 const CashMembershipCard = ({ 
@@ -49,15 +49,15 @@ const CashMembershipCard = ({
   const statusConfig = getStatusConfig(membership.status || 'pending');
   const StatusIcon = statusConfig.icon;
   
-  // Manejar la activación de la membresía
-  const handleActivation = () => {
+  // Manejar la confirmación del pago (activación de la membresía)
+  const handleConfirmPayment = () => {
     if (onActivate && formatCurrency) {
       onActivate(membership.id, showSuccess, showError, formatCurrency);
     }
   };
   
-  // Manejar la cancelación de la membresía
-  const handleCancellation = () => {
+  // Manejar la anulación de la membresía
+  const handleCancelPayment = () => {
     if (onCancel && formatCurrency) {
       onCancel(membership.id, showSuccess, showError, formatCurrency);
     }
@@ -131,7 +131,7 @@ const CashMembershipCard = ({
               </span>
             </div>
             <span className="text-xs">
-              {isVeryOld ? 'Considerar cancelar' : 'Evaluar cancelar'}
+              {isVeryOld ? 'Considerar anular' : 'Evaluar anular'}
             </span>
           </div>
         </div>
@@ -156,7 +156,7 @@ const CashMembershipCard = ({
                 {membership.user?.name || 'Cliente Anónimo'}
               </h3>
               
-              {/* NUEVO: Badge de estado del pago */}
+              {/* Badge de estado del pago */}
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bg}`}>
                 <StatusIcon className="w-3 h-3 mr-1" />
                 {statusConfig.label}
@@ -442,62 +442,58 @@ const CashMembershipCard = ({
           </div>
         )}
         
-        {/* Botones de acción - Solo mostrar si está pendiente */}
+        {/* NUEVOS BOTONES: Confirmar y Anular - Solo mostrar si está pendiente */}
         {(membership.status === 'pending' || membership.status === 'waiting_payment') && (
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             
-            {/* Botón principal: Recibir pago */}
+            {/* Botón CONFIRMAR - Verde */}
             <button
-              onClick={handleActivation}
+              onClick={handleConfirmPayment}
               disabled={isProcessing || !membership.canActivate}
-              className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+              className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
                 isProcessing && processingType === 'activating'
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                   : (membership.canActivate !== false)
-                    ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
+                    ? 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
             >
               {isProcessing && processingType === 'activating' ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Activando...
+                  Confirmando...
                 </>
               ) : (
                 <>
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Recibir {formatCurrency && formatCurrency(membership.price)}
+                  <Check className="w-4 h-4 mr-2" />
+                  Confirmar
                 </>
               )}
             </button>
             
-            {/* Botón secundario: Cancelar (si es candidato) */}
-            {(isCandidateForCancellation || membership.canCancel) && (
-              <button
-                onClick={handleCancellation}
-                disabled={isProcessing || !onCancel}
-                className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm border-2 ${
-                  isProcessing && processingType === 'cancelling'
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' 
-                    : isVeryOld
-                      ? 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 hover:border-red-400'
-                      : 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 hover:border-orange-400'
-                }`}
-                title={onCancel ? "Cancelar membresía - Cliente no llegó" : "Funcionalidad en desarrollo"}
-              >
-                {isProcessing && processingType === 'cancelling' ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Cancelando...
-                  </>
-                ) : (
-                  <>
-                    <X className="w-4 h-4 mr-2" />
-                    {onCancel ? 'Cliente no llegó' : 'Cancelar (próximamente)'}
-                  </>
-                )}
-              </button>
-            )}
+            {/* Botón ANULAR - Rojo */}
+            <button
+              onClick={handleCancelPayment}
+              disabled={isProcessing || !onCancel}
+              className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+                isProcessing && processingType === 'cancelling'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : 'bg-red-600 text-white hover:bg-red-700 shadow-md hover:shadow-lg'
+              }`}
+              title={onCancel ? "Anular pago - Cliente no llegó" : "Funcionalidad en desarrollo"}
+            >
+              {isProcessing && processingType === 'cancelling' ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Anulando...
+                </>
+              ) : (
+                <>
+                  <Ban className="w-4 h-4 mr-2" />
+                  Anular
+                </>
+              )}
+            </button>
           </div>
         )}
         
@@ -509,16 +505,24 @@ const CashMembershipCard = ({
             membership.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
             'bg-blue-100 text-blue-800'
           }`}>
-            {membership.status === 'completed' ? '✅ Pago en efectivo ya recibido' :
+            {membership.status === 'completed' ? '✅ Pago en efectivo confirmado' :
              membership.status === 'failed' ? '❌ Pago fallido' :
-             membership.status === 'cancelled' ? '⚪ Membresía cancelada' :
+             membership.status === 'cancelled' ? '⚪ Membresía anulada' :
              '🔄 Membresía en proceso'}
           </div>
         )}
-        
-        {/* Nota explicativa para efectivo */}
-        <div className="mt-3 text-xs text-gray-500 text-center italic">
-          El cliente puede llegar a pagar cuando guste durante el día
+
+        {/* Información adicional sobre el monto */}
+        <div className="mt-3 bg-blue-50 rounded-lg p-3 text-center">
+          <div className="text-sm text-blue-800">
+            <span className="font-medium">Monto a recibir: </span>
+            <span className="text-lg font-bold text-blue-900">
+              {formatCurrency && formatCurrency(membership.price)}
+            </span>
+          </div>
+          <div className="text-xs text-blue-600 mt-1">
+            El cliente puede llegar cuando guste durante el día
+          </div>
         </div>
       </div>
     </div>

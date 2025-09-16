@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager.js
 // Author: Alexander Echeverria
 // Componente principal para la gestión completa de pagos del sistema
-// ACTUALIZADO: Integración completa con transferencias mejoradas
+// ACTUALIZADO: Integración completa con funciones de confirmar/cancelar pagos
 
 import React, { useState } from 'react';
 import { Coins, RefreshCw } from 'lucide-react';
@@ -33,10 +33,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   // Estado principal de navegación
   const [activeTab, setActiveTab] = useState('payments');
   
-  // Hooks personalizados para manejo de datos
-  const paymentsData = usePaymentsData();
+  // Hooks personalizados para manejo de datos - ACTUALIZADO
+  const paymentsData = usePaymentsData(onSave); // Ahora pasa onSave
   const cashData = useCashMemberships(onSave);
-  const transfersData = useTransfers(onSave); // ACTUALIZADO: Ahora incluye filtros y vistas
+  const transfersData = useTransfers(onSave);
   const statisticsData = useStatistics();
   
   // Función para refrescar todos los datos
@@ -45,7 +45,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       await Promise.all([
         paymentsData.loadPayments(),
         cashData.loadPendingCashMemberships(),
-        transfersData.loadPendingTransfers(), // ACTUALIZADO
+        transfersData.loadPendingTransfers(),
         statisticsData.loadStatistics(),
         statisticsData.loadFinancialDashboard()
       ]);
@@ -68,7 +68,20 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     
     switch (activeTab) {
       case 'payments':
-        return <PaymentsTab {...paymentsData} {...commonProps} onSave={onSave} />;
+        return (
+          <PaymentsTab 
+            {...paymentsData} 
+            {...commonProps} 
+            onSave={onSave}
+            // NUEVAS props para gestión de pagos pendientes
+            handleConfirmPayment={paymentsData.handleConfirmPayment}
+            handleCancelPayment={paymentsData.handleCancelPayment}
+            isPaymentProcessing={paymentsData.isPaymentProcessing}
+            getProcessingType={paymentsData.getProcessingType}
+            getPendingPaymentsStats={paymentsData.getPendingPaymentsStats}
+            processingIds={paymentsData.processingIds}
+          />
+        );
       case 'cash': 
         return (
           <CashTab 
@@ -88,7 +101,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             {...transfersData} 
             {...commonProps} 
             onSave={onSave}
-            // NUEVO: Pasar todas las props necesarias para transferencias
+            // Pasar todas las props necesarias para transferencias
             transferStats={transfersData.transferStats}
             searchTerm={transfersData.searchTerm}
             setSearchTerm={transfersData.setSearchTerm}
@@ -107,7 +120,19 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       case 'summary':
         return <SummaryTab {...statisticsData} {...commonProps} />;
       default:
-        return <PaymentsTab {...paymentsData} {...commonProps} onSave={onSave} />;
+        return (
+          <PaymentsTab 
+            {...paymentsData} 
+            {...commonProps} 
+            onSave={onSave}
+            handleConfirmPayment={paymentsData.handleConfirmPayment}
+            handleCancelPayment={paymentsData.handleCancelPayment}
+            isPaymentProcessing={paymentsData.isPaymentProcessing}
+            getProcessingType={paymentsData.getProcessingType}
+            getPendingPaymentsStats={paymentsData.getPendingPaymentsStats}
+            processingIds={paymentsData.processingIds}
+          />
+        );
     }
   };
 
@@ -146,8 +171,8 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         onTabChange={setActiveTab}
         counters={{
           totalPayments: paymentsData.totalPayments,
-          pendingTransfers: transfersData.transferStats?.total || 0, // ACTUALIZADO
-          criticalTransfers: transfersData.transferStats?.critical || 0, // NUEVO
+          pendingTransfers: transfersData.transferStats?.total || 0,
+          criticalTransfers: transfersData.transferStats?.critical || 0,
           pendingCash: cashData.cashMembershipStats?.total || 0,
           urgentCash: cashData.cashMembershipStats?.old || 0
         }}
@@ -156,7 +181,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       {/* Contenido del tab activo */}
       {renderActiveTab()}
       
-      {/* Información adicional sobre las mejoras */}
+      {/* Información adicional sobre las mejoras - ACTUALIZADA */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start space-x-3">
           <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -164,14 +189,16 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           </div>
           <div>
             <h4 className="text-sm font-medium text-blue-900 mb-1">
-              Sistema Mejorado con Información Detallada
+              Sistema Mejorado con Gestión de Pagos Pendientes
             </h4>
             <div className="text-sm text-blue-800 space-y-1">
+              <p>• <strong>Pagos Pendientes:</strong> Botones para confirmar o cancelar pagos que están esperando procesamiento</p>
               <p>• <strong>Transferencias:</strong> Vista rediseñada con grid/lista, estadísticas y comprobantes compactos</p>
               <p>• <strong>Efectivo:</strong> Información expandible con detalles completos del cliente y membresía</p>
               <p>• <strong>Historial:</strong> Vista detallada expandible para cada pago con toda la información disponible</p>
               <p>• <strong>Filtros:</strong> Búsqueda y filtros avanzados en todas las secciones</p>
               <p>• <strong>Tiempo real:</strong> Contadores de tiempo de espera y prioridades automáticas</p>
+              <p>• <strong>Gestión Activa:</strong> Confirma o cancela pagos pendientes directamente desde la interfaz</p>
             </div>
           </div>
         </div>
@@ -182,6 +209,10 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
 
 export default PaymentsManager;
 
+// Este componente sirve como orquestador principal del sistema de pagos
+// ACTUALIZADO: Ahora incluye integración completa con gestión de pagos pendientes
+// Mantiene la navegación entre tabs y coordina todos los subcomponentes
+// No maneja lógica de negocio directamente, delegando a hooks especializados
 // Este componente sirve como orquestador principal del sistema de pagos
 // Mantiene la navegación entre tabs y coordina todos los subcomponentes
 // ACTUALIZADO: Ahora incluye integración completa con transferencias mejoradas
