@@ -5,14 +5,13 @@
 
 // src/pages/dashboard/components/PaymentsManager/components/PaymentListItem.js
 // Author: Alexander Echeverria
-// Componente de item para pagos del historial (vista lista)
-// OPTIMIZADO: Completamente responsive para móvil con layout adaptativo
+// MEJORADO: Botones estandarizados y mejor adaptación para PC
 
 import React, { useState } from 'react';
 import { 
   Check, X, Timer, Bird, Phone, Mail, Building,
   ChevronDown, ChevronUp, Calendar, User, Clock, 
-  FileText, CreditCard, ExternalLink, Banknote, Smartphone, Loader2
+  FileText, CreditCard, ExternalLink, Banknote, Smartphone, Loader2, Ban
 } from 'lucide-react';
 
 const PaymentListItem = ({ 
@@ -27,10 +26,8 @@ const PaymentListItem = ({
   showError
 }) => {
 
-  // Estado para expandir/contraer información detallada
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Función para obtener configuración del estado del pago
   const getStatusConfig = (status) => {
     const configs = {
       completed: { label: 'Completado', color: 'text-green-600', bg: 'bg-green-100', icon: Check },
@@ -42,7 +39,6 @@ const PaymentListItem = ({
     return configs[status] || configs.completed;
   };
 
-  // Función para obtener configuración del método de pago
   const getPaymentMethodConfig = (method) => {
     const configs = {
       cash: { label: 'Efectivo', color: 'text-green-600', bg: 'bg-green-50', icon: Banknote },
@@ -53,7 +49,6 @@ const PaymentListItem = ({
     return configs[method] || configs.cash;
   };
 
-  // Función para obtener configuración del tipo de pago
   const getPaymentTypeConfig = (type) => {
     const configs = {
       membership: { label: 'Membresía', icon: Building, description: 'Pago de cuota mensual' },
@@ -74,10 +69,8 @@ const PaymentListItem = ({
   const MethodIcon = methodConfig.icon;
   const TypeIcon = typeConfig.icon;
   
-  // Determinar si el pago está pendiente
   const isPendingPayment = payment.status === 'pending' || payment.status === 'waiting_payment';
   
-  // Calcular tiempo desde el pago
   const getTimeSincePayment = () => {
     if (!payment.paymentDate && !payment.createdAt) return null;
     
@@ -96,7 +89,6 @@ const PaymentListItem = ({
     }
   };
 
-  // Manejar confirmación de pago
   const handleConfirmPayment = () => {
     if (onConfirmPayment && !isProcessing) {
       const clientName = payment.user?.name || 
@@ -106,7 +98,6 @@ const PaymentListItem = ({
     }
   };
 
-  // Manejar cancelación de pago
   const handleCancelPayment = () => {
     if (onCancelPayment && !isProcessing) {
       const clientName = payment.user?.name || 
@@ -116,7 +107,6 @@ const PaymentListItem = ({
     }
   };
 
-  // Función para formatear tiempo de forma detallada
   const formatDetailedTime = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -143,37 +133,37 @@ const PaymentListItem = ({
   };
 
   return (
-    <div className={`bg-white border rounded-lg transition-all duration-200 hover:shadow-md ${
+    <div className={`bg-white border rounded-xl transition-all duration-200 hover:shadow-md overflow-hidden ${
       isPendingPayment ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200'
     }`}>
       
-      {/* Header principal (siempre visible) - OPTIMIZADO PARA MÓVIL */}
-      <div className="p-4">
+      {/* Header principal (siempre visible) - MEJORADO PARA PC */}
+      <div className="p-4 lg:p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center flex-1 min-w-0">
             
             {/* Avatar */}
-            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0 ${methodConfig.bg}`}>
-              <span className={`text-sm sm:text-lg font-bold ${methodConfig.color}`}>
+            <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center mr-4 lg:mr-6 flex-shrink-0 ${methodConfig.bg}`}>
+              <span className={`text-sm lg:text-lg font-bold ${methodConfig.color}`}>
                 {payment.user?.name?.[0] || payment.user?.firstName?.[0] || 'C'}
               </span>
             </div>
             
             {/* Información principal */}
             <div className="flex-1 min-w-0">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
-                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-2">
+                <div className="flex items-center space-x-3 lg:space-x-4 min-w-0">
+                  <h3 className="text-base lg:text-lg font-semibold text-gray-900 truncate">
                     {payment.user?.name || 
                      `${payment.user?.firstName || ''} ${payment.user?.lastName || ''}`.trim() || 
                      'Cliente Anónimo'}
                   </h3>
                   
                   {/* Badge de estado del pago */}
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${statusConfig.color} ${statusConfig.bg}`}>
-                    <StatusIcon className="w-3 h-3 mr-1" />
-                    <span className="hidden sm:inline">{statusConfig.label}</span>
-                    <span className="sm:hidden">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium flex-shrink-0 ${statusConfig.color} ${statusConfig.bg}`}>
+                    <StatusIcon className="w-4 h-4 mr-1" />
+                    <span className="hidden lg:inline">{statusConfig.label}</span>
+                    <span className="lg:hidden">
                       {statusConfig.label === 'Completado' ? 'Comp.' : 
                        statusConfig.label === 'Pendiente' ? 'Pend.' : 
                        statusConfig.label.slice(0, 4)}
@@ -182,13 +172,13 @@ const PaymentListItem = ({
                 </div>
                 
                 {/* Tiempo desde el pago */}
-                <div className="flex items-center text-sm text-gray-500 mt-1 sm:mt-0 sm:ml-2">
+                <div className="flex items-center text-sm lg:text-base text-gray-500 mt-1 lg:mt-0 lg:ml-2">
                   <Clock className="w-4 h-4 mr-1 flex-shrink-0" />
                   <span>{getTimeSincePayment()}</span>
                 </div>
               </div>
               
-              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-sm text-gray-600">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-6 space-y-1 lg:space-y-0 text-sm lg:text-base text-gray-600">
                 <span className={`font-semibold ${methodConfig.color} flex items-center`}>
                   <Bird className="w-4 h-4 mr-1 flex-shrink-0" />
                   <span className="truncate">{formatCurrency && formatCurrency(payment.amount)}</span>
@@ -205,7 +195,7 @@ const PaymentListItem = ({
                 </span>
                 
                 {payment.user?.email && (
-                  <span className="truncate min-w-0 sm:max-w-40">
+                  <span className="truncate min-w-0 lg:max-w-sm">
                     <Mail className="w-3 h-3 inline mr-1" />
                     {payment.user.email}
                   </span>
@@ -215,7 +205,7 @@ const PaymentListItem = ({
           </div>
           
           {/* Controles del lado derecho */}
-          <div className="ml-2 sm:ml-4 flex-shrink-0 flex items-center space-x-2">
+          <div className="ml-4 lg:ml-6 flex-shrink-0 flex items-center space-x-3">
             
             {/* Botón de expandir */}
             <button
@@ -223,58 +213,58 @@ const PaymentListItem = ({
               className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-50"
               title={isExpanded ? 'Contraer información' : 'Ver más información'}
             >
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </button>
             
-            {/* Botones de acción para pagos pendientes */}
+            {/* BOTONES ESTANDARIZADOS - Solo para pagos pendientes */}
             {isPendingPayment && (onConfirmPayment || onCancelPayment) && (
-              <>
-                {/* Botón de confirmar */}
+              <div className="flex items-center space-x-2 lg:space-x-3">
+                {/* Botón de confirmar - ESTANDARIZADO */}
                 {onConfirmPayment && (
                   <button
                     onClick={handleConfirmPayment}
                     disabled={isProcessing}
-                    className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`px-3 lg:px-4 py-2 lg:py-2.5 rounded-lg text-sm lg:text-base font-medium transition-all ${
                       isProcessing && processingType === 'confirming'
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
+                        : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl active:scale-95'
                     }`}
                   >
                     {isProcessing && processingType === 'confirming' ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin" />
                     ) : (
-                      <>
-                        <Check className="w-4 h-4 sm:mr-1" />
-                        <span className="hidden sm:inline">Confirmar</span>
-                      </>
+                      <div className="flex items-center">
+                        <Check className="w-4 h-4 lg:w-5 lg:h-5 lg:mr-2" />
+                        <span className="hidden lg:inline">Confirmar</span>
+                      </div>
                     )}
                   </button>
                 )}
                 
-                {/* Botón de cancelar */}
+                {/* Botón de cancelar - ESTANDARIZADO */}
                 {onCancelPayment && (
                   <button
                     onClick={handleCancelPayment}
                     disabled={isProcessing}
-                    className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
+                    className={`px-3 lg:px-4 py-2 lg:py-2.5 rounded-lg text-sm lg:text-base font-medium border-2 transition-all ${
                       isProcessing && processingType === 'cancelling'
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-                        : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 active:scale-95'
+                        : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 hover:border-red-400 active:scale-95'
                     }`}
                   >
                     {isProcessing && processingType === 'cancelling' ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin" />
                     ) : (
-                      <X className="w-4 h-4" />
+                      <Ban className="w-4 h-4 lg:w-5 lg:h-5" />
                     )}
                   </button>
                 )}
-              </>
+              </div>
             )}
             
             {/* Indicador para pagos ya procesados */}
             {!isPendingPayment && (
-              <div className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
+              <div className={`px-3 lg:px-4 py-1 lg:py-2 rounded-full text-xs lg:text-sm font-medium ${
                 payment.status === 'completed' ? 'bg-green-100 text-green-800' :
                 payment.status === 'failed' ? 'bg-red-100 text-red-800' :
                 payment.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
@@ -292,48 +282,45 @@ const PaymentListItem = ({
 
       {/* Información expandida */}
       {isExpanded && (
-        <div className="px-4 pb-4 bg-gray-50 border-t border-gray-200">
-          <div className="space-y-4 pt-4">
+        <div className="px-4 lg:px-6 pb-4 lg:pb-6 bg-gray-50 border-t border-gray-200">
+          <div className="space-y-6 pt-6">
             
             {/* Información del cliente detallada */}
             {payment.user && (
-              <div className="bg-white rounded-lg p-4">
-                <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
-                  <User className="w-4 h-4 mr-2" />
+              <div className="bg-white rounded-xl p-4 lg:p-6">
+                <h5 className="text-base font-medium text-gray-900 mb-4 flex items-center">
+                  <User className="w-5 h-5 mr-2" />
                   Información del Cliente
                 </h5>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm lg:text-base">
                   
-                  {/* Email */}
                   {payment.user.email && (
-                    <div className="flex items-start space-x-2">
-                      <Mail className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex items-start space-x-3">
+                      <Mail className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div className="min-w-0">
                         <div className="font-medium text-gray-900">Email</div>
-                        <div className="text-gray-600 break-all text-xs sm:text-sm">{payment.user.email}</div>
+                        <div className="text-gray-600 break-all mt-1">{payment.user.email}</div>
                       </div>
                     </div>
                   )}
                   
-                  {/* Teléfono */}
                   {payment.user.phone && (
-                    <div className="flex items-start space-x-2">
-                      <Phone className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex items-start space-x-3">
+                      <Phone className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium text-gray-900">Teléfono</div>
-                        <div className="text-gray-600 text-xs sm:text-sm">{payment.user.phone}</div>
+                        <div className="text-gray-600 mt-1">{payment.user.phone}</div>
                       </div>
                     </div>
                   )}
                   
-                  {/* Referencia */}
                   {payment.reference && (
-                    <div className="flex items-start space-x-2">
-                      <CreditCard className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex items-start space-x-3">
+                      <CreditCard className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium text-gray-900">Referencia</div>
-                        <div className="text-gray-600 font-mono text-xs sm:text-sm">{payment.reference}</div>
+                        <div className="text-gray-600 font-mono mt-1">{payment.reference}</div>
                       </div>
                     </div>
                   )}
@@ -342,32 +329,32 @@ const PaymentListItem = ({
             )}
 
             {/* Información temporal MEJORADA */}
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
-                <Clock className="w-4 h-4 mr-2" />
+            <div className="bg-blue-50 rounded-xl p-4 lg:p-6">
+              <h5 className="text-base font-medium text-gray-900 mb-4 flex items-center">
+                <Clock className="w-5 h-5 mr-2" />
                 Información Temporal Detallada
               </h5>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm lg:text-base">
                 
-                <div className="flex items-start space-x-2">
-                  <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                <div className="flex items-start space-x-3">
+                  <Calendar className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                   <div className="min-w-0">
                     <div className="font-medium text-gray-900">
                       {isPendingPayment ? 'Fecha de creación' : 'Fecha de pago'}
                     </div>
-                    <div className="text-gray-600 text-xs sm:text-sm break-words">
+                    <div className="text-gray-600 mt-1 break-words">
                       {formatDetailedTime(payment.paymentDate || payment.createdAt)}
                     </div>
                   </div>
                 </div>
                 
                 {payment.createdAt && payment.paymentDate !== payment.createdAt && (
-                  <div className="flex items-start space-x-2">
-                    <Timer className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex items-start space-x-3">
+                    <Timer className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <div className="font-medium text-gray-900">Fecha de creación</div>
-                      <div className="text-gray-600 text-xs sm:text-sm break-words">
+                      <div className="text-gray-600 mt-1 break-words">
                         {formatDetailedTime(payment.createdAt)}
                       </div>
                     </div>
@@ -377,23 +364,23 @@ const PaymentListItem = ({
             </div>
 
             {/* Información del método de pago */}
-            <div className={`${methodConfig.bg} rounded-lg p-4 border border-gray-200`}>
-              <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
-                <MethodIcon className="w-4 h-4 mr-2" />
+            <div className={`${methodConfig.bg} rounded-xl p-4 lg:p-6 border border-gray-200`}>
+              <h5 className="text-base font-medium text-gray-900 mb-4 flex items-center">
+                <MethodIcon className="w-5 h-5 mr-2" />
                 Detalles de {methodConfig.label}
               </h5>
               
               {payment.paymentMethod === 'transfer' && (
-                <div className="space-y-3 text-sm">
+                <div className="space-y-4 text-sm lg:text-base">
                   {payment.transferProof && (
                     <div>
                       <span className="font-medium text-gray-700">Comprobante:</span>
-                      <div className="mt-1">
+                      <div className="mt-2">
                         <a 
                           href={payment.transferProof} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm"
+                          className="inline-flex items-center text-blue-600 hover:text-blue-700"
                         >
                           <ExternalLink className="w-4 h-4 mr-1" />
                           Ver comprobante completo
@@ -404,34 +391,34 @@ const PaymentListItem = ({
                   {payment.reference && (
                     <div>
                       <span className="font-medium text-gray-700">Referencia:</span>
-                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">{payment.reference}</span>
+                      <span className="ml-2 font-mono text-gray-600">{payment.reference}</span>
                     </div>
                   )}
                 </div>
               )}
               
               {payment.paymentMethod === 'card' && (
-                <div className="space-y-3 text-sm">
+                <div className="space-y-4 text-sm lg:text-base">
                   {payment.cardLast4 && (
                     <div>
                       <span className="font-medium text-gray-700">Tarjeta:</span>
-                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">**** **** **** {payment.cardLast4}</span>
+                      <span className="ml-2 font-mono text-gray-600">**** **** **** {payment.cardLast4}</span>
                     </div>
                   )}
                   {payment.cardTransactionId && (
                     <div>
                       <span className="font-medium text-gray-700">ID de transacción:</span>
-                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">{payment.cardTransactionId}</span>
+                      <span className="ml-2 font-mono text-gray-600">{payment.cardTransactionId}</span>
                     </div>
                   )}
                 </div>
               )}
               
               {payment.paymentMethod === 'cash' && (
-                <div className="text-sm">
+                <div className="text-sm lg:text-base">
                   <div className="flex items-center text-green-700">
-                    <Check className="w-4 h-4 mr-2" />
-                    <span className="text-xs sm:text-sm">
+                    <Check className="w-5 h-5 mr-2" />
+                    <span>
                       {isPendingPayment 
                         ? 'Esperando confirmación de pago en efectivo'
                         : 'Pago en efectivo recibido y confirmado'
@@ -444,7 +431,7 @@ const PaymentListItem = ({
 
             {/* Nota sobre pagos pendientes */}
             {isPendingPayment && (
-              <div className="text-xs text-center text-gray-500 italic bg-white rounded-lg p-3">
+              <div className="text-xs lg:text-sm text-center text-gray-500 italic bg-white rounded-xl p-4">
                 Este pago está esperando confirmación. Utiliza los botones de arriba para confirmar si el pago se realizó o cancelarlo.
               </div>
             )}
