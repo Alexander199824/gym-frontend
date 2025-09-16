@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/components/CashMembershipCard.js
 // Author: Alexander Echeverria
 // Componente de tarjeta para membresías en efectivo pendientes (vista grid)
-// MEJORADO: Botones de "Confirmar" y "Anular" siempre visibles y mejor integrados
+// Muestra información detallada del cliente, plan y permite activación de membresía
 
 import React, { useState } from 'react';
 import { 
@@ -46,47 +46,40 @@ const CashMembershipCard = ({
   const isCandidateForCancellation = (membership.hoursWaiting || 0) > 24;
   const isVeryOld = (membership.hoursWaiting || 0) > 48;
   
-  // MEJORADO: Siempre considerar que los pagos en efectivo son pendientes por defecto
   const effectiveStatus = membership.status || 'pending';
   const statusConfig = getStatusConfig(effectiveStatus);
   const StatusIcon = statusConfig.icon;
   
-  // MEJORADO: Determinar si puede ser procesado (más permisivo)
+  // Determinar si puede ser procesado
   const canProcess = effectiveStatus === 'pending' || 
                     effectiveStatus === 'waiting_payment' || 
-                    !membership.status; // Si no tiene status, asumimos que es pendiente
+                    !membership.status;
   
   // Manejar la confirmación del pago (activación de la membresía)
   const handleConfirmPayment = () => {
     if (!onActivate) {
-      console.warn('No se proporcionó función onActivate');
       showError && showError('Función de activación no disponible');
       return;
     }
     
     if (isProcessing) {
-      console.log('Ya se está procesando esta membresía');
       return;
     }
     
-    // Llamar a la función con todos los parámetros necesarios
     onActivate(membership.id, showSuccess, showError, formatCurrency);
   };
   
   // Manejar la anulación de la membresía
   const handleCancelPayment = () => {
     if (!onCancel) {
-      console.warn('No se proporcionó función onCancel');
       showError && showError('Función de cancelación no disponible');
       return;
     }
     
     if (isProcessing) {
-      console.log('Ya se está procesando esta membresía');
       return;
     }
     
-    // Llamar a la función con todos los parámetros necesarios
     onCancel(membership.id, showSuccess, showError, formatCurrency);
   };
   
@@ -469,7 +462,7 @@ const CashMembershipCard = ({
           </div>
         )}
         
-        {/* MEJORADO: Botones SIEMPRE visibles para pagos en efectivo pendientes */}
+        {/* Botones SIEMPRE visibles para pagos en efectivo pendientes */}
         {canProcess && (
           <div className="space-y-3 mb-4">
             

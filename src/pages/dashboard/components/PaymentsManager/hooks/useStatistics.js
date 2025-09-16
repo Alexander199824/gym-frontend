@@ -2,6 +2,10 @@
 // Author: Alexander Echeverria
 // Hook personalizado para manejar estadísticas financieras y dashboard de resumen
 // Incluye métricas de ingresos, gastos y análisis financiero por períodos
+// src/pages/dashboard/components/PaymentsManager/hooks/useStatistics.js
+// Author: Alexander Echeverria
+// Hook personalizado para manejar estadísticas financieras y dashboard de resumen
+// Incluye métricas de ingresos, gastos y análisis financiero por períodos
 
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
@@ -16,13 +20,11 @@ const useStatistics = () => {
   // Función para cargar estadísticas generales de pagos
   const loadStatistics = async () => {
     try {
-      console.log('Cargando estadísticas de pagos...');
       setLoading(true);
       
       const response = await apiService.paymentService.getPaymentStatistics();
       setStatistics(response?.data || {});
       
-      console.log('Estadísticas de pagos cargadas');
     } catch (error) {
       console.error('Error cargando estadísticas:', error);
       setStatistics({});
@@ -34,12 +36,9 @@ const useStatistics = () => {
   // Función para cargar dashboard financiero
   const loadFinancialDashboard = async () => {
     try {
-      console.log('Cargando dashboard financiero...');
-      
       const response = await apiService.paymentService.getFinancialDashboard();
       setFinancialDashboard(response?.data || {});
       
-      console.log('Dashboard financiero cargado');
     } catch (error) {
       console.error('Error cargando dashboard financiero:', error);
       setFinancialDashboard({});
@@ -49,12 +48,9 @@ const useStatistics = () => {
   // Función para cargar dashboard de pendientes
   const loadPendingDashboard = async () => {
     try {
-      console.log('Cargando dashboard de pendientes...');
-      
       const response = await apiService.paymentService.getPendingPaymentsDashboard();
       setPendingDashboard(response?.data || {});
       
-      console.log('Dashboard de pendientes cargado');
     } catch (error) {
       console.error('Error cargando dashboard de pendientes:', error);
       setPendingDashboard({});
@@ -186,7 +182,6 @@ const useStatistics = () => {
 };
 
 export default useStatistics;
-
 // Este hook encapsula toda la lógica relacionada con estadísticas y métricas financieras
 // Maneja el dashboard de resumen, métricas por períodos y análisis de tendencias
 // Proporciona datos organizados para diferentes vistas de reporting financiero

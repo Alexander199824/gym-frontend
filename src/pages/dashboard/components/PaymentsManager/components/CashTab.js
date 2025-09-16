@@ -6,12 +6,11 @@
 // src/pages/dashboard/components/PaymentsManager/components/CashTab.js
 // Author: Alexander Echeverria
 // Componente completo del tab de efectivo con estadísticas, filtros y lista de membresías
-// MEJORADO: Asegurar que las funciones de confirmar/anular estén correctamente conectadas
+// Maneja tanto vista grid como lista y todos los controles de filtrado
 
 import React from 'react';
 import { 
-  Search, CheckCircle, Grid3X3, List, Bird, AlertTriangle, 
-  Clock, X 
+  Search, CheckCircle, Grid3X3, List, Bird, Clock
 } from 'lucide-react';
 import CashMembershipCard from './CashMembershipCard';
 import CashMembershipListItem from './CashMembershipListItem';
@@ -45,38 +44,30 @@ const CashTab = ({
   // Obtener las membresías filtradas
   const filteredMemberships = getFilteredCashMemberships ? getFilteredCashMemberships() : pendingCashMemberships;
 
-  // MEJORADO: Función wrapper para activación con mejor logging
+  // Función wrapper para activación
   const handleActivateWrapper = (membershipId, showSuccess, showError, formatCurrency) => {
-    console.log('🟢 CashTab: Activando membresía', membershipId);
-    
     if (!handleActivateCashMembership) {
-      console.error('❌ handleActivateCashMembership no está disponible');
       showError && showError('Función de activación no disponible');
       return;
     }
     
-    // Llamar a la función real del hook
     handleActivateCashMembership(membershipId, showSuccess, showError, formatCurrency);
   };
 
-  // MEJORADO: Función wrapper para cancelación con mejor logging
+  // Función wrapper para cancelación
   const handleCancelWrapper = (membershipId, showSuccess, showError, formatCurrency) => {
-    console.log('🔴 CashTab: Cancelando membresía', membershipId);
-    
     if (!handleCancelCashMembership) {
-      console.error('❌ handleCancelCashMembership no está disponible');
       showError && showError('Función de cancelación no disponible');
       return;
     }
     
-    // Llamar a la función real del hook
     handleCancelCashMembership(membershipId, showSuccess, showError, formatCurrency);
   };
 
   return (
     <div className="space-y-6">
       
-      {/* Estadísticas de efectivo sin "urgentes" */}
+      {/* Estadísticas de efectivo */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         
         {/* Total esperando */}
@@ -155,7 +146,7 @@ const CashTab = ({
         {/* Controles de filtros y vista */}
         <div className="flex items-center space-x-3">
           
-          {/* Filtro de prioridad sin "urgentes" */}
+          {/* Filtro de prioridad */}
           <select
             value={cashPriorityFilter}
             onChange={(e) => setCashPriorityFilter && setCashPriorityFilter(e.target.value)}
@@ -213,18 +204,6 @@ const CashTab = ({
         </div>
       </div>
 
-      {/* MEJORADO: Información de debug para verificar funciones */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
-          <div className="text-yellow-800">
-            <strong>Debug Info:</strong> 
-            handleActivate: {handleActivateCashMembership ? '✅' : '❌'}, 
-            handleCancel: {handleCancelCashMembership ? '✅' : '❌'}, 
-            memberships: {filteredMemberships.length}
-          </div>
-        </div>
-      )}
-
       {/* Contenido principal de membresías */}
       {filteredMemberships.length === 0 ? (
         
@@ -257,7 +236,6 @@ const CashTab = ({
             const isProcessing = isMembershipProcessing ? isMembershipProcessing(membership.id) : false;
             const processingType = getProcessingType ? getProcessingType(membership.id) : null;
             
-            // MEJORADO: Props completas y verificadas
             const commonProps = {
               membership,
               isProcessing,
@@ -266,7 +244,6 @@ const CashTab = ({
               formatDate,
               showSuccess,
               showError,
-              // IMPORTANTE: Pasar las funciones wrapper que manejan los parámetros
               onActivate: handleActivateWrapper,
               onCancel: handleCancelWrapper
             };
@@ -286,7 +263,7 @@ const CashTab = ({
         </div>
       )}
       
-      {/* Información adicional sin "urgentes" */}
+      {/* Información adicional */}
       {filteredMemberships.length > 0 && (
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <div className="text-sm text-gray-600 text-center">
@@ -312,11 +289,6 @@ const CashTab = ({
           {/* Nota sobre la naturaleza del efectivo */}
           <div className="mt-2 text-xs text-center text-gray-500 italic">
             Los clientes pueden llegar a pagar cuando gusten. Solo cancela si estás seguro que no vendrán.
-          </div>
-          
-          {/* NUEVO: Información sobre los botones */}
-          <div className="mt-2 text-xs text-center text-blue-600">
-            💡 Usa los botones "Confirmar" (verde) y "Anular" (rojo) para gestionar cada pago en efectivo
           </div>
         </div>
       )}

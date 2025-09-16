@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/hooks/usePaymentsData.js
 // Author: Alexander Echeverria
 // Hook personalizado para manejar toda la lógica de carga y gestión de pagos
-// ACTUALIZADO: Agregadas funciones para confirmar y cancelar pagos pendientes
+// Incluye paginación, búsqueda y filtros de historial de pagos
 
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
@@ -17,7 +17,7 @@ const usePaymentsData = (onSave) => {
   const [loading, setLoading] = useState(false);
   const [totalPayments, setTotalPayments] = useState(0);
   
-  // NUEVO: Estados de procesamiento para pagos pendientes
+  // Estados de procesamiento para pagos pendientes
   const [processingIds, setProcessingIds] = useState(new Set());
   
   // Estados de filtros y paginación
@@ -28,7 +28,6 @@ const usePaymentsData = (onSave) => {
   // Función principal para cargar pagos
   const loadPayments = async () => {
     try {
-      console.log('💰 usePaymentsData: Cargando pagos...');
       setLoading(true);
       
       const params = {
@@ -47,10 +46,9 @@ const usePaymentsData = (onSave) => {
           setPayments(response.data);
           setTotalPayments(response.data.length);
         }
-        console.log(`✅ ${response.data.payments?.length || response.data.length || 0} pagos cargados exitosamente`);
       }
     } catch (error) {
-      console.error('❌ Error cargando pagos:', error);
+      console.error('Error cargando pagos:', error);
       setPayments([]);
       setTotalPayments(0);
     } finally {
@@ -58,7 +56,7 @@ const usePaymentsData = (onSave) => {
     }
   };
 
-  // NUEVA: Función para confirmar un pago pendiente
+  // Función para confirmar un pago pendiente
   const handleConfirmPayment = async (paymentId, clientName, amount, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
@@ -71,12 +69,10 @@ const usePaymentsData = (onSave) => {
     try {
       setProcessingIds(prev => new Set([...prev, paymentId]));
       
-      console.log('✅ Confirmando pago:', paymentId);
-      
       // Llamada al API para confirmar el pago
       await apiService.paymentService.confirmPayment(paymentId, {
         notes: `Pago confirmado para ${clientName}`,
-        confirmedBy: 'admin' // Se puede obtener del contexto de usuario
+        confirmedBy: 'admin'
       });
       
       showSuccess(
@@ -103,7 +99,7 @@ const usePaymentsData = (onSave) => {
       }
       
     } catch (error) {
-      console.error('❌ Error confirmando pago:', error);
+      console.error('Error confirmando pago:', error);
       showError('Error al confirmar pago: ' + (error.message || 'Error desconocido'));
     } finally {
       setProcessingIds(prev => {
@@ -114,7 +110,7 @@ const usePaymentsData = (onSave) => {
     }
   };
 
-  // NUEVA: Función para cancelar un pago pendiente
+  // Función para cancelar un pago pendiente
   const handleCancelPayment = async (paymentId, clientName, amount, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
@@ -127,13 +123,11 @@ const usePaymentsData = (onSave) => {
     try {
       setProcessingIds(prev => new Set([...prev, paymentId]));
       
-      console.log('❌ Cancelando pago:', paymentId);
-      
       // Llamada al API para cancelar el pago
       await apiService.paymentService.cancelPayment(paymentId, {
         reason: 'Pago cancelado por administrador',
         notes: `Pago de ${clientName} cancelado`,
-        cancelledBy: 'admin' // Se puede obtener del contexto de usuario
+        cancelledBy: 'admin'
       });
       
       showSuccess(
@@ -160,7 +154,7 @@ const usePaymentsData = (onSave) => {
       }
       
     } catch (error) {
-      console.error('❌ Error cancelando pago:', error);
+      console.error('Error cancelando pago:', error);
       showError('Error al cancelar pago: ' + (error.message || 'Error desconocido'));
     } finally {
       setProcessingIds(prev => {
@@ -171,15 +165,14 @@ const usePaymentsData = (onSave) => {
     }
   };
 
-  // NUEVA: Función para obtener el estado de procesamiento de un pago
+  // Función para obtener el estado de procesamiento de un pago
   const isPaymentProcessing = (paymentId) => {
     return processingIds.has(paymentId);
   };
 
-  // NUEVA: Función para obtener el tipo de procesamiento
+  // Función para obtener el tipo de procesamiento
   const getProcessingType = (paymentId) => {
     if (processingIds.has(paymentId)) {
-      // Aquí podrías tener lógica más específica si necesitas diferenciar entre confirmar/cancelar
       return 'processing';
     }
     return null;
@@ -188,7 +181,7 @@ const usePaymentsData = (onSave) => {
   // Función para buscar pagos
   const handleSearch = (term) => {
     setSearchTerm(term);
-    setCurrentPage(1); // Reset a primera página al buscar
+    setCurrentPage(1);
   };
 
   // Función para cambiar página
@@ -196,7 +189,7 @@ const usePaymentsData = (onSave) => {
     setCurrentPage(page);
   };
 
-  // NUEVA: Función para obtener estadísticas de pagos pendientes
+  // Función para obtener estadísticas de pagos pendientes
   const getPendingPaymentsStats = () => {
     const pendingPayments = payments.filter(p => 
       p.status === 'pending' || p.status === 'waiting_payment'
@@ -212,7 +205,7 @@ const usePaymentsData = (onSave) => {
       if (!p.createdAt) return false;
       const created = new Date(p.createdAt);
       const hoursDiff = (now - created) / (1000 * 60 * 60);
-      return hoursDiff > 24; // Más de 24 horas
+      return hoursDiff > 24;
     }).length;
     
     return {
@@ -223,7 +216,7 @@ const usePaymentsData = (onSave) => {
     };
   };
 
-  // NUEVA: Función para filtrar solo pagos pendientes
+  // Función para filtrar solo pagos pendientes
   const getPendingPayments = () => {
     return payments.filter(p => 
       p.status === 'pending' || p.status === 'waiting_payment'
@@ -253,7 +246,7 @@ const usePaymentsData = (onSave) => {
     return colors[status] || colors.completed;
   };
 
-  // NUEVA: Función para determinar si un pago puede ser gestionado
+  // Función para determinar si un pago puede ser gestionado
   const canManagePayment = (payment) => {
     return payment.status === 'pending' || payment.status === 'waiting_payment';
   };
@@ -278,7 +271,7 @@ const usePaymentsData = (onSave) => {
     payments,
     loading,
     totalPayments,
-    processingIds, // NUEVO
+    processingIds,
     
     // Estados de filtros
     searchTerm,
@@ -295,13 +288,13 @@ const usePaymentsData = (onSave) => {
     handleSearch,
     handlePageChange,
     
-    // NUEVAS: Funciones de gestión de pagos
+    // Funciones de gestión de pagos
     handleConfirmPayment,
     handleCancelPayment,
     isPaymentProcessing,
     getProcessingType,
     
-    // NUEVAS: Funciones de análisis
+    // Funciones de análisis
     getPendingPaymentsStats,
     getPendingPayments,
     canManagePayment,

@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/components/CashMembershipListItem.js
 // Author: Alexander Echeverria
 // Componente de item para membresías en efectivo pendientes (vista lista)
-// MEJORADO: Botones de "Confirmar" y "Anular" siempre visibles y mejor integrados
+// Versión compacta horizontal para mostrar múltiples membresías de forma eficiente
 
 import React, { useState } from 'react';
 import { 
@@ -43,45 +43,37 @@ const CashMembershipListItem = ({
   const isCandidateForCancellation = (membership.hoursWaiting || 0) > 24;
   const isVeryOld = (membership.hoursWaiting || 0) > 48;
   
-  // MEJORADO: Siempre considerar que los pagos en efectivo son pendientes por defecto
   const effectiveStatus = membership.status || 'pending';
   const statusConfig = getStatusConfig(effectiveStatus);
   const StatusIcon = statusConfig.icon;
   
-  // MEJORADO: Determinar si puede ser procesado (más permisivo)
   const canProcess = effectiveStatus === 'pending' || 
                     effectiveStatus === 'waiting_payment' || 
-                    !membership.status; // Si no tiene status, asumimos que es pendiente
+                    !membership.status;
 
   // Manejar la confirmación del pago (activación de la membresía)
   const handleConfirmPayment = () => {
     if (!onActivate) {
-      console.warn('No se proporcionó función onActivate');
       return;
     }
     
     if (isProcessing) {
-      console.log('Ya se está procesando esta membresía');
       return;
     }
     
-    // Llamar a la función con el ID de la membresía
     onActivate(membership.id);
   };
 
   // Manejar la anulación de la membresía
   const handleCancelPayment = () => {
     if (!onCancel) {
-      console.warn('No se proporcionó función onCancel');
       return;
     }
     
     if (isProcessing) {
-      console.log('Ya se está procesando esta membresía');
       return;
     }
     
-    // Llamar a la función con el ID de la membresía
     onCancel(membership.id);
   };
 
@@ -187,7 +179,7 @@ const CashMembershipListItem = ({
               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             
-            {/* MEJORADO: Botones SIEMPRE visibles para pagos en efectivo pendientes */}
+            {/* Botones SIEMPRE visibles para pagos en efectivo pendientes */}
             {canProcess && (
               <>
                 {/* Botón CONFIRMAR - Verde */}

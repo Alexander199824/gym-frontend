@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/hooks/useTransfers.js
 // Author: Alexander Echeverria
 // Hook personalizado para manejar toda la lógica de transferencias bancarias
-// CORREGIDO: Mejorado cálculo de tiempo de espera y sincronización
+// Incluye validación, aprobación, rechazo y gestión de estados de procesamiento
 
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../../../../../services/apiService';
@@ -16,10 +16,10 @@ const useTransfers = (onSave) => {
   const [pendingTransfers, setPendingTransfers] = useState([]);
   const [transferStats, setTransferStats] = useState({
     total: 0,
-    critical: 0, // Más de 24h
-    high: 0,     // Más de 12h
-    medium: 0,   // Más de 4h
-    normal: 0,   // Menos de 4h
+    critical: 0,
+    high: 0,
+    medium: 0,
+    normal: 0,
     totalAmount: 0,
     avgAmount: 0,
     avgHours: 0,
@@ -37,19 +37,19 @@ const useTransfers = (onSave) => {
   const [transferSortBy, setTransferSortBy] = useState('waiting_time');
   const [transferPriorityFilter, setTransferPriorityFilter] = useState('all');
 
-  // NUEVO: Función para calcular tiempo de espera si no viene del backend
+  // Función para calcular tiempo de espera si no viene del backend
   const calculateHoursWaiting = useCallback((createdAt, paymentDate) => {
     if (!createdAt && !paymentDate) return 0;
     
     const transferDate = new Date(paymentDate || createdAt);
     const now = new Date();
     const diffTime = now - transferDate;
-    const diffHours = diffTime / (1000 * 60 * 60); // Convertir a horas
+    const diffHours = diffTime / (1000 * 60 * 60);
     
-    return Math.max(0, diffHours); // No permitir valores negativos
+    return Math.max(0, diffHours);
   }, []);
 
-  // Función para calcular estadísticas de transferencias - MEJORADA
+  // Función para calcular estadísticas de transferencias
   const calculateTransferStats = useCallback((transfers) => {
     const total = transfers.length;
     const critical = transfers.filter(t => (t.hoursWaiting || 0) > 24).length;
@@ -77,10 +77,9 @@ const useTransfers = (onSave) => {
     };
   }, []);
 
-  // Función principal para cargar transferencias pendientes - MEJORADA
+  // Función principal para cargar transferencias pendientes
   const loadPendingTransfers = useCallback(async () => {
     try {
-      console.log('🏦 useTransfers: Cargando transferencias pendientes...');
       setLoading(true);
       
       const response = await apiService.paymentService.getPendingTransfers({
@@ -92,7 +91,7 @@ const useTransfers = (onSave) => {
       if (response?.success && response.data) {
         const transfers = response.data.transfers || [];
         
-        // MEJORADO: Procesar transferencias con cálculo de tiempo de espera
+        // Procesar transferencias con cálculo de tiempo de espera
         const processedTransfers = transfers.map(transfer => {
           // Calcular hoursWaiting si no viene del backend o es 0
           let hoursWaiting = transfer.hoursWaiting || 0;
@@ -116,7 +115,7 @@ const useTransfers = (onSave) => {
               lastName: transfer.user?.lastName || transfer.clientName?.split(' ').slice(1).join(' ') || '',
               email: transfer.user?.email || ''
             },
-            hoursWaiting: hoursWaiting, // CORREGIDO: Asegurar que siempre tenga un valor calculado
+            hoursWaiting: hoursWaiting,
             paymentDate: transfer.paymentDate || transfer.createdAt,
             transferProof: transfer.transferProof || transfer.hasProof || false,
             transferValidated: transfer.transferValidated,
@@ -132,16 +131,6 @@ const useTransfers = (onSave) => {
         // Calcular estadísticas
         const calculatedStats = calculateTransferStats(processedTransfers);
         setTransferStats(calculatedStats);
-        
-        console.log(`✅ ${processedTransfers.length} transferencias pendientes cargadas`);
-        console.log('📊 Estadísticas calculadas:', {
-          total: calculatedStats.total,
-          critical: calculatedStats.critical,
-          high: calculatedStats.high,
-          medium: calculatedStats.medium,
-          normal: calculatedStats.normal,
-          avgHours: calculatedStats.avgHours.toFixed(1)
-        });
         
       } else {
         setPendingTransfers([]);
@@ -160,7 +149,7 @@ const useTransfers = (onSave) => {
       }
       
     } catch (error) {
-      console.error('❌ Error cargando transferencias:', error);
+      console.error('Error cargando transferencias:', error);
       setPendingTransfers([]);
       setTransferStats({
         total: 0,
@@ -197,8 +186,6 @@ const useTransfers = (onSave) => {
     try {
       setProcessingIds(prev => new Set([...prev, paymentId]));
       
-      console.log(`🏦 ${approved ? 'Aprobando' : 'Rechazando'} transferencia:`, paymentId);
-      
       await apiService.paymentService.validateTransfer(
         paymentId, 
         approved, 
@@ -228,7 +215,7 @@ const useTransfers = (onSave) => {
       }
       
     } catch (error) {
-      console.error('❌ Error validando transferencia:', error);
+      console.error('Error validando transferencia:', error);
       showError('Error al procesar transferencia: ' + (error.message || 'Error desconocido'));
     } finally {
       setProcessingIds(prev => {
@@ -279,20 +266,20 @@ const useTransfers = (onSave) => {
     return filtered;
   }, [pendingTransfers, transferPriorityFilter, searchTerm, transferSortBy]);
 
-  // Función para determinar la prioridad de una transferencia - MEJORADA
+  // Función para determinar la prioridad de una transferencia
   const getTransferPriority = useCallback((hoursWaiting) => {
     if (hoursWaiting > 24) {
-      return 'critical'; // Más de 24 horas - crítica
+      return 'critical';
     } else if (hoursWaiting > 12) {
-      return 'high'; // Más de 12 horas - alta
+      return 'high';
     } else if (hoursWaiting > 4) {
-      return 'medium'; // Más de 4 horas - media
+      return 'medium';
     } else {
-      return 'normal'; // Normal
+      return 'normal';
     }
   }, []);
 
-  // Función para obtener configuración de prioridad - MEJORADA
+  // Función para obtener configuración de prioridad
   const getTransferPriorityConfig = useCallback((hoursWaiting) => {
     if (hoursWaiting > 24) {
       return {
@@ -352,7 +339,7 @@ const useTransfers = (onSave) => {
     return null;
   }, [processingIds]);
 
-  // NUEVA: Función para obtener distribución por prioridad
+  // Función para obtener distribución por prioridad
   const getPriorityDistribution = useCallback(() => {
     return {
       critical: transferStats.critical,
@@ -363,12 +350,12 @@ const useTransfers = (onSave) => {
     };
   }, [transferStats]);
 
-  // NUEVA: Función para obtener transferencias críticas
+  // Función para obtener transferencias críticas
   const getCriticalTransfers = useCallback(() => {
     return pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24);
   }, [pendingTransfers]);
 
-  // NUEVA: Función para obtener resumen de urgencia
+  // Función para obtener resumen de urgencia
   const getUrgencySummary = useCallback(() => {
     const critical = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24);
     const high = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 12 && (t.hoursWaiting || 0) <= 24);
@@ -383,15 +370,14 @@ const useTransfers = (onSave) => {
     };
   }, [pendingTransfers]);
 
-  // Función para ordenar transferencias por prioridad (MANTENER para compatibilidad)
+  // Función para ordenar transferencias por prioridad
   const getSortedTransfers = useCallback(() => {
     return [...pendingTransfers].sort((a, b) => {
-      // Ordenar por tiempo de espera descendente (más urgentes primero)
       return (b.hoursWaiting || 0) - (a.hoursWaiting || 0);
     });
   }, [pendingTransfers]);
 
-  // Función para obtener estadísticas de transferencias (MANTENER para compatibilidad)
+  // Función para obtener estadísticas de transferencias
   const getTransferStats = useCallback(() => {
     const total = pendingTransfers.length;
     const critical = pendingTransfers.filter(t => (t.hoursWaiting || 0) > 24).length;
@@ -411,40 +397,6 @@ const useTransfers = (onSave) => {
       avgWaitingTime
     };
   }, [pendingTransfers]);
-
-  // Función para debug - obtener todos los datos como en el test (MANTENER)
-  const debugTransferData = useCallback(async () => {
-    try {
-      console.log('🔍 useTransfers: Obteniendo datos de debug...');
-      
-      const transferResponse = await apiService.paymentService.getPendingTransfers();
-      
-      console.log('📊 Debug Transfers:', {
-        response: transferResponse,
-        currentState: {
-          pendingCount: pendingTransfers.length,
-          stats: getTransferStats(),
-          processed: Array.from(processingIds),
-          avgHours: transferStats.avgHours,
-          priorityDistribution: getPriorityDistribution()
-        }
-      });
-      
-      return {
-        response: transferResponse,
-        currentState: {
-          pendingCount: pendingTransfers.length,
-          stats: getTransferStats(),
-          avgHours: transferStats.avgHours,
-          priorityDistribution: getPriorityDistribution()
-        }
-      };
-      
-    } catch (error) {
-      console.error('❌ Error en debug transfers:', error);
-      return { error: error.message };
-    }
-  }, [pendingTransfers, getTransferStats, processingIds, transferStats.avgHours, getPriorityDistribution]);
 
   // Efecto inicial de carga
   useEffect(() => {
@@ -477,24 +429,21 @@ const useTransfers = (onSave) => {
     setTransferSortBy,
     setTransferPriorityFilter,
     
-    // Utilidades MEJORADAS
+    // Utilidades
     isTransferProcessing,
     getProcessingType,
     getTransferPriority,
     getTransferPriorityConfig,
     
-    // NUEVAS funciones de análisis
+    // Funciones de análisis
     getPriorityDistribution,
     getCriticalTransfers,
     getUrgencySummary,
     calculateHoursWaiting,
     
-    // Funciones de compatibilidad (MANTENER)
+    // Funciones de compatibilidad
     getSortedTransfers,
-    getTransferStats,
-    
-    // Debug
-    debugTransferData
+    getTransferStats
   };
 };
 
