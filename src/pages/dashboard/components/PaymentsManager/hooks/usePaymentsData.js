@@ -2,12 +2,14 @@
 // Author: Alexander Echeverria
 // Hook personalizado para manejar toda la lógica de carga y gestión de pagos
 // Incluye paginación, búsqueda y filtros de historial de pagos
-
 // src/pages/dashboard/components/PaymentsManager/hooks/usePaymentsData.js
-// ACTUALIZADO: Para usar la misma lógica del test en el historial general de pagos
+// Author: Alexander Echeverria
+// Hook personalizado para manejar toda la lógica de carga y gestión de pagos
+// ACTUALIZADO: Ahora usa ReasonModal en lugar de window.prompt()
 
 import { useState, useEffect } from 'react';
 import apiService from '../../../../../services/apiService';
+import useReasonModal from './useReasonModal';
 
 const usePaymentsData = (onSave) => {
   // Estados principales de pagos
@@ -22,6 +24,15 @@ const usePaymentsData = (onSave) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const paymentsPerPage = 20;
+
+  // Hook para el modal de razones
+  const {
+    isModalOpen,
+    modalConfig,
+    askForCancellationReason,
+    handleConfirm: handleModalConfirm,
+    handleClose: handleModalClose
+  } = useReasonModal();
 
   // Función principal para cargar pagos
   const loadPayments = async () => {
@@ -54,7 +65,7 @@ const usePaymentsData = (onSave) => {
     }
   };
 
-  // FUNCIÓN PRINCIPAL: Confirmar pago pendiente - LÓGICA DEL TEST
+  // FUNCIÓN PRINCIPAL: Confirmar pago pendiente - SIN CAMBIOS
   const handleConfirmPayment = async (paymentId, clientName, amount, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
@@ -119,27 +130,20 @@ const usePaymentsData = (onSave) => {
     }
   };
 
-  // FUNCIÓN PRINCIPAL: Cancelar pago pendiente - LÓGICA DEL TEST
+  // FUNCIÓN PRINCIPAL: Cancelar pago pendiente - ACTUALIZADA CON MODAL
   const handleCancelPayment = async (paymentId, clientName, amount, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
-    // Pedir razón obligatoria como en el test
-    const reason = window.prompt(
-      `Razón DETALLADA de cancelación (OBLIGATORIA para email al cliente):\n\nEjemplos: "Cliente canceló", "Error en el registro", "Pago duplicado"`
-    );
-    
-    if (!reason || !reason.trim()) {
-      showError('La razón de cancelación es obligatoria');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `¿Confirmar CANCELACIÓN del pago de ${clientName} por ${amount}?\n\nRazón: "${reason.trim()}"\n\n❌ Se enviará email de cancelación automáticamente`
-    );
-    
-    if (!confirmed) return;
-
     try {
+      // USAR EL MODAL EN LUGAR DE window.prompt()
+      const reason = await askForCancellationReason(clientName, amount);
+      
+      const confirmed = window.confirm(
+        `¿Confirmar CANCELACIÓN del pago de ${clientName} por ${amount}?\n\nRazón: "${reason}"\n\n❌ Se enviará email de cancelación automáticamente`
+      );
+      
+      if (!confirmed) return;
+
       setProcessingIds(prev => new Set([...prev, paymentId]));
       
       // Determinar el método de pago para usar el endpoint correcto
@@ -148,13 +152,13 @@ const usePaymentsData = (onSave) => {
       
       if (paymentMethod === 'cash') {
         // Usar endpoint de efectivo
-        await apiService.paymentService.cancelCashPayment(paymentId, reason.trim());
+        await apiService.paymentService.cancelCashPayment(paymentId, reason);
       } else if (paymentMethod === 'transfer') {
         // Usar endpoint de transferencias
-        await apiService.paymentService.rejectTransfer(paymentId, reason.trim());
+        await apiService.paymentService.rejectTransfer(paymentId, reason);
       } else {
         // Para otros métodos, intentar endpoint de efectivo
-        await apiService.paymentService.cancelCashPayment(paymentId, reason.trim());
+        await apiService.paymentService.cancelCashPayment(paymentId, reason);
       }
       
       showSuccess(
@@ -177,12 +181,17 @@ const usePaymentsData = (onSave) => {
           paymentId,
           clientName,
           amount,
-          reason: reason.trim(),
+          reason,
           method: paymentMethod
         });
       }
       
     } catch (error) {
+      if (error.message === 'Modal cancelled') {
+        // Usuario canceló el modal, no mostrar error
+        return;
+      }
+      
       console.error('Error cancelando pago:', error);
       showError('Error al cancelar pago: ' + (error.message || 'Error desconocido'));
     } finally {
@@ -284,6 +293,10 @@ const usePaymentsData = (onSave) => {
     currentPage,
     paymentsPerPage,
     
+    // Estados del modal
+    isModalOpen,
+    modalConfig,
+    
     // Información de paginación
     totalPages,
     hasNextPage,
@@ -294,11 +307,15 @@ const usePaymentsData = (onSave) => {
     handleSearch,
     handlePageChange,
     
-    // Funciones de gestión de pagos - USA LÓGICA DEL TEST
+    // Funciones de gestión de pagos - CON MODAL PROFESIONAL
     handleConfirmPayment,   // CONFIRMAR automático según método
-    handleCancelPayment,    // CANCELAR con razón obligatoria
+    handleCancelPayment,    // CANCELAR con modal profesional
     isPaymentProcessing,
     getProcessingType,
+    
+    // Funciones del modal
+    handleModalConfirm,
+    handleModalClose,
     
     // Funciones de análisis
     getPendingPaymentsStats,

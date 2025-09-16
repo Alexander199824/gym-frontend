@@ -4,10 +4,13 @@
 // Incluye activación, filtros, estadísticas y gestión de estados de procesamiento
 
 // src/pages/dashboard/components/PaymentsManager/hooks/useCashMemberships.js
-// ACTUALIZADO: Para usar exactamente la misma lógica que el test funcional
+// Author: Alexander Echeverria
+// Hook personalizado para manejar toda la lógica de membresías en efectivo
+// ACTUALIZADO: Ahora usa ReasonModal en lugar de window.prompt()
 
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../../../../../services/apiService';
+import useReasonModal from './useReasonModal';
 
 const useCashMemberships = (onSave) => {
   // Estados principales de membresías en efectivo
@@ -30,6 +33,15 @@ const useCashMemberships = (onSave) => {
   const [cashViewMode, setCashViewMode] = useState('grid');
   const [cashSortBy, setCashSortBy] = useState('waiting_time');
   const [cashPriorityFilter, setCashPriorityFilter] = useState('all');
+
+  // Hook para el modal de razones
+  const {
+    isModalOpen,
+    modalConfig,
+    askForAnnulationReason,
+    handleConfirm: handleModalConfirm,
+    handleClose: handleModalClose
+  } = useReasonModal();
 
   // Función principal para cargar membresías en efectivo pendientes
   const loadPendingCashMemberships = useCallback(async () => {
@@ -111,7 +123,7 @@ const useCashMemberships = (onSave) => {
     };
   }, []);
 
-  // FUNCIÓN PRINCIPAL: Activar membresía en efectivo - EXACTAMENTE COMO EL TEST
+  // FUNCIÓN PRINCIPAL: Activar membresía en efectivo - SIN CAMBIOS
   const handleActivateCashMembership = useCallback(async (paymentId, showSuccess, showError, formatCurrency) => {
     if (processingIds.has(paymentId) || cancellingIds.has(paymentId)) {
       return;
@@ -172,7 +184,7 @@ const useCashMemberships = (onSave) => {
     }
   }, [processingIds, cancellingIds, pendingCashMemberships, loadPendingCashMemberships, onSave]);
 
-  // FUNCIÓN PRINCIPAL: Cancelar pago en efectivo - EXACTAMENTE COMO EL TEST
+  // FUNCIÓN PRINCIPAL: Cancelar pago en efectivo - ACTUALIZADA CON MODAL
   const handleCancelCashMembership = useCallback(async (paymentId, showSuccess, showError, formatCurrency) => {
     if (cancellingIds.has(paymentId) || processingIds.has(paymentId)) {
       return;
@@ -186,29 +198,23 @@ const useCashMemberships = (onSave) => {
     }
     
     const clientName = paymentData?.user?.name || 'cliente';
-    const amount = paymentData?.price || paymentData?.amount || 0;
+    const amount = formatCurrency ? formatCurrency(paymentData?.price || paymentData?.amount || 0) : `Q${paymentData?.price || 0}`;
     
-    // Lógica exacta del test - Pedir razón obligatoria
-    const reason = window.prompt(
-      `Razón DETALLADA de anulación (OBLIGATORIA para email al cliente):\n\nEjemplos: "Cliente no se presentó a pagar", "Cliente canceló", "Error en el registro"`
-    );
-    
-    if (!reason || !reason.trim()) {
-      showError && showError('La razón de anulación es obligatoria');
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `¿Confirmar ANULACIÓN del pago de ${clientName} por Q${amount}?\n\nRazón: "${reason.trim()}"\n\n❌ Se enviará email de anulación automáticamente`
-    );
-    
-    if (!confirmed) return;
-
     try {
+      // USAR EL MODAL EN LUGAR DE window.prompt()
+      const reason = await askForAnnulationReason(clientName, amount);
+      
+      // Confirmación final
+      const confirmed = window.confirm(
+        `¿Confirmar ANULACIÓN del pago de ${clientName} por ${amount}?\n\nRazón: "${reason}"\n\n❌ Se enviará email de anulación automáticamente`
+      );
+      
+      if (!confirmed) return;
+
       setCancellingIds(prev => new Set([...prev, paymentId]));
       
       // MISMO ENDPOINT Y LÓGICA QUE EL TEST
-      await apiService.paymentService.cancelCashPayment(paymentId, reason.trim());
+      await apiService.paymentService.cancelCashPayment(paymentId, reason);
       
       const successMessage = `Pago ANULADO: ${clientName} → Status: cancelled + Email automático con motivo`;
       showSuccess && showSuccess(successMessage);
@@ -225,12 +231,17 @@ const useCashMemberships = (onSave) => {
           paymentId,
           clientName,
           amount,
-          reason: reason.trim(),
+          reason,
           action: 'cancelled'
         });
       }
       
     } catch (error) {
+      if (error.message === 'Modal cancelled') {
+        // Usuario canceló el modal, no mostrar error
+        return;
+      }
+      
       console.error('Error cancelando pago:', error);
       const errorMessage = 'Error al anular pago: ' + (error.message || 'Error desconocido');
       showError && showError(errorMessage);
@@ -241,7 +252,7 @@ const useCashMemberships = (onSave) => {
         return newSet;
       });
     }
-  }, [cancellingIds, processingIds, pendingCashMemberships, loadPendingCashMemberships, onSave]);
+  }, [cancellingIds, processingIds, pendingCashMemberships, loadPendingCashMemberships, onSave, askForAnnulationReason]);
 
   // Función para filtrar y ordenar pagos en efectivo
   const getFilteredCashMemberships = useCallback(() => {
@@ -338,10 +349,18 @@ const useCashMemberships = (onSave) => {
     cashSortBy,
     cashPriorityFilter,
     
-    // Funciones principales - USA LA LÓGICA EXACTA DEL TEST
+    // Estados del modal
+    isModalOpen,
+    modalConfig,
+    
+    // Funciones principales
     loadPendingCashMemberships,
     handleActivateCashMembership,   // CONFIRMAR automático
-    handleCancelCashMembership,     // ANULAR con razón obligatoria
+    handleCancelCashMembership,     // ANULAR con modal profesional
+    
+    // Funciones del modal
+    handleModalConfirm,
+    handleModalClose,
     
     // Funciones de filtros
     getFilteredCashMemberships,

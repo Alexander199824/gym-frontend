@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager.js
 // Author: Alexander Echeverria
 // Componente principal para la gestión completa de pagos del sistema
-// OPTIMIZADO: Mejorado para móvil sin perder funcionalidad
+// ACTUALIZADO: Ahora incluye soporte para modales de razones profesionales
 
 import React, { useState } from 'react';
 import { Coins, RefreshCw } from 'lucide-react';
@@ -25,6 +25,7 @@ import CashTab from './PaymentsManager/components/CashTab';
 import TransfersTab from './PaymentsManager/components/TransfersTab';
 import SummaryTab from './PaymentsManager/components/SummaryTab';
 import TabNavigation from './PaymentsManager/components/TabNavigation';
+import ReasonModal from './PaymentsManager/components/ReasonModal';
 
 const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
@@ -142,10 +143,49 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
 
+  // Determinar qué modal de razones mostrar basado en el tab activo
+  const getCurrentModal = () => {
+    switch (activeTab) {
+      case 'payments':
+        return {
+          isOpen: paymentsData.isModalOpen,
+          config: paymentsData.modalConfig,
+          onConfirm: paymentsData.handleModalConfirm,
+          onClose: paymentsData.handleModalClose
+        };
+        
+      case 'cash':
+        return {
+          isOpen: cashData.isModalOpen,
+          config: cashData.modalConfig,
+          onConfirm: cashData.handleModalConfirm,
+          onClose: cashData.handleModalClose
+        };
+        
+      case 'transfers':
+        return {
+          isOpen: transfersData.isModalOpen,
+          config: transfersData.modalConfig,
+          onConfirm: transfersData.handleModalConfirm,
+          onClose: transfersData.handleModalClose
+        };
+        
+      default:
+        return {
+          isOpen: false,
+          config: {},
+          onConfirm: () => {},
+          onClose: () => {}
+        };
+    }
+  };
+
+  const currentModal = getCurrentModal();
+
   return (
     <div className="space-y-4 sm:space-y-6">
       
-      {/* Header principal del módulo - OPTIMIZADO PARA MÓVIL */}
+      {/* Header principal del módulo */}
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
@@ -157,7 +197,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
           </p>
         </div>
         
-        {/* Botón de actualizar - MEJORADO PARA MÓVIL */}
+        {/* Botón de actualizar */}
         <div className="flex justify-center sm:justify-end">
           <button
             onClick={handleRefreshAll}
@@ -172,7 +212,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
 
-      {/* Navegación por tabs - RESPONSIVE */}
+      {/* Navegación por tabs */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <TabNavigation 
           activeTab={activeTab} 
@@ -187,7 +227,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         />
       </div>
       
-      {/* Estado de carga global - OPTIMIZADO PARA MÓVIL */}
+      {/* Estado de carga global */}
       {(paymentsData.loading || cashData.loading || transfersData.loading) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
@@ -214,6 +254,14 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
       <div className="min-h-0">
         {renderActiveTab()}
       </div>
+
+      {/* Modal de razones - SE RENDERIZA SEGÚN EL TAB ACTIVO */}
+      <ReasonModal 
+        isOpen={currentModal.isOpen}
+        onClose={currentModal.onClose}
+        onConfirm={currentModal.onConfirm}
+        {...currentModal.config}
+      />
     </div>
   );
 };
