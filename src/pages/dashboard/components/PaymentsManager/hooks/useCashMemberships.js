@@ -3,7 +3,12 @@
 // Hook personalizado para manejar toda la lógica de membresías en efectivo
 // Incluye activación, filtros, estadísticas y gestión de estados de procesamiento
 
-import { useState, useEffect } from 'react';
+// src/pages/dashboard/components/PaymentsManager/hooks/useCashMemberships.js
+// Author: Alexander Echeverria
+// Hook personalizado para manejar toda la lógica de membresías en efectivo
+// MEJORADO: Funciones de confirmación y anulación siempre disponibles y robustas
+
+import { useState, useEffect, useCallback } from 'react';
 import apiService from '../../../../../services/apiService';
 
 const useCashMemberships = (onSave) => {
@@ -20,7 +25,7 @@ const useCashMemberships = (onSave) => {
   
   // Estados de procesamiento
   const [processingIds, setProcessingIds] = useState(new Set());
-  const [cancellingIds, setCancellingIds] = useState(new Set()); // NUEVO: Para cancelaciones
+  const [cancellingIds, setCancellingIds] = useState(new Set());
   
   // Estados de filtros específicos para efectivo
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,7 +34,7 @@ const useCashMemberships = (onSave) => {
   const [cashPriorityFilter, setCashPriorityFilter] = useState('all');
 
   // Función principal para cargar membresías en efectivo pendientes
-  const loadPendingCashMemberships = async () => {
+  const loadPendingCashMemberships = useCallback(async () => {
     try {
       console.log('💵 useCashMemberships: Cargando membresías en efectivo pendientes...');
       setLoading(true);
@@ -58,8 +63,9 @@ const useCashMemberships = (onSave) => {
           },
           hoursWaiting: membership.hoursWaiting || 0,
           paymentType: membership.paymentType || 'membership',
+          status: membership.status || 'pending', // MEJORADO: Siempre asegurar que tenga status
           canActivate: true,
-          canCancel: true // NUEVO: Todos los pagos en efectivo pueden cancelarse
+          canCancel: true
         }));
         
         setPendingCashMemberships(processedMemberships);
@@ -93,10 +99,10 @@ const useCashMemberships = (onSave) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, cashSortBy, cashPriorityFilter]);
 
   // Función para calcular estadísticas de efectivo (CORREGIDA)
-  const calculateCashStats = (memberships) => {
+  const calculateCashStats = useCallback((memberships) => {
     const total = memberships.length;
     // CAMBIADO: No hay "urgentes" en efectivo, pero sí "antiguos" (más de 24h para considerar cancelar)
     const old = memberships.filter(m => (m.hoursWaiting || 0) > 24).length;
@@ -112,37 +118,51 @@ const useCashMemberships = (onSave) => {
       avgAmount,
       avgHours
     };
-  };
+  }, []);
 
-  // Función para activar una membresía en efectivo
-  const handleActivateCashMembership = async (membershipId, showSuccess, showError, formatCurrency) => {
-    if (processingIds.has(membershipId)) return;
+  // MEJORADO: Función para activar una membresía en efectivo con mejor manejo de errores
+  const handleActivateCashMembership = useCallback(async (membershipId, showSuccess, showError, formatCurrency) => {
+    console.log('🟢 useCashMemberships: Iniciando activación de membresía', membershipId);
+    
+    if (processingIds.has(membershipId) || cancellingIds.has(membershipId)) {
+      console.log('⚠️ Membresía ya está siendo procesada');
+      return;
+    }
 
     const membershipData = pendingCashMemberships.find(m => m.id === membershipId);
     
     if (!membershipData) {
-      showError('No se encontró la membresía');
+      console.error('❌ No se encontró la membresía con ID:', membershipId);
+      showError && showError('No se encontró la membresía');
       return;
     }
     
+    const clientName = membershipData?.user?.name || 'cliente';
+    const amount = membershipData?.price || 0;
+    
     const confirmed = window.confirm(
-      `¿Confirmar que recibiste ${formatCurrency(membershipData?.price || 0)} en efectivo de ${membershipData?.user?.name || 'cliente'}?`
+      `¿Confirmar que recibiste ${formatCurrency ? formatCurrency(amount) : `Q${amount}`} en efectivo de ${clientName}?`
     );
     
-    if (!confirmed) return;
+    if (!confirmed) {
+      console.log('❌ Usuario canceló la confirmación');
+      return;
+    }
 
     try {
       setProcessingIds(prev => new Set([...prev, membershipId]));
       
-      console.log('💵 Activando membresía:', membershipId);
+      console.log('💵 Activando membresía con API...');
       
       await apiService.paymentService.activateCashMembership(membershipId, {
-        notes: `Pago en efectivo recibido de ${membershipData?.user?.name || 'cliente'}`
+        notes: `Pago en efectivo recibido de ${clientName}`,
+        amount: amount,
+        confirmedBy: 'admin'
       });
       
-      showSuccess(
-        `¡Membresía activada! Pago de ${formatCurrency(membershipData?.price || 0)} registrado correctamente.`
-      );
+      const successMessage = `¡Membresía activada! Pago de ${formatCurrency ? formatCurrency(amount) : `Q${amount}`} registrado correctamente.`;
+      console.log('✅', successMessage);
+      showSuccess && showSuccess(successMessage);
       
       // Remover de la lista local inmediatamente
       setPendingCashMemberships(prev => prev.filter(m => m.id !== membershipId));
@@ -154,14 +174,15 @@ const useCashMemberships = (onSave) => {
         onSave({ 
           type: 'cash_membership_activation',
           membershipId,
-          clientName: membershipData?.user?.name || 'Cliente',
-          amount: membershipData?.price || 0
+          clientName,
+          amount
         });
       }
       
     } catch (error) {
       console.error('❌ Error activando membresía:', error);
-      showError('Error al activar membresía en efectivo: ' + (error.message || 'Error desconocido'));
+      const errorMessage = 'Error al activar membresía en efectivo: ' + (error.message || 'Error desconocido');
+      showError && showError(errorMessage);
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev);
@@ -169,48 +190,62 @@ const useCashMemberships = (onSave) => {
         return newSet;
       });
     }
-  };
+  }, [processingIds, cancellingIds, pendingCashMemberships, loadPendingCashMemberships, onSave]);
 
-  // NUEVA: Función para cancelar una membresía en efectivo
-  const handleCancelCashMembership = async (membershipId, showSuccess, showError, formatCurrency) => {
-    if (cancellingIds.has(membershipId)) return;
+  // MEJORADO: Función para cancelar una membresía en efectivo con mejor manejo de errores
+  const handleCancelCashMembership = useCallback(async (membershipId, showSuccess, showError, formatCurrency) => {
+    console.log('🔴 useCashMemberships: Iniciando cancelación de membresía', membershipId);
+    
+    if (cancellingIds.has(membershipId) || processingIds.has(membershipId)) {
+      console.log('⚠️ Membresía ya está siendo procesada');
+      return;
+    }
 
     const membershipData = pendingCashMemberships.find(m => m.id === membershipId);
     
     if (!membershipData) {
-      showError('No se encontró la membresía');
+      console.error('❌ No se encontró la membresía con ID:', membershipId);
+      showError && showError('No se encontró la membresía');
       return;
     }
     
+    const clientName = membershipData?.user?.name || 'cliente';
+    const amount = membershipData?.price || 0;
+    
     const confirmed = window.confirm(
-      `¿Confirmar que quieres CANCELAR la membresía de ${membershipData?.user?.name || 'cliente'} por ${formatCurrency(membershipData?.price || 0)}?\n\nEsto marcará que el cliente nunca llegó a pagar.`
+      `¿Confirmar que quieres CANCELAR la membresía de ${clientName} por ${formatCurrency ? formatCurrency(amount) : `Q${amount}`}?\n\nEsto marcará que el cliente nunca llegó a pagar.`
     );
     
-    if (!confirmed) return;
+    if (!confirmed) {
+      console.log('❌ Usuario canceló la cancelación');
+      return;
+    }
 
     try {
       setCancellingIds(prev => new Set([...prev, membershipId]));
       
-      console.log('❌ Cancelando membresía en efectivo:', membershipId);
+      console.log('❌ Cancelando membresía en efectivo con API...');
       
       // Intentar usar endpoint específico si existe, sino usar el genérico
       try {
         await apiService.paymentService.cancelCashMembership(membershipId, {
           reason: 'Cliente no llegó a realizar el pago',
-          notes: `Membresía cancelada - Cliente ${membershipData?.user?.name || 'anónimo'} no llegó a pagar`
+          notes: `Membresía cancelada - Cliente ${clientName} no llegó a pagar`,
+          cancelledBy: 'admin'
         });
       } catch (error) {
         // Fallback: usar endpoint genérico de cancelación
         console.log('⚠️ Usando endpoint genérico de cancelación...');
         await apiService.paymentService.cancelCashPayment(membershipId, {
           reason: 'Cliente no llegó a realizar el pago',
-          notes: `Membresía cancelada - Cliente ${membershipData?.user?.name || 'anónimo'} no llegó a pagar`
+          notes: `Membresía cancelada - Cliente ${clientName} no llegó a pagar`,
+          cancelledBy: 'admin'
         });
       }
       
-      showSuccess(
-        `Membresía de ${membershipData?.user?.name || 'cliente'} cancelada correctamente.`
-      );
+      const successMessage = `Membresía de ${clientName} cancelada correctamente.`;
+      console.log('✅', successMessage);
+      showSuccess && showSuccess(successMessage);
       
       // Remover de la lista local inmediatamente
       setPendingCashMemberships(prev => prev.filter(m => m.id !== membershipId));
@@ -222,14 +257,15 @@ const useCashMemberships = (onSave) => {
         onSave({ 
           type: 'cash_membership_cancellation',
           membershipId,
-          clientName: membershipData?.user?.name || 'Cliente',
-          amount: membershipData?.price || 0
+          clientName,
+          amount
         });
       }
       
     } catch (error) {
       console.error('❌ Error cancelando membresía:', error);
-      showError('Error al cancelar membresía: ' + (error.message || 'Error desconocido'));
+      const errorMessage = 'Error al cancelar membresía: ' + (error.message || 'Error desconocido');
+      showError && showError(errorMessage);
     } finally {
       setCancellingIds(prev => {
         const newSet = new Set(prev);
@@ -237,10 +273,10 @@ const useCashMemberships = (onSave) => {
         return newSet;
       });
     }
-  };
+  }, [cancellingIds, processingIds, pendingCashMemberships, loadPendingCashMemberships, onSave]);
 
   // Función para filtrar y ordenar membresías en efectivo
-  const getFilteredCashMemberships = () => {
+  const getFilteredCashMemberships = useCallback(() => {
     let filtered = [...pendingCashMemberships];
 
     // Filtrar por prioridad CORREGIDA
@@ -277,10 +313,10 @@ const useCashMemberships = (onSave) => {
     });
 
     return filtered;
-  };
+  }, [pendingCashMemberships, cashPriorityFilter, searchTerm, cashSortBy]);
 
   // CORREGIDA: Función para determinar la prioridad de una membresía en efectivo
-  const getCashMembershipPriority = (hoursWaiting) => {
+  const getCashMembershipPriority = useCallback((hoursWaiting) => {
     // NUEVO: En efectivo no hay "urgente", solo "old" para identificar candidatos a cancelar
     if (hoursWaiting > 48) {
       return 'very_old'; // Más de 2 días - muy candidato a cancelar
@@ -289,10 +325,10 @@ const useCashMemberships = (onSave) => {
     } else {
       return 'normal'; // Esperando normal
     }
-  };
+  }, []);
 
   // CORREGIDA: Función para obtener configuración de prioridad
-  const getCashMembershipPriorityConfig = (hoursWaiting) => {
+  const getCashMembershipPriorityConfig = useCallback((hoursWaiting) => {
     if (hoursWaiting > 48) {
       return {
         priority: 'very_old',
@@ -318,54 +354,72 @@ const useCashMemberships = (onSave) => {
         canCancel: false
       };
     }
-  };
+  }, []);
 
   // Función para obtener si una membresía es candidata a cancelar
-  const isCandidateForCancellation = (membership) => {
+  const isCandidateForCancellation = useCallback((membership) => {
     const hoursWaiting = membership.hoursWaiting || 0;
     return hoursWaiting > 24; // Más de 24 horas
-  };
+  }, []);
 
   // Función para obtener el estado de procesamiento
-  const isMembershipProcessing = (membershipId) => {
+  const isMembershipProcessing = useCallback((membershipId) => {
     return processingIds.has(membershipId) || cancellingIds.has(membershipId);
-  };
+  }, [processingIds, cancellingIds]);
 
   // Función para obtener el tipo de procesamiento
-  const getProcessingType = (membershipId) => {
+  const getProcessingType = useCallback((membershipId) => {
     if (processingIds.has(membershipId)) return 'activating';
     if (cancellingIds.has(membershipId)) return 'cancelling';
     return null;
-  };
+  }, [processingIds, cancellingIds]);
+
+  // NUEVO: Función para debug
+  const debugCashData = useCallback(() => {
+    console.log('🔍 useCashMemberships Debug:', {
+      pendingCount: pendingCashMemberships.length,
+      stats: cashMembershipStats,
+      processingIds: Array.from(processingIds),
+      cancellingIds: Array.from(cancellingIds),
+      filters: { searchTerm, cashSortBy, cashPriorityFilter },
+      functions: {
+        handleActivate: !!handleActivateCashMembership,
+        handleCancel: !!handleCancelCashMembership,
+        getFiltered: !!getFilteredCashMemberships
+      }
+    });
+  }, [
+    pendingCashMemberships.length, 
+    cashMembershipStats, 
+    processingIds, 
+    cancellingIds, 
+    searchTerm, 
+    cashSortBy, 
+    cashPriorityFilter,
+    handleActivateCashMembership,
+    handleCancelCashMembership,
+    getFilteredCashMemberships
+  ]);
 
   // Efecto para recargar cuando cambien los filtros específicos de efectivo
   useEffect(() => {
     loadPendingCashMemberships();
-  }, [cashSortBy, cashPriorityFilter]);
-
-  // Efecto para recargar cuando cambie el término de búsqueda con debounce
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchTerm.length === 0 || searchTerm.length >= 2) {
-        loadPendingCashMemberships();
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [loadPendingCashMemberships]);
 
   // Efecto inicial de carga
   useEffect(() => {
+    console.log('💵 useCashMemberships: Hook inicializado');
     loadPendingCashMemberships();
-  }, []);
+  }, [loadPendingCashMemberships]);
 
+  // MEJORADO: Retornar objeto completo con todas las funciones garantizadas
   return {
     // Estados principales
     pendingCashMemberships,
     cashMembershipStats,
     loading,
     processingIds,
-    cancellingIds, // NUEVO
+    cancellingIds,
     
     // Estados de filtros
     searchTerm,
@@ -373,10 +427,10 @@ const useCashMemberships = (onSave) => {
     cashSortBy,
     cashPriorityFilter,
     
-    // Funciones principales
+    // Funciones principales - GARANTIZADAS
     loadPendingCashMemberships,
-    handleActivateCashMembership,
-    handleCancelCashMembership, // NUEVA
+    handleActivateCashMembership, // ✅ Siempre disponible
+    handleCancelCashMembership,   // ✅ Siempre disponible
     
     // Funciones de filtros
     getFilteredCashMemberships,
@@ -385,12 +439,15 @@ const useCashMemberships = (onSave) => {
     setCashSortBy,
     setCashPriorityFilter,
     
-    // Utilidades CORREGIDAS
+    // Utilidades
     getCashMembershipPriority,
     getCashMembershipPriorityConfig,
-    isCandidateForCancellation, // NUEVA
-    isMembershipProcessing, // NUEVA
-    getProcessingType // NUEVA
+    isCandidateForCancellation,
+    isMembershipProcessing,
+    getProcessingType,
+    
+    // Debug
+    debugCashData
   };
 };
 

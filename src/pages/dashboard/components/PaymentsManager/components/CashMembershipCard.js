@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/components/CashMembershipCard.js
 // Author: Alexander Echeverria
 // Componente de tarjeta para membresías en efectivo pendientes (vista grid)
-// ACTUALIZADO: Botones claros de "Confirmar" y "Anular" siempre visibles
+// MEJORADO: Botones de "Confirmar" y "Anular" siempre visibles y mejor integrados
 
 import React, { useState } from 'react';
 import { 
@@ -46,21 +46,48 @@ const CashMembershipCard = ({
   const isCandidateForCancellation = (membership.hoursWaiting || 0) > 24;
   const isVeryOld = (membership.hoursWaiting || 0) > 48;
   
-  const statusConfig = getStatusConfig(membership.status || 'pending');
+  // MEJORADO: Siempre considerar que los pagos en efectivo son pendientes por defecto
+  const effectiveStatus = membership.status || 'pending';
+  const statusConfig = getStatusConfig(effectiveStatus);
   const StatusIcon = statusConfig.icon;
+  
+  // MEJORADO: Determinar si puede ser procesado (más permisivo)
+  const canProcess = effectiveStatus === 'pending' || 
+                    effectiveStatus === 'waiting_payment' || 
+                    !membership.status; // Si no tiene status, asumimos que es pendiente
   
   // Manejar la confirmación del pago (activación de la membresía)
   const handleConfirmPayment = () => {
-    if (onActivate && formatCurrency) {
-      onActivate(membership.id, showSuccess, showError, formatCurrency);
+    if (!onActivate) {
+      console.warn('No se proporcionó función onActivate');
+      showError && showError('Función de activación no disponible');
+      return;
     }
+    
+    if (isProcessing) {
+      console.log('Ya se está procesando esta membresía');
+      return;
+    }
+    
+    // Llamar a la función con todos los parámetros necesarios
+    onActivate(membership.id, showSuccess, showError, formatCurrency);
   };
   
   // Manejar la anulación de la membresía
   const handleCancelPayment = () => {
-    if (onCancel && formatCurrency) {
-      onCancel(membership.id, showSuccess, showError, formatCurrency);
+    if (!onCancel) {
+      console.warn('No se proporcionó función onCancel');
+      showError && showError('Función de cancelación no disponible');
+      return;
     }
+    
+    if (isProcessing) {
+      console.log('Ya se está procesando esta membresía');
+      return;
+    }
+    
+    // Llamar a la función con todos los parámetros necesarios
+    onCancel(membership.id, showSuccess, showError, formatCurrency);
   };
   
   // Generar iniciales del usuario
@@ -256,13 +283,13 @@ const CashMembershipCard = ({
                 <div>
                   <span className="font-medium text-gray-700">Descripción:</span>
                   <div className="text-gray-600 mt-1">
-                    {membership.status === 'pending' || membership.status === 'waiting_payment' ? 
+                    {canProcess ? 
                       'Cliente puede llegar cuando guste a realizar el pago en efectivo' :
-                     membership.status === 'completed' ? 
+                     effectiveStatus === 'completed' ? 
                       'Pago en efectivo recibido y membresía activada' :
-                     membership.status === 'cancelled' ? 
+                     effectiveStatus === 'cancelled' ? 
                       'Membresía cancelada - Cliente no llegó a pagar' :
-                     membership.status === 'failed' ? 
+                     effectiveStatus === 'failed' ? 
                       'El pago no pudo ser procesado' :
                       'Estado del pago en efectivo'}
                   </div>
@@ -442,20 +469,18 @@ const CashMembershipCard = ({
           </div>
         )}
         
-        {/* NUEVOS BOTONES: Confirmar y Anular - Solo mostrar si está pendiente */}
-        {(membership.status === 'pending' || membership.status === 'waiting_payment') && (
-          <div className="grid grid-cols-2 gap-3">
+        {/* MEJORADO: Botones SIEMPRE visibles para pagos en efectivo pendientes */}
+        {canProcess && (
+          <div className="space-y-3 mb-4">
             
             {/* Botón CONFIRMAR - Verde */}
             <button
               onClick={handleConfirmPayment}
-              disabled={isProcessing || !membership.canActivate}
-              className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+              disabled={isProcessing}
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
                 isProcessing && processingType === 'activating'
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                  : (membership.canActivate !== false)
-                    ? 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
               }`}
             >
               {isProcessing && processingType === 'activating' ? (
@@ -466,7 +491,7 @@ const CashMembershipCard = ({
               ) : (
                 <>
                   <Check className="w-4 h-4 mr-2" />
-                  Confirmar
+                  Confirmar Pago de {formatCurrency && formatCurrency(membership.price)}
                 </>
               )}
             </button>
@@ -474,13 +499,12 @@ const CashMembershipCard = ({
             {/* Botón ANULAR - Rojo */}
             <button
               onClick={handleCancelPayment}
-              disabled={isProcessing || !onCancel}
-              className={`px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+              disabled={isProcessing}
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm border-2 ${
                 isProcessing && processingType === 'cancelling'
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                  : 'bg-red-600 text-white hover:bg-red-700 shadow-md hover:shadow-lg'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' 
+                  : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 hover:border-red-400'
               }`}
-              title={onCancel ? "Anular pago - Cliente no llegó" : "Funcionalidad en desarrollo"}
             >
               {isProcessing && processingType === 'cancelling' ? (
                 <>
@@ -490,7 +514,7 @@ const CashMembershipCard = ({
               ) : (
                 <>
                   <Ban className="w-4 h-4 mr-2" />
-                  Anular
+                  Anular Pago
                 </>
               )}
             </button>
@@ -498,32 +522,34 @@ const CashMembershipCard = ({
         )}
         
         {/* Mensaje para pagos ya procesados */}
-        {membership.status !== 'pending' && membership.status !== 'waiting_payment' && (
+        {!canProcess && (
           <div className={`text-center py-3 px-4 rounded-lg text-sm ${
-            membership.status === 'completed' ? 'bg-green-100 text-green-800' :
-            membership.status === 'failed' ? 'bg-red-100 text-red-800' :
-            membership.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
+            effectiveStatus === 'completed' ? 'bg-green-100 text-green-800' :
+            effectiveStatus === 'failed' ? 'bg-red-100 text-red-800' :
+            effectiveStatus === 'cancelled' ? 'bg-gray-100 text-gray-800' :
             'bg-blue-100 text-blue-800'
           }`}>
-            {membership.status === 'completed' ? '✅ Pago en efectivo confirmado' :
-             membership.status === 'failed' ? '❌ Pago fallido' :
-             membership.status === 'cancelled' ? '⚪ Membresía anulada' :
+            {effectiveStatus === 'completed' ? '✅ Pago en efectivo confirmado' :
+             effectiveStatus === 'failed' ? '❌ Pago fallido' :
+             effectiveStatus === 'cancelled' ? '⚪ Membresía anulada' :
              '🔄 Membresía en proceso'}
           </div>
         )}
 
         {/* Información adicional sobre el monto */}
-        <div className="mt-3 bg-blue-50 rounded-lg p-3 text-center">
-          <div className="text-sm text-blue-800">
-            <span className="font-medium">Monto a recibir: </span>
-            <span className="text-lg font-bold text-blue-900">
-              {formatCurrency && formatCurrency(membership.price)}
-            </span>
+        {canProcess && (
+          <div className="mt-3 bg-blue-50 rounded-lg p-3 text-center">
+            <div className="text-sm text-blue-800">
+              <span className="font-medium">Monto a recibir: </span>
+              <span className="text-lg font-bold text-blue-900">
+                {formatCurrency && formatCurrency(membership.price)}
+              </span>
+            </div>
+            <div className="text-xs text-blue-600 mt-1">
+              El cliente puede llegar cuando guste durante el día
+            </div>
           </div>
-          <div className="text-xs text-blue-600 mt-1">
-            El cliente puede llegar cuando guste durante el día
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
