@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/components/PaymentListItem.js
 // Author: Alexander Echeverria
 // Componente de item para pagos del historial (vista lista)
-// ACTUALIZADO: Agregados botones para confirmar/cancelar pagos pendientes
+// OPTIMIZADO: Completamente responsive para móvil con layout adaptativo
 
 import React, { useState } from 'react';
 import { 
@@ -74,7 +74,7 @@ const PaymentListItem = ({
   const MethodIcon = methodConfig.icon;
   const TypeIcon = typeConfig.icon;
   
-  // NUEVO: Determinar si el pago está pendiente
+  // Determinar si el pago está pendiente
   const isPendingPayment = payment.status === 'pending' || payment.status === 'waiting_payment';
   
   // Calcular tiempo desde el pago
@@ -96,7 +96,7 @@ const PaymentListItem = ({
     }
   };
 
-  // NUEVO: Manejar confirmación de pago
+  // Manejar confirmación de pago
   const handleConfirmPayment = () => {
     if (onConfirmPayment && !isProcessing) {
       const clientName = payment.user?.name || 
@@ -106,7 +106,7 @@ const PaymentListItem = ({
     }
   };
 
-  // NUEVO: Manejar cancelación de pago
+  // Manejar cancelación de pago
   const handleCancelPayment = () => {
     if (onCancelPayment && !isProcessing) {
       const clientName = payment.user?.name || 
@@ -147,60 +147,65 @@ const PaymentListItem = ({
       isPendingPayment ? 'border-yellow-300 bg-yellow-50' : 'border-gray-200'
     }`}>
       
-      {/* Header principal (siempre visible) */}
+      {/* Header principal (siempre visible) - OPTIMIZADO PARA MÓVIL */}
       <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center flex-1 min-w-0">
             
             {/* Avatar */}
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 flex-shrink-0 ${methodConfig.bg}`}>
-              <span className={`text-lg font-bold ${methodConfig.color}`}>
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0 ${methodConfig.bg}`}>
+              <span className={`text-sm sm:text-lg font-bold ${methodConfig.color}`}>
                 {payment.user?.name?.[0] || payment.user?.firstName?.[0] || 'C'}
               </span>
             </div>
             
             {/* Información principal */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center space-x-3">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
+                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                     {payment.user?.name || 
                      `${payment.user?.firstName || ''} ${payment.user?.lastName || ''}`.trim() || 
                      'Cliente Anónimo'}
                   </h3>
                   
                   {/* Badge de estado del pago */}
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bg}`}>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${statusConfig.color} ${statusConfig.bg}`}>
                     <StatusIcon className="w-3 h-3 mr-1" />
-                    {statusConfig.label}
+                    <span className="hidden sm:inline">{statusConfig.label}</span>
+                    <span className="sm:hidden">
+                      {statusConfig.label === 'Completado' ? 'Comp.' : 
+                       statusConfig.label === 'Pendiente' ? 'Pend.' : 
+                       statusConfig.label.slice(0, 4)}
+                    </span>
                   </span>
                 </div>
                 
                 {/* Tiempo desde el pago */}
-                <div className="flex items-center text-sm text-gray-500 ml-2">
-                  <Clock className="w-4 h-4 mr-1" />
+                <div className="flex items-center text-sm text-gray-500 mt-1 sm:mt-0 sm:ml-2">
+                  <Clock className="w-4 h-4 mr-1 flex-shrink-0" />
                   <span>{getTimeSincePayment()}</span>
                 </div>
               </div>
               
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <span className={`font-semibold ${methodConfig.color}`}>
-                  <Bird className="w-4 h-4 inline mr-1" />
-                  {formatCurrency && formatCurrency(payment.amount)}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-sm text-gray-600">
+                <span className={`font-semibold ${methodConfig.color} flex items-center`}>
+                  <Bird className="w-4 h-4 mr-1 flex-shrink-0" />
+                  <span className="truncate">{formatCurrency && formatCurrency(payment.amount)}</span>
                 </span>
                 
                 <span className={`flex items-center ${methodConfig.color}`}>
-                  <MethodIcon className="w-4 h-4 mr-1" />
-                  {methodConfig.label}
+                  <MethodIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+                  <span className="truncate">{methodConfig.label}</span>
                 </span>
                 
                 <span className="flex items-center text-gray-500">
-                  <TypeIcon className="w-4 h-4 mr-1" />
-                  {typeConfig.label}
+                  <TypeIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+                  <span className="truncate">{typeConfig.label}</span>
                 </span>
                 
                 {payment.user?.email && (
-                  <span className="truncate max-w-40">
+                  <span className="truncate min-w-0 sm:max-w-40">
                     <Mail className="w-3 h-3 inline mr-1" />
                     {payment.user.email}
                   </span>
@@ -210,18 +215,18 @@ const PaymentListItem = ({
           </div>
           
           {/* Controles del lado derecho */}
-          <div className="ml-4 flex-shrink-0 flex items-center space-x-2">
+          <div className="ml-2 sm:ml-4 flex-shrink-0 flex items-center space-x-2">
             
             {/* Botón de expandir */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-50"
               title={isExpanded ? 'Contraer información' : 'Ver más información'}
             >
               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             
-            {/* NUEVO: Botones de acción para pagos pendientes */}
+            {/* Botones de acción para pagos pendientes */}
             {isPendingPayment && (onConfirmPayment || onCancelPayment) && (
               <>
                 {/* Botón de confirmar */}
@@ -229,16 +234,19 @@ const PaymentListItem = ({
                   <button
                     onClick={handleConfirmPayment}
                     disabled={isProcessing}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       isProcessing && processingType === 'confirming'
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-green-600 text-white hover:bg-green-700 active:scale-95'
                     }`}
                   >
                     {isProcessing && processingType === 'confirming' ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      'Confirmar'
+                      <>
+                        <Check className="w-4 h-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Confirmar</span>
+                      </>
                     )}
                   </button>
                 )}
@@ -248,10 +256,10 @@ const PaymentListItem = ({
                   <button
                     onClick={handleCancelPayment}
                     disabled={isProcessing}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
+                    className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
                       isProcessing && processingType === 'cancelling'
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200'
-                        : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'
+                        : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 active:scale-95'
                     }`}
                   >
                     {isProcessing && processingType === 'cancelling' ? (
@@ -266,7 +274,7 @@ const PaymentListItem = ({
             
             {/* Indicador para pagos ya procesados */}
             {!isPendingPayment && (
-              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+              <div className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                 payment.status === 'completed' ? 'bg-green-100 text-green-800' :
                 payment.status === 'failed' ? 'bg-red-100 text-red-800' :
                 payment.status === 'cancelled' ? 'bg-gray-100 text-gray-800' :
@@ -295,15 +303,15 @@ const PaymentListItem = ({
                   Información del Cliente
                 </h5>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   
                   {/* Email */}
                   {payment.user.email && (
                     <div className="flex items-start space-x-2">
                       <Mail className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-medium text-gray-900">Email</div>
-                        <div className="text-gray-600 break-all">{payment.user.email}</div>
+                        <div className="text-gray-600 break-all text-xs sm:text-sm">{payment.user.email}</div>
                       </div>
                     </div>
                   )}
@@ -314,7 +322,7 @@ const PaymentListItem = ({
                       <Phone className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium text-gray-900">Teléfono</div>
-                        <div className="text-gray-600">{payment.user.phone}</div>
+                        <div className="text-gray-600 text-xs sm:text-sm">{payment.user.phone}</div>
                       </div>
                     </div>
                   )}
@@ -325,7 +333,7 @@ const PaymentListItem = ({
                       <CreditCard className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium text-gray-900">Referencia</div>
-                        <div className="text-gray-600 font-mono">{payment.reference}</div>
+                        <div className="text-gray-600 font-mono text-xs sm:text-sm">{payment.reference}</div>
                       </div>
                     </div>
                   )}
@@ -340,15 +348,15 @@ const PaymentListItem = ({
                 Información Temporal Detallada
               </h5>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
                 
                 <div className="flex items-start space-x-2">
                   <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="min-w-0">
                     <div className="font-medium text-gray-900">
                       {isPendingPayment ? 'Fecha de creación' : 'Fecha de pago'}
                     </div>
-                    <div className="text-gray-600">
+                    <div className="text-gray-600 text-xs sm:text-sm break-words">
                       {formatDetailedTime(payment.paymentDate || payment.createdAt)}
                     </div>
                   </div>
@@ -357,9 +365,9 @@ const PaymentListItem = ({
                 {payment.createdAt && payment.paymentDate !== payment.createdAt && (
                   <div className="flex items-start space-x-2">
                     <Timer className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-medium text-gray-900">Fecha de creación</div>
-                      <div className="text-gray-600">
+                      <div className="text-gray-600 text-xs sm:text-sm break-words">
                         {formatDetailedTime(payment.createdAt)}
                       </div>
                     </div>
@@ -369,7 +377,7 @@ const PaymentListItem = ({
             </div>
 
             {/* Información del método de pago */}
-            <div className={`${methodConfig.bg} rounded-lg p-4`}>
+            <div className={`${methodConfig.bg} rounded-lg p-4 border border-gray-200`}>
               <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
                 <MethodIcon className="w-4 h-4 mr-2" />
                 Detalles de {methodConfig.label}
@@ -396,7 +404,7 @@ const PaymentListItem = ({
                   {payment.reference && (
                     <div>
                       <span className="font-medium text-gray-700">Referencia:</span>
-                      <span className="ml-2 font-mono text-gray-600">{payment.reference}</span>
+                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">{payment.reference}</span>
                     </div>
                   )}
                 </div>
@@ -407,13 +415,13 @@ const PaymentListItem = ({
                   {payment.cardLast4 && (
                     <div>
                       <span className="font-medium text-gray-700">Tarjeta:</span>
-                      <span className="ml-2 font-mono text-gray-600">**** **** **** {payment.cardLast4}</span>
+                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">**** **** **** {payment.cardLast4}</span>
                     </div>
                   )}
                   {payment.cardTransactionId && (
                     <div>
                       <span className="font-medium text-gray-700">ID de transacción:</span>
-                      <span className="ml-2 font-mono text-gray-600">{payment.cardTransactionId}</span>
+                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">{payment.cardTransactionId}</span>
                     </div>
                   )}
                 </div>
@@ -423,7 +431,7 @@ const PaymentListItem = ({
                 <div className="text-sm">
                   <div className="flex items-center text-green-700">
                     <Check className="w-4 h-4 mr-2" />
-                    <span>
+                    <span className="text-xs sm:text-sm">
                       {isPendingPayment 
                         ? 'Esperando confirmación de pago en efectivo'
                         : 'Pago en efectivo recibido y confirmado'
@@ -434,9 +442,7 @@ const PaymentListItem = ({
               )}
             </div>
 
-            {/* Resto de información expandida (mantener igual)... */}
-            
-            {/* NUEVO: Nota sobre pagos pendientes */}
+            {/* Nota sobre pagos pendientes */}
             {isPendingPayment && (
               <div className="text-xs text-center text-gray-500 italic bg-white rounded-lg p-3">
                 Este pago está esperando confirmación. Utiliza los botones de arriba para confirmar si el pago se realizó o cancelarlo.

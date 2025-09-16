@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/components/PaymentCard.js
 // Author: Alexander Echeverria
 // Componente de tarjeta para pagos del historial (vista grid)
-// ACTUALIZADO: Agregados botones para confirmar/cancelar pagos pendientes
+// OPTIMIZADO: Completamente responsive para móvil con touch-friendly buttons
 
 import React, { useState } from 'react';
 import { 
@@ -74,7 +74,7 @@ const PaymentCard = ({
   const MethodIcon = methodConfig.icon;
   const TypeIcon = typeConfig.icon;
   
-  // NUEVO: Determinar si el pago está pendiente y puede ser confirmado/cancelado
+  // Determinar si el pago está pendiente y puede ser confirmado/cancelado
   const isPendingPayment = payment.status === 'pending' || payment.status === 'waiting_payment';
   
   // Calcular tiempo desde el pago
@@ -107,7 +107,7 @@ const PaymentCard = ({
       : names[0][0];
   };
 
-  // NUEVO: Manejar confirmación de pago
+  // Manejar confirmación de pago
   const handleConfirmPayment = () => {
     if (onConfirmPayment && !isProcessing) {
       const clientName = payment.user?.name || 
@@ -117,7 +117,7 @@ const PaymentCard = ({
     }
   };
 
-  // NUEVO: Manejar cancelación de pago
+  // Manejar cancelación de pago
   const handleCancelPayment = () => {
     if (onCancelPayment && !isProcessing) {
       const clientName = payment.user?.name || 
@@ -156,63 +156,68 @@ const PaymentCard = ({
   return (
     <div className="bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 border-gray-200">
       
-      {/* NUEVO: Header con indicador para pagos pendientes */}
+      {/* Header con indicador para pagos pendientes */}
       {isPendingPayment && (
-        <div className="px-4 py-2 border-b bg-yellow-50 border-yellow-200">
+        <div className="px-4 py-2 sm:py-3 border-b bg-yellow-50 border-yellow-200">
           <div className="flex items-center justify-between text-sm text-yellow-700">
-            <div className="flex items-center">
-              <Timer className="w-4 h-4 mr-1" />
-              <span className="font-medium">Pago Pendiente</span>
+            <div className="flex items-center min-w-0">
+              <Timer className="w-4 h-4 mr-1 flex-shrink-0" />
+              <span className="font-medium truncate">Pago Pendiente</span>
             </div>
-            <span className="text-xs">Requiere confirmación</span>
+            <span className="text-xs whitespace-nowrap ml-2">Requiere confirmación</span>
           </div>
         </div>
       )}
       
       {/* Header con indicador de tiempo reciente (solo para completados) */}
       {!isPendingPayment && getTimeSincePayment() === 'hoy' && (
-        <div className="px-4 py-2 border-b bg-blue-50 border-blue-200">
+        <div className="px-4 py-2 sm:py-3 border-b bg-blue-50 border-blue-200">
           <div className="flex items-center justify-between text-sm text-blue-700">
-            <div className="flex items-center">
-              <Clock className="w-4 h-4 mr-1" />
-              <span className="font-medium">Pago reciente</span>
+            <div className="flex items-center min-w-0">
+              <Clock className="w-4 h-4 mr-1 flex-shrink-0" />
+              <span className="font-medium truncate">Pago reciente</span>
             </div>
-            <span className="text-xs">Procesado hoy</span>
+            <span className="text-xs whitespace-nowrap ml-2">Procesado hoy</span>
           </div>
         </div>
       )}
       
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         
-        {/* Información del cliente */}
-        <div className="flex items-center mb-4">
+        {/* Información del cliente - OPTIMIZADO PARA MÓVIL */}
+        <div className="flex items-start mb-4 space-x-3">
           
           {/* Avatar con iniciales */}
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mr-4 ${methodConfig.bg}`}>
-            <span className={`text-xl font-bold ${methodConfig.color}`}>
+          <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center flex-shrink-0 ${methodConfig.bg}`}>
+            <span className={`text-lg sm:text-xl font-bold ${methodConfig.color}`}>
               {getUserInitials()}
             </span>
           </div>
           
           {/* Datos del cliente */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
+            <div className="flex items-start justify-between mb-2">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 leading-tight pr-2">
                 {payment.user?.name || 
                  `${payment.user?.firstName || ''} ${payment.user?.lastName || ''}`.trim() || 
                  'Cliente Anónimo'}
               </h3>
               
               {/* Badge de estado del pago */}
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bg}`}>
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${statusConfig.color} ${statusConfig.bg}`}>
                 <StatusIcon className="w-3 h-3 mr-1" />
-                {statusConfig.label}
+                <span className="hidden sm:inline">{statusConfig.label}</span>
+                <span className="sm:hidden">
+                  {statusConfig.label === 'Completado' ? 'Comp.' : 
+                   statusConfig.label === 'Pendiente' ? 'Pend.' : 
+                   statusConfig.label.slice(0, 4)}
+                </span>
               </span>
             </div>
             
             <div className="text-sm text-gray-500 space-y-1">
               {payment.user?.email && (
-                <div className="flex items-center truncate">
+                <div className="flex items-center min-w-0">
                   <Mail className="w-3 h-3 mr-1 flex-shrink-0" />
                   <span className="truncate">{payment.user.email}</span>
                 </div>
@@ -227,26 +232,28 @@ const PaymentCard = ({
             </div>
           </div>
 
-          {/* Botón para expandir/contraer */}
+          {/* Botón para expandir/contraer - MEJORADO PARA TOUCH */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-50 flex-shrink-0"
             title={isExpanded ? 'Contraer información' : 'Ver más información'}
           >
             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </button>
         </div>
         
-        {/* Detalles del pago - información básica */}
-        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+        {/* Detalles del pago - OPTIMIZADO PARA MÓVIL */}
+        <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             
             {/* Monto */}
             <div className="col-span-2">
               <div className="text-gray-500 mb-1">Monto {isPendingPayment ? 'esperado' : 'pagado'}</div>
-              <div className={`text-2xl font-bold flex items-center ${methodConfig.color}`}>
-                <Bird className="w-5 h-5 mr-1" />
-                {formatCurrency && formatCurrency(payment.amount)}
+              <div className={`text-lg sm:text-2xl font-bold flex items-center ${methodConfig.color}`}>
+                <Bird className="w-4 h-4 sm:w-5 sm:h-5 mr-1 flex-shrink-0" />
+                <span className="truncate">
+                  {formatCurrency && formatCurrency(payment.amount)}
+                </span>
               </div>
             </div>
             
@@ -254,8 +261,8 @@ const PaymentCard = ({
             <div>
               <div className="text-gray-500 mb-1">Método</div>
               <div className={`flex items-center ${methodConfig.color} font-medium`}>
-                <MethodIcon className="w-4 h-4 mr-1" />
-                {methodConfig.label}
+                <MethodIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+                <span className="truncate">{methodConfig.label}</span>
               </div>
             </div>
             
@@ -263,8 +270,8 @@ const PaymentCard = ({
             <div>
               <div className="text-gray-500 mb-1">Tipo</div>
               <div className="flex items-center text-gray-700 font-medium">
-                <TypeIcon className="w-4 h-4 mr-1" />
-                {typeConfig.label}
+                <TypeIcon className="w-4 h-4 mr-1 flex-shrink-0" />
+                <span className="truncate">{typeConfig.label}</span>
               </div>
             </div>
             
@@ -273,7 +280,7 @@ const PaymentCard = ({
               <div className="text-gray-500 mb-1">
                 {isPendingPayment ? 'Fecha de creación' : 'Fecha de pago'}
               </div>
-              <div className="text-gray-700">
+              <div className="text-gray-700 text-xs sm:text-sm">
                 {formatDate && formatDate(payment.paymentDate || payment.createdAt, 'dd/MM/yyyy HH:mm')}
                 {!isPendingPayment && (
                   <span className="text-gray-500 ml-2">({getTimeSincePayment()})</span>
@@ -283,7 +290,7 @@ const PaymentCard = ({
           </div>
         </div>
 
-        {/* Información expandida (mantener igual que antes) */}
+        {/* Información expandida */}
         {isExpanded && (
           <div className="space-y-4 mb-4">
             
@@ -295,12 +302,12 @@ const PaymentCard = ({
                   Información del Cliente
                 </h5>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                   
                   {/* Nombre completo */}
                   <div>
                     <div className="font-medium text-gray-900">Nombre completo</div>
-                    <div className="text-gray-600">
+                    <div className="text-gray-600 text-xs sm:text-sm">
                       {`${payment.user.firstName || ''} ${payment.user.lastName || ''}`.trim() || payment.user.name || 'N/A'}
                     </div>
                   </div>
@@ -309,9 +316,9 @@ const PaymentCard = ({
                   {payment.user.email && (
                     <div className="flex items-start space-x-2">
                       <Mail className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <div>
+                      <div className="min-w-0">
                         <div className="font-medium text-gray-900">Email</div>
-                        <div className="text-gray-600 break-all">{payment.user.email}</div>
+                        <div className="text-gray-600 break-all text-xs sm:text-sm">{payment.user.email}</div>
                       </div>
                     </div>
                   )}
@@ -322,7 +329,7 @@ const PaymentCard = ({
                       <Phone className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium text-gray-900">Teléfono</div>
-                        <div className="text-gray-600">{payment.user.phone}</div>
+                        <div className="text-gray-600 text-xs sm:text-sm">{payment.user.phone}</div>
                       </div>
                     </div>
                   )}
@@ -337,16 +344,16 @@ const PaymentCard = ({
                 Información Temporal
               </h5>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
                 
                 {/* Fecha de pago */}
                 <div className="flex items-start space-x-2">
                   <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="min-w-0">
                     <div className="font-medium text-gray-900">
                       {isPendingPayment ? 'Fecha de creación' : 'Fecha de pago'}
                     </div>
-                    <div className="text-gray-600">
+                    <div className="text-gray-600 text-xs sm:text-sm break-words">
                       {formatDetailedTime(payment.paymentDate || payment.createdAt)}
                     </div>
                   </div>
@@ -356,9 +363,9 @@ const PaymentCard = ({
                 {payment.createdAt && payment.paymentDate !== payment.createdAt && (
                   <div className="flex items-start space-x-2">
                     <Timer className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-medium text-gray-900">Fecha de creación</div>
-                      <div className="text-gray-600">
+                      <div className="text-gray-600 text-xs sm:text-sm break-words">
                         {formatDetailedTime(payment.createdAt)}
                       </div>
                     </div>
@@ -367,60 +374,125 @@ const PaymentCard = ({
               </div>
             </div>
 
-            {/* Resto de la información expandida (mantener igual)... */}
-            {/* Información específica por método de pago, membresía, etc. */}
+            {/* Información específica por método de pago */}
+            <div className={`${methodConfig.bg} rounded-lg p-4 border border-gray-200`}>
+              <h5 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                <MethodIcon className="w-4 h-4 mr-2" />
+                Detalles de {methodConfig.label}
+              </h5>
+              
+              {payment.paymentMethod === 'transfer' && (
+                <div className="space-y-3 text-sm">
+                  {payment.transferProof && (
+                    <div>
+                      <span className="font-medium text-gray-700">Comprobante:</span>
+                      <div className="mt-1">
+                        <a 
+                          href={payment.transferProof} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm"
+                        >
+                          <ExternalLink className="w-4 h-4 mr-1" />
+                          Ver comprobante completo
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {payment.reference && (
+                    <div>
+                      <span className="font-medium text-gray-700">Referencia:</span>
+                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">{payment.reference}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {payment.paymentMethod === 'card' && (
+                <div className="space-y-3 text-sm">
+                  {payment.cardLast4 && (
+                    <div>
+                      <span className="font-medium text-gray-700">Tarjeta:</span>
+                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">**** **** **** {payment.cardLast4}</span>
+                    </div>
+                  )}
+                  {payment.cardTransactionId && (
+                    <div>
+                      <span className="font-medium text-gray-700">ID de transacción:</span>
+                      <span className="ml-2 font-mono text-gray-600 text-xs sm:text-sm">{payment.cardTransactionId}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {payment.paymentMethod === 'cash' && (
+                <div className="text-sm">
+                  <div className="flex items-center text-green-700">
+                    <Check className="w-4 h-4 mr-2" />
+                    <span className="text-xs sm:text-sm">
+                      {isPendingPayment 
+                        ? 'Esperando confirmación de pago en efectivo'
+                        : 'Pago en efectivo recibido y confirmado'
+                      }
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
         
-        {/* NUEVO: Botones de acción para pagos pendientes */}
+        {/* Botones de acción para pagos pendientes - OPTIMIZADOS PARA MÓVIL */}
         {isPendingPayment && (onConfirmPayment || onCancelPayment) && (
           <div className="space-y-3 mb-4">
             
-            {/* Botón principal: Confirmar pago */}
+            {/* Botón principal: Confirmar pago - TOUCH-FRIENDLY */}
             {onConfirmPayment && (
               <button
                 onClick={handleConfirmPayment}
                 disabled={isProcessing}
-                className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm ${
+                className={`w-full px-4 sm:px-6 py-3 sm:py-3.5 rounded-lg font-medium transition-all flex items-center justify-center text-sm sm:text-base ${
                   isProcessing && processingType === 'confirming'
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl transform hover:scale-105'
+                    : 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-lg hover:shadow-xl active:scale-95'
                 }`}
               >
                 {isProcessing && processingType === 'confirming' ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Confirmando...
+                    <span>Confirmando...</span>
                   </>
                 ) : (
                   <>
-                    <Check className="w-4 h-4 mr-2" />
-                    Confirmar Pago de {formatCurrency && formatCurrency(payment.amount)}
+                    <Check className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="truncate">
+                      Confirmar Pago de {formatCurrency && formatCurrency(payment.amount)}
+                    </span>
                   </>
                 )}
               </button>
             )}
             
-            {/* Botón secundario: Cancelar pago */}
+            {/* Botón secundario: Cancelar pago - TOUCH-FRIENDLY */}
             {onCancelPayment && (
               <button
                 onClick={handleCancelPayment}
                 disabled={isProcessing}
-                className={`w-full px-6 py-3 rounded-lg font-medium transition-all flex items-center justify-center text-sm border-2 ${
+                className={`w-full px-4 sm:px-6 py-3 sm:py-3.5 rounded-lg font-medium transition-all flex items-center justify-center text-sm sm:text-base border-2 ${
                   isProcessing && processingType === 'cancelling'
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' 
-                    : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 hover:border-red-400'
+                    : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100 hover:border-red-400 active:scale-95'
                 }`}
               >
                 {isProcessing && processingType === 'cancelling' ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Cancelando...
+                    <span>Cancelando...</span>
                   </>
                 ) : (
                   <>
-                    <X className="w-4 h-4 mr-2" />
-                    Cancelar Pago
+                    <X className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span>Cancelar Pago</span>
                   </>
                 )}
               </button>
@@ -443,7 +515,7 @@ const PaymentCard = ({
            '✅ Pago procesado'}
         </div>
         
-        {/* NUEVO: Nota explicativa para pagos pendientes */}
+        {/* Nota explicativa para pagos pendientes */}
         {isPendingPayment && (
           <div className="mt-3 text-xs text-center text-gray-500 italic">
             Utiliza los botones de arriba para confirmar si el pago se realizó o cancelarlo

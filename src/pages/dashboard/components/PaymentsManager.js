@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager.js
 // Author: Alexander Echeverria
 // Componente principal para la gestión completa de pagos del sistema
-// Maneja navegación entre tabs y orquesta todos los subcomponentes
+// OPTIMIZADO: Mejorado para móvil sin perder funcionalidad
 
 import React, { useState } from 'react';
 import { Coins, RefreshCw } from 'lucide-react';
@@ -143,66 +143,77 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       
-      {/* Header principal del módulo */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-            <Coins className="w-6 h-6 mr-2 text-green-600" />
-            Gestión de Pagos
+      {/* Header principal del módulo - OPTIMIZADO PARA MÓVIL */}
+      <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center">
+            <Coins className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-600 flex-shrink-0" />
+            <span className="leading-tight">Gestión de Pagos</span>
           </h3>
-          <p className="text-gray-600 mt-1">
-            Sistema completo de gestión financiera con información detallada y comprobantes
+          <p className="text-sm sm:text-base text-gray-600 leading-tight">
+            Sistema completo de gestión financiera con información detallada
           </p>
         </div>
         
-        <div className="flex items-center space-x-3 mt-4 lg:mt-0">
+        {/* Botón de actualizar - MEJORADO PARA MÓVIL */}
+        <div className="flex justify-center sm:justify-end">
           <button
             onClick={handleRefreshAll}
             disabled={paymentsData.loading || cashData.loading || transfersData.loading}
-            className="btn-secondary btn-sm"
+            className="w-full sm:w-auto flex items-center justify-center px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${
               (paymentsData.loading || cashData.loading || transfersData.loading) ? 'animate-spin' : ''
             }`} />
-            Actualizar
+            <span>Actualizar</span>
           </button>
         </div>
       </div>
 
-      {/* Navegación por tabs */}
-      <TabNavigation 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab}
-        counters={{
-          totalPayments: paymentsData.totalPayments,
-          pendingTransfers: transfersData.transferStats?.total || 0,
-          criticalTransfers: transfersData.transferStats?.critical || 0,
-          pendingCash: cashData.cashMembershipStats?.total || 0,
-          urgentCash: cashData.cashMembershipStats?.old || 0
-        }}
-      />
+      {/* Navegación por tabs - RESPONSIVE */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <TabNavigation 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab}
+          counters={{
+            totalPayments: paymentsData.totalPayments,
+            pendingTransfers: transfersData.transferStats?.total || 0,
+            criticalTransfers: transfersData.transferStats?.critical || 0,
+            pendingCash: cashData.cashMembershipStats?.total || 0,
+            urgentCash: cashData.cashMembershipStats?.old || 0
+          }}
+        />
+      </div>
       
-      {/* Estado de carga global */}
+      {/* Estado de carga global - OPTIMIZADO PARA MÓVIL */}
       {(paymentsData.loading || cashData.loading || transfersData.loading) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center space-x-3">
-            <RefreshCw className="w-5 h-5 text-blue-600 animate-spin" />
-            <div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+            <RefreshCw className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
+            <div className="space-y-1">
               <h4 className="text-sm font-medium text-blue-900">Cargando datos...</h4>
-              <p className="text-xs text-blue-700">
-                {paymentsData.loading && 'Historial de pagos, '}
-                {cashData.loading && 'Membresías en efectivo, '}
-                {transfersData.loading && 'Transferencias pendientes, '}
-              </p>
+              <div className="text-xs text-blue-700 space-y-1 sm:space-y-0">
+                {paymentsData.loading && (
+                  <div>• Historial de pagos</div>
+                )}
+                {cashData.loading && (
+                  <div>• Membresías en efectivo</div>
+                )}
+                {transfersData.loading && (
+                  <div>• Transferencias pendientes</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
       
       {/* Contenido del tab activo */}
-      {renderActiveTab()}
+      <div className="min-h-0">
+        {renderActiveTab()}
+      </div>
     </div>
   );
 };

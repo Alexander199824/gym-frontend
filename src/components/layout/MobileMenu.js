@@ -640,7 +640,7 @@ REORDENAMIENTO DE NAVEGACIÓN:
 1. Panel Principal
 2. Usuarios (admin/staff)
 3. Membresías (según rol)
-4. 🆕 Gestión de Horarios (admin) - NUEVA
+4. Gestión de Horarios (admin) - NUEVA
 5. Mis Horarios (clientes)
 6. Pagos
 7. Tienda

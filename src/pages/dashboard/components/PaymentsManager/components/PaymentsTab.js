@@ -6,12 +6,12 @@
 // src/pages/dashboard/components/PaymentsManager/components/PaymentsTab.js
 // Author: Alexander Echeverria
 // Componente del tab de historial de pagos con búsqueda y paginación
-// ACTUALIZADO: Integradas funciones para confirmar/cancelar pagos pendientes
+// OPTIMIZADO: Completamente responsive para móvil sin perder funcionalidad
 
 import React from 'react';
 import { 
   Search, CheckCircle, Grid3X3, List, Bird, Coins, 
-  Clock, Building, FileText, Timer, CreditCard, Banknote, AlertTriangle
+  Clock, Building, FileText, Timer, CreditCard, Banknote, AlertTriangle, Filter, X
 } from 'lucide-react';
 import PaymentCard from './PaymentCard';
 import PaymentListItem from './PaymentListItem';
@@ -20,7 +20,7 @@ const PaymentsTab = ({
   payments = [], 
   loading = false, 
   totalPayments = 0,
-  processingIds = new Set(), // NUEVO
+  processingIds = new Set(),
   searchTerm = '',
   setSearchTerm,
   currentPage = 1,
@@ -28,25 +28,26 @@ const PaymentsTab = ({
   hasNextPage = false,
   hasPrevPage = false,
   handlePageChange,
-  handleConfirmPayment, // NUEVO
-  handleCancelPayment, // NUEVO
-  isPaymentProcessing, // NUEVO
-  getProcessingType, // NUEVO
-  getPendingPaymentsStats, // NUEVO
+  handleConfirmPayment,
+  handleCancelPayment,
+  isPaymentProcessing,
+  getProcessingType,
+  getPendingPaymentsStats,
   formatCurrency,
   formatDate,
-  showSuccess, // NUEVO
-  showError, // NUEVO
+  showSuccess,
+  showError,
   onSave 
 }) => {
 
-  // Estados locales para filtros y vista (esto idealmente debería venir del hook)
+  // Estados locales para filtros y vista
   const [viewMode, setViewMode] = React.useState('list');
-  const [sortBy, setSortBy] = React.useState('date');
+  const [sortBy, setSortBy] = React.useState('status'); // Pendientes primero por defecto
   const [statusFilter, setStatusFilter] = React.useState('all');
   const [methodFilter, setMethodFilter] = React.useState('all');
+  const [showMobileFilters, setShowMobileFilters] = React.useState(false);
 
-  // NUEVO: Obtener estadísticas de pagos pendientes
+  // Obtener estadísticas de pagos pendientes
   const pendingStats = getPendingPaymentsStats ? getPendingPaymentsStats() : {
     total: 0,
     old: 0,
@@ -97,7 +98,6 @@ const PaymentsTab = ({
     // Filtrar por estado
     if (statusFilter !== 'all') {
       if (statusFilter === 'pending') {
-        // Incluir tanto 'pending' como 'waiting_payment'
         filtered = filtered.filter(payment => 
           payment.status === 'pending' || payment.status === 'waiting_payment'
         );
@@ -133,7 +133,7 @@ const PaymentsTab = ({
           return nameA.localeCompare(nameB);
         case 'method':
           return (a.paymentMethod || '').localeCompare(b.paymentMethod || '');
-        case 'status': // NUEVO: Ordenar por estado (pendientes primero)
+        case 'status':
           const statusOrder = { 'pending': 0, 'waiting_payment': 1, 'completed': 2, 'failed': 3, 'cancelled': 4 };
           return (statusOrder[a.status] || 2) - (statusOrder[b.status] || 2);
         default:
@@ -149,18 +149,18 @@ const PaymentsTab = ({
   const filteredPayments = getFilteredPayments();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       
-      {/* ACTUALIZADO: Estadísticas de pagos - Agregada sección de pendientes */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+      {/* Estadísticas de pagos - RESPONSIVAS */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         
-        {/* Pagos pendientes - NUEVO */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+        {/* Pagos pendientes */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 col-span-1">
           <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-900">
+            <div className="text-xl sm:text-2xl font-bold text-yellow-900">
               {pendingStats.total}
             </div>
-            <div className="text-xs text-yellow-600">Pendientes</div>
+            <div className="text-xs text-yellow-600 leading-tight">Pendientes</div>
             {pendingStats.old > 0 && (
               <div className="text-xs text-orange-600">
                 {pendingStats.old} antiguos
@@ -170,152 +170,285 @@ const PaymentsTab = ({
         </div>
         
         {/* Pagos completados */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 col-span-1">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-900">
+            <div className="text-xl sm:text-2xl font-bold text-green-900">
               {paymentStats.completed}
             </div>
-            <div className="text-xs text-green-600">Completados</div>
+            <div className="text-xs text-green-600 leading-tight">Completados</div>
           </div>
         </div>
         
         {/* Efectivo */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 col-span-1 sm:col-span-1">
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
-              <Banknote className="w-5 h-5 text-green-600" />
+              <Banknote className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
             </div>
-            <div className="text-xl font-bold text-green-900">
+            <div className="text-lg sm:text-xl font-bold text-green-900">
               {methodStats.cash}
             </div>
-            <div className="text-xs text-green-600">Efectivo</div>
+            <div className="text-xs text-green-600 leading-tight">Efectivo</div>
           </div>
         </div>
         
         {/* Tarjeta */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 col-span-1 sm:col-span-1">
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
-              <CreditCard className="w-5 h-5 text-blue-600" />
+              <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
             </div>
-            <div className="text-xl font-bold text-blue-900">
+            <div className="text-lg sm:text-xl font-bold text-blue-900">
               {methodStats.card}
             </div>
-            <div className="text-xs text-blue-600">Tarjeta</div>
+            <div className="text-xs text-blue-600 leading-tight">Tarjeta</div>
           </div>
         </div>
         
         {/* Transferencia */}
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 col-span-1 sm:col-span-1">
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
-              <Building className="w-5 h-5 text-purple-600" />
+              <Building className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
             </div>
-            <div className="text-xl font-bold text-purple-900">
+            <div className="text-lg sm:text-xl font-bold text-purple-900">
               {methodStats.transfer}
             </div>
-            <div className="text-xs text-purple-600">Transferencia</div>
+            <div className="text-xs text-purple-600 leading-tight">Transfer.</div>
           </div>
         </div>
         
         {/* Total de pagos */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 col-span-1 sm:col-span-1">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl sm:text-2xl font-bold text-gray-900">
               {totalPayments}
             </div>
-            <div className="text-xs text-gray-600">Total</div>
+            <div className="text-xs text-gray-600 leading-tight">Total</div>
           </div>
         </div>
       </div>
 
-      {/* Controles de filtros y vista */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 bg-white rounded-lg p-4 border border-gray-200">
+      {/* Controles de filtros y vista - COMPLETAMENTE RESPONSIVE */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         
-        {/* Campo de búsqueda */}
-        <div className="relative flex-1 md:max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, email o referencia..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm && setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-          />
-        </div>
-        
-        {/* Controles de filtros y vista */}
-        <div className="flex items-center space-x-3">
+        {/* Header con búsqueda y controles principales */}
+        <div className="p-4 space-y-4">
           
-          {/* Filtro de estado - ACTUALIZADO */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">Todos los estados</option>
-            <option value="pending">Pendientes</option>
-            <option value="completed">Completados</option>
-            <option value="failed">Fallidos</option>
-            <option value="cancelled">Cancelados</option>
-          </select>
-
-          {/* Filtro de método */}
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
-            className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">Todos los métodos</option>
-            <option value="cash">Efectivo</option>
-            <option value="card">Tarjeta</option>
-            <option value="transfer">Transferencia</option>
-          </select>
-          
-          {/* Selector de ordenamiento - ACTUALIZADO */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="status">Estado (pendientes primero)</option>
-            <option value="date">Fecha de pago</option>
-            <option value="amount">Monto</option>
-            <option value="name">Nombre</option>
-            <option value="method">Método</option>
-          </select>
-          
-          {/* Selector de vista */}
-          <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+          {/* Búsqueda y botón de filtros móvil */}
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+            
+            {/* Campo de búsqueda */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre, email o referencia..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm && setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm && setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            
+            {/* Botón de filtros para móvil */}
             <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 ${
-                viewMode === 'grid' 
-                  ? 'bg-blue-100 text-blue-600' 
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-              title="Vista en cuadrícula"
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className="sm:hidden flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium text-sm"
             >
-              <Grid3X3 className="w-4 h-4" />
+              <Filter className="w-4 h-4 mr-2" />
+              Filtros
+              {(statusFilter !== 'all' || methodFilter !== 'all' || sortBy !== 'status') && (
+                <div className="ml-2 w-2 h-2 bg-blue-300 rounded-full"></div>
+              )}
             </button>
             
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 ${
-                viewMode === 'list' 
-                  ? 'bg-blue-100 text-blue-600' 
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-              title="Vista en lista"
-            >
-              <List className="w-4 h-4" />
-            </button>
+            {/* Controles para desktop */}
+            <div className="hidden sm:flex items-center space-x-3">
+              
+              {/* Filtro de estado */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Todos los estados</option>
+                <option value="pending">Pendientes</option>
+                <option value="completed">Completados</option>
+                <option value="failed">Fallidos</option>
+                <option value="cancelled">Cancelados</option>
+              </select>
+
+              {/* Filtro de método */}
+              <select
+                value={methodFilter}
+                onChange={(e) => setMethodFilter(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Todos los métodos</option>
+                <option value="cash">Efectivo</option>
+                <option value="card">Tarjeta</option>
+                <option value="transfer">Transferencia</option>
+              </select>
+              
+              {/* Selector de ordenamiento */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="status">Estado (pendientes primero)</option>
+                <option value="date">Fecha de pago</option>
+                <option value="amount">Monto</option>
+                <option value="name">Nombre</option>
+                <option value="method">Método</option>
+              </select>
+              
+              {/* Selector de vista */}
+              <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2.5 ${
+                    viewMode === 'grid' 
+                      ? 'bg-blue-100 text-blue-600' 
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                  title="Vista en cuadrícula"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </button>
+                
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2.5 ${
+                    viewMode === 'list' 
+                      ? 'bg-blue-100 text-blue-600' 
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                  title="Vista en lista"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+              
+              {/* Contador de resultados */}
+              <div className="text-sm text-gray-500 whitespace-nowrap">
+                {filteredPayments.length} pagos
+              </div>
+            </div>
           </div>
           
-          {/* Contador de resultados */}
-          <div className="text-sm text-gray-500">
-            {filteredPayments.length} pagos
-          </div>
+          {/* Panel de filtros móvil */}
+          {showMobileFilters && (
+            <div className="sm:hidden bg-gray-50 rounded-lg p-4 space-y-4 border-t border-gray-200">
+              
+              {/* Filtro de estado móvil */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Filtrar por estado
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="pending">Pendientes</option>
+                  <option value="completed">Completados</option>
+                  <option value="failed">Fallidos</option>
+                  <option value="cancelled">Cancelados</option>
+                </select>
+              </div>
+
+              {/* Filtro de método móvil */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Método de pago
+                </label>
+                <select
+                  value={methodFilter}
+                  onChange={(e) => setMethodFilter(e.target.value)}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">Todos los métodos</option>
+                  <option value="cash">Efectivo</option>
+                  <option value="card">Tarjeta</option>
+                  <option value="transfer">Transferencia</option>
+                </select>
+              </div>
+              
+              {/* Ordenamiento móvil */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ordenar por
+                </label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="status">Estado (pendientes primero)</option>
+                  <option value="date">Fecha de pago</option>
+                  <option value="amount">Monto</option>
+                  <option value="name">Nombre</option>
+                  <option value="method">Método</option>
+                </select>
+              </div>
+              
+              {/* Vista móvil */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de vista
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      viewMode === 'grid'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Grid3X3 className="w-4 h-4 mr-2" />
+                    Tarjetas
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      viewMode === 'list'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <List className="w-4 h-4 mr-2" />
+                    Lista
+                  </button>
+                </div>
+              </div>
+              
+              {/* Contador de resultados móvil */}
+              <div className="text-center">
+                <span className="text-sm text-gray-600">
+                  {filteredPayments.length} pago{filteredPayments.length !== 1 ? 's' : ''} encontrado{filteredPayments.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              
+              {/* Botón para cerrar filtros */}
+              <button
+                onClick={() => setShowMobileFilters(false)}
+                className="w-full px-4 py-2.5 bg-gray-600 text-white rounded-lg font-medium text-sm"
+              >
+                Aplicar filtros
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -329,14 +462,14 @@ const PaymentsTab = ({
         
         /* Estado vacío */
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <Coins className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-          <h3 className="text-xl font-medium text-gray-900 mb-2">
+          <Coins className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400 mx-auto mb-4" />
+          <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2 px-4">
             {searchTerm || statusFilter !== 'all' || methodFilter !== 'all'
               ? 'No se encontraron pagos con ese criterio'
               : 'No hay pagos registrados'
             }
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-600 px-4 text-sm sm:text-base">
             {searchTerm || statusFilter !== 'all' || methodFilter !== 'all'
               ? 'Intenta con otro criterio de búsqueda o filtro'
               : 'Los pagos aparecerán aquí una vez que se procesen'
@@ -346,14 +479,13 @@ const PaymentsTab = ({
         
       ) : (
         
-        /* Lista de pagos - ACTUALIZADA con nuevas props */
+        /* Lista de pagos - RESPONSIVE GRID */
         <div className={`${
           viewMode === 'grid' 
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
+            ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6' 
             : 'space-y-4'
         }`}>
           {filteredPayments.map((payment) => {
-            // NUEVO: Obtener estado de procesamiento
             const processing = isPaymentProcessing ? isPaymentProcessing(payment.id) : false;
             const processType = getProcessingType ? getProcessingType(payment.id) : null;
             
@@ -363,12 +495,12 @@ const PaymentsTab = ({
                 payment={payment}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
-                onConfirmPayment={handleConfirmPayment} // NUEVO
-                onCancelPayment={handleCancelPayment} // NUEVO
-                isProcessing={processing} // NUEVO
-                processingType={processType} // NUEVO
-                showSuccess={showSuccess} // NUEVO
-                showError={showError} // NUEVO
+                onConfirmPayment={handleConfirmPayment}
+                onCancelPayment={handleCancelPayment}
+                isProcessing={processing}
+                processingType={processType}
+                showSuccess={showSuccess}
+                showError={showError}
               />
             ) : (
               <PaymentListItem
@@ -376,26 +508,26 @@ const PaymentsTab = ({
                 payment={payment}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
-                onConfirmPayment={handleConfirmPayment} // NUEVO
-                onCancelPayment={handleCancelPayment} // NUEVO
-                isProcessing={processing} // NUEVO
-                processingType={processType} // NUEVO
-                showSuccess={showSuccess} // NUEVO
-                showError={showError} // NUEVO
+                onConfirmPayment={handleConfirmPayment}
+                onCancelPayment={handleCancelPayment}
+                isProcessing={processing}
+                processingType={processType}
+                showSuccess={showSuccess}
+                showError={showError}
               />
             );
           })}
         </div>
       )}
       
-      {/* Paginación */}
+      {/* Paginación - OPTIMIZADA PARA MÓVIL */}
       {totalPages > 1 && !loading && filteredPayments.length > 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
             
             {/* Información de paginación */}
-            <div className="text-sm text-gray-700">
-              Mostrando página <span className="font-medium">{currentPage}</span> de{' '}
+            <div className="text-sm text-gray-700 text-center sm:text-left">
+              Página <span className="font-medium">{currentPage}</span> de{' '}
               <span className="font-medium">{totalPages}</span>
             </div>
             
@@ -404,13 +536,13 @@ const PaymentsTab = ({
               <button
                 onClick={() => handlePageChange && handlePageChange(currentPage - 1)}
                 disabled={!hasPrevPage}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Anterior
+                ← Anterior
               </button>
               
-              {/* Números de página */}
-              <div className="flex items-center space-x-1">
+              {/* Números de página - Simplificado para móvil */}
+              <div className="hidden sm:flex items-center space-x-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                   let pageNum;
                   if (totalPages <= 5) {
@@ -427,7 +559,7 @@ const PaymentsTab = ({
                     <button
                       key={pageNum}
                       onClick={() => handlePageChange && handlePageChange(pageNum)}
-                      className={`px-3 py-1 text-sm border rounded-md ${
+                      className={`px-3 py-2 text-sm border rounded-md transition-colors ${
                         currentPage === pageNum
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -439,19 +571,24 @@ const PaymentsTab = ({
                 })}
               </div>
               
+              {/* Indicador simple para móvil */}
+              <div className="sm:hidden text-sm text-gray-500">
+                {currentPage} / {totalPages}
+              </div>
+              
               <button
                 onClick={() => handlePageChange && handlePageChange(currentPage + 1)}
                 disabled={!hasNextPage}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                Siguiente
+                Siguiente →
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Información adicional - ACTUALIZADA */}
+      {/* Información adicional */}
       {filteredPayments.length > 0 && (
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <div className="text-sm text-gray-600 text-center">
@@ -464,26 +601,35 @@ const PaymentsTab = ({
             )}
           </div>
           
-          {/* NUEVO: Resumen de pagos pendientes */}
+          {/* Resumen de pagos pendientes */}
           {pendingStats.total > 0 && (
             <div className="mt-2 flex items-center justify-center text-sm text-yellow-600">
-              <AlertTriangle className="w-4 h-4 mr-1" />
-              <span className="font-medium">
+              <AlertTriangle className="w-4 h-4 mr-1 flex-shrink-0" />
+              <span className="font-medium text-center">
                 {pendingStats.total} pagos esperando confirmación
                 {pendingStats.old > 0 && ` (${pendingStats.old} antiguos)`}
               </span>
             </div>
           )}
           
-          {/* Resumen de métodos de pago */}
-          <div className="mt-2 flex items-center justify-center text-sm text-gray-500 space-x-4">
-            <span>💵 {methodStats.cash} efectivo</span>
-            <span>💳 {methodStats.card} tarjeta</span>
-            <span>🏦 {methodStats.transfer} transferencia</span>
+          {/* Resumen de métodos de pago - Simplificado para móvil */}
+          <div className="mt-2 flex items-center justify-center text-sm text-gray-500 space-x-2 sm:space-x-4">
+            <span className="flex items-center">
+              <Banknote className="w-3 h-3 mr-1" />
+              {methodStats.cash}
+            </span>
+            <span className="flex items-center">
+              <CreditCard className="w-3 h-3 mr-1" />
+              {methodStats.card}
+            </span>
+            <span className="flex items-center">
+              <Building className="w-3 h-3 mr-1" />
+              {methodStats.transfer}
+            </span>
           </div>
           
           {/* Nota sobre el historial */}
-          <div className="mt-2 text-xs text-center text-gray-500 italic">
+          <div className="mt-2 text-xs text-center text-gray-500 italic px-4">
             Historial completo de todas las transacciones. Los pagos pendientes aparecen destacados y pueden ser gestionados.
           </div>
         </div>

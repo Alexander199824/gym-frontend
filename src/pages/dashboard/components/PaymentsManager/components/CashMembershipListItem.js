@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager/components/CashMembershipListItem.js
 // Author: Alexander Echeverria
 // Componente de item para membresías en efectivo pendientes (vista lista)
-// Versión compacta horizontal para mostrar múltiples membresías de forma eficiente
+// OPTIMIZADO: Completamente responsive para móvil con layout adaptativo
 
 import React, { useState } from 'react';
 import { 
@@ -110,55 +110,62 @@ const CashMembershipListItem = ({
       'border-gray-200 hover:shadow-md'
     }`}>
       
-      {/* Header principal (siempre visible) */}
+      {/* Header principal (siempre visible) - OPTIMIZADO PARA MÓVIL */}
       <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center flex-1 min-w-0">
             
             {/* Avatar */}
-            <div className="w-12 h-12 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-              <span className="text-lg font-bold text-green-700">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-green-100 to-green-200 rounded-full flex items-center justify-center mr-3 sm:mr-4 flex-shrink-0">
+              <span className="text-sm sm:text-lg font-bold text-green-700">
                 {membership.user?.name?.[0] || 'A'}
               </span>
             </div>
             
             {/* Información principal */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center space-x-3">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-1">
+                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                     {membership.user?.name || 'Cliente Anónimo'}
                   </h3>
                   
                   {/* Badge de estado del pago */}
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bg}`}>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${statusConfig.color} ${statusConfig.bg}`}>
                     <StatusIcon className="w-3 h-3 mr-1" />
-                    {statusConfig.label}
+                    <span className="hidden sm:inline">{statusConfig.label}</span>
+                    <span className="sm:hidden">
+                      {statusConfig.label === 'Pendiente' ? 'Pend.' : statusConfig.label.slice(0, 4)}
+                    </span>
                   </span>
                 </div>
                 
+                {/* Mostrar tiempo si es candidato a cancelar */}
                 {isCandidateForCancellation && (
-                  <div className={`flex items-center text-sm ml-2 ${
+                  <div className={`flex items-center text-sm mt-1 sm:mt-0 sm:ml-2 ${
                     isVeryOld ? 'text-red-600' : 'text-orange-600'
                   }`}>
-                    <Timer className="w-4 h-4 mr-1" />
+                    <Timer className="w-4 h-4 mr-1 flex-shrink-0" />
                     <span>{membership.hoursWaiting?.toFixed(1) || '0.0'}h</span>
+                    {/* Indicador de urgencia para móvil */}
+                    {isVeryOld && <span className="ml-1 text-xs font-bold sm:hidden">MUY VIEJO</span>}
+                    {isCandidateForCancellation && !isVeryOld && <span className="ml-1 text-xs font-bold sm:hidden">ANTIGUO</span>}
                   </div>
                 )}
               </div>
               
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <span className="font-semibold text-green-600">
-                  <Bird className="w-4 h-4 inline mr-1" />
-                  {formatCurrency && formatCurrency(membership.price)}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-sm text-gray-600">
+                <span className="font-semibold text-green-600 flex items-center">
+                  <Bird className="w-4 h-4 mr-1 flex-shrink-0" />
+                  <span className="truncate">{formatCurrency && formatCurrency(membership.price)}</span>
                 </span>
                 
-                <span className="text-gray-500">
+                <span className="text-gray-500 truncate">
                   {membership.plan?.name || 'Plan personalizado'}
                 </span>
                 
                 {membership.user?.email && (
-                  <span className="truncate max-w-40">
+                  <span className="truncate min-w-0 sm:max-w-40">
                     <Mail className="w-3 h-3 inline mr-1" />
                     {membership.user.email}
                   </span>
@@ -168,12 +175,12 @@ const CashMembershipListItem = ({
           </div>
           
           {/* Controles del lado derecho */}
-          <div className="ml-4 flex-shrink-0 flex items-center space-x-2">
+          <div className="ml-2 sm:ml-4 flex-shrink-0 flex items-center space-x-2">
             
             {/* Botón de expandir */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-50"
               title={isExpanded ? 'Contraer información' : 'Ver más información'}
             >
               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -186,10 +193,10 @@ const CashMembershipListItem = ({
                 <button
                   onClick={handleConfirmPayment}
                   disabled={isProcessing}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     isProcessing && processingType === 'activating'
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg'
+                      : 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg active:scale-95'
                   }`}
                   title="Confirmar pago recibido"
                 >
@@ -197,8 +204,8 @@ const CashMembershipListItem = ({
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      <Check className="w-4 h-4 mr-1" />
-                      Confirmar
+                      <Check className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Confirmar</span>
                     </>
                   )}
                 </button>
@@ -207,10 +214,10 @@ const CashMembershipListItem = ({
                 <button
                   onClick={handleCancelPayment}
                   disabled={isProcessing}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     isProcessing && processingType === 'cancelling'
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-red-600 text-white hover:bg-red-700 shadow-md hover:shadow-lg'
+                      : 'bg-red-600 text-white hover:bg-red-700 shadow-md hover:shadow-lg active:scale-95'
                   }`}
                   title="Anular pago - Cliente no llegó"
                 >
@@ -218,8 +225,8 @@ const CashMembershipListItem = ({
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      <Ban className="w-4 h-4 mr-1" />
-                      Anular
+                      <Ban className="w-4 h-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Anular</span>
                     </>
                   )}
                 </button>
@@ -228,7 +235,7 @@ const CashMembershipListItem = ({
             
             {/* Indicador para pagos ya procesados */}
             {!canProcess && (
-              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+              <div className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                 effectiveStatus === 'completed' ? 'bg-green-100 text-green-800' :
                 effectiveStatus === 'failed' ? 'bg-red-100 text-red-800' :
                 effectiveStatus === 'cancelled' ? 'bg-gray-100 text-gray-800' :
@@ -248,7 +255,7 @@ const CashMembershipListItem = ({
           <div className="mt-3 bg-blue-50 rounded-lg p-3 text-center border border-blue-200">
             <div className="text-sm text-blue-800">
               <span className="font-medium">Monto a recibir: </span>
-              <span className="text-lg font-bold text-blue-900">
+              <span className="text-base sm:text-lg font-bold text-blue-900">
                 {formatCurrency && formatCurrency(membership.price)}
               </span>
             </div>
@@ -271,15 +278,15 @@ const CashMembershipListItem = ({
                 Información del Cliente
               </h5>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 
                 {/* Email */}
                 {membership.user?.email && (
                   <div className="flex items-start space-x-2">
                     <Mail className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-medium text-gray-900">Email</div>
-                      <div className="text-gray-600 break-all">{membership.user.email}</div>
+                      <div className="text-gray-600 break-all text-xs sm:text-sm">{membership.user.email}</div>
                     </div>
                   </div>
                 )}
@@ -290,7 +297,7 @@ const CashMembershipListItem = ({
                     <Phone className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <div className="font-medium text-gray-900">Teléfono</div>
-                      <div className="text-gray-600">{membership.user.phone}</div>
+                      <div className="text-gray-600 text-xs sm:text-sm">{membership.user.phone}</div>
                     </div>
                   </div>
                 )}
@@ -315,7 +322,7 @@ const CashMembershipListItem = ({
                 
                 <div>
                   <span className="font-medium text-gray-700">Descripción:</span>
-                  <div className="text-gray-600 mt-1">
+                  <div className="text-gray-600 mt-1 text-xs sm:text-sm">
                     {canProcess ? 
                       'Cliente puede llegar cuando guste a realizar el pago en efectivo' :
                      effectiveStatus === 'completed' ? 
@@ -337,20 +344,24 @@ const CashMembershipListItem = ({
                 Información Temporal
               </h5>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
                 
                 <div className="flex items-start space-x-2">
                   <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="min-w-0">
                     <div className="font-medium text-gray-900">Fecha de creación</div>
-                    <div className="text-gray-600">
+                    <div className="text-gray-600 text-xs sm:text-sm break-words">
                       {formatDetailedTime(membership.createdAt)}
                     </div>
                   </div>
                 </div>
                 
                 <div className="flex items-start space-x-2">
-                  <Timer className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <Timer className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
+                    isVeryOld ? 'text-red-500' : 
+                    isCandidateForCancellation ? 'text-orange-500' : 
+                    'text-gray-500'
+                  }`} />
                   <div>
                     <div className="font-medium text-gray-900">Tiempo esperando</div>
                     <div className={`font-medium ${
@@ -375,7 +386,7 @@ const CashMembershipListItem = ({
               <div className="space-y-2 text-sm">
                 <div>
                   <span className="font-medium text-gray-700">Plan:</span>
-                  <span className="ml-2 text-gray-600">{membership.plan?.name || 'Plan personalizado'}</span>
+                  <span className="ml-2 text-gray-600 text-xs sm:text-sm">{membership.plan?.name || 'Plan personalizado'}</span>
                 </div>
                 
                 <div>
@@ -388,7 +399,7 @@ const CashMembershipListItem = ({
                 {membership.plan?.description && (
                   <div>
                     <span className="font-medium text-gray-700">Descripción:</span>
-                    <div className="text-gray-600 mt-1">{membership.plan.description}</div>
+                    <div className="text-gray-600 mt-1 text-xs sm:text-sm">{membership.plan.description}</div>
                   </div>
                 )}
               </div>
@@ -405,10 +416,10 @@ const CashMembershipListItem = ({
                 <div className="space-y-1 text-sm">
                   {Object.entries(membership.schedule).slice(0, 3).map(([day, slots]) => (
                     <div key={day} className="flex items-center space-x-3">
-                      <span className="font-medium text-indigo-900 capitalize min-w-[80px]">
+                      <span className="font-medium text-indigo-900 capitalize min-w-[80px] text-xs sm:text-sm">
                         {day}:
                       </span>
-                      <span className="text-indigo-700">
+                      <span className="text-indigo-700 text-xs sm:text-sm">
                         {Array.isArray(slots) 
                           ? slots.map(slot => slot.timeRange || slot).join(', ')
                           : 'Horario no especificado'
@@ -455,14 +466,14 @@ const CashMembershipListItem = ({
                   {membership.description && (
                     <div>
                       <span className="font-medium text-gray-700">Descripción:</span>
-                      <div className="text-gray-600 mt-1">{membership.description}</div>
+                      <div className="text-gray-600 mt-1 text-xs sm:text-sm">{membership.description}</div>
                     </div>
                   )}
                   
                   {membership.notes && (
                     <div>
                       <span className="font-medium text-gray-700">Notas:</span>
-                      <div className="text-gray-600 mt-1">{membership.notes}</div>
+                      <div className="text-gray-600 mt-1 text-xs sm:text-sm">{membership.notes}</div>
                     </div>
                   )}
                 </div>
