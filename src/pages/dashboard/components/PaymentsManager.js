@@ -6,7 +6,7 @@
 // src/pages/dashboard/components/PaymentsManager.js
 // Author: Alexander Echeverria
 // Componente principal para la gestión completa de pagos del sistema
-// ACTUALIZADO: Ahora incluye soporte para modales de razones profesionales
+// ACTUALIZADO: Ahora incluye soporte para modales profesionales de razones y confirmación
 
 import React, { useState } from 'react';
 import { Coins, RefreshCw } from 'lucide-react';
@@ -25,7 +25,10 @@ import CashTab from './PaymentsManager/components/CashTab';
 import TransfersTab from './PaymentsManager/components/TransfersTab';
 import SummaryTab from './PaymentsManager/components/SummaryTab';
 import TabNavigation from './PaymentsManager/components/TabNavigation';
+
+// Importación de modales profesionales
 import ReasonModal from './PaymentsManager/components/ReasonModal';
+import ConfirmationModal from './PaymentsManager/components/ConfirmationModal';
 
 const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
@@ -144,7 +147,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
   };
 
   // Determinar qué modal de razones mostrar basado en el tab activo
-  const getCurrentModal = () => {
+  const getCurrentReasonModal = () => {
     switch (activeTab) {
       case 'payments':
         return {
@@ -180,7 +183,49 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
 
-  const currentModal = getCurrentModal();
+  // Determinar qué modal de confirmación mostrar basado en el tab activo
+  const getCurrentConfirmationModal = () => {
+    switch (activeTab) {
+      case 'payments':
+        return {
+          isOpen: paymentsData.isConfirmationOpen || false,
+          config: paymentsData.confirmationConfig || {},
+          isLoading: paymentsData.isConfirmationLoading || false,
+          onConfirm: paymentsData.handleConfirmationConfirm || (() => {}),
+          onClose: paymentsData.handleConfirmationClose || (() => {})
+        };
+        
+      case 'cash':
+        return {
+          isOpen: cashData.isConfirmationOpen,
+          config: cashData.confirmationConfig,
+          isLoading: cashData.isConfirmationLoading,
+          onConfirm: cashData.handleConfirmationConfirm,
+          onClose: cashData.handleConfirmationClose
+        };
+        
+      case 'transfers':
+        return {
+          isOpen: transfersData.isConfirmationOpen || false,
+          config: transfersData.confirmationConfig || {},
+          isLoading: transfersData.isConfirmationLoading || false,
+          onConfirm: transfersData.handleConfirmationConfirm || (() => {}),
+          onClose: transfersData.handleConfirmationClose || (() => {})
+        };
+        
+      default:
+        return {
+          isOpen: false,
+          config: {},
+          isLoading: false,
+          onConfirm: () => {},
+          onClose: () => {}
+        };
+    }
+  };
+
+  const currentReasonModal = getCurrentReasonModal();
+  const currentConfirmationModal = getCurrentConfirmationModal();
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -193,7 +238,7 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
             <span className="leading-tight">Gestión de Pagos</span>
           </h3>
           <p className="text-sm sm:text-base text-gray-600 leading-tight">
-            Sistema completo de gestión financiera con información detallada
+            Sistema completo de gestión financiera con modales profesionales
           </p>
         </div>
         
@@ -255,12 +300,21 @@ const PaymentsManager = ({ onSave, onUnsavedChanges }) => {
         {renderActiveTab()}
       </div>
 
-      {/* Modal de razones - SE RENDERIZA SEGÚN EL TAB ACTIVO */}
+      {/* MODAL DE RAZONES - SE RENDERIZA SEGÚN EL TAB ACTIVO */}
       <ReasonModal 
-        isOpen={currentModal.isOpen}
-        onClose={currentModal.onClose}
-        onConfirm={currentModal.onConfirm}
-        {...currentModal.config}
+        isOpen={currentReasonModal.isOpen}
+        onClose={currentReasonModal.onClose}
+        onConfirm={currentReasonModal.onConfirm}
+        {...currentReasonModal.config}
+      />
+
+      {/* MODAL DE CONFIRMACIÓN PROFESIONAL - NUEVO */}
+      <ConfirmationModal 
+        isOpen={currentConfirmationModal.isOpen}
+        onClose={currentConfirmationModal.onClose}
+        onConfirm={currentConfirmationModal.onConfirm}
+        isLoading={currentConfirmationModal.isLoading}
+        {...currentConfirmationModal.config}
       />
     </div>
   );

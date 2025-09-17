@@ -6,11 +6,12 @@
 // src/pages/dashboard/components/PaymentsManager/hooks/useTransfers.js
 // Author: Alexander Echeverria
 // Hook personalizado para manejar toda la lógica de transferencias bancarias
-// ACTUALIZADO: Ahora usa ReasonModal en lugar de window.prompt()
+// ACTUALIZADO: Ahora usa modales profesionales en lugar de window.confirm() y window.prompt()
 
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../../../../../services/apiService';
 import useReasonModal from './useReasonModal';
+import useConfirmationModal from './useConfirmationModal';
 
 const useTransfers = (onSave) => {
   // Estados principales de transferencias
@@ -36,7 +37,7 @@ const useTransfers = (onSave) => {
   const [transferSortBy, setTransferSortBy] = useState('waiting_time');
   const [transferPriorityFilter, setTransferPriorityFilter] = useState('all');
 
-  // Hook para el modal de razones
+  // Hooks para modales profesionales
   const {
     isModalOpen,
     modalConfig,
@@ -44,6 +45,16 @@ const useTransfers = (onSave) => {
     handleConfirm: handleModalConfirm,
     handleClose: handleModalClose
   } = useReasonModal();
+
+  const {
+    isConfirmationOpen,
+    confirmationConfig,
+    isConfirmationLoading,
+    confirmTransferApproval,
+    confirmTransferRejection,
+    handleConfirmationConfirm,
+    handleConfirmationClose
+  } = useConfirmationModal();
 
   // Función para calcular estadísticas de transferencias
   const calculateTransferStats = useCallback((transfers) => {
@@ -136,7 +147,7 @@ const useTransfers = (onSave) => {
     }
   }, [searchTerm, transferSortBy, transferPriorityFilter, calculateTransferStats]);
 
-  // FUNCIÓN PRINCIPAL: Validar transferencia - ACTUALIZADA CON MODAL
+  // FUNCIÓN PRINCIPAL: Validar transferencia - ACTUALIZADA CON MODALES PROFESIONALES
   const handleValidateTransfer = useCallback(async (paymentId, approved, showSuccess, showError) => {
     if (processingIds.has(paymentId)) return;
 
@@ -147,17 +158,15 @@ const useTransfers = (onSave) => {
     
     // Lógica para aprobación y rechazo
     if (approved) {
-      // APROBAR - Confirmar con usuario pero sin pedir razón
-      const confirmed = window.confirm(
-        `¿Confirmar que quieres APROBAR la transferencia de ${clientName} por ${formattedAmount}?`
-      );
-      
-      if (!confirmed) return;
-
+      // APROBAR - Usar modal profesional en lugar de window.confirm()
       try {
+        const confirmed = await confirmTransferApproval(clientName, formattedAmount);
+        
+        if (!confirmed) return;
+
         setProcessingIds(prev => new Set([...prev, paymentId]));
         
-        // MISMO ENDPOINT Y LÓGICA QUE EL TEST
+        // MISMO ENDPOINT Y LÓGICA QUE ANTES
         await apiService.paymentService.approveTransfer(paymentId);
         
         showSuccess && showSuccess(
@@ -181,6 +190,11 @@ const useTransfers = (onSave) => {
         }
         
       } catch (error) {
+        if (error.message === 'Confirmation cancelled') {
+          // Usuario canceló la confirmación, no mostrar error
+          return;
+        }
+        
         console.error('Error aprobando transferencia:', error);
         showError && showError('Error al aprobar transferencia: ' + (error.message || 'Error desconocido'));
       } finally {
@@ -192,20 +206,19 @@ const useTransfers = (onSave) => {
       }
       
     } else {
-      // RECHAZAR - Usar modal profesional en lugar de window.prompt()
+      // RECHAZAR - Usar modales profesionales en lugar de window.prompt() y window.confirm()
       try {
-        // USAR EL MODAL EN LUGAR DE window.prompt()
+        // PASO 1: Pedir razón con modal profesional
         const reason = await askForRejectionReason(clientName, formattedAmount);
         
-        const confirmed = window.confirm(
-          `¿Confirmar RECHAZO de transferencia de ${clientName}?\n\nRazón: "${reason}"`
-        );
+        // PASO 2: Confirmar con modal profesional (NO window.confirm())
+        const confirmed = await confirmTransferRejection(clientName, formattedAmount, reason);
         
         if (!confirmed) return;
 
         setProcessingIds(prev => new Set([...prev, paymentId]));
         
-        // MISMO ENDPOINT Y LÓGICA QUE EL TEST
+        // MISMO ENDPOINT Y LÓGICA QUE ANTES
         await apiService.paymentService.rejectTransfer(paymentId, reason);
         
         showSuccess && showSuccess(
@@ -230,8 +243,8 @@ const useTransfers = (onSave) => {
         }
         
       } catch (error) {
-        if (error.message === 'Modal cancelled') {
-          // Usuario canceló el modal, no mostrar error
+        if (error.message === 'Modal cancelled' || error.message === 'Confirmation cancelled') {
+          // Usuario canceló algún modal, no mostrar error
           return;
         }
         
@@ -245,7 +258,7 @@ const useTransfers = (onSave) => {
         });
       }
     }
-  }, [processingIds, pendingTransfers, loadPendingTransfers, onSave, askForRejectionReason]);
+  }, [processingIds, pendingTransfers, loadPendingTransfers, onSave, askForRejectionReason, confirmTransferApproval, confirmTransferRejection]);
 
   // Función para filtrar y ordenar transferencias
   const getFilteredTransfers = useCallback(() => {
@@ -339,17 +352,22 @@ const useTransfers = (onSave) => {
     transferSortBy,
     transferPriorityFilter,
     
-    // Estados del modal
+    // Estados de ambos modales
     isModalOpen,
     modalConfig,
+    isConfirmationOpen,
+    confirmationConfig,
+    isConfirmationLoading,
     
-    // Funciones principales
+    // Funciones principales - ACTUALIZADAS CON MODALES PROFESIONALES
     loadPendingTransfers,
-    handleValidateTransfer, // FUNCIÓN PRINCIPAL QUE USA EL MODAL
+    handleValidateTransfer, // FUNCIÓN PRINCIPAL QUE USA AMBOS MODALES
     
-    // Funciones del modal
+    // Funciones de ambos modales
     handleModalConfirm,
     handleModalClose,
+    handleConfirmationConfirm,
+    handleConfirmationClose,
     
     // Funciones de filtros
     getFilteredTransfers,
