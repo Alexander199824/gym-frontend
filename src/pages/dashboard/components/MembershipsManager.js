@@ -69,7 +69,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
  const membershipStatuses = [
   { value: 'active', label: 'Activa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
   { value: 'pending', label: 'Pendiente', color: 'bg-blue-100 text-blue-800', icon: Clock },
-  { value: 'pending_validation', label: 'Pendiente Validación', color: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
+  { value: 'por_vencer', label: 'Por Vencer', color: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
   { value: 'expired', label: 'Vencida', color: 'bg-red-100 text-red-800', icon: XCircle },
   { value: 'cancelled', label: 'Cancelada', color: 'bg-gray-100 text-gray-800', icon: XCircle },
   { value: 'suspended', label: 'Suspendida', color: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle }
@@ -119,21 +119,124 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   
   // CARGAR ESTADÍSTICAS
   const loadMembershipStats = async () => {
+  try {
+    console.log('🔄 Cargando estadísticas de membresías...');
+    
+    // Intentar obtener stats del backend
+    let backendStats = {};
     try {
-      const stats = await apiService.getMembershipStats();
-      console.log('Estadísticas de membresías cargadas:', stats);
-      setMembershipStats(stats);
-    } catch (error) {
-      console.error('Error al cargar estadísticas de membresías:', error);
-      setMembershipStats({
-        totalMemberships: 0,
-        activeMemberships: 0,
-        expiredMemberships: 0,
-        expiringSoon: 0
-      });
+      backendStats = await apiService.getMembershipStats();
+      console.log('📊 Estadísticas del backend:', backendStats);
+    } catch (backendError) {
+      console.warn('⚠️ Error obteniendo stats del backend, calculando localmente:', backendError);
     }
+    
+    // Calcular estadísticas locales como respaldo
+    const localStats = calculateLocalStats();
+    console.log('📊 Estadísticas locales calculadas:', localStats);
+    
+    // Combinar estadísticas (priorizar backend, usar local como fallback)
+    const finalStats = {
+      totalMemberships: backendStats.totalMemberships || localStats.totalMemberships || 0,
+      activeMemberships: backendStats.activeMemberships || localStats.activeMemberships || 0,
+      expiredMemberships: backendStats.expiredMemberships || localStats.expiredMemberships || 0,
+      expiringSoon: backendStats.expiringSoon || localStats.expiringSoon || 0,
+      pendingMemberships: backendStats.pendingMemberships || localStats.pendingMemberships || 0,
+      pendingValidation: backendStats.pendingValidation || localStats.pendingValidation || 0,
+      cancelledMemberships: backendStats.cancelledMemberships || localStats.cancelledMemberships || 0,
+      suspendedMemberships: backendStats.suspendedMemberships || localStats.suspendedMemberships || 0
+    };
+    
+    console.log('✅ Estadísticas finales:', finalStats);
+    setMembershipStats(finalStats);
+    
+  } catch (error) {
+    console.error('❌ Error general cargando estadísticas:', error);
+    
+    // Fallback completo usando solo datos locales
+    const localStats = calculateLocalStats();
+    console.log('🔄 Usando solo estadísticas locales como fallback:', localStats);
+    setMembershipStats(localStats);
+  }
+};
+
+// ✅ FUNCIÓN NUEVA: Calcular estadísticas desde datos locales
+const calculateLocalStats = () => {
+  if (!memberships || !Array.isArray(memberships)) {
+    console.log('📊 No hay membresías locales para calcular');
+    return {
+      totalMemberships: 0,
+      activeMemberships: 0,
+      expiredMemberships: 0,
+      expiringSoon: 0,
+      pendingMemberships: 0,
+      pendingValidation: 0,
+      cancelledMemberships: 0,
+      suspendedMemberships: 0
+    };
+  }
+  
+  console.log(`📊 Calculando estadísticas de ${memberships.length} membresías locales`);
+  
+  const now = new Date();
+  const stats = {
+    totalMemberships: memberships.length,
+    activeMemberships: 0,
+    expiredMemberships: 0,
+    expiringSoon: 0,
+    pendingMemberships: 0,
+    pendingValidation: 0,
+    cancelledMemberships: 0,
+    suspendedMemberships: 0
   };
   
+  memberships.forEach(membership => {
+    const currentStatus = getCurrentStatus(membership);
+    const endDate = new Date(membership.endDate);
+    const daysUntilExpiry = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+    
+    // Contar por estado
+    switch (currentStatus) {
+      case 'active':
+        stats.activeMemberships++;
+        // Verificar si está por vencer (próximos 7 días)
+        if (daysUntilExpiry <= 7 && daysUntilExpiry > 0) {
+          stats.expiringSoon++;
+        }
+        break;
+      case 'expired':
+        stats.expiredMemberships++;
+        break;
+      case 'pending':
+        stats.pendingMemberships++;
+        break;
+      case 'pending_validation':
+        stats.pendingValidation++;
+        break;
+      case 'cancelled':
+        stats.cancelledMemberships++;
+        break;
+      case 'suspended':
+        stats.suspendedMemberships++;
+        break;
+      default:
+        console.warn('⚠️ Estado no reconocido en estadísticas:', currentStatus);
+    }
+  });
+  
+  console.log('📊 Estadísticas calculadas por estado:', {
+    total: stats.totalMemberships,
+    activas: stats.activeMemberships,
+    vencidas: stats.expiredMemberships,
+    porVencer: stats.expiringSoon,
+    pendientes: stats.pendingMemberships,
+    pendientesValidacion: stats.pendingValidation,
+    canceladas: stats.cancelledMemberships,
+    suspendidas: stats.suspendedMemberships
+  });
+  
+  return stats;
+};
   // CARGAR ALERTAS DE VENCIMIENTO
   const loadExpirationAlerts = async () => {
     try {
@@ -358,8 +461,8 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
       icon: Clock 
     },
     'pending_validation': { 
-      value: 'pending_validation', 
-      label: 'Pendiente Validación', 
+      value: 'por_vencer', 
+      label: 'POR VENCER', 
       color: 'bg-orange-100 text-orange-800', 
       icon: AlertTriangle 
     },
@@ -430,9 +533,9 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     return 'pending';
   }
   
-  if (membership.status === 'pending_validation') {
-    console.log('→ Estado: PENDIENTE VALIDACIÓN');
-    return 'pending_validation';
+  if (membership.status === 'por_vencer') {
+    console.log('→ Estado: POR VENCER');
+    return 'por_vencer';
   }
   
   // ✅ PRIORIDAD 3: Verificar expiración SOLO para membresías activas
