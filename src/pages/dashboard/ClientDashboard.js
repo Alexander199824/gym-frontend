@@ -88,19 +88,39 @@ const ClientDashboard = () => {
   
   // Membresía actual del cliente
   const { data: currentMembership, isLoading: membershipLoading, refetch: refetchMembership } = useQuery({
-    queryKey: ['currentMembership', user?.id],
-    queryFn: () => membershipService.getCurrentMembership(),
-    staleTime: 2 * 60 * 1000, // Reducido de 5 a 2 minutos para mejor detección
-    retry: 2, // Aumentado para mejorar detección
-    enabled: !!user?.id, // Solo ejecutar si hay usuario
-    onError: (error) => {
-      console.error('Error en query de membresía:', error);
+  queryKey: ['currentMembership', user?.id],
+  queryFn: async () => {
+    console.log('🔄 ClientDashboard: Obteniendo membresía actual...');
+    try {
+      const membership = await membershipService.getCurrentMembership();
+      
+      if (membership) {
+        console.log('✅ ClientDashboard: Membresía encontrada:', {
+          id: membership.id,
+          status: membership.status,
+          isPending: membership.isPending,
+          paymentMethod: membership.payment?.paymentMethod
+        });
+      } else {
+        console.log('ℹ️ ClientDashboard: No hay membresía activa');
+      }
+      
+      return membership;
+    } catch (error) {
+      console.error('❌ ClientDashboard: Error obteniendo membresía:', error);
       // Solo mostrar error si no es 404 (sin membresía) o 401 (sin autenticación)
       if (error.response?.status !== 404 && error.response?.status !== 401) {
-        showError('Error al cargar tu membresía actual');
+        throw error; // Re-throw para que React Query maneje el error
       }
+      return null; // Sin membresía, no es un error
     }
-  });
+  },
+  staleTime: 2 * 60 * 1000, // 2 minutos 
+  retry: 2,
+  enabled: !!user?.id, // Solo ejecutar si hay usuario autenticado
+  refetchOnWindowFocus: true, // Actualizar cuando el usuario vuelve a la ventana
+  refetchInterval: 5 * 60 * 1000, // Actualizar cada 5 minutos automáticamente
+});
   
   // Horarios actuales del cliente
   const { data: currentSchedule, isLoading: scheduleLoading, refetch: refetchSchedule } = useQuery({
@@ -185,27 +205,79 @@ const ClientDashboard = () => {
   
   // Estado de la membresía
  const getMembershipStatus = () => {
-    if (!currentMembership) return { status: 'none', message: 'Sin membresía', color: 'red' };
-    
-    // ✅ CORREGIDO: Usar estado 'pending' real de la BD + validaciones adicionales
-    if (currentMembership.status === 'pending' || currentMembership.isPending || currentMembership.requiresValidation) {
+  // ✅ VALIDACIÓN INICIAL: Sin membresía
+  if (!currentMembership) {
+    return { status: 'none', message: 'Sin membresía', color: 'red' };
+  }
+  
+  console.log('🔍 Evaluando estado de membresía:', {
+    id: currentMembership.id,
+    status: currentMembership.status,
+    isPending: currentMembership.isPending,
+    requiresValidation: currentMembership.requiresValidation,
+    paymentMethod: currentMembership.payment?.paymentMethod,
+    daysUntilExpiry: daysUntilExpiry
+  });
+  
+  // ✅ PRIORIDAD 1: Estados pendientes (efectivo/transferencia)
+  if (currentMembership.status === 'pending' || currentMembership.isPending || currentMembership.requiresValidation) {
+    console.log('⏳ Membresía en estado PENDIENTE');
+    return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
+  }
+  
+  // ✅ PRIORIDAD 2: Validación adicional para pagos pendientes
+  if (currentMembership.payment && currentMembership.payment.status === 'pending') {
+    if (currentMembership.payment.paymentMethod === 'transfer' || currentMembership.payment.paymentMethod === 'cash') {
+      console.log('💳 Pago pendiente detectado:', currentMembership.payment.paymentMethod);
       return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
     }
-    
-    // Validación adicional: Si el pago está pendiente pero la membresía no
-    if (currentMembership.payment?.status === 'pending' && 
-        (currentMembership.payment?.paymentMethod === 'transfer' || currentMembership.payment?.paymentMethod === 'cash')) {
-      return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
+  }
+  
+  // ✅ PRIORIDAD 3: Estados por vencimiento (solo para membresías activas)
+  if (currentMembership.status === 'active') {
+    if (daysUntilExpiry === null || daysUntilExpiry === undefined) {
+      console.log('✅ Membresía ACTIVA sin límite de tiempo');
+      return { status: 'active', message: 'Activa', color: 'green' };
     }
     
-    if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
+    if (daysUntilExpiry < 0) {
+      console.log('❌ Membresía VENCIDA');
+      return { status: 'expired', message: 'Vencida', color: 'red' };
+    }
     
-    if (daysUntilExpiry < 0) return { status: 'expired', message: 'Vencida', color: 'red' };
-    if (daysUntilExpiry <= 3) return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
-    if (daysUntilExpiry <= 7) return { status: 'warning', message: 'Vence pronto', color: 'orange' };
+    if (daysUntilExpiry <= 3) {
+      console.log('⚠️ Membresía POR VENCER (≤3 días)');
+      return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
+    }
     
+    if (daysUntilExpiry <= 7) {
+      console.log('⚠️ Membresía VENCE PRONTO (≤7 días)');
+      return { status: 'warning', message: 'Vence pronto', color: 'orange' };
+    }
+    
+    console.log('✅ Membresía ACTIVA');
     return { status: 'active', message: 'Activa', color: 'green' };
+  }
+  
+  // ✅ PRIORIDAD 4: Otros estados específicos
+  if (currentMembership.status === 'expired') {
+    console.log('❌ Estado explícito: VENCIDA');
+    return { status: 'expired', message: 'Vencida', color: 'red' };
+  }
+  
+  if (currentMembership.status === 'cancelled') {
+    console.log('🚫 Estado: CANCELADA');
+    return { status: 'cancelled', message: 'Cancelada', color: 'red' };
+  }
+  
+  // ✅ FALLBACK: Estado desconocido pero mostrar información disponible
+  console.log('⚠️ Estado de membresía desconocido:', currentMembership.status);
+  return { 
+    status: 'unknown', 
+    message: currentMembership.status || 'Estado desconocido', 
+    color: 'gray' 
   };
+};
   
   const membershipStatus = getMembershipStatus();
 
@@ -457,7 +529,7 @@ const ClientDashboard = () => {
       )}
 
       {/* Alerta para membresía pendiente */}
-{membershipStatus.status === 'pending' && (
+{membershipStatus.status === 'pending' && currentMembership && (
   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
     <div className="flex items-center justify-between">
       <div className="flex items-center">
@@ -467,13 +539,24 @@ const ClientDashboard = () => {
             Tu membresía está siendo validada
           </h3>
           <p className="text-sm text-yellow-700 mt-1">
-            {currentMembership?.payment?.paymentMethod === 'transfer' && 
+            {currentMembership.payment?.paymentMethod === 'transfer' && 
               'Validando transferencia bancaria - Te notificaremos cuando esté lista'
             }
-            {currentMembership?.payment?.paymentMethod === 'cash' && 
+            {currentMembership.payment?.paymentMethod === 'cash' && 
               'Visita el gimnasio para completar tu pago en efectivo'
             }
+            {(!currentMembership.payment?.paymentMethod || 
+              (currentMembership.payment?.paymentMethod !== 'transfer' && 
+               currentMembership.payment?.paymentMethod !== 'cash')) && 
+              'Procesando tu membresía - Te notificaremos pronto'
+            }
           </p>
+          {/* Información adicional de la membresía */}
+          <div className="text-xs text-yellow-600 mt-2">
+            Plan: {currentMembership.plan?.name || currentMembership.type || 'Membresía'} • 
+            Precio: Q{currentMembership.price} • 
+            ID: {currentMembership.id}
+          </div>
         </div>
       </div>
       <div className="flex space-x-2">
@@ -484,7 +567,7 @@ const ClientDashboard = () => {
           <RefreshCw className="w-4 h-4 mr-1" />
           Actualizar
         </button>
-        {currentMembership?.payment?.paymentMethod === 'cash' && (
+        {currentMembership.payment?.paymentMethod === 'cash' && (
           <button
             onClick={() => window.open('https://maps.google.com/?q=Elite+Fitness+Club', '_blank')}
             className="btn-outline btn-sm"

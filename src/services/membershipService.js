@@ -296,84 +296,157 @@ class MembershipService {
   
   // ✅ CORREGIDO: OBTENER MEMBRESÍA ACTUAL CON VALIDACIÓN DE ESTADOS
 async getCurrentMembership() {
+  try {
+    console.log('🔍 Buscando membresía actual del usuario...');
+    
+    let membership = null;
+    
+    // ✅ PASO 1: Intentar obtener membresía activa primero
     try {
-      let membership = null;
+      console.log('📋 Intentando obtener membresía activa...');
+      const activeResponse = await apiService.get('/api/memberships/my-current');
       
-      // PASO 1: Intentar obtener membresía activa primero
-      try {
-        const activeResponse = await apiService.get('/api/memberships/my-current');
-        
-        if (activeResponse?.success && activeResponse.data?.membership) {
-          membership = activeResponse.data.membership;
-          return this.processMembershipForFrontend(membership);
-        }
-      } catch (error) {
-        if (error.response?.status !== 404) {
-          console.error('Error obteniendo membresía activa:', error);
-        }
+      if (activeResponse?.success && activeResponse.data?.membership) {
+        membership = activeResponse.data.membership;
+        console.log('✅ Membresía activa encontrada:', membership.id, 'Estado:', membership.status);
+        return this.processMembershipForFrontend(membership);
       }
-      
-      // PASO 2: Buscar membresías pendientes usando parámetros
-      try {
-        const pendingResponse = await apiService.get('/api/memberships?status=pending');
-        
-        if (pendingResponse?.success && pendingResponse.data?.memberships) {
-          const pendingMemberships = pendingResponse.data.memberships;
-          
-          if (pendingMemberships.length > 0) {
-            const relevantPending = pendingMemberships.filter(m => {
-              const isCashOrTransfer = m.payment?.paymentMethod === 'cash' || m.payment?.paymentMethod === 'transfer';
-              return isCashOrTransfer;
-            });
-            
-            if (relevantPending.length > 0) {
-              membership = relevantPending.sort((a, b) => 
-                new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
-              )[0];
-              
-              return this.processMembershipForFrontend(membership);
-            }
-          }
-        }
-      } catch (error) {
-        // FALLBACK: Si falla la ruta con parámetros, intentar ruta original
-        try {
-          const fallbackResponse = await apiService.get('/api/memberships');
-          
-          if (fallbackResponse?.success && fallbackResponse.data?.memberships) {
-            const allMemberships = fallbackResponse.data.memberships;
-            
-            const pendingMemberships = allMemberships.filter(m => {
-              const isPending = m.status === 'pending';
-              const isCashOrTransfer = m.payment?.paymentMethod === 'cash' || m.payment?.paymentMethod === 'transfer';
-              return isPending && isCashOrTransfer;
-            });
-            
-            if (pendingMemberships.length > 0) {
-              membership = pendingMemberships.sort((a, b) => 
-                new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
-              )[0];
-              
-              return this.processMembershipForFrontend(membership);
-            }
-          }
-        } catch (fallbackError) {
-          console.error('Error en fallback:', fallbackError);
-        }
-      }
-      
-      return null;
-      
     } catch (error) {
-      console.error('Error general obteniendo membresía actual:', error);
-      
       if (error.response?.status !== 404) {
-        throw error;
+        console.error('❌ Error obteniendo membresía activa:', error.message);
+      } else {
+        console.log('ℹ️ No hay membresía activa (404)');
       }
+    }
+    
+    // ✅ PASO 2: Buscar membresías en historial (incluyendo pendientes)
+    try {
+      console.log('📜 Buscando en historial de membresías...');
+      const historyResponse = await apiService.get('/api/memberships');
       
+      if (historyResponse?.success && historyResponse.data?.memberships) {
+        const memberships = historyResponse.data.memberships;
+        console.log(`📊 Encontradas ${memberships.length} membresías en historial`);
+        
+        if (memberships.length > 0) {
+          // Ordenar por fecha de creación (más reciente primero)
+          const sortedMemberships = memberships.sort((a, b) => 
+            new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
+          );
+          
+          // ✅ LÓGICA CORREGIDA: Buscar membresía actual válida
+          for (const mem of sortedMemberships) {
+            console.log(`🔍 Evaluando membresía ${mem.id}:`, {
+              status: mem.status,
+              paymentMethod: mem.payment?.paymentMethod,
+              createdAt: mem.createdAt,
+              isRecent: this.isMembershipRecent(mem)
+            });
+            
+            // ✅ CRITERIO 1: Membresía pendiente reciente (menos de 24 horas)
+            if (mem.status === 'pending' && this.isMembershipRecent(mem)) {
+              console.log('✅ Membresía PENDIENTE reciente encontrada');
+              membership = mem;
+              break;
+            }
+            
+            // ✅ CRITERIO 2: Membresía activa
+            if (mem.status === 'active') {
+              console.log('✅ Membresía ACTIVA encontrada');
+              membership = mem;
+              break;
+            }
+            
+            // ✅ CRITERIO 3: Membresía no vencida (endDate > hoy)
+            if (mem.endDate && new Date(mem.endDate) > new Date()) {
+              console.log('✅ Membresía NO VENCIDA encontrada');
+              membership = mem;
+              break;
+            }
+          }
+          
+          // ✅ FALLBACK: Si no encontró ninguna válida, tomar la más reciente
+          if (!membership && sortedMemberships.length > 0) {
+            const mostRecent = sortedMemberships[0];
+            const hoursAgo = (new Date() - new Date(mostRecent.createdAt)) / (1000 * 60 * 60);
+            
+            // Solo si es muy reciente (menos de 48 horas)
+            if (hoursAgo < 48) {
+              console.log(`⚠️ Tomando membresía más reciente como fallback (${hoursAgo.toFixed(1)}h ago)`);
+              membership = mostRecent;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error obteniendo historial:', error.message);
+    }
+    
+    // ✅ PASO 3: Procesar resultado final
+    if (membership) {
+      console.log(`✅ MEMBRESÍA ENCONTRADA:`, {
+        id: membership.id,
+        status: membership.status,
+        paymentMethod: membership.payment?.paymentMethod,
+        isActive: membership.status === 'active',
+        isPending: membership.status === 'pending'
+      });
+      
+      return this.processMembershipForFrontend(membership);
+    } else {
+      console.log('❌ No se encontró ninguna membresía válida');
       return null;
     }
+    
+  } catch (error) {
+    console.error('❌ Error general obteniendo membresía actual:', error);
+    throw error;
   }
+}
+
+// ✅ MÉTODO HELPER: Verificar si membresía es reciente
+isMembershipRecent(membership, hoursThreshold = 24) {
+  if (!membership.createdAt) return false;
+  
+  const createdTime = new Date(membership.createdAt);
+  const hoursAgo = (new Date() - createdTime) / (1000 * 60 * 60);
+  
+  return hoursAgo <= hoursThreshold;
+}
+
+// ✅ MÉTODO HELPER CORREGIDO: Procesar membresía para frontend
+processMembershipForFrontend(membership) {
+  if (!membership) return null;
+  
+  console.log('🔄 Procesando membresía para frontend:', membership.id);
+  
+  // ✅ CORREGIR FLAGS según el estado real
+  const processed = { ...membership };
+  
+  if (membership.status === 'pending') {
+    processed.isActive = false;
+    processed.requiresValidation = true;
+    processed.isPending = true;
+    console.log('   ⏳ Marcada como PENDIENTE');
+  } else if (membership.status === 'active') {
+    processed.isActive = true;
+    processed.requiresValidation = false;
+    processed.isPending = false;
+    console.log('   ✅ Marcada como ACTIVA');
+  } else {
+    // Para otros estados (expired, cancelled, etc.)
+    processed.isActive = false;
+    processed.requiresValidation = false;
+    processed.isPending = false;
+    console.log(`   📊 Estado: ${membership.status}`);
+  }
+  
+  // ✅ AGREGAR información adicional útil para el dashboard
+  processed.daysUntilExpiry = this.calculateDaysUntilExpiry(processed.endDate);
+  processed.isRecent = this.isMembershipRecent(processed);
+  
+  return processed;
+}
 
 
   // NUEVO MÉTODO: Procesar membresía para el frontend
