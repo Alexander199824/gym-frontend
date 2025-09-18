@@ -66,12 +66,14 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   ];
   
   // Estados de membresía
-  const membershipStatuses = [
-    { value: 'active', label: 'Activa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-    { value: 'expired', label: 'Vencida', color: 'bg-red-100 text-red-800', icon: XCircle },
-    { value: 'cancelled', label: 'Cancelada', color: 'bg-gray-100 text-gray-800', icon: XCircle },
-    { value: 'suspended', label: 'Suspendida', color: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle }
-  ];
+ const membershipStatuses = [
+  { value: 'active', label: 'Activa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+  { value: 'pending', label: 'Pendiente', color: 'bg-blue-100 text-blue-800', icon: Clock },
+  { value: 'pending_validation', label: 'Pendiente Validación', color: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
+  { value: 'expired', label: 'Vencida', color: 'bg-red-100 text-red-800', icon: XCircle },
+  { value: 'cancelled', label: 'Cancelada', color: 'bg-gray-100 text-gray-800', icon: XCircle },
+  { value: 'suspended', label: 'Suspendida', color: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle }
+];
   
   // CARGAR DATOS
   const loadMemberships = async () => {
@@ -340,20 +342,119 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   };
   
   // Obtener información del estado
-  const getStatusInfo = (status) => {
-    return membershipStatuses.find(s => s.value === status) || membershipStatuses[0]; // Default: active
+ const getStatusInfo = (status) => {
+  // Mapeo completo de todos los estados posibles
+  const statusMap = {
+    'active': { 
+      value: 'active', 
+      label: 'Activa', 
+      color: 'bg-green-100 text-green-800', 
+      icon: CheckCircle 
+    },
+    'pending': { 
+      value: 'pending', 
+      label: 'Pendiente', 
+      color: 'bg-blue-100 text-blue-800', 
+      icon: Clock 
+    },
+    'pending_validation': { 
+      value: 'pending_validation', 
+      label: 'Pendiente Validación', 
+      color: 'bg-orange-100 text-orange-800', 
+      icon: AlertTriangle 
+    },
+    'expired': { 
+      value: 'expired', 
+      label: 'Vencida', 
+      color: 'bg-red-100 text-red-800', 
+      icon: XCircle 
+    },
+    'cancelled': { 
+      value: 'cancelled', 
+      label: 'Cancelada', 
+      color: 'bg-gray-100 text-gray-800', 
+      icon: XCircle 
+    },
+    'suspended': { 
+      value: 'suspended', 
+      label: 'Suspendida', 
+      color: 'bg-yellow-100 text-yellow-800', 
+      icon: AlertTriangle 
+    }
   };
+  
+  // Buscar el estado en el mapeo
+  const statusInfo = statusMap[status];
+  
+  // Si el estado no existe, crear uno genérico
+  if (!statusInfo) {
+    console.warn('⚠️ Estado no reconocido en getStatusInfo:', status);
+    return {
+      value: status,
+      label: status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Desconocido',
+      color: 'bg-gray-100 text-gray-800',
+      icon: AlertTriangle
+    };
+  }
+  
+  return statusInfo;
+};
+
   
   // Determinar estado actual de la membresía
   const getCurrentStatus = (membership) => {
-    const now = new Date();
-    const endDate = new Date(membership.endDate);
-    
-    if (membership.status === 'cancelled') return 'cancelled';
-    if (membership.status === 'suspended') return 'suspended';
-    if (endDate < now) return 'expired';
+  const now = new Date();
+  const endDate = new Date(membership.endDate);
+  
+  // 🔍 Logging para debugging (opcional)
+  console.log('Evaluando estado de membresía:', {
+    membershipId: membership.id,
+    statusFromDB: membership.status,
+    endDate: membership.endDate
+  });
+  
+  // ✅ PRIORIDAD 1: Estados explícitos de cancelación/suspensión
+  if (membership.status === 'cancelled') {
+    console.log('→ Estado: CANCELADA');
+    return 'cancelled';
+  }
+  
+  if (membership.status === 'suspended') {
+    console.log('→ Estado: SUSPENDIDA');
+    return 'suspended';
+  }
+  
+  // ✅ PRIORIDAD 2: Estados pendientes (CRÍTICO para transferencias)
+  if (membership.status === 'pending') {
+    console.log('→ Estado: PENDIENTE');
+    return 'pending';
+  }
+  
+  if (membership.status === 'pending_validation') {
+    console.log('→ Estado: PENDIENTE VALIDACIÓN');
+    return 'pending_validation';
+  }
+  
+  // ✅ PRIORIDAD 3: Verificar expiración SOLO para membresías activas
+  if (membership.status === 'active') {
+    if (endDate < now) {
+      console.log('→ Estado: VENCIDA (activa pero fecha pasada)');
+      return 'expired';
+    }
+    console.log('→ Estado: ACTIVA');
     return 'active';
-  };
+  }
+  
+  // ✅ PRIORIDAD 4: Estado explícito de expiración
+  if (membership.status === 'expired') {
+    console.log('→ Estado: VENCIDA (desde BD)');
+    return 'expired';
+  }
+  
+  // ⚠️ FALLBACK: Estado no reconocido
+  console.warn('⚠️ Estado no reconocido:', membership.status);
+  return membership.status || 'pending';
+};
   
   // Cálculo de paginación
   const totalPages = Math.max(1, Math.ceil(totalMemberships / membershipsPerPage));
