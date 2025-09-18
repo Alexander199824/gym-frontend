@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+
 import { 
   CreditCard, 
   Coins, 
@@ -89,10 +90,13 @@ const ClientDashboard = () => {
   const { data: currentMembership, isLoading: membershipLoading, refetch: refetchMembership } = useQuery({
     queryKey: ['currentMembership', user?.id],
     queryFn: () => membershipService.getCurrentMembership(),
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
+    staleTime: 2 * 60 * 1000, // Reducido de 5 a 2 minutos para mejor detección
+    retry: 2, // Aumentado para mejorar detección
+    enabled: !!user?.id, // Solo ejecutar si hay usuario
     onError: (error) => {
-      if (error.response?.status !== 404) {
+      console.error('Error en query de membresía:', error);
+      // Solo mostrar error si no es 404 (sin membresía) o 401 (sin autenticación)
+      if (error.response?.status !== 404 && error.response?.status !== 401) {
         showError('Error al cargar tu membresía actual');
       }
     }
@@ -181,21 +185,27 @@ const ClientDashboard = () => {
   
   // Estado de la membresía
  const getMembershipStatus = () => {
-  if (!currentMembership) return { status: 'none', message: 'Sin membresía', color: 'red' };
-  
-  // ✅ CORREGIDO: Usar estado 'pending' real de la BD
-  if (currentMembership.status === 'pending') {
-    return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
-  }
-  
-  if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
-  
-  if (daysUntilExpiry < 0) return { status: 'expired', message: 'Vencida', color: 'red' };
-  if (daysUntilExpiry <= 3) return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
-  if (daysUntilExpiry <= 7) return { status: 'warning', message: 'Vence pronto', color: 'orange' };
-  
-  return { status: 'active', message: 'Activa', color: 'green' };
-};
+    if (!currentMembership) return { status: 'none', message: 'Sin membresía', color: 'red' };
+    
+    // ✅ CORREGIDO: Usar estado 'pending' real de la BD + validaciones adicionales
+    if (currentMembership.status === 'pending' || currentMembership.isPending || currentMembership.requiresValidation) {
+      return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
+    }
+    
+    // Validación adicional: Si el pago está pendiente pero la membresía no
+    if (currentMembership.payment?.status === 'pending' && 
+        (currentMembership.payment?.paymentMethod === 'transfer' || currentMembership.payment?.paymentMethod === 'cash')) {
+      return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
+    }
+    
+    if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
+    
+    if (daysUntilExpiry < 0) return { status: 'expired', message: 'Vencida', color: 'red' };
+    if (daysUntilExpiry <= 3) return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
+    if (daysUntilExpiry <= 7) return { status: 'warning', message: 'Vence pronto', color: 'orange' };
+    
+    return { status: 'active', message: 'Activa', color: 'green' };
+  };
   
   const membershipStatus = getMembershipStatus();
 
@@ -329,7 +339,7 @@ const ClientDashboard = () => {
       {/* MÉTRICAS PERSONALES ACTUALIZADAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
-        {/* Estado de membresía */}
+        {/* Estado de membresía - MÉTRICA MEJORADA */}
         <div 
           className={`cursor-pointer transition-transform hover:scale-105 ${
             !currentMembership || membershipStatus.status === 'pending' ? 'ring-2 ring-opacity-50' : ''
@@ -346,8 +356,12 @@ const ClientDashboard = () => {
             color={membershipStatus.color}
             isLoading={membershipLoading}
             subtitle={
+              membershipLoading ? 'Verificando estado...' :
               currentMembership ? 
-                getTranslatedMembershipType() || 'Membresía activa' :
+                (membershipStatus.status === 'pending' ? 
+                  `${currentMembership.payment?.paymentMethod === 'transfer' ? 'Transferencia' : 'Efectivo'} pendiente` :
+                  getTranslatedMembershipType() || 'Membresía activa'
+                ) :
                 'Haz clic para obtener una'
             }
             alert={!currentMembership || membershipStatus.status === 'pending'}
@@ -415,8 +429,8 @@ const ClientDashboard = () => {
         
       </div>
       
-      {/* ALERTAS IMPORTANTES */}
-      {!currentMembership && (
+      {/* ALERTAS IMPORTANTES - CONDICIÓN MEJORADA */}
+      {!currentMembership && !membershipLoading && (
         <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 shadow-lg">
           <div className="flex items-center">
             <AlertTriangle className="w-8 h-8 text-red-500 mr-4" />

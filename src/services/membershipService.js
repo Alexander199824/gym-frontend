@@ -296,287 +296,202 @@ class MembershipService {
   
   // ✅ CORREGIDO: OBTENER MEMBRESÍA ACTUAL CON VALIDACIÓN DE ESTADOS
 async getCurrentMembership() {
-  try {
-    console.log('🔍 Obteniendo membresía actual del usuario (usando rutas con parámetros)...');
-    
-    let membership = null;
-    
-    // ✅ PASO 1: Intentar obtener membresía activa primero
     try {
-      console.log('🔍 Paso 1: Buscando membresía activa...');
-      const activeResponse = await apiService.get('/api/memberships/my-current');
+      let membership = null;
       
-      if (activeResponse?.success && activeResponse.data?.membership) {
-        membership = activeResponse.data.membership;
-        console.log('✅ Membresía activa encontrada:', membership.id);
-        console.log('📊 Estado de membresía activa:', membership.status);
-        return membership;
-      }
-    } catch (error) {
-      if (error.response?.status !== 404) {
-        console.error('❌ Error obteniendo membresía activa:', error);
-      } else {
-        console.log('ℹ️ No hay membresía activa, buscando membresías pendientes...');
-      }
-    }
-    
-    // ✅ PASO 2: Buscar membresías pendientes usando la ruta con parámetros
-    try {
-      console.log('🔍 Paso 2: Buscando membresías pendientes usando ?status=pending...');
-      
-      // ✅ USAR LA RUTA CON PARÁMETROS COMO SUGIRIÓ EL USUARIO
-      const pendingResponse = await apiService.get('/api/memberships?status=pending');
-      
-      console.log('📥 Respuesta de membresías pendientes:', pendingResponse);
-      
-      if (pendingResponse?.success && pendingResponse.data?.memberships) {
-        const pendingMemberships = pendingResponse.data.memberships;
-        console.log(`📋 Total membresías pendientes encontradas: ${pendingMemberships.length}`);
-        
-        if (pendingMemberships.length > 0) {
-          // Filtrar solo las de efectivo y transferencia
-          const relevantPending = pendingMemberships.filter(m => {
-            const isCashOrTransfer = m.payment?.paymentMethod === 'cash' || m.payment?.paymentMethod === 'transfer';
-            
-            console.log(`🔍 Membresía ${m.id}:`, {
-              status: m.status,
-              paymentMethod: m.payment?.paymentMethod,
-              isCashOrTransfer,
-              createdAt: m.createdAt
-            });
-            
-            return isCashOrTransfer;
-          });
-          
-          if (relevantPending.length > 0) {
-            // Tomar la más reciente
-            membership = relevantPending.sort((a, b) => 
-              new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
-            )[0];
-            
-            console.log(`✅ Membresía pendiente encontrada: ${membership.id} (${membership.payment?.paymentMethod})`);
-            
-            // ✅ Marcar con flags adicionales para el frontend
-            membership.isActive = false;
-            membership.requiresValidation = true;
-            membership.isPending = true;
-            
-            console.log('🔧 Membresía pendiente procesada:', {
-              id: membership.id,
-              status: membership.status,
-              paymentMethod: membership.payment?.paymentMethod,
-              paymentStatus: membership.payment?.status,
-              requiresValidation: membership.requiresValidation
-            });
-            
-            return membership;
-          } else {
-            console.log('ℹ️ No se encontraron membresías pendientes de efectivo/transferencia');
-          }
-        } else {
-          console.log('ℹ️ No hay membresías pendientes');
-        }
-      } else {
-        console.log('ℹ️ Respuesta vacía o sin membresías pendientes');
-      }
-    } catch (error) {
-      console.error('❌ Error buscando membresías pendientes:', error);
-      
-      // ✅ FALLBACK: Si la ruta con parámetros falla, intentar la ruta original
-      console.log('🔄 Fallback: Intentando ruta original /api/memberships...');
-      
+      // PASO 1: Intentar obtener membresía activa primero
       try {
-        const fallbackResponse = await apiService.get('/api/memberships');
+        const activeResponse = await apiService.get('/api/memberships/my-current');
         
-        if (fallbackResponse?.success && fallbackResponse.data?.memberships) {
-          const allMemberships = fallbackResponse.data.memberships;
-          console.log(`📋 Fallback: Total membresías encontradas: ${allMemberships.length}`);
-          
-          const pendingMemberships = allMemberships.filter(m => {
-            const isPending = m.status === 'pending';
-            const isCashOrTransfer = m.payment?.paymentMethod === 'cash' || m.payment?.paymentMethod === 'transfer';
-            
-            console.log(`🔍 Fallback - Membresía ${m.id}:`, {
-              status: m.status,
-              paymentMethod: m.payment?.paymentMethod,
-              isPending,
-              isCashOrTransfer
-            });
-            
-            return isPending && isCashOrTransfer;
-          });
+        if (activeResponse?.success && activeResponse.data?.membership) {
+          membership = activeResponse.data.membership;
+          return this.processMembershipForFrontend(membership);
+        }
+      } catch (error) {
+        if (error.response?.status !== 404) {
+          console.error('Error obteniendo membresía activa:', error);
+        }
+      }
+      
+      // PASO 2: Buscar membresías pendientes usando parámetros
+      try {
+        const pendingResponse = await apiService.get('/api/memberships?status=pending');
+        
+        if (pendingResponse?.success && pendingResponse.data?.memberships) {
+          const pendingMemberships = pendingResponse.data.memberships;
           
           if (pendingMemberships.length > 0) {
-            membership = pendingMemberships.sort((a, b) => 
-              new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
-            )[0];
+            const relevantPending = pendingMemberships.filter(m => {
+              const isCashOrTransfer = m.payment?.paymentMethod === 'cash' || m.payment?.paymentMethod === 'transfer';
+              return isCashOrTransfer;
+            });
             
-            console.log(`✅ Fallback: Membresía pendiente encontrada: ${membership.id}`);
-            
-            membership.isActive = false;
-            membership.requiresValidation = true;
-            membership.isPending = true;
-            
-            return membership;
+            if (relevantPending.length > 0) {
+              membership = relevantPending.sort((a, b) => 
+                new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
+              )[0];
+              
+              return this.processMembershipForFrontend(membership);
+            }
           }
         }
-      } catch (fallbackError) {
-        console.error('❌ Error en fallback:', fallbackError);
+      } catch (error) {
+        // FALLBACK: Si falla la ruta con parámetros, intentar ruta original
+        try {
+          const fallbackResponse = await apiService.get('/api/memberships');
+          
+          if (fallbackResponse?.success && fallbackResponse.data?.memberships) {
+            const allMemberships = fallbackResponse.data.memberships;
+            
+            const pendingMemberships = allMemberships.filter(m => {
+              const isPending = m.status === 'pending';
+              const isCashOrTransfer = m.payment?.paymentMethod === 'cash' || m.payment?.paymentMethod === 'transfer';
+              return isPending && isCashOrTransfer;
+            });
+            
+            if (pendingMemberships.length > 0) {
+              membership = pendingMemberships.sort((a, b) => 
+                new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
+              )[0];
+              
+              return this.processMembershipForFrontend(membership);
+            }
+          }
+        } catch (fallbackError) {
+          console.error('Error en fallback:', fallbackError);
+        }
       }
+      
+      return null;
+      
+    } catch (error) {
+      console.error('Error general obteniendo membresía actual:', error);
+      
+      if (error.response?.status !== 404) {
+        throw error;
+      }
+      
+      return null;
     }
-    
-    console.log('ℹ️ No se encontró ninguna membresía (activa o pendiente)');
-    return null;
-    
-  } catch (error) {
-    console.error('❌ Error general obteniendo membresía actual:', error);
-    
-    // Solo lanzar error si no es 404
-    if (error.response?.status !== 404) {
-      throw error;
-    }
-    
-    return null;
   }
-}
 
+
+  // NUEVO MÉTODO: Procesar membresía para el frontend
+  processMembershipForFrontend(membership) {
+    if (!membership) return null;
+    
+    // Marcar flags según el estado
+    if (membership.status === 'pending') {
+      membership.isActive = false;
+      membership.requiresValidation = true;
+      membership.isPending = true;
+    } else if (membership.status === 'active') {
+      membership.isActive = true;
+      membership.requiresValidation = false;
+      membership.isPending = false;
+    }
+    
+    return membership;
+  }
 // ✅ AGREGAR este nuevo método en membershipService.js
 
 async canPurchaseNewMembership() {
-  try {
-    console.log('🔍 Verificando si el usuario puede comprar una nueva membresía...');
-    
-    const currentMembership = await this.getCurrentMembership();
-    
-    if (!currentMembership) {
-      console.log('✅ Usuario puede comprar - no tiene membresías');
-      return {
-        canPurchase: true,
-        reason: 'no_membership'
-      };
-    }
-    
-    console.log('📊 Membresía encontrada para validación:', {
-      id: currentMembership.id,
-      status: currentMembership.status,
-      paymentMethod: currentMembership.payment?.paymentMethod,
-      paymentStatus: currentMembership.payment?.status,
-      isActive: currentMembership.isActive,
-      isPending: currentMembership.isPending
-    });
-    
-    // Si tiene membresía activa, no puede comprar
-    if (currentMembership.status === 'active') {
-      console.log('❌ Usuario NO puede comprar - tiene membresía activa');
-      return {
-        canPurchase: false,
-        reason: 'active_membership',
-        membership: currentMembership
-      };
-    }
-    
-    // ✅ Si tiene membresía pendiente (estado 'pending'), no puede comprar
-    if (currentMembership.status === 'pending' || currentMembership.isPending) {
-      console.log('❌ Usuario NO puede comprar - tiene membresía pendiente');
-      console.log('❌ Detalles de membresía pendiente:', {
-        id: currentMembership.id,
-        paymentMethod: currentMembership.payment?.paymentMethod,
-        paymentStatus: currentMembership.payment?.status
-      });
+    try {
+      const currentMembership = await this.getCurrentMembership();
       
+      if (!currentMembership) {
+        return {
+          canPurchase: true,
+          reason: 'no_membership'
+        };
+      }
+      
+      // Si tiene membresía activa, no puede comprar
+      if (currentMembership.status === 'active') {
+        return {
+          canPurchase: false,
+          reason: 'active_membership',
+          membership: currentMembership
+        };
+      }
+      
+      // Si tiene membresía pendiente, no puede comprar
+      if (currentMembership.status === 'pending' || currentMembership.isPending) {
+        return {
+          canPurchase: false,
+          reason: 'pending_membership',
+          membership: currentMembership
+        };
+      }
+      
+      // Si la membresía está vencida, puede comprar
+      if (currentMembership.status === 'expired') {
+        return {
+          canPurchase: true,
+          reason: 'expired_membership'
+        };
+      }
+      
+      // Default: no permitir
       return {
         canPurchase: false,
-        reason: 'pending_membership',
+        reason: 'unknown',
         membership: currentMembership
       };
-    }
-    
-    // Si la membresía está vencida, puede comprar
-    if (currentMembership.status === 'expired') {
-      console.log('✅ Usuario puede comprar - membresía anterior vencida');
+      
+    } catch (error) {
+      console.error('Error verificando si puede comprar membresía:', error);
+      
+      // En caso de error, permitir compra para no bloquear al usuario
       return {
         canPurchase: true,
-        reason: 'expired_membership'
+        reason: 'error',
+        error: error.message
       };
     }
-    
-    // Default: no permitir
-    console.log('❌ Usuario NO puede comprar - estado desconocido:', currentMembership.status);
-    return {
-      canPurchase: false,
-      reason: 'unknown',
-      membership: currentMembership
-    };
-    
-  } catch (error) {
-    console.error('❌ Error verificando si puede comprar membresía:', error);
-    
-    // En caso de error, permitir compra para no bloquear al usuario
-    return {
-      canPurchase: true,
-      reason: 'error',
-      error: error.message
-    };
   }
-}
   
   // OBTENER: Membresías del usuario
   
-async getUserMemberships() {
-  try {
-    console.log('📋 Obteniendo membresías del usuario...');
-    
-    const response = await apiService.get('/api/memberships');
-    
-    if (response?.success && response.data?.memberships) {
-      return response.data.memberships.map(membership => {
-        
-        // ✅ CORREGIDO: Aplicar validaciones usando estado 'pending' real
-        if (membership.payment?.paymentMethod === 'transfer') {
-          // Verificar consistencia de estados
-          if (membership.payment.status === 'pending' && membership.status === 'active') {
-            console.warn('⚠️ Membresía histórica inconsistente corregida:', membership.id);
-            membership.status = 'pending'; // Usar estado real de BD
-            membership.isActive = false;
-          }
-        }
-        
-        // ✅ NUEVO: Validaciones para efectivo
-        if (membership.payment?.paymentMethod === 'cash') {
-          if (membership.payment.status === 'pending' && membership.status === 'active') {
-            console.warn('⚠️ Membresía de efectivo inconsistente corregida:', membership.id);
-            membership.status = 'pending'; // Usar estado real de BD
-            membership.isActive = false;
-          }
-        }
-        
-        return {
-          id: membership.id,
-          type: membership.type,
-          status: membership.status,
-          startDate: membership.startDate,
-          endDate: membership.endDate,
-          price: membership.price,
-          autoRenew: membership.autoRenew,
-          daysUntilExpiry: this.calculateDaysUntilExpiry(membership.endDate),
-          plan: membership.plan,
-          schedule: membership.schedule,
-          summary: membership.summary,
-          payment: membership.payment,
-          requiresValidation: membership.requiresValidation || 
-            (membership.status === 'pending' && 
-             (membership.payment?.paymentMethod === 'transfer' || membership.payment?.paymentMethod === 'cash'))
-        };
-      });
+ async getUserMemberships() {
+    try {
+      const response = await apiService.get('/api/memberships');
+      
+      if (response?.success && response.data?.memberships) {
+        return response.data.memberships.map(membership => {
+          
+          // Procesar membresía para consistencia
+          const processedMembership = this.processMembershipForFrontend(membership);
+          
+          return {
+            id: processedMembership.id,
+            type: processedMembership.type,
+            status: processedMembership.status,
+            startDate: processedMembership.startDate,
+            endDate: processedMembership.endDate,
+            price: processedMembership.price,
+            autoRenew: processedMembership.autoRenew,
+            daysUntilExpiry: this.calculateDaysUntilExpiry(processedMembership.endDate),
+            plan: processedMembership.plan,
+            schedule: processedMembership.schedule,
+            summary: processedMembership.summary,
+            payment: processedMembership.payment,
+            isActive: processedMembership.isActive,
+            isPending: processedMembership.isPending,
+            requiresValidation: processedMembership.requiresValidation || 
+              (processedMembership.status === 'pending' && 
+               (processedMembership.payment?.paymentMethod === 'transfer' || processedMembership.payment?.paymentMethod === 'cash'))
+          };
+        });
+      }
+      
+      throw new Error(response?.message || 'Error obteniendo membresías del usuario');
+      
+    } catch (error) {
+      console.error('Error obteniendo membresías del usuario:', error);
+      throw error;
     }
-    
-    throw new Error(response?.message || 'Error obteniendo membresías del usuario');
-    
-  } catch (error) {
-    console.error('❌ Error obteniendo membresías del usuario:', error);
-    throw error;
   }
-}
   
   // ✅ NUEVO: VERIFICAR ESTADO REAL DEL PAGO CON VALIDACIÓN
   async checkPaymentStatus(paymentId) {

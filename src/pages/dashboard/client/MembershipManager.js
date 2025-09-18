@@ -90,10 +90,11 @@ const MembershipManager = ({ onBack }) => {
   const daysUntilExpiry = currentMembership ? getDaysUntilExpiry(currentMembership.endDate) : null;
 
   // Estado de la membresía
-  const getMembershipStatus = () => {
+   const getMembershipStatus = () => {
     if (!currentMembership) return { status: 'none', message: 'Sin membresía', color: 'red' };
     
-    if (currentMembership.status === 'pending_validation') {
+    // ✅ CORREGIDO: Usar estado 'pending' real de la BD (no 'pending_validation')
+    if (currentMembership.status === 'pending') {
       return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
     }
     
