@@ -192,20 +192,25 @@ const ClientDashboard = () => {
   const scheduledDays = Object.values(scheduleData).filter(day => day.hasSlots).length;
   
   // Calcular días hasta vencimiento
-  const getDaysUntilExpiry = (endDate) => {
-    if (!endDate) return null;
-    const today = new Date();
-    const expiry = new Date(endDate);
-    const diffTime = expiry - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
+  const getDaysUntilExpiry = (endDate, membershipStatus) => {
+  // ✅ Las membresías canceladas NO tienen días activos
+  if (membershipStatus === 'cancelled') {
+    return null;
+  }
   
-  const daysUntilExpiry = currentMembership ? getDaysUntilExpiry(currentMembership.endDate) : null;
+  if (!endDate) return null;
+  const today = new Date();
+  const expiry = new Date(endDate);
+  const diffTime = expiry - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+};
+  
+const daysUntilExpiry = currentMembership ? 
+  getDaysUntilExpiry(currentMembership.endDate, currentMembership.status) : null;
   
   // Estado de la membresía
  const getMembershipStatus = () => {
-  // ✅ VALIDACIÓN INICIAL: Sin membresía
   if (!currentMembership) {
     return { status: 'none', message: 'Sin membresía', color: 'red' };
   }
@@ -219,18 +224,16 @@ const ClientDashboard = () => {
     daysUntilExpiry: daysUntilExpiry
   });
   
-  // ✅ PRIORIDAD 1: Estados pendientes (efectivo/transferencia)
+  // ✅ PRIORIDAD 1: Estados pendientes
   if (currentMembership.status === 'pending' || currentMembership.isPending || currentMembership.requiresValidation) {
     console.log('⏳ Membresía en estado PENDIENTE');
     return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
   }
   
-  // ✅ PRIORIDAD 2: Validación adicional para pagos pendientes
-  if (currentMembership.payment && currentMembership.payment.status === 'pending') {
-    if (currentMembership.payment.paymentMethod === 'transfer' || currentMembership.payment.paymentMethod === 'cash') {
-      console.log('💳 Pago pendiente detectado:', currentMembership.payment.paymentMethod);
-      return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
-    }
+  // ✅ PRIORIDAD 2: Estado cancelado (sin días)
+  if (currentMembership.status === 'cancelled') {
+    console.log('🚫 Estado: CANCELADA');
+    return { status: 'cancelled', message: 'Cancelada', color: 'gray' };
   }
   
   // ✅ PRIORIDAD 3: Estados por vencimiento (solo para membresías activas)
@@ -265,12 +268,7 @@ const ClientDashboard = () => {
     return { status: 'expired', message: 'Vencida', color: 'red' };
   }
   
-  if (currentMembership.status === 'cancelled') {
-    console.log('🚫 Estado: CANCELADA');
-    return { status: 'cancelled', message: 'Cancelada', color: 'red' };
-  }
-  
-  // ✅ FALLBACK: Estado desconocido pero mostrar información disponible
+  // ✅ FALLBACK: Estado desconocido
   console.log('⚠️ Estado de membresía desconocido:', currentMembership.status);
   return { 
     status: 'unknown', 
@@ -278,6 +276,7 @@ const ClientDashboard = () => {
     color: 'gray' 
   };
 };
+
   
   const membershipStatus = getMembershipStatus();
 

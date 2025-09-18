@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/dashboard/client/MembershipManager.js
-// GESTIÓN COMPLETA DE MEMBRESÍAS DEL CLIENTE
+// VERSIÓN COMPLETA CON MEJORAS: Sin bloqueo de secciones + Traducciones + Lógica corregida
 
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -26,7 +26,10 @@ import {
   Phone,
   Mail,
   Zap,
-  Shield
+  Shield,
+  Ban,
+  HourglassIcon,
+  XCircle
 } from 'lucide-react';
 
 import { useAuth } from '../../../contexts/AuthContext';
@@ -77,9 +80,75 @@ const MembershipManager = ({ onBack }) => {
     onError: (error) => showError('Error al cargar tu historial de membresías')
   });
 
-  // Calcular días hasta vencimiento
-  const getDaysUntilExpiry = (endDate) => {
+  // ✅ FUNCIÓN CORREGIDA: Información del estado (sin bloqueo)
+  const getPlanChangeInfo = () => {
+    if (!currentMembership) {
+      return { 
+        canShow: true, 
+        reason: 'no_membership',
+        buttonText: 'Obtener Membresía'
+      };
+    }
+
+    // ✅ PERMITIR navegación pero mostrar advertencia si está pendiente
+    if (currentMembership.status === 'pending' || currentMembership.isPending) {
+      return {
+        canShow: true,
+        showWarning: true,
+        reason: 'pending_membership',
+        buttonText: 'Cambiar Plan',
+        warningTitle: 'Tu plan actual está pendiente',
+        warningMessage: 'Por el momento no es posible cambiar de plan hasta que se confirme tu membresía actual.',
+        warningDetails: currentMembership.payment?.paymentMethod === 'transfer' ? 
+          'Esperando validación de transferencia bancaria' :
+          currentMembership.payment?.paymentMethod === 'cash' ?
+          'Esperando pago en gimnasio' : 
+          'En proceso de validación'
+      };
+    }
+
+    // ✅ PERMITIR para todos los demás estados
+    if (currentMembership.status === 'active') {
+      return {
+        canShow: true,
+        reason: 'active_membership',
+        buttonText: 'Cambiar Plan'
+      };
+    }
+
+    if (currentMembership.status === 'expired') {
+      return {
+        canShow: true,
+        reason: 'expired_membership',
+        buttonText: 'Renovar Plan'
+      };
+    }
+
+    if (currentMembership.status === 'cancelled') {
+      return {
+        canShow: true,
+        reason: 'cancelled_membership',
+        buttonText: 'Nueva Membresía'
+      };
+    }
+
+    // ✅ DEFAULT: Permitir navegación
+    return {
+      canShow: true,
+      reason: 'unknown_status',
+      buttonText: 'Ver Planes'
+    };
+  };
+
+  // ✅ FUNCIÓN CORREGIDA: Calcular días hasta vencimiento (excluir canceladas)
+  const getDaysUntilExpiry = (endDate, membershipStatus) => {
+    // ✅ Las membresías canceladas NO tienen días activos
+    if (membershipStatus === 'cancelled') {
+      return null;
+    }
+    
     if (!endDate) return null;
+    
     const today = new Date();
     const expiry = new Date(endDate);
     const diffTime = expiry - today;
@@ -87,30 +156,58 @@ const MembershipManager = ({ onBack }) => {
     return diffDays;
   };
 
-  const daysUntilExpiry = currentMembership ? getDaysUntilExpiry(currentMembership.endDate) : null;
+  const daysUntilExpiry = currentMembership ? 
+    getDaysUntilExpiry(currentMembership.endDate, currentMembership.status) : null;
 
-  // Estado de la membresía
-   const getMembershipStatus = () => {
+  // ✅ FUNCIÓN CORREGIDA: Estado de la membresía
+  const getMembershipStatus = () => {
     if (!currentMembership) return { status: 'none', message: 'Sin membresía', color: 'red' };
     
-    // ✅ CORREGIDO: Usar estado 'pending' real de la BD (no 'pending_validation')
-    if (currentMembership.status === 'pending') {
+    // ✅ PRIORIDAD 1: Estados pendientes
+    if (currentMembership.status === 'pending' || currentMembership.isPending) {
       return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
     }
     
-    if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
+    // ✅ PRIORIDAD 2: Estado cancelado (sin días)
+    if (currentMembership.status === 'cancelled') {
+      return { status: 'cancelled', message: 'Cancelada', color: 'gray' };
+    }
     
-    if (daysUntilExpiry < 0) return { status: 'expired', message: 'Vencida', color: 'red' };
-    if (daysUntilExpiry <= 3) return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
-    if (daysUntilExpiry <= 7) return { status: 'warning', message: 'Vence pronto', color: 'orange' };
+    // ✅ PRIORIDAD 3: Estados por vencimiento (solo para activas)
+    if (currentMembership.status === 'active') {
+      if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
+      
+      if (daysUntilExpiry < 0) return { status: 'expired', message: 'Vencida', color: 'red' };
+      if (daysUntilExpiry <= 3) return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
+      if (daysUntilExpiry <= 7) return { status: 'warning', message: 'Vence pronto', color: 'orange' };
+      
+      return { status: 'active', message: 'Activa', color: 'green' };
+    }
     
-    return { status: 'active', message: 'Activa', color: 'green' };
+    // ✅ PRIORIDAD 4: Otros estados
+    if (currentMembership.status === 'expired') {
+      return { status: 'expired', message: 'Vencida', color: 'red' };
+    }
+    
+    // ✅ FALLBACK
+    return { 
+      status: 'unknown', 
+      message: currentMembership.status || 'Estado desconocido', 
+      color: 'gray' 
+    };
   };
 
   const membershipStatus = getMembershipStatus();
+  const planChangeInfo = getPlanChangeInfo();
 
   // Handlers
   const handleSelectPlan = (plan) => {
+    // Verificar si puede comprar (lógica del backend)
+    if (planChangeInfo.showWarning) {
+      showError(planChangeInfo.warningMessage);
+      return;
+    }
+
     setSelectedPlan(plan);
     setActiveSection('checkout');
   };
@@ -177,7 +274,7 @@ const MembershipManager = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Navegación de secciones */}
+      {/* Navegación de secciones - SIN BLOQUEOS */}
       <div className="bg-white rounded-lg shadow-sm p-1">
         <div className="flex space-x-1">
           <button
@@ -192,6 +289,7 @@ const MembershipManager = ({ onBack }) => {
             Mi Membresía
           </button>
           
+          {/* ✅ BOTÓN SIEMPRE HABILITADO */}
           <button
             onClick={() => setActiveSection('plans')}
             className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -201,7 +299,7 @@ const MembershipManager = ({ onBack }) => {
             }`}
           >
             <Crown className="w-4 h-4 mr-2 inline" />
-            {currentMembership ? 'Cambiar Plan' : 'Obtener Membresía'}
+            {planChangeInfo.buttonText}
           </button>
           
           <button
@@ -238,6 +336,7 @@ const MembershipManager = ({ onBack }) => {
           currentMembership={currentMembership}
           onSelectPlan={handleSelectPlan}
           onRefresh={() => refetchPlans()}
+          planChangeInfo={planChangeInfo}
         />
       )}
 
@@ -252,7 +351,7 @@ const MembershipManager = ({ onBack }) => {
   );
 };
 
-// Sección: Membresía actual
+// ✅ SECCIÓN CORREGIDA: Membresía actual
 const CurrentMembershipSection = ({ 
   membership, 
   membershipStatus, 
@@ -260,7 +359,7 @@ const CurrentMembershipSection = ({
   isLoading, 
   onRefresh, 
   onGetMembership,
-  translateMembershipType 
+  translateMembershipType
 }) => {
   const { formatDate } = useApp();
 
@@ -321,17 +420,19 @@ const CurrentMembershipSection = ({
   return (
     <div className="space-y-6">
       
-      {/* Estado de la membresía */}
+      {/* ✅ ESTADO CORREGIDO: Con iconos apropiados para cada estado */}
       <div className={`rounded-xl p-6 ${
         membershipStatus.status === 'pending' ? 'bg-yellow-50 border-2 border-yellow-200' :
         membershipStatus.status === 'expired' ? 'bg-red-50 border-2 border-red-200' :
+        membershipStatus.status === 'cancelled' ? 'bg-gray-50 border-2 border-gray-200' :
         membershipStatus.status === 'expiring' ? 'bg-orange-50 border-2 border-orange-200' :
         'bg-green-50 border-2 border-green-200'
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            {membershipStatus.status === 'pending' && <Clock className="w-6 h-6 text-yellow-500 mr-3" />}
-            {membershipStatus.status === 'expired' && <AlertCircle className="w-6 h-6 text-red-500 mr-3" />}
+            {membershipStatus.status === 'pending' && <HourglassIcon className="w-6 h-6 text-yellow-500 mr-3" />}
+            {membershipStatus.status === 'expired' && <XCircle className="w-6 h-6 text-red-500 mr-3" />}
+            {membershipStatus.status === 'cancelled' && <Ban className="w-6 h-6 text-gray-500 mr-3" />}
             {membershipStatus.status === 'expiring' && <AlertTriangle className="w-6 h-6 text-orange-500 mr-3" />}
             {membershipStatus.status === 'active' && <CheckCircle className="w-6 h-6 text-green-500 mr-3" />}
             
@@ -339,6 +440,7 @@ const CurrentMembershipSection = ({
               <h3 className={`text-lg font-bold ${
                 membershipStatus.status === 'pending' ? 'text-yellow-800' :
                 membershipStatus.status === 'expired' ? 'text-red-800' :
+                membershipStatus.status === 'cancelled' ? 'text-gray-800' :
                 membershipStatus.status === 'expiring' ? 'text-orange-800' :
                 'text-green-800'
               }`}>
@@ -348,11 +450,13 @@ const CurrentMembershipSection = ({
               <p className={`text-sm ${
                 membershipStatus.status === 'pending' ? 'text-yellow-700' :
                 membershipStatus.status === 'expired' ? 'text-red-700' :
+                membershipStatus.status === 'cancelled' ? 'text-gray-700' :
                 membershipStatus.status === 'expiring' ? 'text-orange-700' :
                 'text-green-700'
               }`}>
                 {membershipStatus.status === 'pending' && 'Tu membresía está siendo validada por nuestro equipo'}
                 {membershipStatus.status === 'expired' && 'Tu membresía ha vencido. Renueva para continuar'}
+                {membershipStatus.status === 'cancelled' && 'Tu membresía fue cancelada'}
                 {membershipStatus.status === 'expiring' && `Tu membresía vence en ${daysUntilExpiry} día${daysUntilExpiry !== 1 ? 's' : ''}`}
                 {membershipStatus.status === 'active' && `${daysUntilExpiry ? `${daysUntilExpiry} días restantes` : 'Membresía activa'}`}
               </p>
@@ -370,7 +474,16 @@ const CurrentMembershipSection = ({
               </button>
             )}
             
-            {(membershipStatus.status === 'expired' || membershipStatus.status === 'expiring') && (
+            {(membershipStatus.status === 'expired' || membershipStatus.status === 'cancelled') && (
+              <button
+                onClick={onGetMembership}
+                className="btn-primary"
+              >
+                Obtener Nueva
+              </button>
+            )}
+            
+            {membershipStatus.status === 'expiring' && (
               <button
                 onClick={onGetMembership}
                 className="btn-primary"
@@ -405,7 +518,7 @@ const CurrentMembershipSection = ({
           isOwner={true}
         />
         
-        {/* Información adicional para pendientes */}
+        {/* ✅ INFORMACIÓN ESPECÍFICA PARA PENDIENTES */}
         {membershipStatus.status === 'pending' && membership.payment && (
           <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <h4 className="font-medium text-yellow-800 mb-2">Estado del pago</h4>
@@ -416,6 +529,10 @@ const CurrentMembershipSection = ({
                 membership.payment.paymentMethod
               }</div>
               <div>Estado: Pendiente de validación</div>
+              <div className="flex items-center mt-2">
+                <Info className="w-4 h-4 mr-1" />
+                <span className="font-medium">No puedes cambiar de plan hasta que esta membresía sea confirmada</span>
+              </div>
               {membership.payment.paymentMethod === 'cash' && (
                 <div className="flex items-center mt-2">
                   <MapPin className="w-4 h-4 mr-1" />
@@ -427,7 +544,7 @@ const CurrentMembershipSection = ({
         )}
       </div>
 
-      {/* Estadísticas rápidas */}
+      {/* ✅ ESTADÍSTICAS CORREGIDAS: Con traducción completa */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg shadow-sm p-4 text-center">
           <div className="text-2xl font-bold text-primary-600">
@@ -445,17 +562,25 @@ const CurrentMembershipSection = ({
         
         <div className="bg-white rounded-lg shadow-sm p-4 text-center">
           <div className="text-2xl font-bold text-blue-600">
-            {formatDate(membership.endDate)}
+            {membershipStatus.status === 'cancelled' ? 
+              'Cancelada' : 
+              formatDate(membership.endDate)
+            }
           </div>
-          <div className="text-sm text-gray-600">Fecha de vencimiento</div>
+          <div className="text-sm text-gray-600">
+            {membershipStatus.status === 'cancelled' ? 
+              'Estado' : 
+              'Fecha de vencimiento'
+            }
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-// Sección: Planes disponibles
-const PlansSection = ({ plans, isLoading, currentMembership, onSelectPlan, onRefresh }) => {
+// ✅ SECCIÓN CORREGIDA: Planes (sin bloqueos, solo advertencias)
+const PlansSection = ({ plans, isLoading, currentMembership, onSelectPlan, onRefresh, planChangeInfo }) => {
   if (isLoading) {
     return (
       <div className="text-center py-12">
@@ -465,29 +590,40 @@ const PlansSection = ({ plans, isLoading, currentMembership, onSelectPlan, onRef
     );
   }
 
-  if (!plans || plans.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          No hay planes disponibles
-        </h3>
-        <p className="text-gray-600 mb-4">
-          Contacta con el gimnasio para más información sobre membresías.
-        </p>
-        <button
-          onClick={onRefresh}
-          className="btn-primary"
-        >
-          Intentar de nuevo
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       
+      {/* ✅ ADVERTENCIA INFORMATIVA (sin bloquear funcionalidad) */}
+      {planChangeInfo.showWarning && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+          <div className="flex items-center mb-4">
+            <Info className="w-8 h-8 text-yellow-500 mr-4" />
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-yellow-800 mb-2">
+                {planChangeInfo.warningTitle}
+              </h3>
+              <p className="text-yellow-700 mb-3">
+                {planChangeInfo.warningMessage}
+              </p>
+              <div className="text-sm text-yellow-600">
+                <strong>Estado:</strong> {planChangeInfo.warningDetails}
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4">
+            <div className="text-sm text-yellow-800">
+              <strong>¿Qué sigue?</strong>
+              <ul className="mt-2 space-y-1 ml-4">
+                <li>• Si pagaste por transferencia: Espera la validación (1-2 días hábiles)</li>
+                <li>• Si elegiste pago en efectivo: Visita el gimnasio para completar el pago</li>
+                <li>• Una vez confirmada tu membresía, podrás cambiar de plan</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center">
         <h3 className="text-2xl font-bold text-gray-900 mb-2">
@@ -501,145 +637,183 @@ const PlansSection = ({ plans, isLoading, currentMembership, onSelectPlan, onRef
         </p>
       </div>
 
-      {/* Métodos de pago */}
-      <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6">
-        <h4 className="text-lg font-bold text-gray-900 mb-4 text-center">
-          Múltiples opciones de pago
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-center">
-            <CreditCard className="w-5 h-5 text-green-600 mr-2 flex-shrink-0" />
-            <div>
-              <span className="text-sm font-medium">Tarjeta de crédito/débito</span>
-              <div className="text-xs text-gray-600">Activación inmediata</div>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <Upload className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0" />
-            <div>
-              <span className="text-sm font-medium">Transferencia bancaria</span>
-              <div className="text-xs text-gray-600">Validación 1-2 días</div>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <DollarSign className="w-5 h-5 text-purple-600 mr-2 flex-shrink-0" />
-            <div>
-              <span className="text-sm font-medium">Efectivo en gimnasio</span>
-              <div className="text-xs text-gray-600">Pago en sucursal</div>
-            </div>
-          </div>
+      {/* Validación de planes */}
+      {!plans || plans.length === 0 ? (
+        <div className="text-center py-12">
+          <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            No hay planes disponibles
+          </h3>
+          <p className="text-gray-600 mb-4">
+            Contacta con el gimnasio para más información sobre membresías.
+          </p>
+          <button
+            onClick={onRefresh}
+            className="btn-primary"
+          >
+            Intentar de nuevo
+          </button>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Métodos de pago */}
+          <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6">
+            <h4 className="text-lg font-bold text-gray-900 mb-4 text-center">
+              Múltiples opciones de pago
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center">
+                <CreditCard className="w-5 h-5 text-green-600 mr-2 flex-shrink-0" />
+                <div>
+                  <span className="text-sm font-medium">Tarjeta de crédito/débito</span>
+                  <div className="text-xs text-gray-600">Activación inmediata</div>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <Upload className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0" />
+                <div>
+                  <span className="text-sm font-medium">Transferencia bancaria</span>
+                  <div className="text-xs text-gray-600">Validación 1-2 días</div>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <DollarSign className="w-5 h-5 text-purple-600 mr-2 flex-shrink-0" />
+                <div>
+                  <span className="text-sm font-medium">Efectivo en gimnasio</span>
+                  <div className="text-xs text-gray-600">Pago en sucursal</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {/* Grid de planes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {plans.map((plan) => {
-          const isCurrentPlan = currentMembership && currentMembership.planId === plan.id;
-          
-          return (
-            <div key={plan.id} className={`
-              relative bg-white rounded-3xl shadow-xl p-6 transition-all duration-300 hover:scale-105
-              ${plan.isPopular ? 'ring-2 ring-primary-500 scale-105' : ''}
-              ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}
-            `}>
+          {/* Grid de planes */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {plans.map((plan) => {
+              const isCurrentPlan = currentMembership && currentMembership.planId === plan.id;
+              const isDisabledByWarning = planChangeInfo.showWarning && !isCurrentPlan;
               
-              {plan.isPopular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-primary-600 text-white px-6 py-2 rounded-full text-sm font-bold">
-                    Más Popular
-                  </span>
-                </div>
-              )}
-
-              {isCurrentPlan && (
-                <div className="absolute -top-4 right-4">
-                  <span className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold">
-                    Plan Actual
-                  </span>
-                </div>
-              )}
-              
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-100 flex items-center justify-center">
-                  <Crown className="w-8 h-8 text-primary-600" />
-                </div>
-                
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
-                  {plan.name}
-                </h3>
-                
-                <div className="mb-6">
-                  <div className="flex items-baseline justify-center mb-2">
-                    <span className="text-4xl font-bold text-gray-900">
-                      Q{plan.price}
-                    </span>
-                    <span className="text-gray-600 ml-2">
-                      /{plan.durationType}
-                    </span>
-                  </div>
-                  {plan.originalPrice && plan.originalPrice > plan.price && (
-                    <div className="text-sm text-gray-500">
-                      <span className="line-through">Q{plan.originalPrice}</span>
-                      <span className="ml-2 text-green-600 font-semibold">
-                        Ahorra Q{plan.originalPrice - plan.price}
+              return (
+                <div key={plan.id} className={`
+                  relative bg-white rounded-3xl shadow-xl p-6 transition-all duration-300 hover:scale-105
+                  ${plan.isPopular ? 'ring-2 ring-primary-500 scale-105' : ''}
+                  ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}
+                  ${isDisabledByWarning ? 'opacity-75' : ''}
+                `}>
+                  
+                  {plan.isPopular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <span className="bg-primary-600 text-white px-6 py-2 rounded-full text-sm font-bold">
+                        Más Popular
                       </span>
                     </div>
                   )}
-                </div>
-                
-                {plan.description && (
-                  <p className="text-gray-600 text-sm mb-4">
-                    {plan.description}
-                  </p>
-                )}
-                
-                {plan.features && plan.features.length > 0 && (
-                  <ul className="space-y-2 mb-6 text-left">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-center text-sm">
-                        <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
-                        <span className="text-gray-700">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                
-                <button 
-                  onClick={() => onSelectPlan(plan)}
-                  disabled={isCurrentPlan}
-                  className={`w-full btn font-semibold py-3 transition-all ${
-                    isCurrentPlan 
-                      ? 'btn-secondary opacity-50 cursor-not-allowed' 
-                      : plan.isPopular 
-                      ? 'btn-primary hover:scale-105' 
-                      : 'btn-secondary hover:scale-105'
-                  }`}
-                >
-                  {isCurrentPlan ? 'Plan Actual' : 'Seleccionar Plan'}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
 
-      {/* Garantías */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <div className="flex items-center justify-center mb-4">
-          <Shield className="w-6 h-6 text-green-500 mr-2" />
-          <span className="font-semibold text-gray-900">
-            Garantía de satisfacción
-          </span>
-        </div>
-        <div className="text-center text-gray-600 text-sm">
-          <p>Proceso de compra 100% seguro • Múltiples métodos de pago • Soporte 24/7</p>
-        </div>
-      </div>
+                  {isCurrentPlan && (
+                    <div className="absolute -top-4 right-4">
+                      <span className="bg-green-600 text-white px-4 py-2 rounded-full text-sm font-bold">
+                        Plan Actual
+                      </span>
+                    </div>
+                  )}
+
+                  {isDisabledByWarning && (
+                    <div className="absolute -top-2 -right-2">
+                      <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        Bloqueado
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-100 flex items-center justify-center">
+                      <Crown className="w-8 h-8 text-primary-600" />
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">
+                      {plan.name}
+                    </h3>
+                    
+                    <div className="mb-6">
+                      <div className="flex items-baseline justify-center mb-2">
+                        <span className="text-4xl font-bold text-gray-900">
+                          Q{plan.price}
+                        </span>
+                        <span className="text-gray-600 ml-2">
+                          /{plan.durationType === 'monthly' ? 'mes' : 
+                            plan.durationType === 'yearly' ? 'año' : 
+                            plan.durationType}
+                        </span>
+                      </div>
+                      {plan.originalPrice && plan.originalPrice > plan.price && (
+                        <div className="text-sm text-gray-500">
+                          <span className="line-through">Q{plan.originalPrice}</span>
+                          <span className="ml-2 text-green-600 font-semibold">
+                            Ahorra Q{plan.originalPrice - plan.price}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {plan.description && (
+                      <p className="text-gray-600 text-sm mb-4">
+                        {plan.description}
+                      </p>
+                    )}
+                    
+                    {plan.features && plan.features.length > 0 && (
+                      <ul className="space-y-2 mb-6 text-left">
+                        {plan.features.map((feature, index) => (
+                          <li key={index} className="flex items-center text-sm">
+                            <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
+                            <span className="text-gray-700">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    
+                    <button 
+                      onClick={() => onSelectPlan(plan)}
+                      disabled={isCurrentPlan}
+                      className={`w-full btn font-semibold py-3 transition-all ${
+                        isCurrentPlan 
+                          ? 'btn-secondary opacity-50 cursor-not-allowed' 
+                          : isDisabledByWarning
+                          ? 'btn-warning hover:scale-105'
+                          : plan.isPopular 
+                          ? 'btn-primary hover:scale-105' 
+                          : 'btn-secondary hover:scale-105'
+                      }`}
+                      title={isDisabledByWarning ? planChangeInfo.warningMessage : ''}
+                    >
+                      {isCurrentPlan ? 'Plan Actual' : 
+                       isDisabledByWarning ? 'Confirma membresía actual' :
+                       'Seleccionar Plan'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Garantías */}
+          <div className="bg-gray-50 rounded-lg p-6">
+            <div className="flex items-center justify-center mb-4">
+              <Shield className="w-6 h-6 text-green-500 mr-2" />
+              <span className="font-semibold text-gray-900">
+                Garantía de satisfacción
+              </span>
+            </div>
+            <div className="text-center text-gray-600 text-sm">
+              <p>Proceso de compra 100% seguro • Múltiples métodos de pago • Soporte 24/7</p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
-// Sección: Historial
+// ✅ SECCIÓN CORREGIDA: Historial (con estados correctos y traducción)
 const HistorySection = ({ memberships, isLoading, currentMembership }) => {
   const { formatDate } = useApp();
 
@@ -682,27 +856,95 @@ const HistorySection = ({ memberships, isLoading, currentMembership }) => {
 
       <div className="space-y-4">
         {memberships.map((membership, index) => {
-          const isActive = membership.id === currentMembership?.id;
-          const isExpired = new Date(membership.endDate) < new Date();
+          const isCurrentMembership = membership.id === currentMembership?.id;
+          
+          // ✅ LÓGICA CORREGIDA: Determinar estado visual correcto
+          const getVisualStatus = () => {
+            if (isCurrentMembership) {
+              // Si es la membresía actual, usar su estado real
+              if (membership.status === 'pending') {
+                return {
+                  color: 'yellow',
+                  bgColor: 'bg-yellow-50 border-yellow-200',
+                  dotColor: 'bg-yellow-500',
+                  label: 'Pendiente',
+                  isCurrent: true
+                };
+              } else if (membership.status === 'active') {
+                return {
+                  color: 'green',
+                  bgColor: 'bg-green-50 border-green-200',
+                  dotColor: 'bg-green-500',
+                  label: 'Activa',
+                  isCurrent: true
+                };
+              } else if (membership.status === 'cancelled') {
+                return {
+                  color: 'gray',
+                  bgColor: 'bg-gray-50 border-gray-200',
+                  dotColor: 'bg-gray-500',
+                  label: 'Cancelada',
+                  isCurrent: true
+                };
+              }
+            }
+            
+            // Para membresías históricas
+            if (membership.status === 'cancelled') {
+              return {
+                color: 'gray',
+                bgColor: 'bg-gray-50 border-gray-200',
+                dotColor: 'bg-gray-400',
+                label: 'Cancelada',
+                isCurrent: false
+              };
+            }
+            
+            // Verificar si están vencidas por fecha
+            const isExpired = membership.endDate && new Date(membership.endDate) < new Date();
+            
+            if (isExpired) {
+              return {
+                color: 'gray',
+                bgColor: 'bg-gray-50 border-gray-200',
+                dotColor: 'bg-gray-400',
+                label: 'Vencida',
+                isCurrent: false
+              };
+            } else {
+              return {
+                color: 'blue',
+                bgColor: 'bg-blue-50 border-blue-200',
+                dotColor: 'bg-blue-500',
+                label: 'Histórica',
+                isCurrent: false
+              };
+            }
+          };
+
+          const visualStatus = getVisualStatus();
           
           return (
             <div key={membership.id} className={`
-              bg-white rounded-lg shadow-sm p-6 border-2
-              ${isActive ? 'border-green-500 bg-green-50' : 
-                isExpired ? 'border-gray-200' : 'border-blue-200 bg-blue-50'}
+              bg-white rounded-lg shadow-sm p-6 border-2 ${visualStatus.bgColor}
             `}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-3 ${
-                    isActive ? 'bg-green-500' : 
-                    isExpired ? 'bg-gray-400' : 'bg-blue-500'
-                  }`} />
+                  <div className={`w-3 h-3 rounded-full mr-3 ${visualStatus.dotColor}`} />
                   
                   <div>
                     <h4 className="font-semibold text-gray-900">
-                      {membership.plan?.name || membership.type}
-                      {isActive && (
-                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                      {/* ✅ TRADUCIR NOMBRE DEL PLAN */}
+                      {membership.plan?.name || 
+                       (membership.type === 'monthly' ? 'Plan Mensual' : 
+                        membership.type === 'yearly' ? 'Plan Anual' : 
+                        membership.type || 'Membresía')}
+                      {visualStatus.isCurrent && (
+                        <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                          visualStatus.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                          visualStatus.color === 'green' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
                           Actual
                         </span>
                       )}
@@ -710,6 +952,30 @@ const HistorySection = ({ memberships, isLoading, currentMembership }) => {
                     <p className="text-sm text-gray-600">
                       {formatDate(membership.startDate)} - {formatDate(membership.endDate)}
                     </p>
+                    
+                    {/* ✅ INFORMACIÓN ADICIONAL PARA ESTADOS ESPECIALES */}
+                    {membership.status === 'pending' && (
+                      <div className="flex items-center mt-1">
+                        <HourglassIcon className="w-3 h-3 text-yellow-500 mr-1" />
+                        <span className="text-xs text-yellow-600">
+                          {membership.payment?.paymentMethod === 'transfer' ? 
+                            'Validando transferencia...' : 
+                            membership.payment?.paymentMethod === 'cash' ?
+                            'Esperando pago en gimnasio...' :
+                            'En proceso de validación...'
+                          }
+                        </span>
+                      </div>
+                    )}
+                    
+                    {membership.status === 'cancelled' && (
+                      <div className="flex items-center mt-1">
+                        <Ban className="w-3 h-3 text-gray-500 mr-1" />
+                        <span className="text-xs text-gray-600">
+                          Membresía cancelada - Sin días restantes
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -718,10 +984,11 @@ const HistorySection = ({ memberships, isLoading, currentMembership }) => {
                     Q{membership.price}
                   </div>
                   <div className={`text-sm ${
-                    isActive ? 'text-green-600' : 
-                    isExpired ? 'text-gray-500' : 'text-blue-600'
+                    visualStatus.color === 'yellow' ? 'text-yellow-600' :
+                    visualStatus.color === 'green' ? 'text-green-600' : 
+                    visualStatus.color === 'blue' ? 'text-blue-600' : 'text-gray-500'
                   }`}>
-                    {isActive ? 'Activa' : isExpired ? 'Vencida' : 'Inactiva'}
+                    {visualStatus.label}
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 /*
 Autor: Alexander Echeverria
 src/services/membershipService.js
-CORREGIDO: Transferencias permanecen pendientes hasta validación manual
+VERSIÓN COMBINADA COMPLETA: Todas las validaciones y mejoras unificadas
 */
 
 import apiService from './apiService';
@@ -144,124 +144,128 @@ class MembershipService {
     }
   }
   
-  // ✅ CORREGIDO: FLUJO PRINCIPAL DE COMPRA CON VALIDACIÓN DE TRANSFERENCIAS
+  // ✅ MEJORADO: FLUJO PRINCIPAL DE COMPRA CON VALIDACIÓN COMPLETA
   async purchaseMembership(planId, selectedSchedule, paymentMethod, notes = '') {
-  try {
-    console.log('💰 Iniciando compra de membresía...');
-    console.log('📋 Método de pago:', paymentMethod);
-    
-    // ✅ PASO 1: Verificar si puede comprar
-    const canPurchaseResult = await this.canPurchaseNewMembership();
-    
-    if (!canPurchaseResult.canPurchase) {
-      console.error('❌ Usuario no puede comprar nueva membresía:', canPurchaseResult.reason);
+    try {
+      console.log('💰 Iniciando compra de membresía...');
+      console.log('📋 Método de pago:', paymentMethod);
       
-      let errorMessage = 'No puedes comprar una nueva membresía.';
+      // ✅ PASO 1: Verificar si puede comprar (usando método mejorado)
+      const canPurchaseResult = await this.canPurchaseNewMembership();
       
-      switch (canPurchaseResult.reason) {
-        case 'active_membership':
-          errorMessage = 'Ya tienes una membresía activa. Espera a que venza para renovar.';
-          break;
-        case 'pending_membership':
-          const membership = canPurchaseResult.membership;
-          if (membership.payment?.paymentMethod === 'cash') {
-            errorMessage = 'Tienes una membresía pendiente de pago en efectivo. Visita el gimnasio para completar tu pago antes de comprar otra.';
-          } else if (membership.payment?.paymentMethod === 'transfer') {
-            errorMessage = 'Tienes una membresía pendiente de validación por transferencia. Espera la confirmación antes de comprar otra.';
-          } else {
-            errorMessage = 'Tienes una membresía pendiente de validación. Espera la confirmación antes de comprar otra.';
-          }
-          break;
-        default:
-          errorMessage = 'No puedes comprar una nueva membresía en este momento.';
-      }
-      
-      throw new Error(errorMessage);
-    }
-    
-    console.log('✅ Usuario autorizado para comprar membresía');
-    
-    // ✅ PASO 2: Proceder con la compra (lógica original)
-    if (paymentMethod === 'transfer') {
-      console.log('🏦 Método de transferencia - Debe quedar PENDIENTE hasta validación manual');
-      notes = notes || 'Pago por transferencia bancaria - PENDIENTE DE VALIDACIÓN MANUAL';
-    }
-    
-    if (paymentMethod === 'cash') {
-      console.log('💵 Método de efectivo - Debe quedar PENDIENTE hasta pago en gimnasio');
-      notes = notes || 'Pago en efectivo en gimnasio - PENDIENTE DE PAGO';
-    }
-    
-    const payload = {
-      planId,
-      selectedSchedule,
-      paymentMethod,
-      notes,
-      requiresManualValidation: paymentMethod === 'transfer' || paymentMethod === 'cash'
-    };
-    
-    console.log('📤 Enviando payload de compra:', payload);
-    
-    const response = await apiService.post('/api/memberships/purchase', payload);
-    
-    console.log('📥 Respuesta del backend:', response);
-    
-    if (response?.success && response.data) {
-      const result = {
-        membership: response.data.membership,
-        payment: response.data.payment,
-        plan: response.data.plan,
-        user: response.data.user
-      };
-      
-      // ✅ CORREGIDO: Validaciones de estado usando 'pending' real
-      if (paymentMethod === 'transfer') {
-        if (result.membership?.status === 'active') {
-          console.error('❌ ERROR: Membresía por transferencia se activó automáticamente');
-          result.membership.status = 'pending'; // Usar estado real de BD
-          result.membership.isActive = false;
-          result.membership.requiresValidation = true;
+      if (!canPurchaseResult.canPurchase) {
+        console.error('❌ Usuario no puede comprar nueva membresía:', canPurchaseResult.reason);
+        
+        // ✅ MENSAJES ESPECÍFICOS MEJORADOS por tipo
+        let errorMessage = 'No puedes comprar una nueva membresía.';
+        
+        switch (canPurchaseResult.reason) {
+          case 'active_membership':
+            errorMessage = 'Ya tienes una membresía activa. Espera a que venza para renovar.';
+            break;
+          case 'pending_membership':
+            const membership = canPurchaseResult.membership;
+            if (membership.payment?.paymentMethod === 'cash') {
+              errorMessage = 'Tienes una membresía pendiente de pago en efectivo. Visita el gimnasio para completar tu pago antes de comprar otra.';
+            } else if (membership.payment?.paymentMethod === 'transfer') {
+              errorMessage = 'Tienes una membresía pendiente de validación por transferencia. Espera la confirmación antes de comprar otra.';
+            } else {
+              errorMessage = 'Tienes una membresía pendiente de validación. Espera la confirmación antes de comprar otra.';
+            }
+            break;
+          default:
+            errorMessage = canPurchaseResult.message || 'No puedes comprar una nueva membresía en este momento.';
         }
         
-        if (result.payment?.status === 'completed') {
-          console.error('❌ ERROR: Pago por transferencia marcado como completado');
-          result.payment.status = 'pending';
-          result.payment.requiresValidation = true;
-        }
+        throw new Error(errorMessage);
+      }
+      
+      console.log('✅ Usuario autorizado para comprar membresía');
+      
+      // ✅ PASO 2: Proceder con la compra con validaciones específicas
+      if (paymentMethod === 'transfer') {
+        console.log('🏦 Método de transferencia - Debe quedar PENDIENTE hasta validación manual');
+        notes = notes || 'Pago por transferencia bancaria - PENDIENTE DE VALIDACIÓN MANUAL';
       }
       
       if (paymentMethod === 'cash') {
-        if (result.membership?.status === 'active') {
-          console.error('❌ ERROR: Membresía por efectivo se activó automáticamente');
-          result.membership.status = 'pending'; // Usar estado real de BD
-          result.membership.isActive = false;
-          result.membership.requiresValidation = true;
-        }
-        
-        if (result.payment?.status === 'completed') {
-          console.error('❌ ERROR: Pago por efectivo marcado como completado');
-          result.payment.status = 'pending';
-          result.payment.requiresValidation = true;
-        }
+        console.log('💵 Método de efectivo - Debe quedar PENDIENTE hasta pago en gimnasio');
+        notes = notes || 'Pago en efectivo en gimnasio - PENDIENTE DE PAGO';
       }
       
-      console.log('✅ Compra completada exitosamente:', {
-        membershipId: result.membership.id,
-        status: result.membership.status,
-        paymentMethod: result.payment.paymentMethod,
-        paymentStatus: result.payment.status
-      });
+      const payload = {
+        planId,
+        selectedSchedule,
+        paymentMethod,
+        notes,
+        requiresManualValidation: paymentMethod === 'transfer' || paymentMethod === 'cash'
+      };
       
-      return result;
+      console.log('📤 Enviando payload de compra:', payload);
+      
+      const response = await apiService.post('/api/memberships/purchase', payload);
+      
+      console.log('📥 Respuesta del backend:', response);
+      
+      if (response?.success && response.data) {
+        const result = {
+          membership: response.data.membership,
+          payment: response.data.payment,
+          plan: response.data.plan,
+          user: response.data.user
+        };
+        
+        // ✅ VALIDACIONES DE SEGURIDAD COMBINADAS
+        result.membership = this.validateMembershipStateFromBackend(result.membership, paymentMethod);
+        result.payment = this.validatePaymentStateFromBackend(result.payment, paymentMethod);
+        
+        console.log('✅ Compra completada exitosamente:', {
+          membershipId: result.membership.id,
+          status: result.membership.status,
+          paymentMethod: result.payment.paymentMethod,
+          paymentStatus: result.payment.status
+        });
+        
+        return result;
+      }
+      
+      throw new Error(response?.message || 'Error comprando membresía');
+      
+    } catch (error) {
+      console.error('❌ Error en purchaseMembership:', error);
+      throw error;
     }
-    
-    throw new Error(response?.message || 'Error comprando membresía');
-    
-  } catch (error) {
-    console.error('❌ Error en purchaseMembership:', error);
-    throw error;
   }
-}
+
+  // ✅ MEJORADO: Validar estado de membresía desde backend
+  validateMembershipStateFromBackend(membership, paymentMethod) {
+    if (!membership) return membership;
+
+    // Para transferencias y efectivo, NUNCA debe estar activa inmediatamente
+    if ((paymentMethod === 'transfer' || paymentMethod === 'cash') && membership.status === 'active') {
+      console.error('❌ ERROR CRÍTICO: Membresía activada automáticamente para método que requiere validación manual');
+      membership.status = 'pending';
+      membership.isActive = false;
+      membership.requiresValidation = true;
+      membership.isPending = true;
+    }
+
+    return membership;
+  }
+
+  // ✅ MEJORADO: Validar estado de pago desde backend
+  validatePaymentStateFromBackend(payment, paymentMethod) {
+    if (!payment) return payment;
+
+    // Para transferencias y efectivo, NUNCA debe estar completado inmediatamente
+    if ((paymentMethod === 'transfer' || paymentMethod === 'cash') && payment.status === 'completed') {
+      console.error('❌ ERROR CRÍTICO: Pago marcado como completado para método que requiere validación manual');
+      payment.status = 'pending';
+      payment.requiresValidation = true;
+    }
+
+    return payment;
+  }
   
   // FLUJO TRANSFERENCIA: Subir comprobante
   async uploadTransferProof(paymentId, proofFile) {
@@ -294,252 +298,279 @@ class MembershipService {
     }
   }
   
-  // ✅ CORREGIDO: OBTENER MEMBRESÍA ACTUAL CON VALIDACIÓN DE ESTADOS
-async getCurrentMembership() {
-  try {
-    console.log('🔍 Buscando membresía actual del usuario...');
-    
-    let membership = null;
-    
-    // ✅ PASO 1: Intentar obtener membresía activa primero
+  // ✅ MEJORADO: OBTENER MEMBRESÍA ACTUAL CON MEJOR LÓGICA
+  async getCurrentMembership() {
     try {
-      console.log('📋 Intentando obtener membresía activa...');
-      const activeResponse = await apiService.get('/api/memberships/my-current');
+      console.log('🔍 Buscando membresía actual del usuario...');
       
-      if (activeResponse?.success && activeResponse.data?.membership) {
-        membership = activeResponse.data.membership;
-        console.log('✅ Membresía activa encontrada:', membership.id, 'Estado:', membership.status);
-        return this.processMembershipForFrontend(membership);
-      }
-    } catch (error) {
-      if (error.response?.status !== 404) {
-        console.error('❌ Error obteniendo membresía activa:', error.message);
-      } else {
-        console.log('ℹ️ No hay membresía activa (404)');
-      }
-    }
-    
-    // ✅ PASO 2: Buscar membresías en historial (incluyendo pendientes)
-    try {
-      console.log('📜 Buscando en historial de membresías...');
-      const historyResponse = await apiService.get('/api/memberships');
+      let membership = null;
       
-      if (historyResponse?.success && historyResponse.data?.memberships) {
-        const memberships = historyResponse.data.memberships;
-        console.log(`📊 Encontradas ${memberships.length} membresías en historial`);
+      // ✅ PASO 1: Intentar obtener membresía activa primero
+      try {
+        console.log('📋 Intentando obtener membresía activa...');
+        const activeResponse = await apiService.get('/api/memberships/my-current');
         
-        if (memberships.length > 0) {
-          // Ordenar por fecha de creación (más reciente primero)
-          const sortedMemberships = memberships.sort((a, b) => 
-            new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
-          );
-          
-          // ✅ LÓGICA CORREGIDA: Buscar membresía actual válida
-          for (const mem of sortedMemberships) {
-            console.log(`🔍 Evaluando membresía ${mem.id}:`, {
-              status: mem.status,
-              paymentMethod: mem.payment?.paymentMethod,
-              createdAt: mem.createdAt,
-              isRecent: this.isMembershipRecent(mem)
-            });
-            
-            // ✅ CRITERIO 1: Membresía pendiente reciente (menos de 24 horas)
-            if (mem.status === 'pending' && this.isMembershipRecent(mem)) {
-              console.log('✅ Membresía PENDIENTE reciente encontrada');
-              membership = mem;
-              break;
-            }
-            
-            // ✅ CRITERIO 2: Membresía activa
-            if (mem.status === 'active') {
-              console.log('✅ Membresía ACTIVA encontrada');
-              membership = mem;
-              break;
-            }
-            
-            // ✅ CRITERIO 3: Membresía no vencida (endDate > hoy)
-            if (mem.endDate && new Date(mem.endDate) > new Date()) {
-              console.log('✅ Membresía NO VENCIDA encontrada');
-              membership = mem;
-              break;
-            }
-          }
-          
-          // ✅ FALLBACK: Si no encontró ninguna válida, tomar la más reciente
-          if (!membership && sortedMemberships.length > 0) {
-            const mostRecent = sortedMemberships[0];
-            const hoursAgo = (new Date() - new Date(mostRecent.createdAt)) / (1000 * 60 * 60);
-            
-            // Solo si es muy reciente (menos de 48 horas)
-            if (hoursAgo < 48) {
-              console.log(`⚠️ Tomando membresía más reciente como fallback (${hoursAgo.toFixed(1)}h ago)`);
-              membership = mostRecent;
-            }
-          }
+        if (activeResponse?.success && activeResponse.data?.membership) {
+          membership = activeResponse.data.membership;
+          console.log('✅ Membresía activa encontrada:', membership.id, 'Estado:', membership.status);
+          return this.processMembershipForFrontend(membership);
+        }
+      } catch (error) {
+        if (error.response?.status !== 404) {
+          console.error('❌ Error obteniendo membresía activa:', error.message);
+        } else {
+          console.log('ℹ️ No hay membresía activa (404)');
         }
       }
+      
+      // ✅ PASO 2: Buscar membresías en historial (incluyendo pendientes)
+      try {
+        console.log('📜 Buscando en historial de membresías...');
+        const historyResponse = await apiService.get('/api/memberships');
+        
+        if (historyResponse?.success && historyResponse.data?.memberships) {
+          const memberships = historyResponse.data.memberships;
+          console.log(`📊 Encontradas ${memberships.length} membresías en historial`);
+          
+          if (memberships.length > 0) {
+            // Ordenar por fecha de creación (más reciente primero)
+            const sortedMemberships = memberships.sort((a, b) => 
+              new Date(b.createdAt || b.startDate) - new Date(a.createdAt || a.startDate)
+            );
+            
+            // ✅ LÓGICA MEJORADA: Buscar membresía actual válida
+            membership = this.findCurrentMembershipFromHistory(sortedMemberships);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo historial:', error.message);
+      }
+      
+      // ✅ PASO 3: Procesar resultado final
+      if (membership) {
+        console.log(`✅ MEMBRESÍA ENCONTRADA:`, {
+          id: membership.id,
+          status: membership.status,
+          paymentMethod: membership.payment?.paymentMethod,
+          isActive: membership.status === 'active',
+          isPending: membership.status === 'pending'
+        });
+        
+        return this.processMembershipForFrontend(membership);
+      } else {
+        console.log('❌ No se encontró ninguna membresía válida');
+        return null;
+      }
+      
     } catch (error) {
-      console.error('❌ Error obteniendo historial:', error.message);
+      console.error('❌ Error general obteniendo membresía actual:', error);
+      throw error;
     }
-    
-    // ✅ PASO 3: Procesar resultado final
-    if (membership) {
-      console.log(`✅ MEMBRESÍA ENCONTRADA:`, {
-        id: membership.id,
-        status: membership.status,
-        paymentMethod: membership.payment?.paymentMethod,
-        isActive: membership.status === 'active',
-        isPending: membership.status === 'pending'
+  }
+
+  // ✅ MEJORADO: Lógica mejorada para encontrar membresía actual en historial
+  findCurrentMembershipFromHistory(sortedMemberships) {
+    console.log('🔍 Analizando historial para encontrar membresía actual...');
+
+    for (const mem of sortedMemberships) {
+      console.log(`   📋 Evaluando membresía ${mem.id}:`, {
+        status: mem.status,
+        createdAt: mem.createdAt,
+        endDate: mem.endDate,
+        paymentMethod: mem.payment?.paymentMethod,
+        isRecent: this.isMembershipRecent(mem, 48) // 48 horas
       });
       
-      return this.processMembershipForFrontend(membership);
-    } else {
-      console.log('❌ No se encontró ninguna membresía válida');
-      return null;
+      // ✅ PRIORIDAD 1: Membresía pendiente reciente (menos de 48 horas)
+      if (mem.status === 'pending' && this.isMembershipRecent(mem, 48)) {
+        console.log('   ✅ PENDIENTE reciente encontrada');
+        return mem;
+      }
+      
+      // ✅ PRIORIDAD 2: Membresía activa
+      if (mem.status === 'active') {
+        console.log('   ✅ ACTIVA encontrada');
+        return mem;
+      }
+      
+      // ✅ PRIORIDAD 3: Membresía no vencida (endDate > hoy)
+      if (mem.endDate && new Date(mem.endDate) > new Date()) {
+        console.log('   ✅ NO VENCIDA encontrada');
+        return mem;
+      }
     }
     
-  } catch (error) {
-    console.error('❌ Error general obteniendo membresía actual:', error);
-    throw error;
+    // ✅ FALLBACK: Membresía más reciente si es muy reciente
+    if (sortedMemberships.length > 0) {
+      const mostRecent = sortedMemberships[0];
+      const hoursAgo = (new Date() - new Date(mostRecent.createdAt)) / (1000 * 60 * 60);
+      
+      // Solo si es muy reciente (menos de 24 horas)
+      if (hoursAgo < 24) {
+        console.log(`   ⚠️ Usando FALLBACK (${hoursAgo.toFixed(1)}h ago)`);
+        return mostRecent;
+      }
+    }
+    
+    console.log('   ❌ No se encontró membresía actual válida');
+    return null;
   }
-}
 
-// ✅ MÉTODO HELPER: Verificar si membresía es reciente
-isMembershipRecent(membership, hoursThreshold = 24) {
-  if (!membership.createdAt) return false;
-  
-  const createdTime = new Date(membership.createdAt);
-  const hoursAgo = (new Date() - createdTime) / (1000 * 60 * 60);
-  
-  return hoursAgo <= hoursThreshold;
-}
-
-// ✅ MÉTODO HELPER CORREGIDO: Procesar membresía para frontend
-processMembershipForFrontend(membership) {
-  if (!membership) return null;
-  
-  console.log('🔄 Procesando membresía para frontend:', membership.id);
-  
-  // ✅ CORREGIR FLAGS según el estado real
-  const processed = { ...membership };
-  
-  if (membership.status === 'pending') {
-    processed.isActive = false;
-    processed.requiresValidation = true;
-    processed.isPending = true;
-    console.log('   ⏳ Marcada como PENDIENTE');
-  } else if (membership.status === 'active') {
-    processed.isActive = true;
-    processed.requiresValidation = false;
-    processed.isPending = false;
-    console.log('   ✅ Marcada como ACTIVA');
-  } else {
-    // Para otros estados (expired, cancelled, etc.)
-    processed.isActive = false;
-    processed.requiresValidation = false;
-    processed.isPending = false;
-    console.log(`   📊 Estado: ${membership.status}`);
+  // ✅ MÉTODO HELPER: Verificar si membresía es reciente
+  isMembershipRecent(membership, hoursThreshold = 24) {
+    if (!membership.createdAt) return false;
+    
+    const createdTime = new Date(membership.createdAt);
+    const hoursAgo = (new Date() - createdTime) / (1000 * 60 * 60);
+    
+    return hoursAgo <= hoursThreshold;
   }
-  
-  // ✅ AGREGAR información adicional útil para el dashboard
-  processed.daysUntilExpiry = this.calculateDaysUntilExpiry(processed.endDate);
-  processed.isRecent = this.isMembershipRecent(processed);
-  
-  return processed;
-}
 
-
-  // NUEVO MÉTODO: Procesar membresía para el frontend
+  // ✅ MÉTODO MEJORADO: Procesar membresía para frontend
   processMembershipForFrontend(membership) {
     if (!membership) return null;
     
-    // Marcar flags según el estado
+    console.log('🔄 Procesando membresía para frontend:', membership.id);
+    
+    // ✅ CREAR COPIA PARA NO MUTAR ORIGINAL
+    const processed = { ...membership };
+    
+    // ✅ CORREGIR FLAGS según el estado real
     if (membership.status === 'pending') {
-      membership.isActive = false;
-      membership.requiresValidation = true;
-      membership.isPending = true;
+      processed.isActive = false;
+      processed.requiresValidation = true;
+      processed.isPending = true;
+      console.log('   ⏳ Marcada como PENDIENTE');
     } else if (membership.status === 'active') {
-      membership.isActive = true;
-      membership.requiresValidation = false;
-      membership.isPending = false;
+      processed.isActive = true;
+      processed.requiresValidation = false;
+      processed.isPending = false;
+      console.log('   ✅ Marcada como ACTIVA');
+    } else if (membership.status === 'expired') {
+      processed.isActive = false;
+      processed.requiresValidation = false;
+      processed.isPending = false;
+      console.log('   ⌛ Marcada como VENCIDA');
+    } else if (membership.status === 'cancelled') {
+      processed.isActive = false;
+      processed.requiresValidation = false;
+      processed.isPending = false;
+      console.log('   🚫 Marcada como CANCELADA');
+    } else {
+      // Para otros estados desconocidos
+      processed.isActive = false;
+      processed.requiresValidation = false;
+      processed.isPending = false;
+      console.log(`   📊 Estado desconocido: ${membership.status}`);
     }
     
-    return membership;
+    // ✅ AGREGAR información adicional útil para el dashboard
+    processed.daysUntilExpiry = this.calculateDaysUntilExpiry(processed.endDate);
+    processed.isRecent = this.isMembershipRecent(processed);
+    
+    return processed;
   }
-// ✅ AGREGAR este nuevo método en membershipService.js
 
-async canPurchaseNewMembership() {
+  // ✅ MEJORADO: Validación estricta para comprar nueva membresía
+  async canPurchaseNewMembership() {
     try {
+      console.log('🔍 Verificando si usuario puede comprar nueva membresía...');
+      
       const currentMembership = await this.getCurrentMembership();
       
       if (!currentMembership) {
+        console.log('✅ Sin membresía - Puede comprar');
         return {
           canPurchase: true,
-          reason: 'no_membership'
+          reason: 'no_membership',
+          message: 'Puede obtener membresía'
         };
       }
       
-      // Si tiene membresía activa, no puede comprar
+      console.log('📋 Membresía actual encontrada:', {
+        id: currentMembership.id,
+        status: currentMembership.status,
+        paymentMethod: currentMembership.payment?.paymentMethod
+      });
+      
+      // ✅ VALIDACIÓN 1: Si tiene membresía activa, no puede comprar
       if (currentMembership.status === 'active') {
+        console.log('❌ Membresía ACTIVA - No puede comprar');
         return {
           canPurchase: false,
           reason: 'active_membership',
-          membership: currentMembership
+          membership: currentMembership,
+          message: 'Ya tienes una membresía activa. Espera a que venza para renovar.'
         };
       }
       
-      // Si tiene membresía pendiente, no puede comprar
+      // ✅ VALIDACIÓN 2: Si tiene membresía pendiente, no puede comprar
       if (currentMembership.status === 'pending' || currentMembership.isPending) {
+        console.log('❌ Membresía PENDIENTE - No puede comprar');
+        
+        let message = 'Tienes una membresía pendiente de validación.';
+        
+        if (currentMembership.payment?.paymentMethod === 'cash') {
+          message = 'Tienes una membresía pendiente de pago en efectivo. Visita el gimnasio para completar tu pago antes de comprar otra.';
+        } else if (currentMembership.payment?.paymentMethod === 'transfer') {
+          message = 'Tienes una membresía pendiente de validación por transferencia. Espera la confirmación antes de comprar otra.';
+        }
+        
         return {
           canPurchase: false,
           reason: 'pending_membership',
-          membership: currentMembership
+          membership: currentMembership,
+          message: message
         };
       }
       
-      // Si la membresía está vencida, puede comprar
-      if (currentMembership.status === 'expired') {
+      // ✅ VALIDACIÓN 3: Si la membresía está vencida o cancelada, puede comprar
+      if (currentMembership.status === 'expired' || currentMembership.status === 'cancelled') {
+        console.log('✅ Membresía VENCIDA/CANCELADA - Puede comprar');
         return {
           canPurchase: true,
-          reason: 'expired_membership'
+          reason: currentMembership.status + '_membership',
+          message: 'Puede obtener nueva membresía'
         };
       }
       
-      // Default: no permitir
+      // ✅ FALLBACK: Por seguridad, no permitir si estado desconocido
+      console.log('❌ Estado DESCONOCIDO - No permitir por seguridad');
       return {
         canPurchase: false,
-        reason: 'unknown',
-        membership: currentMembership
+        reason: 'unknown_status',
+        membership: currentMembership,
+        message: 'Estado de membresía desconocido. Contacta soporte para verificar tu estado.'
       };
       
     } catch (error) {
-      console.error('Error verificando si puede comprar membresía:', error);
+      console.error('❌ Error verificando si puede comprar membresía:', error);
       
       // En caso de error, permitir compra para no bloquear al usuario
       return {
         canPurchase: true,
-        reason: 'error',
-        error: error.message
+        reason: 'error_fallback',
+        error: error.message,
+        message: 'Error verificando estado. Puedes intentar comprar.'
       };
     }
   }
   
-  // OBTENER: Membresías del usuario
-  
- async getUserMemberships() {
+  // ✅ MEJORADO: OBTENER MEMBRESÍAS DEL USUARIO CON PROCESAMIENTO COMPLETO
+  async getUserMemberships() {
     try {
       const response = await apiService.get('/api/memberships');
       
       if (response?.success && response.data?.memberships) {
         return response.data.memberships.map(membership => {
           
-          // Procesar membresía para consistencia
+          // ✅ Procesar membresía para consistencia de estados
           const processedMembership = this.processMembershipForFrontend(membership);
           
           return {
             id: processedMembership.id,
             type: processedMembership.type,
-            status: processedMembership.status,
+            status: processedMembership.status, // ✅ Estado real y consistente
             startDate: processedMembership.startDate,
             endDate: processedMembership.endDate,
             price: processedMembership.price,
@@ -551,9 +582,11 @@ async canPurchaseNewMembership() {
             payment: processedMembership.payment,
             isActive: processedMembership.isActive,
             isPending: processedMembership.isPending,
-            requiresValidation: processedMembership.requiresValidation || 
-              (processedMembership.status === 'pending' && 
-               (processedMembership.payment?.paymentMethod === 'transfer' || processedMembership.payment?.paymentMethod === 'cash'))
+            requiresValidation: processedMembership.requiresValidation,
+            createdAt: processedMembership.createdAt,
+            
+            // ✅ NUEVO: Estado visual mejorado para historial
+            visualStatus: this.determineVisualStatus(processedMembership)
           };
         });
       }
@@ -565,8 +598,58 @@ async canPurchaseNewMembership() {
       throw error;
     }
   }
+
+  // ✅ NUEVO: Determinar estado visual para el historial
+  determineVisualStatus(membership) {
+    // Si está pendiente
+    if (membership.status === 'pending') {
+      return {
+        label: 'Pendiente',
+        color: 'yellow',
+        description: membership.payment?.paymentMethod === 'transfer' ? 
+          'Validando transferencia...' : 
+          membership.payment?.paymentMethod === 'cash' ?
+          'Esperando pago en gimnasio...' :
+          'En proceso de validación...'
+      };
+    }
+    
+    // Si está activa
+    if (membership.status === 'active') {
+      return {
+        label: 'Activa',
+        color: 'green',
+        description: 'Membresía en uso'
+      };
+    }
+    
+    // Si está cancelada
+    if (membership.status === 'cancelled') {
+      return {
+        label: 'Cancelada',
+        color: 'gray',
+        description: 'Membresía cancelada'
+      };
+    }
+    
+    // Si está vencida (por fecha)
+    if (membership.endDate && new Date(membership.endDate) < new Date()) {
+      return {
+        label: 'Vencida',
+        color: 'gray',
+        description: 'Periodo expirado'
+      };
+    }
+    
+    // Otros casos
+    return {
+      label: membership.status || 'Desconocido',
+      color: 'gray',
+      description: 'Estado no definido'
+    };
+  }
   
-  // ✅ NUEVO: VERIFICAR ESTADO REAL DEL PAGO CON VALIDACIÓN
+  // ✅ MEJORADO: VERIFICAR ESTADO REAL DEL PAGO CON VALIDACIÓN COMPLETA
   async checkPaymentStatus(paymentId) {
     try {
       console.log('🔍 Verificando estado real del pago:', paymentId);
@@ -576,36 +659,18 @@ async canPurchaseNewMembership() {
       if (response?.success && response.data?.payment) {
         const payment = response.data.payment;
         
-        // ✅ LOGGING DETALLADO PARA DEBUGGING
-        console.log('📊 Estado completo del pago:', {
-          id: payment.id,
-          status: payment.status,
-          method: payment.paymentMethod,
-          amount: payment.amount,
-          validated: payment.transferValidated,
-          validatedBy: payment.validatedBy,
-          validatedAt: payment.validatedAt,
-          created: payment.createdAt
+        // ✅ VALIDACIÓN DE CONSISTENCIA
+        const validatedPayment = this.validatePaymentConsistency(payment);
+        
+        console.log('📊 Estado del pago validado:', {
+          id: validatedPayment.id,
+          status: validatedPayment.status,
+          method: validatedPayment.paymentMethod,
+          validated: validatedPayment.transferValidated,
+          consistent: validatedPayment.isConsistent
         });
         
-        // ✅ VALIDACIÓN: Transferencias no pueden estar completadas sin validación manual
-        if (payment.paymentMethod === 'transfer' && payment.status === 'completed') {
-          if (!payment.transferValidated || !payment.validatedBy) {
-            console.error('❌ INCONSISTENCIA: Transferencia completada sin validación manual');
-            console.error('❌ Esto indica un problema en el backend');
-          }
-        }
-        
-        return {
-          id: payment.id,
-          status: payment.status,
-          amount: payment.amount,
-          paymentMethod: payment.paymentMethod,
-          transferValidated: payment.transferValidated || false,
-          validatedBy: payment.validatedBy,
-          validatedAt: payment.validatedAt,
-          requiresManualValidation: payment.paymentMethod === 'transfer' && !payment.transferValidated
-        };
+        return validatedPayment;
       }
       
       throw new Error(response?.message || 'Error verificando estado del pago');
@@ -616,7 +681,43 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // ✅ NUEVO: POLLING MEJORADO PARA TRANSFERENCIAS PENDIENTES
+  // ✅ NUEVO: Validar consistencia de estados de pago
+  validatePaymentConsistency(payment) {
+    const validated = {
+      ...payment,
+      isConsistent: true,
+      issues: []
+    };
+
+    // Verificar consistencia para transferencias
+    if (payment.paymentMethod === 'transfer') {
+      if (payment.status === 'completed' && !payment.transferValidated) {
+        validated.issues.push('INCONSISTENCIA: Transferencia completada sin validación manual');
+        validated.isConsistent = false;
+      }
+    }
+
+    // Verificar consistencia para efectivo
+    if (payment.paymentMethod === 'cash') {
+      if (payment.status === 'completed' && !payment.cashReceived) {
+        validated.issues.push('INCONSISTENCIA: Pago en efectivo completado sin confirmación');
+        validated.isConsistent = false;
+      }
+    }
+
+    // Agregar flag de validación requerida
+    validated.requiresManualValidation = (payment.paymentMethod === 'transfer' && !payment.transferValidated) ||
+                                        (payment.paymentMethod === 'cash' && !payment.cashReceived);
+
+    // Log de issues si existen
+    if (validated.issues.length > 0) {
+      console.error('❌ Inconsistencias detectadas en pago:', validated.issues);
+    }
+
+    return validated;
+  }
+
+  // ✅ MEJORADO: POLLING AVANZADO PARA TRANSFERENCIAS PENDIENTES
   startPaymentStatusPolling(paymentId, onStatusChange, intervalMs = 60000, maxDuration = 3600000) {
     console.log(`🔄 Iniciando polling para pago ${paymentId} (transferencia)...`);
     console.log(`⏱️ Intervalo: ${intervalMs/1000}s, Duración máxima: ${maxDuration/60000} minutos`);
@@ -689,10 +790,9 @@ async canPurchaseNewMembership() {
   }
 
   // ================================
-  // 📅 MÉTODOS DE GESTIÓN DE HORARIOS ADAPTADOS (SIN CAMBIOS)
+  // 📅 MÉTODOS DE GESTIÓN DE HORARIOS COMPLETOS
   // ================================
 
-  // OBTENER: Horarios actuales del cliente (adaptado para backend actual)
   async getCurrentSchedule() {
     try {
       console.log('📅 MembershipService: Obteniendo horarios actuales del cliente...');
@@ -701,7 +801,6 @@ async canPurchaseNewMembership() {
       
       console.log('📋 MembershipService: Respuesta cruda del backend:', response);
       
-      // Usar normalización adaptada para el formato actual
       const normalizedData = this.normalizeScheduleDataFallback(response);
       console.log('✅ MembershipService: Datos normalizados:', normalizedData);
       return normalizedData;
@@ -710,7 +809,6 @@ async canPurchaseNewMembership() {
       console.error('❌ MembershipService: Error obteniendo horarios actuales:', error);
       
       if (error.response?.status === 404) {
-        // Usuario sin membresía o sin horarios
         console.log('ℹ️ Usuario sin membresía activa');
         return {
           hasMembership: false,
@@ -725,7 +823,6 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // OBTENER: Opciones de horarios disponibles (adaptado)
   async getAvailableScheduleOptions(day = null) {
     try {
       console.log('🔍 MembershipService: Obteniendo opciones de horarios disponibles...');
@@ -735,7 +832,6 @@ async canPurchaseNewMembership() {
       
       console.log('📋 MembershipService: Respuesta de opciones:', response);
       
-      // Usar normalización adaptada
       const normalizedData = this.normalizeAvailableOptionsFallback(response);
       console.log('✅ MembershipService: Opciones normalizadas:', normalizedData);
       return normalizedData;
@@ -746,17 +842,14 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // CAMBIAR: Horarios seleccionados del cliente (con validación robusta)
   async changeClientSchedule(changes) {
     try {
       console.log('✏️ MembershipService: Cambiando horarios del cliente...');
       console.log('📤 Cambios recibidos:', changes);
       
-      // Validar y limpiar cambios
       const cleanedChanges = this.validateAndCleanChangesFallback(changes);
       console.log('🧹 Cambios limpiados:', cleanedChanges);
       
-      // Determinar tipo de cambio
       const changeType = this.determineChangeType(cleanedChanges);
       
       const payload = {
@@ -778,7 +871,6 @@ async canPurchaseNewMembership() {
     } catch (error) {
       console.error('❌ MembershipService: Error cambiando horarios:', error);
       
-      // Manejo específico de errores de disponibilidad
       if (error.response?.data?.unavailableSlots) {
         throw {
           ...error,
@@ -790,12 +882,10 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // CANCELAR: Horario específico (con validación de ID)
   async cancelScheduleSlot(day, slotId) {
     try {
       console.log(`🗑️ MembershipService: Cancelando horario ${day}/${slotId}...`);
       
-      // Validar y extraer ID válido
       const validSlotId = this.extractSlotId(slotId);
       if (!validSlotId) {
         throw new Error(`ID de slot inválido: ${slotId}`);
@@ -818,7 +908,6 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // OBTENER: Estadísticas de horarios del cliente (con fallback mejorado)
   async getScheduleStats() {
     try {
       console.log('📊 MembershipService: Obteniendo estadísticas de horarios...');
@@ -836,7 +925,6 @@ async canPurchaseNewMembership() {
       console.error('❌ MembershipService: Error obteniendo estadísticas:', error);
       
       if (error.response?.status === 404) {
-        // Fallback con estadísticas vacías mejoradas
         console.log('📊 MembershipService: Usando estadísticas fallback');
         return {
           hasMembership: false,
@@ -855,12 +943,10 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // PREVISUALIZAR: Cambios de horarios antes de confirmar (mejorado)
   async previewScheduleChanges(changes) {
     try {
       console.log('👁️ MembershipService: Previsualizando cambios de horarios...');
       
-      // Validar cambios antes de previsualizar
       const cleanedChanges = this.validateAndCleanChangesFallback(changes);
       
       const response = await apiService.post('/api/memberships/my-schedule/preview-change', {
@@ -881,10 +967,9 @@ async canPurchaseNewMembership() {
   }
 
   // ================================
-  // 🛠️ MÉTODOS HELPER ADAPTADOS Y NUEVOS
+  // 🛠️ MÉTODOS HELPER COMPLETOS
   // ================================
-
-  // Extraer ID de slot de forma segura (nuevo método)
+  
   extractSlotId(slot) {
     if (typeof slot === 'number') {
       return slot > 0 ? slot : null;
@@ -904,7 +989,6 @@ async canPurchaseNewMembership() {
     return null;
   }
 
-  // Validar y limpiar cambios - fallback manual
   validateAndCleanChangesFallback(changes) {
     console.log('🔍 MembershipService: Validando cambios (fallback)...');
     
@@ -920,19 +1004,16 @@ async canPurchaseNewMembership() {
     const cleanedChanges = {};
     
     for (const [day, slots] of Object.entries(changes)) {
-      // Validar nombre del día
       if (!validDays.includes(day.toLowerCase())) {
         console.warn(`⚠️ Día inválido ignorado: ${day}`);
         continue;
       }
       
-      // Validar que slots sea un array
       if (!Array.isArray(slots)) {
         console.warn(`⚠️ Slots para ${day} no es un array:`, slots);
         continue;
       }
       
-      // Limpiar y validar IDs de slots
       const cleanedSlots = slots
         .map(slot => this.extractSlotId(slot))
         .filter(id => id !== null);
@@ -953,7 +1034,6 @@ async canPurchaseNewMembership() {
     return cleanedChanges;
   }
 
-  // Determinar tipo de cambio
   determineChangeType(changes) {
     const dayCount = Object.keys(changes).length;
     
@@ -966,7 +1046,6 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // Normalizar datos de horarios - fallback manual
   normalizeScheduleDataFallback(response) {
     console.log('🔄 MembershipService: Normalizando horarios (fallback)...');
     
@@ -974,7 +1053,6 @@ async canPurchaseNewMembership() {
       return this.getEmptyScheduleStructure();
     }
     
-    // Extraer datos de respuesta
     const data = response.data || response;
     
     if (!data.hasMembership) {
@@ -987,7 +1065,6 @@ async canPurchaseNewMembership() {
       };
     }
     
-    // Normalizar horarios actuales
     const normalizedSchedule = this.normalizeCurrentScheduleFallback(data.currentSchedule);
     
     return {
@@ -1001,7 +1078,6 @@ async canPurchaseNewMembership() {
     };
   }
 
-  // Normalizar horarios actuales - fallback
   normalizeCurrentScheduleFallback(currentSchedule) {
     const dayNames = {
       monday: 'Lunes',
@@ -1015,7 +1091,6 @@ async canPurchaseNewMembership() {
 
     const normalized = {};
 
-    // Asegurar que todos los días estén presentes
     Object.keys(dayNames).forEach(day => {
       normalized[day] = {
         dayName: dayNames[day],
@@ -1028,7 +1103,6 @@ async canPurchaseNewMembership() {
       return normalized;
     }
 
-    // Procesar cada día
     Object.entries(currentSchedule).forEach(([day, dayData]) => {
       if (dayData && dayNames[day]) {
         const slots = this.extractSlotsFromDayData(dayData);
@@ -1043,19 +1117,15 @@ async canPurchaseNewMembership() {
     return normalized;
   }
 
-  // Extraer slots de datos de día (manejo de múltiples formatos)
   extractSlotsFromDayData(dayData) {
-    // Caso 1: dayData.slots existe
     if (dayData.slots && Array.isArray(dayData.slots)) {
       return this.normalizeSlotsArray(dayData.slots);
     }
     
-    // Caso 2: dayData es un array directo
     if (Array.isArray(dayData)) {
       return this.normalizeSlotsArray(dayData);
     }
     
-    // Caso 3: dayData.hasSlots y puede tener estructura diferente
     if (dayData.hasSlots && dayData.slots) {
       return this.normalizeSlotsArray(dayData.slots);
     }
@@ -1063,7 +1133,6 @@ async canPurchaseNewMembership() {
     return [];
   }
 
-  // Normalizar array de slots
   normalizeSlotsArray(slots) {
     if (!Array.isArray(slots)) return [];
     
@@ -1082,7 +1151,6 @@ async canPurchaseNewMembership() {
         };
       }
       
-      // Si es solo un ID
       return {
         id: this.extractSlotId(slot) || index,
         timeRange: 'Horario configurado',
@@ -1097,7 +1165,6 @@ async canPurchaseNewMembership() {
     }).filter(slot => slot.id !== null);
   }
 
-  // Construir timeRange desde openTime y closeTime
   buildTimeRange(openTime, closeTime) {
     if (!openTime || !closeTime) {
       return 'Horario';
@@ -1113,7 +1180,6 @@ async canPurchaseNewMembership() {
     return `${formatTime(openTime)} - ${formatTime(closeTime)}`;
   }
 
-  // Normalizar opciones disponibles - fallback
   normalizeAvailableOptionsFallback(response) {
     console.log('🔄 MembershipService: Normalizando opciones disponibles (fallback)...');
     
@@ -1135,7 +1201,6 @@ async canPurchaseNewMembership() {
       summary: response.summary
     };
     
-    // Normalizar opciones por día
     Object.entries(response.availableOptions).forEach(([day, dayData]) => {
       normalized.availableOptions[day] = this.normalizeDayOptionsFallback(day, dayData);
     });
@@ -1143,7 +1208,6 @@ async canPurchaseNewMembership() {
     return normalized;
   }
 
-  // Normalizar opciones de día - fallback
   normalizeDayOptionsFallback(day, dayData) {
     const dayNames = {
       monday: 'Lunes',
@@ -1191,7 +1255,6 @@ async canPurchaseNewMembership() {
     return normalized;
   }
 
-  // Estructura vacía de horarios
   getEmptyScheduleStructure() {
     const dayNames = {
       monday: 'Lunes',
@@ -1222,10 +1285,9 @@ async canPurchaseNewMembership() {
   }
 
   // ================================
-  // 🛠️ MÉTODOS HELPER ORIGINALES
+  // 🛠️ MÉTODOS HELPER ADICIONALES
   // ================================
   
-  // HELPER: Calcular días hasta vencimiento
   calculateDaysUntilExpiry(endDate) {
     if (!endDate) return null;
     
@@ -1237,7 +1299,6 @@ async canPurchaseNewMembership() {
     return diffDays;
   }
 
-  // VALIDAR: Cambios de horarios (método público actualizado)
   validateScheduleChanges(changes) {
     try {
       this.validateAndCleanChangesFallback(changes);
@@ -1248,7 +1309,6 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // FORMATEAR: Horarios para visualización (actualizado)
   formatScheduleForDisplay(schedule) {
     if (!schedule || !schedule.currentSchedule) {
       console.warn('MembershipService: No hay datos de horarios para formatear');
@@ -1273,13 +1333,11 @@ async canPurchaseNewMembership() {
     return formatted;
   }
 
-  // HELPER: Verificar si es el día actual
   isToday(day) {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     return day === today;
   }
 
-  // HELPER: Verificar si el horario ya pasó
   isPastTime(timeRange) {
     if (!timeRange || timeRange === 'Horario' || timeRange === 'Horario configurado') {
       return false;
@@ -1299,7 +1357,6 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // HELPER: Formatear rango de tiempo
   formatTimeRange(timeRange) {
     if (!timeRange || timeRange === 'Horario' || timeRange === 'Horario configurado') {
       return timeRange;
@@ -1313,7 +1370,6 @@ async canPurchaseNewMembership() {
     }
   }
 
-  // HELPER: Formatear tiempo individual
   formatTime(time) {
     if (!time) return '';
     
@@ -1330,7 +1386,6 @@ async canPurchaseNewMembership() {
     }
   }
   
-  // HELPER: Selección automática de horarios básica
   autoSelectSchedule(availableOptions, planInfo) {
     const schedule = {};
     let totalReservations = 0;
@@ -1340,7 +1395,6 @@ async canPurchaseNewMembership() {
     const priorityDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
     const weekendDays = ['saturday', 'sunday'];
     
-    // Llenar días laborales primero
     for (const day of priorityDays) {
       if (availableOptions[day] && 
           availableOptions[day].isOpen && 
@@ -1355,7 +1409,6 @@ async canPurchaseNewMembership() {
             planInfo.maxReservationsPerWeek - totalReservations
           );
           
-          // Preferir horarios de mañana
           const sortedSlots = availableSlots.sort((a, b) => a.openTime.localeCompare(b.openTime));
           schedule[day] = sortedSlots.slice(0, slotsToSelect).map(slot => slot.id);
           totalReservations += slotsToSelect;
@@ -1363,7 +1416,6 @@ async canPurchaseNewMembership() {
       }
     }
     
-    // Agregar fines de semana si hay espacio
     if (totalReservations < planInfo.maxReservationsPerWeek) {
       for (const day of weekendDays) {
         if (availableOptions[day] && 
@@ -1390,11 +1442,6 @@ async canPurchaseNewMembership() {
     return schedule;
   }
 
-  // ================================
-  // 📊 HELPERS MEJORADOS PARA ESTADÍSTICAS LOCALES
-  // ================================
-
-  // Calcular estadísticas locales mejorado
   calculateLocalScheduleStats(schedule) {
     if (!schedule?.currentSchedule) {
       return null;
@@ -1420,7 +1467,6 @@ async canPurchaseNewMembership() {
       }
     });
 
-    // Encontrar horario más común
     const timeFrequency = {};
     allTimes.forEach(time => {
       timeFrequency[time] = (timeFrequency[time] || 0) + 1;
@@ -1435,7 +1481,7 @@ async canPurchaseNewMembership() {
       totalSlots,
       usedSlots: totalSlots,
       availableSlots: 0,
-      totalVisits: totalSlots * 4, // Estimación semanal
+      totalVisits: totalSlots * 4,
       favoriteTime,
       dayDistribution
     };
@@ -1444,7 +1490,6 @@ async canPurchaseNewMembership() {
     return stats;
   }
 
-  // ✅ NUEVO: Helper para trabajar con el formato de objetos completos
   extractSlotIdsFromReservedSchedule(reservedSchedule) {
     const extractedSchedule = {};
     
@@ -1474,63 +1519,55 @@ const membershipService = new MembershipService();
 export default membershipService;
 
 /*
-=== CAMBIOS CRÍTICOS REALIZADOS PARA TRANSFERENCIAS ===
+=== ARCHIVO COMBINADO COMPLETO ===
 
-✅ CAMBIOS PRINCIPALES:
+✅ **CARACTERÍSTICAS UNIFICADAS**:
 
-1. **VALIDACIÓN ESTRICTA EN purchaseMembership()**:
-   - Detecta automáticamente si el método es 'transfer'
-   - Agrega flag explícito `requiresManualValidation: true`
-   - Valida que la respuesta del backend NO active la membresía automáticamente
-   - Fuerza estado `pending_validation` si el backend lo activa incorrectamente
+1. **VALIDACIONES COMPLETAS**:
+   - Validaciones estrictas de estados de membresías y pagos
+   - Detección de inconsistencias del backend
+   - Corrección automática de estados erróneos
 
-2. **PROTECCIÓN EN getCurrentMembership()**:
-   - Verifica inconsistencias: membresía activa con pago pendiente
-   - Corrige automáticamente estados incorrectos del backend
-   - Asegura que transferencias pendientes se muestren como pendientes
+2. **MENSAJES MEJORADOS**:
+   - Mensajes específicos por método de pago
+   - Instrucciones claras para cada estado
+   - Feedback apropiado para transferencias y efectivo
 
-3. **VALIDACIÓN EN getUserMemberships()**:
-   - Aplica la misma validación a todo el historial
-   - Corrige membresías históricas inconsistentes
+3. **LÓGICA ROBUSTA**:
+   - Búsqueda inteligente de membresía actual
+   - Procesamiento consistente para frontend
+   - Validación de compras con lógica mejorada
 
-4. **MEJORAS EN checkPaymentStatus()**:
-   - Logging detallado del estado real del pago
-   - Detecta transferencias completadas sin validación manual
-   - Incluye flag `requiresManualValidation`
+4. **FUNCIONALIDAD COMPLETA DE HORARIOS**:
+   - Todos los métodos de gestión de horarios
+   - Normalización robusta de datos
+   - Manejo de múltiples formatos de respuesta
 
-5. **POLLING MEJORADO**:
-   - Intervalos más largos para transferencias (60s en lugar de 30s)
-   - Verifica que las transferencias estén realmente validadas manualmente
-   - Mejor logging para debugging
+5. **POLLING AVANZADO**:
+   - Polling específico para transferencias
+   - Intervalos optimizados
+   - Manejo completo de estados
 
-✅ FLUJO CORREGIDO:
+6. **HELPERS COMPLETOS**:
+   - Todos los métodos helper necesarios
+   - Validaciones de consistencia
+   - Formateo y procesamiento de datos
 
-1. **Usuario compra con transferencia**: 
-   - Estado: `pending_validation`
-   - Pago: `pending`
-   - Membresía: NO activa
+✅ **MÉTODOS ÚNICOS INCLUIDOS**:
+- `validateMembershipStateFromBackend()`
+- `validatePaymentStateFromBackend()` 
+- `validatePaymentConsistency()`
+- `findCurrentMembershipFromHistory()`
+- `determineVisualStatus()`
+- `startPaymentStatusPolling()` (versión avanzada)
+- Y todos los métodos de horarios completos
 
-2. **Usuario sube comprobante**:
-   - Estado sigue: `pending_validation`
-   - Pago sigue: `pending`
+✅ **BENEFICIOS**:
+- Sin pérdida de funcionalidad
+- Todas las mejoras combinadas
+- Validaciones de seguridad completas
+- Manejo robusto de errores
+- Logging detallado para debugging
 
-3. **Admin valida manualmente**:
-   - Solo entonces: Estado cambia a `active`
-   - Solo entonces: Pago cambia a `completed`
-
-✅ DETECCIÓN DE PROBLEMAS:
-
-El servicio ahora detecta y reporta:
-- Membresías activadas automáticamente con transferencias
-- Pagos marcados como completados sin validación manual
-- Inconsistencias entre estado de membresía y pago
-
-✅ FALLBACKS DE SEGURIDAD:
-
-Si el backend activa incorrectamente:
-- El frontend fuerza el estado a pendiente
-- Logs de error para debugging
-- Protege la experiencia del usuario
-
-Estos cambios aseguran que las transferencias siempre requieran validación manual.
+Este archivo combina lo mejor de ambas versiones y agrega las validaciones necesarias.
 */
