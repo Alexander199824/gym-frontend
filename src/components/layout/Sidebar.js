@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/Sidebar.js
 // FUNCIÓN: Sidebar solo para desktop con navegación colapsable
-// ACTUALIZADO: Con gestión de horarios separada del gestor web
+// ACTUALIZADO: Con inventario separado, sin badges
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -20,7 +20,8 @@ import {
   Timer,
   Calendar,
   Globe,
-  Settings
+  Settings,
+  Package
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -81,15 +82,14 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-    // 🆕 GESTIÓN DE HORARIOS - Solo para administradores con permisos
+    // Gestión de Horarios - Solo para administradores con permisos
     if (canManageContent && user?.role === 'admin') {
       baseItems.push({
         id: 'schedule_manager',
         label: 'Gestión de Horarios',
         icon: Clock,
         path: '/dashboard/admin/schedule',
-        show: true,
-        isNew: true // Marcar como nueva para destacar visualmente
+        show: true
       });
     }
     
@@ -125,15 +125,25 @@ const Sidebar = ({ collapsed }) => {
       show: true
     });
     
-    // 🆕 GESTIÓN DE PÁGINA WEB - Solo para administradores con permisos
+    // INVENTARIO Y VENTAS - Solo para administradores con permisos
+    if (canManageContent && user?.role === 'admin') {
+      baseItems.push({
+        id: 'inventory_manager',
+        label: 'Inventario y Ventas',
+        icon: Package,
+        path: '/dashboard/admin/inventory',
+        show: true
+      });
+    }
+    
+    // Gestión de Página Web - Solo para administradores con permisos
     if (canManageContent && user?.role === 'admin') {
       baseItems.push({
         id: 'website_manager',
         label: 'Gestión de Página Web',
         icon: Globe,
         path: '/dashboard/admin/website',
-        show: true,
-        isNew: true // Marcar como nueva para destacar visualmente
+        show: true
       });
     }
     
@@ -349,12 +359,6 @@ const Sidebar = ({ collapsed }) => {
                 <span className="text-sm font-medium transition-opacity duration-300">
                   {item.label}
                 </span>
-              )}
-              
-              {/* Indicador de nueva funcionalidad */}
-              {/* Punto indicador para nueva funcionalidad cuando está colapsado */}
-              {item.isNew && collapsed && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
               )}
             </Link>
           );

@@ -1,76 +1,179 @@
 // Autor: Alexander Echeverria
-// src/components/layout/MobileMenu.js
-// FUNCIÓN: Menú móvil optimizado para rendimiento sin errores de timeout
-// ACTUALIZADO: Con gestión de horarios separada del gestor web
+// src/components/layout/Sidebar.js
+// FUNCIÓN: Sidebar solo para desktop con navegación colapsable
+// ACTUALIZADO: Con inventario separado, sin badges
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  X, 
   Home, 
   Users, 
   CreditCard, 
-  DollarSign, 
+  Coins,
   BarChart3, 
-  Settings,
+  Clock,
   LogOut,
   User,
-  Calendar,
-  Search,
+  ChevronLeft,
   ChevronRight,
-  Bell,
-  ShoppingCart,
-  Package,
-  Star,
-  TrendingUp,
-  Clock,
-  HelpCircle,
-  Phone,
+  ShoppingBag,
   Timer,
-  Globe
+  Calendar,
+  Globe,
+  Settings,
+  Package
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useApp } from '../../contexts/AppContext';
 import GymLogo from '../common/GymLogo';
 
-const MobileMenu = React.memo(({ onClose }) => {
+const Sidebar = ({ collapsed }) => {
   const { user, logout, hasPermission, canManageContent } = useAuth();
+  const { toggleSidebar, showSuccess, showError } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // Estados locales optimizados
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-  const [recentPages, setRecentPages] = useState([]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  // Memoizar datos del usuario para evitar re-renders
-  const userStats = useMemo(() => {
-    if (!user) return {
-      name: 'Usuario',
-      initials: 'U',
-      role: 'Cliente',
-      avatar: null
-    };
-    
-    const firstName = user.firstName || '';
-    const lastName = user.lastName || '';
-    const userRole = user.role || 'cliente';
-    
-    return {
-      name: firstName && lastName ? `${firstName} ${lastName}` : 'Usuario',
-      initials: firstName && lastName ? `${firstName[0]}${lastName[0]}` : 'U',
-      role: userRole === 'admin' ? 'Administrador' : 
-            userRole === 'colaborador' ? 'Personal' : 'Cliente',
-      avatar: user.profileImage
-    };
-  }, [user]);
+  // Verificar si una ruta está activa
+  const isActiveRoute = (path) => location.pathname === path;
+  const isActiveSection = (paths) => paths.some(path => location.pathname.startsWith(path));
   
-  // Función memoizada: Verificar rutas activas
-  const isActiveRoute = useCallback((path) => location.pathname === path, [location.pathname]);
-  const isActiveSection = useCallback((paths) => paths.some(path => location.pathname.startsWith(path)), [location.pathname]);
+  // Obtener elementos del menú según el rol
+  const getMenuItems = () => {
+    const baseItems = [
+      {
+        id: 'dashboard',
+        label: 'Panel Principal',
+        icon: Home,
+        path: getDashboardPath(),
+        show: true
+      }
+    ];
+    
+    // Usuarios - Solo admin y colaboradores
+    if (hasPermission('view_users')) {
+      baseItems.push({
+        id: 'users',
+        label: 'Usuarios',
+        icon: Users,
+        path: '/dashboard/users',
+        show: true
+      });
+    }
+    
+    // Membresías según el rol
+    if (hasPermission('view_memberships')) {
+      // Admin/Staff: gestión completa de membresías
+      baseItems.push({
+        id: 'memberships',
+        label: 'Membresías',
+        icon: CreditCard,
+        path: '/dashboard/memberships',
+        show: true
+      });
+    } else if (user?.role === 'cliente') {
+      // Cliente: gestión de su propia membresía
+      baseItems.push({
+        id: 'my_membership',
+        label: 'Mi Membresía',
+        icon: CreditCard,
+        path: '/dashboard/client?section=membership',
+        show: true
+      });
+    }
+    
+    // Gestión de Horarios - Solo para administradores con permisos
+    if (canManageContent && user?.role === 'admin') {
+      baseItems.push({
+        id: 'schedule_manager',
+        label: 'Gestión de Horarios',
+        icon: Clock,
+        path: '/dashboard/admin/schedule',
+        show: true
+      });
+    }
+    
+    // Horarios según el rol (para clientes)
+    if (user?.role === 'cliente') {
+      // Cliente: gestión de sus propios horarios
+      baseItems.push({
+        id: 'my_schedule',
+        label: 'Mis Horarios',
+        icon: Timer,
+        path: '/dashboard/client?section=schedule',
+        show: true
+      });
+    }
+    
+    // Pagos en quetzales
+    if (hasPermission('view_payments')) {
+      baseItems.push({
+        id: 'payments',
+        label: 'Pagos (Q)',
+        icon: Coins,
+        path: '/dashboard/payments',
+        show: true
+      });
+    }
+
+    // Tienda - Disponible para todos los usuarios
+    baseItems.push({
+      id: 'store',
+      label: 'Tienda',
+      icon: ShoppingBag,
+      path: '/store',
+      show: true
+    });
+    
+    // INVENTARIO Y VENTAS - Solo para administradores con permisos
+    if (canManageContent && user?.role === 'admin') {
+      baseItems.push({
+        id: 'inventory_manager',
+        label: 'Inventario y Ventas',
+        icon: Package,
+        path: '/dashboard/admin/inventory',
+        show: true
+      });
+    }
+    
+    // Gestión de Página Web - Solo para administradores con permisos
+    if (canManageContent && user?.role === 'admin') {
+      baseItems.push({
+        id: 'website_manager',
+        label: 'Gestión de Página Web',
+        icon: Globe,
+        path: '/dashboard/admin/website',
+        show: true
+      });
+    }
+    
+    // Reportes - Solo admin y colaboradores con permisos
+    if (hasPermission('view_reports')) {
+      baseItems.push({
+        id: 'reports',
+        label: 'Reportes Financieros',
+        icon: BarChart3,
+        path: '/dashboard/reports',
+        show: true
+      });
+    }
+    
+    // Configuración del Sistema - Solo para administradores
+    if (hasPermission('manage_system_settings')) {
+      baseItems.push({
+        id: 'system_settings',
+        label: 'Configuración del Sistema',
+        icon: Settings,
+        path: '/dashboard/admin/settings',
+        show: true
+      });
+    }
+    
+    return baseItems.filter(item => item.show);
+  };
   
-  // Función memoizada: Obtener ruta del dashboard
-  const getDashboardPath = useCallback(() => {
+  // Obtener ruta del dashboard según rol
+  const getDashboardPath = () => {
     switch (user?.role) {
       case 'admin':
         return '/dashboard/admin';
@@ -81,545 +184,247 @@ const MobileMenu = React.memo(({ onClose }) => {
       default:
         return '/dashboard';
     }
-  }, [user?.role]);
+  };
   
-  // Verificar secciones específicas del cliente
-  const isActiveMembershipSection = useCallback(() => {
+  const menuItems = getMenuItems();
+  
+  // Verificar si estamos en las secciones específicas del cliente
+  const isActiveMembershipSection = () => {
     const searchParams = new URLSearchParams(location.search);
     return location.pathname === '/dashboard/client' && searchParams.get('section') === 'membership';
-  }, [location]);
+  };
   
-  const isActiveScheduleSection = useCallback(() => {
+  const isActiveScheduleSection = () => {
     const searchParams = new URLSearchParams(location.search);
     return location.pathname === '/dashboard/client' && searchParams.get('section') === 'schedule';
-  }, [location]);
+  };
   
-  // Memoizar elementos del menú para evitar re-renders
-  const menuItems = useMemo(() => {
-    const baseItems = [
-      {
-        id: 'dashboard',
-        label: 'Panel Principal',
-        icon: Home,
-        path: getDashboardPath(),
-        show: true,
-        badge: null,
-        color: 'text-blue-600'
-      }
-    ];
-    
-    // Usuarios
-    if (hasPermission('view_users')) {
-      baseItems.push({
-        id: 'users',
-        label: 'Usuarios',
-        icon: Users,
-        path: '/dashboard/users',
-        show: true,
-        badge: null,
-        color: 'text-green-600'
-      });
-    }
-    
-    // Membresías (Admin/Staff: gestión, Cliente: mi membresía)
-    if (hasPermission('view_memberships')) {
-      baseItems.push({
-        id: 'memberships',
-        label: 'Membresías',
-        icon: CreditCard,
-        path: '/dashboard/memberships',
-        show: true,
-        badge: null,
-        color: 'text-purple-600'
-      });
-    } else if (user?.role === 'cliente') {
-      baseItems.push({
-        id: 'my_membership',
-        label: 'Mi Membresía',
-        icon: CreditCard,
-        path: '/dashboard/client?section=membership',
-        show: true,
-        badge: null,
-        color: 'text-purple-600'
-      });
-    }
-    
-    // 🆕 GESTIÓN DE HORARIOS - Solo para administradores con permisos
-    if (canManageContent && user?.role === 'admin') {
-      baseItems.push({
-        id: 'schedule_manager',
-        label: 'Gestión de Horarios',
-        icon: Clock,
-        path: '/dashboard/admin/schedule',
-        show: true,
-        badge: 'Nuevo',
-        color: 'text-orange-600',
-        isNew: true
-      });
-    }
-    
-    // Horarios (Cliente: mis horarios)
-    if (user?.role === 'cliente') {
-      baseItems.push({
-        id: 'my_schedule',
-        label: 'Mis Horarios',
-        icon: Timer,
-        path: '/dashboard/client?section=schedule',
-        show: true,
-        badge: null,
-        color: 'text-orange-600'
-      });
-    }
-    
-    // Pagos
-    if (hasPermission('view_payments')) {
-      baseItems.push({
-        id: 'payments',
-        label: 'Pagos',
-        icon: DollarSign,
-        path: '/dashboard/payments',
-        show: true,
-        badge: null,
-        color: 'text-yellow-600'
-      });
-    }
-    
-    // Tienda - Disponible para todos los usuarios
-    baseItems.push({
-      id: 'store',
-      label: 'Tienda',
-      icon: ShoppingCart,
-      path: '/store',
-      show: true,
-      badge: user?.role === 'cliente' ? 'Comprar' : user?.role === 'admin' ? 'Gestionar' : 'Ver',
-      color: 'text-pink-600'
-    });
-    
-    // 🆕 GESTIÓN DE PÁGINA WEB - Solo para administradores con permisos
-    if (canManageContent && user?.role === 'admin') {
-      baseItems.push({
-        id: 'website_manager',
-        label: 'Gestión de Página Web',
-        icon: Globe,
-        path: '/dashboard/admin/website',
-        show: true,
-        badge: 'Nuevo',
-        color: 'text-blue-500',
-        isNew: true
-      });
-    }
-    
-    // Reportes
-    if (hasPermission('view_reports')) {
-      baseItems.push({
-        id: 'reports',
-        label: 'Reportes',
-        icon: BarChart3,
-        path: '/dashboard/reports',
-        show: true,
-        badge: null,
-        color: 'text-indigo-600'
-      });
-    }
-    
-    // Configuración Personal
-    baseItems.push({
-      id: 'personal_settings',
-      label: 'Configuración Personal',
-      icon: Settings,
-      path: '/dashboard/profile/settings',
-      show: true,
-      badge: null,
-      color: 'text-gray-600'
-    });
-    
-    return baseItems.filter(item => item.show);
-  }, [hasPermission, user?.role, getDashboardPath, canManageContent]);
-  
-  // Memoizar elementos filtrados
-  const filteredMenuItems = useMemo(() => {
-    if (!searchTerm) return menuItems;
-    return menuItems.filter(item => 
-      item.label.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [menuItems, searchTerm]);
-  
-  // Memoizar accesos rápidos según el rol
-  const quickActions = useMemo(() => {
-    const actions = [];
-    const userRole = user?.role;
-    
-    if (userRole === 'admin') {
-      actions.push(
-        { icon: TrendingUp, label: 'Estadísticas', path: '/dashboard/analytics' },
-        { icon: Clock, label: 'Horarios', path: '/dashboard/admin/schedule' }, // 🆕 Nueva acción rápida
-        { icon: Globe, label: 'Página Web', path: '/dashboard/admin/website' },
-        { icon: Bell, label: 'Notificaciones', path: '/dashboard/notifications' },
-        { icon: Package, label: 'Inventario', path: '/dashboard/inventory' }
-      );
-    } else if (userRole === 'colaborador') {
-      actions.push(
-        { icon: Clock, label: 'Horarios', path: '/dashboard/schedule' },
-        { icon: Users, label: 'Clientes', path: '/dashboard/clients' },
-        { icon: Calendar, label: 'Citas', path: '/dashboard/appointments' }
-      );
-    } else {
-      actions.push(
-        { icon: CreditCard, label: 'Mi Membresía', path: '/dashboard/client?section=membership' },
-        { icon: Timer, label: 'Mis Horarios', path: '/dashboard/client?section=schedule' },
-        { icon: ShoppingCart, label: 'Tienda', path: '/store' }
-      );
-    }
-    
-    return actions;
-  }, [user?.role]);
-  
-  // Función memoizada: Manejar navegación
-  const handleNavigation = useCallback((path, label) => {
-    // Guardar en páginas recientes
-    setRecentPages(prev => {
-      const filtered = prev.filter(page => page.path !== path);
-      return [{ path, label, timestamp: Date.now() }, ...filtered].slice(0, 3);
-    });
-    
-    onClose();
-  }, [onClose]);
-  
-  // Función memoizada: Logout mejorado
-  const handleLogout = useCallback(async () => {
+  // Manejar logout robusto
+  const handleLogout = async () => {
     if (isLoggingOut) return;
     
-    if (window.confirm('¿Estás seguro que deseas cerrar sesión?')) {
+    try {
+      setIsLoggingOut(true);
+      console.log('Iniciando cierre de sesión...');
+      
+      // Limpiar datos locales antes del logout
       try {
-        setIsLoggingOut(true);
-        onClose();
-        
-        // Limpiar datos locales antes del logout
-        try {
-          localStorage.removeItem('elite_fitness_cart');
-          localStorage.removeItem('elite_fitness_session_id');
-          localStorage.removeItem('elite_fitness_wishlist');
-        } catch (error) {
-          console.warn('Error limpiando datos locales:', error);
-        }
-        
-        await logout();
-        
-        // Forzar redirección después del logout
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 100);
-        
-      } catch (error) {
-        console.error('Error de logout móvil:', error);
-        // Fallback robusto
+        localStorage.removeItem('elite_fitness_cart');
+        localStorage.removeItem('elite_fitness_session_id');
+        localStorage.removeItem('elite_fitness_wishlist');
+        localStorage.removeItem('elite_fitness_payments_cache');
+        localStorage.removeItem('elite_fitness_user_preferences');
+        console.log('Datos locales limpiados correctamente');
+      } catch (localStorageError) {
+        console.warn('Error limpiando localStorage:', localStorageError);
+      }
+      
+      // Llamar al logout del contexto con timeout
+      const logoutPromise = logout();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout en cierre de sesión')), 5000)
+      );
+      
+      await Promise.race([logoutPromise, timeoutPromise]);
+      
+      console.log('Cierre de sesión exitoso');
+      showSuccess && showSuccess('Sesión cerrada correctamente');
+      
+      // Navegar después del logout exitoso
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 100);
+      
+    } catch (error) {
+      console.error('Error durante el cierre de sesión:', error);
+      
+      // Fallback robusto: Forzar limpieza y redirección
+      try {
+        // Limpiar todo el localStorage
         localStorage.clear();
+        sessionStorage.clear();
+        
+        console.log('Forzando recarga para limpiar estado...');
+        showError && showError('Cerrando sesión...');
+        
+        // Forzar redirección
         window.location.href = '/login';
-      } finally {
-        setIsLoggingOut(false);
+        
+      } catch (fallbackError) {
+        console.error('Error en fallback de cierre de sesión:', fallbackError);
+        // Último recurso
+        window.location.reload();
       }
+    } finally {
+      setIsLoggingOut(false);
     }
-  }, [isLoggingOut, onClose, logout]);
-  
-  // Función memoizada: Toggle búsqueda
-  const toggleSearch = useCallback(() => {
-    setShowSearch(prev => !prev);
-  }, []);
-  
-  // Función memoizada: Limpiar búsqueda
-  const clearSearch = useCallback(() => {
-    setSearchTerm('');
-  }, []);
-  
-  // Effect para foco de búsqueda - optimizado
-  useEffect(() => {
-    if (showSearch) {
-      const searchInput = document.getElementById('mobile-search');
-      if (searchInput) {
-        // Usar setTimeout para evitar conflictos de render
-        const timer = setTimeout(() => searchInput.focus(), 100);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [showSearch]);
+  };
 
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden">
+    <div className="flex flex-col h-full bg-white border-r border-gray-200">
       
-      {/* Header del menú */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50">
-        <div className="flex items-center space-x-3">
-          <GymLogo size="sm" variant="professional" showText={false} priority="high" />
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Menú</h2>
-            <p className="text-xs text-gray-500">{userStats.role}</p>
-          </div>
-        </div>
+      {/* Header con toggle */}
+      <div className={`flex items-center justify-between border-b border-gray-200 transition-all duration-300 ${
+        collapsed ? 'p-2' : 'p-4'
+      }`}>
         
-        <div className="flex items-center space-x-2">
-          {/* Botón de búsqueda */}
-          <button
-            onClick={toggleSearch}
-            className={`p-2 rounded-lg transition-colors ${
-              showSearch ? 'bg-primary-100 text-primary-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-            type="button"
-          >
-            <Search className="w-5 h-5" />
-          </button>
-          
-          {/* Botón cerrar */}
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            type="button"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-      
-      {/* Barra de búsqueda expandible */}
-      {showSearch && (
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              id="mobile-search"
-              type="text"
-              placeholder="Buscar en el menú..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-            {searchTerm && (
-              <button
-                onClick={clearSearch}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                type="button"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+        {/* Logo - se oculta completamente cuando está colapsado */}
+        {!collapsed && (
+          <div className="transition-opacity duration-300">
+            <GymLogo size="md" variant="professional" showText={true} />
           </div>
-        </div>
-      )}
+        )}
+        
+        {/* Botón toggle */}
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0"
+          title={collapsed ? 'Expandir menú lateral' : 'Contraer menú lateral'}
+        >
+          {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+        </button>
+      </div>
       
       {/* Información del usuario */}
-      <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            {userStats.avatar ? (
+      <div className={`border-b border-gray-200 bg-gradient-to-r from-primary-50 to-secondary-50 transition-all duration-300 ${
+        collapsed ? 'p-2' : 'p-4'
+      }`}>
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'space-x-3'}`}>
+          
+          {/* Avatar - siempre visible */}
+          <div className="w-10 h-10 bg-elite-gradient rounded-full flex items-center justify-center flex-shrink-0">
+            {user?.profileImage ? (
               <img 
-                src={userStats.avatar} 
-                alt={userStats.name}
-                className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                src={user.profileImage} 
+                alt={user ? `${user.firstName} ${user.lastName}` : 'Usuario'}
+                className="w-10 h-10 rounded-full object-cover"
               />
             ) : (
-              <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center shadow-sm">
-                <span className="text-sm font-bold text-white">
-                  {userStats.initials}
-                </span>
-              </div>
+              <span className="text-sm font-medium text-white">
+                {user ? `${user.firstName[0]}${user.lastName[0]}` : 'U'}
+              </span>
             )}
-            {/* Indicador de estado */}
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
           </div>
           
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-gray-900 truncate">
-              {userStats.name}
+          {/* Información del usuario - desaparece cuando está colapsado */}
+          {!collapsed && (
+            <div className="transition-opacity duration-300 min-w-0 flex-1">
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {user ? `${user.firstName} ${user.lastName}` : 'Usuario'}
+              </div>
+              <div className="text-xs text-gray-500">
+                {user?.role === 'admin' ? 'Administrador' : 
+                 user?.role === 'colaborador' ? 'Personal del Gimnasio' : 'Cliente Miembro'}
+              </div>
             </div>
-            <div className="text-xs text-gray-500">
-              {userStats.role}
-            </div>
-            <div className="text-xs text-primary-600 font-medium">
-              En línea
-            </div>
-          </div>
+          )}
         </div>
       </div>
       
-      {/* Accesos rápidos */}
-      {quickActions.length > 0 && (
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Accesos Rápidos
-          </h3>
-          <div className="grid grid-cols-3 gap-2">
-            {quickActions.map((action, index) => (
-              <button
-                key={index}
-                onClick={() => handleNavigation(action.path, action.label)}
-                className="flex flex-col items-center p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
-                type="button"
-              >
-                <action.icon className="w-6 h-6 text-primary-600 mb-1" />
-                <span className="text-xs font-medium text-gray-700 text-center">
-                  {action.label}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-      
       {/* Navegación principal */}
-      <nav className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-1">
-          {filteredMenuItems.map((item) => {
-            // Verificar si está activo - incluir secciones específicas para cliente
-            let isActive = false;
-            
-            if (item.id === 'my_membership') {
-              isActive = isActiveMembershipSection();
-            } else if (item.id === 'my_schedule') {
-              isActive = isActiveScheduleSection();
-            } else {
-              isActive = isActiveRoute(item.path) || isActiveSection([item.path]);
-            }
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavigation(item.path, item.label)}
-                className={`
-                  w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 relative
-                  ${isActive
-                    ? 'bg-primary-50 text-primary-700 border-l-4 border-primary-500 shadow-sm'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  }
-                `}
-                type="button"
-              >
-                <div className="flex items-center">
-                  <item.icon className={`w-5 h-5 mr-3 ${item.color || 'text-current'}`} />
-                  <span>{item.label}</span>
-                  
-                  {/* Badges */}
-                  {item.badge && (
-                    <span className={`ml-2 px-2 py-1 text-xs font-bold rounded-full ${
-                      item.isNew 
-                        ? 'bg-green-100 text-green-800 animate-pulse' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-                
-                {/* Indicador especial para nueva funcionalidad */}
-                {item.isNew && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        
-        {/* Páginas recientes */}
-        {recentPages.length > 0 && !searchTerm && (
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-              Visitado Recientemente
-            </h3>
-            <div className="space-y-1">
-              {recentPages.map((page, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleNavigation(page.path, page.label)}
-                  className="w-full flex items-center px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                  type="button"
-                >
-                  <Clock className="w-4 h-4 mr-3 text-gray-400" />
-                  <span>{page.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        {/* Sin resultados de búsqueda */}
-        {searchTerm && filteredMenuItems.length === 0 && (
-          <div className="text-center py-8">
-            <Search className="w-8 h-8 text-gray-400 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">
-              No se encontraron resultados para "{searchTerm}"
-            </p>
-          </div>
-        )}
+      <nav className={`flex-1 space-y-2 transition-all duration-300 ${
+        collapsed ? 'p-2' : 'p-4'
+      }`}>
+        {menuItems.map((item) => {
+          // Verificar si está activo - incluir secciones específicas para cliente
+          let isActive = false;
+          
+          if (item.id === 'my_membership') {
+            isActive = isActiveMembershipSection();
+          } else if (item.id === 'my_schedule') {
+            isActive = isActiveScheduleSection();
+          } else {
+            isActive = isActiveRoute(item.path) || isActiveSection([item.path]);
+          }
+          
+          return (
+            <Link
+              key={item.id}
+              to={item.path}
+              className={`
+                flex items-center rounded-xl transition-all duration-300 relative
+                ${isActive
+                  ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-500'
+                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                }
+                ${collapsed ? 'p-2 justify-center' : 'px-3 py-3'}
+              `}
+              title={collapsed ? item.label : undefined}
+            >
+              {/* Icono - siempre visible */}
+              <item.icon className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
+              
+              {/* Texto - desaparece cuando está colapsado */}
+              {!collapsed && (
+                <span className="text-sm font-medium transition-opacity duration-300">
+                  {item.label}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
       
-      {/* Enlaces adicionales y acciones */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50 space-y-2">
+      {/* Enlaces adicionales */}
+      <div className={`border-t border-gray-200 space-y-2 transition-all duration-300 ${
+        collapsed ? 'p-2' : 'p-4'
+      }`}>
         
         {/* Mi Perfil */}
-        <button
-          onClick={() => handleNavigation('/dashboard/profile', 'Mi Perfil')}
+        <Link
+          to="/dashboard/profile"
           className={`
-            w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-colors
+            flex items-center rounded-xl transition-all duration-300
             ${isActiveRoute('/dashboard/profile')
               ? 'bg-primary-50 text-primary-700'
-              : 'text-gray-700 hover:bg-white hover:text-gray-900'
+              : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
             }
+            ${collapsed ? 'p-2 justify-center' : 'px-3 py-3'}
           `}
-          type="button"
+          title={collapsed ? 'Mi Perfil' : undefined}
         >
-          <User className="w-5 h-5 mr-3" />
-          <span>Mi Perfil</span>
-        </button>
-        
-        {/* Ayuda y Soporte */}
-        <button
-          onClick={() => handleNavigation('/help', 'Ayuda')}
-          className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-700 hover:bg-white hover:text-gray-900 transition-colors"
-          type="button"
-        >
-          <HelpCircle className="w-5 h-5 mr-3" />
-          <span>Ayuda y Soporte</span>
-        </button>
-        
-        {/* Contacto */}
-        <button
-          onClick={() => handleNavigation('/contact', 'Contacto')}
-          className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl text-gray-700 hover:bg-white hover:text-gray-900 transition-colors"
-          type="button"
-        >
-          <Phone className="w-5 h-5 mr-3" />
-          <span>Contacto</span>
-        </button>
+          <User className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
+          {!collapsed && (
+            <span className="text-sm font-medium transition-opacity duration-300">
+              Mi Perfil
+            </span>
+          )}
+        </Link>
         
         {/* Cerrar Sesión */}
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          type="button"
+          className={`
+            w-full flex items-center rounded-xl text-red-600 hover:bg-red-50 
+            transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed
+            ${collapsed ? 'p-2 justify-center' : 'px-3 py-3'}
+          `}
+          title={collapsed ? 'Cerrar Sesión' : undefined}
         >
+          {/* Icono con spinner */}
           {isLoggingOut ? (
-            <>
-              <div className="w-5 h-5 mr-3">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
-              </div>
-              <span>Cerrando sesión...</span>
-            </>
+            <div className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`}>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
+            </div>
           ) : (
-            <>
-              <LogOut className="w-5 h-5 mr-3" />
-              <span>Cerrar Sesión</span>
-            </>
+            <LogOut className={`w-5 h-5 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
+          )}
+          
+          {/* Texto */}
+          {!collapsed && (
+            <span className="text-sm font-medium transition-opacity duration-300">
+              {isLoggingOut ? 'Cerrando Sesión...' : 'Cerrar Sesión'}
+            </span>
           )}
         </button>
       </div>
       
     </div>
   );
-});
+};
 
-MobileMenu.displayName = 'MobileMenu';
-
-export default MobileMenu;
+export default Sidebar;
 
 /*
 🆕 CAMBIOS PRINCIPALES EN MobileMenu.js:
