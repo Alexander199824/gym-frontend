@@ -180,21 +180,22 @@ const ClientDashboard = () => {
   const daysUntilExpiry = currentMembership ? getDaysUntilExpiry(currentMembership.endDate) : null;
   
   // Estado de la membresía
-  const getMembershipStatus = () => {
-    if (!currentMembership) return { status: 'none', message: 'Sin membresía activa', color: 'red' };
-    
-    if (currentMembership.status === 'pending_validation') {
-      return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
-    }
-    
-    if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
-    
-    if (daysUntilExpiry < 0) return { status: 'expired', message: 'Vencida', color: 'red' };
-    if (daysUntilExpiry <= 3) return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
-    if (daysUntilExpiry <= 7) return { status: 'warning', message: 'Vence pronto', color: 'orange' };
-    
-    return { status: 'active', message: 'Activa', color: 'green' };
-  };
+ const getMembershipStatus = () => {
+  if (!currentMembership) return { status: 'none', message: 'Sin membresía', color: 'red' };
+  
+  // ✅ CORREGIDO: Usar estado 'pending' real de la BD
+  if (currentMembership.status === 'pending') {
+    return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
+  }
+  
+  if (daysUntilExpiry === null) return { status: 'active', message: 'Activa', color: 'green' };
+  
+  if (daysUntilExpiry < 0) return { status: 'expired', message: 'Vencida', color: 'red' };
+  if (daysUntilExpiry <= 3) return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
+  if (daysUntilExpiry <= 7) return { status: 'warning', message: 'Vence pronto', color: 'orange' };
+  
+  return { status: 'active', message: 'Activa', color: 'green' };
+};
   
   const membershipStatus = getMembershipStatus();
 
@@ -442,46 +443,46 @@ const ClientDashboard = () => {
       )}
 
       {/* Alerta para membresía pendiente */}
-      {membershipStatus.status === 'pending' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Clock className="w-5 h-5 text-yellow-500 mr-3" />
-              <div>
-                <h3 className="text-sm font-medium text-yellow-800">
-                  Tu membresía está siendo validada
-                </h3>
-                <p className="text-sm text-yellow-700 mt-1">
-                  {currentMembership?.payment?.paymentMethod === 'transfer' && 
-                    'Validando transferencia bancaria - Te notificaremos cuando esté lista'
-                  }
-                  {currentMembership?.payment?.paymentMethod === 'cash' && 
-                    'Visita el gimnasio para completar tu pago en efectivo'
-                  }
-                </p>
-              </div>
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={handleRefreshPaymentStatus}
-                className="btn-warning btn-sm"
-              >
-                <RefreshCw className="w-4 h-4 mr-1" />
-                Actualizar
-              </button>
-              {currentMembership?.payment?.paymentMethod === 'cash' && (
-                <button
-                  onClick={() => window.open('https://maps.google.com/?q=Elite+Fitness+Club', '_blank')}
-                  className="btn-outline btn-sm"
-                >
-                  <MapPin className="w-4 h-4 mr-1" />
-                  Ver ubicación
-                </button>
-              )}
-            </div>
-          </div>
+{membershipStatus.status === 'pending' && (
+  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center">
+        <Clock className="w-5 h-5 text-yellow-500 mr-3" />
+        <div>
+          <h3 className="text-sm font-medium text-yellow-800">
+            Tu membresía está siendo validada
+          </h3>
+          <p className="text-sm text-yellow-700 mt-1">
+            {currentMembership?.payment?.paymentMethod === 'transfer' && 
+              'Validando transferencia bancaria - Te notificaremos cuando esté lista'
+            }
+            {currentMembership?.payment?.paymentMethod === 'cash' && 
+              'Visita el gimnasio para completar tu pago en efectivo'
+            }
+          </p>
         </div>
-      )}
+      </div>
+      <div className="flex space-x-2">
+        <button
+          onClick={handleRefreshPaymentStatus}
+          className="btn-warning btn-sm"
+        >
+          <RefreshCw className="w-4 h-4 mr-1" />
+          Actualizar
+        </button>
+        {currentMembership?.payment?.paymentMethod === 'cash' && (
+          <button
+            onClick={() => window.open('https://maps.google.com/?q=Elite+Fitness+Club', '_blank')}
+            className="btn-outline btn-sm"
+          >
+            <MapPin className="w-4 h-4 mr-1" />
+            Ver ubicación
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Alertas de vencimiento */}
       {membershipStatus.status === 'expired' && (
@@ -622,26 +623,26 @@ const ClientDashboard = () => {
               />
               
               {/* Información adicional para membresías pendientes */}
-              {membershipStatus.status === 'pending' && currentMembership.payment && (
-                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h4 className="font-medium text-yellow-800 mb-2">Estado del pago</h4>
-                  <div className="text-sm text-yellow-700 space-y-1">
-                    <div>Método: {
-                      currentMembership.payment.paymentMethod === 'transfer' ? 'Transferencia bancaria' :
-                      currentMembership.payment.paymentMethod === 'cash' ? 'Efectivo en gimnasio' :
-                      currentMembership.payment.paymentMethod
-                    }</div>
-                    <div>Estado: Pendiente de validación</div>
-                    {currentMembership.payment.paymentMethod === 'cash' && (
-                      <div className="flex items-center mt-2">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        <span>Visita el gimnasio para completar tu pago</span>
-                      </div>
-                    )}
-                  </div>
+            {membershipStatus.status === 'pending' && currentMembership.payment && (
+              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">Estado del pago</h4>
+                <div className="text-sm text-yellow-700 space-y-1">
+                  <div>Método: {
+                    currentMembership.payment.paymentMethod === 'transfer' ? 'Transferencia bancaria' :
+                    currentMembership.payment.paymentMethod === 'cash' ? 'Efectivo en gimnasio' :
+                    currentMembership.payment.paymentMethod
+                  }</div>
+                  <div>Estado: Pendiente de validación</div>
+                  {currentMembership.payment.paymentMethod === 'cash' && (
+                    <div className="flex items-center mt-2">
+                      <MapPin className="w-4 h-4 mr-1" />
+                      <span>Visita el gimnasio para completar tu pago</span>
+                    </div>
+                  )}
                 </div>
-              )}
-              
+              </div>
+            )}
+                          
               {/* Botón para ver detalles completos */}
               <button
                 onClick={() => navigateToSection('membership')}
