@@ -1,13 +1,15 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/components/ReportsManager.js
 // FUNCIÓN: Generación y gestión de reportes de inventario y ventas
+// ACTUALIZADO: Import CreditCard corregido
 
 import React, { useState, useEffect } from 'react';
 import {
   BarChart3, PieChart, TrendingUp, Download, Calendar,
   Filter, Eye, Share, FileText, Printer, Mail,
   Package, ShoppingBag, Coins, Users, Clock,
-  Star, Award, Target, Activity, Zap, AlertTriangle
+  Star, Award, Target, Activity, Zap, AlertTriangle,
+  CreditCard // ✅ AGREGADO: Import faltante de CreditCard
 } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
 

@@ -1,5 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/App.js
+// ACTUALIZADO: Rutas para estructura modular con inventario independiente
 
 import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -36,9 +37,10 @@ const AdminDashboard = React.lazy(() => import('./pages/dashboard/AdminDashboard
 const StaffDashboard = React.lazy(() => import('./pages/dashboard/StaffDashboard'));
 const ClientDashboard = React.lazy(() => import('./pages/dashboard/ClientDashboard'));
 
-// 🆕 NUEVAS IMPORTACIONES: Gestión separada
+// 🆕 NUEVAS IMPORTACIONES: Gestión separada y modular
 const WebsiteManager = React.lazy(() => import('./pages/dashboard/admin/WebsiteManager'));
 const ScheduleManager = React.lazy(() => import('./pages/dashboard/admin/ScheduleManager'));
+const InventoryDashboard = React.lazy(() => import('./pages/dashboard/inventory/InventoryDashboard'));
 
 // Componentes específicos del dashboard
 const UsersManager = React.lazy(() => import('./pages/dashboard/components/UsersManager'));
@@ -351,6 +353,7 @@ function AppContent() {
           <div>Moneda: Quetzales guatemaltecos</div>
           <div>🆕 Horarios: Gestor independiente</div>
           <div>🆕 Web: Gestor separado</div>
+          <div>🆕 Inventario: Sistema modular</div>
           {user && (
             <div className="mt-2 text-green-300">
               Usuario: {user.firstName} ({user.role})
@@ -424,6 +427,13 @@ function AppContent() {
             <Route path="admin/schedule" element={
               <ProtectedRoute requiredRole="admin">
                 <ScheduleManager />
+              </ProtectedRoute>
+            } />
+            
+            {/* 🆕 NUEVA RUTA: Inventario y Ventas - Solo para administradores */}
+            <Route path="admin/inventory" element={
+              <ProtectedRoute requiredRole="admin">
+                <InventoryDashboard />
               </ProtectedRoute>
             } />
             
@@ -527,6 +537,51 @@ function App() {
 }
 
 export default App;
+
+/*
+🆕 CAMBIOS PRINCIPALES EN App.js:
+
+NUEVA RUTA AGREGADA:
+- Importación de InventoryDashboard desde './pages/dashboard/inventory/InventoryDashboard'
+- Nueva ruta protegida: /dashboard/admin/inventory
+- Solo accesible para administradores (requiredRole="admin")
+- Lazy loading para optimización de rendimiento
+
+ESTRUCTURA MODULAR ACTUALIZADA:
+1. Panel Principal
+2. Usuarios (admin/staff)
+3. Membresías (según rol)
+4. 🆕 Gestión de Horarios (admin) - /dashboard/admin/schedule
+5. 🆕 Gestión de Página Web (admin) - /dashboard/admin/website
+6. 🆕 Inventario y Ventas (admin) - /dashboard/admin/inventory - NUEVA
+7. Pagos
+8. Tienda
+9. Reportes
+10. Perfil Personal
+
+DEBUG INFO ACTUALIZADO:
+- Agregado "Inventario: Sistema modular" en debug info
+- Monitoreo de nueva ruta en logs de desarrollo
+- Verificación de permisos específicos para inventario
+
+BENEFICIOS DE LA NUEVA ESTRUCTURA:
+- Sistema de inventario completamente independiente
+- URLs específicas y amigables:
+  * Horarios: /dashboard/admin/schedule
+  * Web: /dashboard/admin/website
+  * Inventario: /dashboard/admin/inventory
+- Gestión modular de productos, ventas y reportes
+- Separación clara de responsabilidades
+- Carga optimizada con lazy loading
+
+La nueva estructura permite administrar:
+- Productos de la tienda del gimnasio
+- Inventario y stock de productos
+- Registro de ventas en tienda física
+- Reportes de inventario y ventas
+- Métricas de productos más vendidos
+- Control de stock mínimo y alertas
+*/
 
 /*
 CAMBIOS PRINCIPALES EN App.js:

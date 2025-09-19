@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/admin/WebsiteManager.js
 // FUNCIÓN: Página principal para gestión de contenido web desde sidebar
-// ACTUALIZADO: Sin gestión de horarios (movida a ScheduleManager independiente)
+// ACTUALIZADO: Imports corregidos para estructura modular
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -17,7 +17,8 @@ import apiService from '../../../services/apiService';
 import ContentEditor from '../components/ContentEditor';
 import ServicesManager from '../components/ServicesManager';
 import PlansManager from '../components/PlansManager';
-import ProductsManager from '../components/ProductsManager';
+// IMPORTACIÓN CORREGIDA: ProductsManager ahora está en inventory
+import ProductsManager from '../inventory/components/ProductsManager';
 import MediaUploader from '../components/MediaUploader';
 
 const WebsiteManager = () => {
@@ -289,13 +290,20 @@ const WebsiteManager = () => {
     }
   };
   
-  // Guardar productos
+  // Guardar productos - ACTUALIZADO para usar el nuevo ProductsManager
   const handleSaveProducts = async (data) => {
     console.log('WebsiteManager - Guardando productos:', data);
     
     try {
       setSavingSection('products');
-      const result = await apiService.updateFeaturedProducts(data);
+      
+      // Si viene del nuevo ProductsManager de inventory, adaptar los datos
+      let productsData = data;
+      if (data.type === 'products' && data.data) {
+        productsData = data.data;
+      }
+      
+      const result = await apiService.updateFeaturedProducts(productsData);
       
       if (result && result.success) {
         await loadContentData();
@@ -370,7 +378,7 @@ const WebsiteManager = () => {
           
           {showDebugInfo && (
             <div className="absolute bottom-10 right-0 bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 shadow-lg min-w-80">
-              <div className="font-medium mb-2">WebsiteManager - Sin Horarios</div>
+              <div className="font-medium mb-2">WebsiteManager - Estructura Modular</div>
               <div className="space-y-1">
                 <div>Usuario: {user?.firstName} {user?.lastName} ({user?.role})</div>
                 <div>Puede gestionar contenido: {canManageContent ? 'Sí' : 'No'}</div>
@@ -385,8 +393,8 @@ const WebsiteManager = () => {
                 </div>
                 
                 <div className="border-t pt-1 mt-1 text-blue-700">
-                  <div>🗑️ Horarios removidos de este gestor</div>
-                  <div>📍 Nueva ubicación: /dashboard/admin/schedule</div>
+                  <div>🔧 ProductsManager: inventory/components/</div>
+                  <div>📦 Estructura modular actualizada</div>
                 </div>
               </div>
             </div>
@@ -520,7 +528,7 @@ const WebsiteManager = () => {
           />
         )}
         
-        {/* SECCIÓN: Productos */}
+        {/* SECCIÓN: Productos - ACTUALIZADO para usar ProductsManager de inventory */}
         {activeSection === 'products' && (
           <ProductsManager
             products={featuredProductsData.data}
@@ -546,7 +554,6 @@ const WebsiteManager = () => {
 };
 
 export default WebsiteManager;
-
 /*
 =============================================================================
 CAMBIOS PRINCIPALES EN WebsiteManager.js

@@ -1,1006 +1,676 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/ContentEditor.js
-// ACTUALIZADO: Versión completa sin gestión de horarios (movida a ScheduleManager independiente)
+// FUNCIÓN: Editor de contenido general del gimnasio (sin horarios)
+// ACTUALIZADO: Errores de ESLint corregidos
 
 import React, { useState, useEffect } from 'react';
 import {
-  Save, Phone, Mail, MapPin, Globe, Instagram,
-  Facebook, Twitter, Youtube, MessageSquare, Star, 
-  Trophy, Loader, AlertTriangle, Target, Award,
-  Users, Clock, Eye, Info
+  Save, RefreshCw, AlertTriangle, CheckCircle, Info, 
+  Globe, Phone, Mail, MapPin, Clock, Users, Star,
+  Facebook, Instagram, Twitter, Youtube, Linkedin,
+  Edit3, Eye, Copy, Download, Upload, Image, Bug
 } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
 
 const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
-  const { showSuccess, showError, isMobile } = useApp();
+  const { user } = useAuth();
+  // Removed unused variable 'isMobile' to fix ESLint error
+  const { showError, showSuccess, formatCurrency } = useApp();
   
-  // Estados locales completos
+  // Estados locales
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
     description: '',
-    contact: {
-      phone: '',
-      email: '',
-      address: '',
-      city: '',
-      zipCode: ''
-    },
+    address: '',
+    phone: '',
+    email: '',
+    website: '',
     social: {
-      facebook: { url: '', active: true },
-      instagram: { url: '', active: true },
-      twitter: { url: '', active: true },
-      youtube: { url: '', active: true },
-      whatsapp: { url: '', active: true }
+      facebook: '',
+      instagram: '',
+      twitter: '',
+      youtube: '',
+      linkedin: ''
     },
     stats: {
-      members: 500,
-      trainers: 8,
-      experience: 10,
-      satisfaction: 95
+      membersCount: 0,
+      trainersCount: 0,
+      yearsActive: 0,
+      successStories: 0
     }
   });
   
-  // Estados de cambios por sección
-  const [sectionChanges, setSectionChanges] = useState({
-    basic: false,
-    contact: false,
-    social: false,
-    stats: false
-  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
+  const [previewMode, setPreviewMode] = useState(false);
   
-  const [activeSection, setActiveSection] = useState('basic');
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [savingSection, setSavingSection] = useState(null);
-  
-  // Secciones del editor (sin horarios)
-  const sections = [
-    { id: 'basic', label: 'Información Básica', icon: Target, description: 'Nombre, eslogan y descripción' },
-    { id: 'contact', label: 'Contacto', icon: Phone, description: 'Teléfono, email y dirección' },
-    { id: 'social', label: 'Redes Sociales', icon: Globe, description: 'Enlaces a redes sociales' },
-    { id: 'stats', label: 'Estadísticas', icon: Award, description: 'Números destacados del gimnasio' }
-  ];
-  
-  // Redes sociales disponibles
-  const socialPlatforms = [
-    { 
-      key: 'facebook', 
-      label: 'Facebook', 
-      icon: Facebook, 
-      color: 'blue-600', 
-      placeholder: 'https://facebook.com/tugimnasio',
-      description: 'Página oficial de Facebook del gimnasio'
-    },
-    { 
-      key: 'instagram', 
-      label: 'Instagram', 
-      icon: Instagram, 
-      color: 'pink-600', 
-      placeholder: 'https://instagram.com/tugimnasio',
-      description: 'Perfil de Instagram con fotos y videos'
-    },
-    { 
-      key: 'twitter', 
-      label: 'Twitter / X', 
-      icon: Twitter, 
-      color: 'blue-400', 
-      placeholder: 'https://twitter.com/tugimnasio',
-      description: 'Cuenta de Twitter/X para noticias y actualizaciones'
-    },
-    { 
-      key: 'youtube', 
-      label: 'YouTube', 
-      icon: Youtube, 
-      color: 'red-600', 
-      placeholder: 'https://youtube.com/@tugimnasio',
-      description: 'Canal de YouTube con entrenamientos y consejos'
-    },
-    { 
-      key: 'whatsapp', 
-      label: 'WhatsApp', 
-      icon: MessageSquare, 
-      color: 'green-600', 
-      placeholder: 'https://wa.me/502XXXXXXXX',
-      description: 'Enlace directo para contacto por WhatsApp'
-    }
-  ];
-  
-  // Inicializar con datos del backend
+  // INICIALIZAR DATOS
   useEffect(() => {
     console.log('ContentEditor - Verificando datos de configuración:', {
-      hasGymConfig: !!gymConfig,
+      hasGymConfig: !!gymConfig?.data,
       isLoading: gymConfig?.isLoading,
-      hasData: !!gymConfig?.data,
-      dataKeys: gymConfig?.data ? Object.keys(gymConfig.data) : []
+      hasError: !!gymConfig?.error
     });
     
     if (gymConfig?.data && !gymConfig.isLoading) {
-      console.log('ContentEditor - Cargando datos desde backend (sin horarios):', gymConfig.data);
+      const config = gymConfig.data;
+      console.log('ContentEditor - Cargando configuración:', config);
       
-      const backendData = gymConfig.data;
-      
-      // Mapear datos del backend (sin horarios)
-      const newFormData = {
-        name: backendData.name || '',
-        tagline: backendData.tagline || '',
-        description: backendData.description || '',
-        
-        contact: {
-          phone: backendData.contact?.phone || '',
-          email: backendData.contact?.email || '',
-          address: backendData.contact?.address || '',
-          city: backendData.contact?.city || '',
-          zipCode: backendData.contact?.zipCode || ''
-        },
-        
+      // Mapear datos del backend al formulario
+      setFormData({
+        name: config.name || '',
+        tagline: config.tagline || '',
+        description: config.description || '',
+        address: config.address || '',
+        phone: config.phone || '',
+        email: config.email || '',
+        website: config.website || '',
         social: {
-          facebook: {
-            url: backendData.social?.facebook?.url || '',
-            active: backendData.social?.facebook?.active !== false
-          },
-          instagram: {
-            url: backendData.social?.instagram?.url || '',
-            active: backendData.social?.instagram?.active !== false
-          },
-          twitter: {
-            url: backendData.social?.twitter?.url || '',
-            active: backendData.social?.twitter?.active !== false
-          },
-          youtube: {
-            url: backendData.social?.youtube?.url || '',
-            active: backendData.social?.youtube?.active !== false
-          },
-          whatsapp: {
-            url: backendData.social?.whatsapp?.url || '',
-            active: backendData.social?.whatsapp?.active !== false
-          }
+          facebook: config.social?.facebook || '',
+          instagram: config.social?.instagram || '',
+          twitter: config.social?.twitter || '',
+          youtube: config.social?.youtube || '',
+          linkedin: config.social?.linkedin || ''
         },
-        
         stats: {
-          members: backendData.stats?.members || 500,
-          trainers: backendData.stats?.trainers || 8,
-          experience: backendData.stats?.experience || 10,
-          satisfaction: backendData.stats?.satisfaction || 95
+          membersCount: config.stats?.membersCount || 0,
+          trainersCount: config.stats?.trainersCount || 0,
+          yearsActive: config.stats?.yearsActive || 0,
+          successStories: config.stats?.successStories || 0
         }
-      };
-      
-      console.log('ContentEditor - Datos mapeados exitosamente (sin horarios):', {
-        name: newFormData.name,
-        hasContact: !!newFormData.contact.phone,
-        socialPlatforms: Object.keys(newFormData.social).filter(key => newFormData.social[key].url),
-        statsLoaded: Object.keys(newFormData.stats)
       });
       
-      setFormData(newFormData);
-      setIsDataLoaded(true);
-      
-    } else if (gymConfig?.isLoading) {
-      setIsDataLoaded(false);
-    } else {
-      setIsDataLoaded(true);
+      console.log('ContentEditor - Datos cargados en formulario');
     }
   }, [gymConfig]);
   
   // Notificar cambios sin guardar
   useEffect(() => {
-    const hasAnyChanges = Object.values(sectionChanges).some(changed => changed);
-    onUnsavedChanges(hasAnyChanges);
-  }, [sectionChanges, onUnsavedChanges]);
+    onUnsavedChanges(hasChanges);
+  }, [hasChanges, onUnsavedChanges]);
   
-  // Marcar sección como modificada
-  const markSectionAsChanged = (section) => {
-    setSectionChanges(prev => ({
-      ...prev,
-      [section]: true
-    }));
-  };
-  
-  // Manejar cambios en campos simples (información básica)
-  const handleBasicChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    markSectionAsChanged('basic');
-  };
-  
-  // Manejar cambios de contacto
-  const handleContactChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      contact: {
-        ...prev.contact,
-        [field]: value
-      }
-    }));
-    markSectionAsChanged('contact');
-  };
-  
-  // Manejar cambios de redes sociales
-  const handleSocialChange = (platform, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      social: {
-        ...prev.social,
-        [platform]: {
-          ...prev.social[platform],
-          [field]: value
-        }
-      }
-    }));
-    markSectionAsChanged('social');
-  };
-  
-  // Manejar cambios de estadísticas
-  const handleStatsChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        [field]: value
-      }
-    }));
-    markSectionAsChanged('stats');
-  };
-  
-  // Validar URL de red social
-  const validateSocialUrl = (url, platform) => {
-    if (!url) return true; // URL vacía es válida
-    
-    try {
-      const urlObj = new URL(url);
-      const domain = urlObj.hostname.toLowerCase();
-      
-      // Validaciones específicas por plataforma
-      switch (platform) {
-        case 'facebook':
-          return domain.includes('facebook.com') || domain.includes('fb.com');
-        case 'instagram':
-          return domain.includes('instagram.com');
-        case 'twitter':
-          return domain.includes('twitter.com') || domain.includes('x.com');
-        case 'youtube':
-          return domain.includes('youtube.com') || domain.includes('youtu.be');
-        case 'whatsapp':
-          return domain.includes('wa.me') || domain.includes('whatsapp.com');
-        default:
-          return true;
-      }
-    } catch {
-      return false;
+  // Pestañas disponibles
+  const tabs = [
+    {
+      id: 'basic',
+      title: 'Información Básica',
+      icon: Info,
+      description: 'Nombre, descripción, contacto'
+    },
+    {
+      id: 'social',
+      title: 'Redes Sociales',
+      icon: Globe,
+      description: 'Links de redes sociales'
+    },
+    {
+      id: 'stats',
+      title: 'Estadísticas',
+      icon: Star,
+      description: 'Números del gimnasio'
     }
+  ];
+  
+  // Manejar cambios en el formulario
+  const handleInputChange = (section, field, value) => {
+    setFormData(prev => {
+      let newData;
+      
+      if (section) {
+        newData = {
+          ...prev,
+          [section]: {
+            ...prev[section],
+            [field]: value
+          }
+        };
+      } else {
+        newData = {
+          ...prev,
+          [field]: value
+        };
+      }
+      
+      setHasChanges(true);
+      return newData;
+    });
   };
   
-  // Guardar cambios de una sección específica
-  const handleSectionSave = async (section) => {
+  // Guardar configuración
+  const handleSave = async () => {
     try {
-      setSavingSection(section);
+      setIsLoading(true);
+      console.log('ContentEditor - Guardando configuración:', formData);
       
-      // Validaciones por sección
-      if (section === 'basic') {
-        if (!formData.name.trim()) {
-          showError('El nombre del gimnasio es obligatorio');
-          return;
-        }
-        if (formData.name.length < 3) {
-          showError('El nombre debe tener al menos 3 caracteres');
-          return;
-        }
-        if (!formData.description.trim()) {
-          showError('La descripción es obligatoria');
-          return;
-        }
-        if (formData.description.length < 10) {
-          showError('La descripción debe tener al menos 10 caracteres');
-          return;
-        }
-      }
+      // Llamar la función de guardado del componente padre
+      await onSave({
+        section: 'general',
+        data: formData
+      });
       
-      if (section === 'contact') {
-        if (formData.contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact.email)) {
-          showError('El email no tiene un formato válido');
-          return;
-        }
-      }
-      
-      if (section === 'social') {
-        // Validar URLs de redes sociales
-        for (const [platform, data] of Object.entries(formData.social)) {
-          if (data.active && data.url && !validateSocialUrl(data.url, platform)) {
-            const platformLabel = socialPlatforms.find(p => p.key === platform)?.label || platform;
-            showError(`La URL de ${platformLabel} no es válida`);
-            return;
-          }
-        }
-      }
-      
-      if (section === 'stats') {
-        const stats = formData.stats;
-        if (stats.members < 0 || stats.trainers < 0 || stats.experience < 0) {
-          showError('Las estadísticas no pueden ser números negativos');
-          return;
-        }
-        if (stats.satisfaction < 0 || stats.satisfaction > 100) {
-          showError('La satisfacción debe estar entre 0 y 100%');
-          return;
-        }
-      }
-      
-      // Preparar datos para guardar solo la sección específica
-      let dataToSave = {};
-      
-      switch (section) {
-        case 'basic':
-          dataToSave = {
-            name: formData.name.trim(),
-            tagline: formData.tagline.trim(),
-            description: formData.description.trim()
-          };
-          break;
-          
-        case 'contact':
-          dataToSave = {
-            contact: {
-              ...formData.contact,
-              phone: formData.contact.phone.trim(),
-              email: formData.contact.email.trim(),
-              address: formData.contact.address.trim(),
-              city: formData.contact.city.trim(),
-              zipCode: formData.contact.zipCode.trim()
-            }
-          };
-          break;
-          
-        case 'social':
-          dataToSave = {
-            social: Object.fromEntries(
-              Object.entries(formData.social).map(([key, value]) => [
-                key,
-                {
-                  url: value.url.trim(),
-                  active: value.active
-                }
-              ])
-            )
-          };
-          break;
-          
-        case 'stats':
-          dataToSave = {
-            stats: {
-              members: parseInt(formData.stats.members) || 0,
-              trainers: parseInt(formData.stats.trainers) || 0,
-              experience: parseInt(formData.stats.experience) || 0,
-              satisfaction: parseInt(formData.stats.satisfaction) || 0
-            }
-          };
-          break;
-      }
-      
-      console.log(`Guardando sección ${section}:`, dataToSave);
-      
-      // Llamar al onSave con la sección específica
-      await onSave({ section, data: dataToSave });
-      
-      // Marcar sección como guardada
-      setSectionChanges(prev => ({
-        ...prev,
-        [section]: false
-      }));
-      
-      const sectionLabels = {
-        basic: 'Información básica',
-        contact: 'Información de contacto',
-        social: 'Redes sociales',
-        stats: 'Estadísticas'
-      };
-      
-      showSuccess(`${sectionLabels[section]} guardada exitosamente`);
+      setHasChanges(false);
+      showSuccess('Información general guardada exitosamente');
       
     } catch (error) {
-      console.error(`Error saving ${section} section:`, error);
-      showError(`Error al guardar ${section === 'basic' ? 'información básica' : section}`);
+      console.error('ContentEditor - Error guardando configuración:', error);
+      showError('Error al guardar la información general');
     } finally {
-      setSavingSection(null);
+      setIsLoading(false);
     }
   };
-
-  // Mostrar loading mientras se cargan los datos
-  if (gymConfig?.isLoading || !isDataLoaded) {
+  
+  // Resetear formulario
+  const handleReset = () => {
+    if (gymConfig?.data) {
+      const config = gymConfig.data;
+      setFormData({
+        name: config.name || '',
+        tagline: config.tagline || '',
+        description: config.description || '',
+        address: config.address || '',
+        phone: config.phone || '',
+        email: config.email || '',
+        website: config.website || '',
+        social: {
+          facebook: config.social?.facebook || '',
+          instagram: config.social?.instagram || '',
+          twitter: config.social?.twitter || '',
+          youtube: config.social?.youtube || '',
+          linkedin: config.social?.linkedin || ''
+        },
+        stats: {
+          membersCount: config.stats?.membersCount || 0,
+          trainersCount: config.stats?.trainersCount || 0,
+          yearsActive: config.stats?.yearsActive || 0,
+          successStories: config.stats?.successStories || 0
+        }
+      });
+      setHasChanges(false);
+      showSuccess('Formulario restablecido');
+    }
+  };
+  
+  // Obtener icono de red social
+  const getSocialIcon = (network) => {
+    // Fixed switch statement with default case
+    switch (network) {
+      case 'facebook':
+        return Facebook;
+      case 'instagram':
+        return Instagram;
+      case 'twitter':
+        return Twitter;
+      case 'youtube':
+        return Youtube;
+      case 'linkedin':
+        return Linkedin;
+      default:
+        return Globe; // Added default case to fix ESLint error
+    }
+  };
+  
+  // Mostrar loading si está cargando
+  if (gymConfig?.isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <Loader className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
-            <p className="text-gray-600">Cargando información actual del gimnasio...</p>
-            <p className="text-sm text-gray-500 mt-2">Configurando datos de contenido web...</p>
-          </div>
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Cargando información del gimnasio...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       
-      {/* Header mejorado */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900">
-            Información General del Gimnasio
-          </h3>
-          <p className="text-gray-600 mt-1">
-            Configura la información básica, contacto, redes sociales y estadísticas que aparecen en tu página web
-          </p>
+      {/* DEBUG INFO DISCRETO */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="absolute top-0 right-0 z-10">
+          <button
+            onClick={() => setShowDebugInfo(!showDebugInfo)}
+            className="w-8 h-8 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200"
+            title="Información de Debug - ContentEditor"
+          >
+            <Bug className="w-4 h-4" />
+          </button>
           
-          {/* Nota sobre horarios */}
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-start">
-              <Clock className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
-              <div>
+          {showDebugInfo && (
+            <div className="absolute top-10 right-0 bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-800 shadow-lg min-w-80">
+              <div className="font-medium mb-2">ContentEditor - Sin Horarios</div>
+              <div className="space-y-1">
+                <div>Usuario: {user?.firstName} {user?.lastName}</div>
+                <div>Tab activa: {activeTab}</div>
+                <div>Cambios: {hasChanges ? 'Sí' : 'No'}</div>
+                <div>Modo: {previewMode ? 'Vista previa' : 'Edición'}</div>
+                
+                <div className="border-t pt-1 mt-1">
+                  <div className="font-medium text-orange-700">Datos cargados:</div>
+                  <div>Nombre: {formData.name ? 'Sí' : 'No'}</div>
+                  <div>Contacto: {formData.phone || formData.email ? 'Sí' : 'No'}</div>
+                  <div>Redes sociales: {Object.values(formData.social).some(v => v) ? 'Sí' : 'No'}</div>
+                  <div>Estadísticas: {Object.values(formData.stats).some(v => v > 0) ? 'Sí' : 'No'}</div>
+                </div>
+                
+                <div className="border-t pt-1 mt-1 text-red-700">
+                  <div>🗑️ Horarios excluidos de este editor</div>
+                  <div>📍 ESLint: Variables y casos corregidos</div>
+                </div>
               </div>
-            </div>
-          </div>
-          
-          {/* Mostrar datos actuales cargados */}
-          {isDataLoaded && formData.name && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-                <Info className="w-3 h-3 inline mr-1" />
-                {formData.name}
-              </span>
-              <span className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                <Globe className="w-3 h-3 inline mr-1" />
-                {Object.keys(formData.social).filter(key => formData.social[key].url && formData.social[key].active).length} redes activas
-              </span>
-              <span className="text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
-                <Users className="w-3 h-3 inline mr-1" />
-                {formData.stats.members} miembros
-              </span>
-              <span className="text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-200">
-                <Award className="w-3 h-3 inline mr-1" />
-                {formData.stats.trainers} entrenadores
-              </span>
             </div>
           )}
         </div>
+      )}
+      
+      {/* HEADER DEL EDITOR */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-1">
+            Información General del Gimnasio
+          </h2>
+          <p className="text-gray-600">
+            Configura la información básica, contacto, redes sociales y estadísticas
+          </p>
+        </div>
+        
+        <div className="flex items-center space-x-3 mt-4 lg:mt-0">
+          {/* Toggle modo vista previa */}
+          <button
+            onClick={() => setPreviewMode(!previewMode)}
+            className={`btn-sm transition-colors ${
+              previewMode 
+                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                : 'btn-secondary'
+            }`}
+          >
+            {previewMode ? <Edit3 className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+            {previewMode ? 'Editar' : 'Vista Previa'}
+          </button>
+          
+          {/* Botón resetear */}
+          {hasChanges && (
+            <button
+              onClick={handleReset}
+              className="btn-secondary btn-sm"
+              title="Deshacer cambios"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
+          
+          {/* Botón guardar */}
+          <button
+            onClick={handleSave}
+            disabled={isLoading || !hasChanges}
+            className="btn-primary btn-sm"
+          >
+            {isLoading ? (
+              <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {isLoading ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
       </div>
       
-      {/* Indicador de cambios por sección */}
-      {Object.values(sectionChanges).some(changed => changed) && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+      {/* INDICADOR DE CAMBIOS */}
+      {hasChanges && (
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-4">
           <div className="flex">
-            <AlertTriangle className="w-5 h-5 text-yellow-400" />
+            <AlertTriangle className="w-5 h-5 text-amber-400" />
             <div className="ml-3">
-              <p className="text-sm text-yellow-700">
-                <strong>Cambios sin guardar</strong> en: {' '}
-                {Object.keys(sectionChanges)
-                  .filter(key => sectionChanges[key])
-                  .map(key => sections.find(s => s.id === key)?.label)
-                  .join(', ')}
-              </p>
-              <p className="text-xs text-yellow-600 mt-1">
-                Recuerda guardar cada sección antes de cambiar a otra
+              <p className="text-sm text-amber-700">
+                Tienes cambios sin guardar en la información general.
               </p>
             </div>
           </div>
         </div>
       )}
       
-      {/* Navegación por secciones */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="flex space-x-1 overflow-x-auto">
-          {sections.map((section) => (
+      {/* NAVEGACIÓN POR PESTAÑAS */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map((tab) => (
             <button
-              key={section.id}
-              onClick={() => setActiveSection(section.id)}
-              className={`px-4 py-3 text-sm font-medium rounded-lg whitespace-nowrap transition-colors relative group ${
-                activeSection === section.id
-                  ? 'bg-primary-100 text-primary-700 border border-primary-200'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
+              title={tab.description}
             >
-              <section.icon className="w-4 h-4 inline mr-2" />
-              {section.label}
-              
-              {/* Indicador de cambios */}
-              {sectionChanges[section.id] && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></span>
-              )}
-              
-              {/* Tooltip con descripción */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                {section.description}
-              </div>
+              <tab.icon className="w-4 h-4 inline mr-2" />
+              {tab.title}
             </button>
           ))}
-        </div>
+        </nav>
       </div>
       
-      {/* Contenido según sección activa */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        
-        {/* Sección: Información Básica */}
-        {activeSection === 'basic' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-lg font-medium text-gray-900">
-                  Información Básica del Gimnasio
-                </h4>
-                <p className="text-sm text-gray-600 mt-1">
-                  Esta información aparece en la sección principal de tu página web
-                </p>
-              </div>
-              
-              {sectionChanges.basic && (
-                <button
-                  onClick={() => handleSectionSave('basic')}
-                  disabled={savingSection === 'basic'}
-                  className="btn-primary btn-sm"
-                >
-                  {savingSection === 'basic' ? (
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Guardar Información Básica
-                </button>
-              )}
+      {/* CONTENIDO SEGÚN PESTAÑA ACTIVA */}
+      
+      {/* PESTAÑA: INFORMACIÓN BÁSICA */}
+      {activeTab === 'basic' && (
+        <div className="bg-white rounded-lg p-6 space-y-6">
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Nombre del gimnasio */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Nombre del Gimnasio
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange(null, 'name', e.target.value)}
+                placeholder="Elite Fitness Club"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-medium"
+                disabled={previewMode}
+              />
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre del Gimnasio *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleBasicChange('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Ej: Elite Fitness Center"
-                  maxLength={100}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Aparece en el título principal de la página, navegación y metadatos SEO
-                </p>
-              </div>
-              
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Eslogan / Tagline
-                </label>
-                <input
-                  type="text"
-                  value={formData.tagline}
-                  onChange={(e) => handleBasicChange('tagline', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Ej: Tu mejor versión te espera"
-                  maxLength={150}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Frase corta que aparece bajo el nombre en la sección principal (hero)
-                </p>
-              </div>
-              
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descripción Principal *
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleBasicChange('description', e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Describe tu gimnasio de manera atractiva. Esta descripción aparece en la sección principal de tu página web y ayuda a los visitantes a conocer lo que ofreces..."
-                  maxLength={500}
-                />
-                <div className="flex justify-between items-center mt-1">
-                  <p className="text-xs text-gray-500">
-                    Descripción principal que aparece en la sección hero de la página
-                  </p>
-                  <span className="text-xs text-gray-400">
-                    {formData.description.length}/500
-                  </span>
-                </div>
-              </div>
-              
+            {/* Eslogan */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Eslogan / Tagline
+              </label>
+              <input
+                type="text"
+                value={formData.tagline}
+                onChange={(e) => handleInputChange(null, 'tagline', e.target.value)}
+                placeholder="Tu mejor versión te espera aquí"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+              />
             </div>
+            
+            {/* Descripción */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Descripción del Gimnasio
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange(null, 'description', e.target.value)}
+                placeholder="Describe tu gimnasio, sus valores, servicios principales..."
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                disabled={previewMode}
+              />
+            </div>
+            
+            {/* Dirección */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <MapPin className="w-4 h-4 inline mr-1" />
+                Dirección
+              </label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => handleInputChange(null, 'address', e.target.value)}
+                placeholder="Dirección completa del gimnasio"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+              />
+            </div>
+            
+            {/* Teléfono */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Phone className="w-4 h-4 inline mr-1" />
+                Teléfono
+              </label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => handleInputChange(null, 'phone', e.target.value)}
+                placeholder="+502 2XXX-XXXX"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+              />
+            </div>
+            
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Mail className="w-4 h-4 inline mr-1" />
+                Email
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange(null, 'email', e.target.value)}
+                placeholder="info@elitegym.com"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+              />
+            </div>
+            
+            {/* Sitio web */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Globe className="w-4 h-4 inline mr-1" />
+                Sitio Web
+              </label>
+              <input
+                type="url"
+                value={formData.website}
+                onChange={(e) => handleInputChange(null, 'website', e.target.value)}
+                placeholder="https://www.elitegym.com"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+              />
+            </div>
+            
           </div>
-        )}
-        
-        {/* Sección: Información de Contacto */}
-        {activeSection === 'contact' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-lg font-medium text-gray-900">
-                  Información de Contacto
-                </h4>
-                <p className="text-sm text-gray-600 mt-1">
-                  Datos de contacto que aparecen en el footer y sección de contacto
-                </p>
-              </div>
+        </div>
+      )}
+      
+      {/* PESTAÑA: REDES SOCIALES */}
+      {activeTab === 'social' && (
+        <div className="bg-white rounded-lg p-6">
+          <div className="space-y-4">
+            {Object.entries(formData.social).map(([network, url]) => {
+              const IconComponent = getSocialIcon(network);
+              const networkName = network.charAt(0).toUpperCase() + network.slice(1);
               
-              {sectionChanges.contact && (
-                <button
-                  onClick={() => handleSectionSave('contact')}
-                  disabled={savingSection === 'contact'}
-                  className="btn-primary btn-sm"
-                >
-                  {savingSection === 'contact' ? (
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Guardar Contacto
-                </button>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Phone className="w-4 h-4 inline mr-1" />
-                  Teléfono
-                </label>
-                <input
-                  type="tel"
-                  value={formData.contact.phone}
-                  onChange={(e) => handleContactChange('phone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Ej: +502 1234-5678"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Número principal para contacto directo. Aparece en footer y página de contacto
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-1" />
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.contact.email}
-                  onChange={(e) => handleContactChange('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Ej: info@elitegym.com"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Email principal para consultas y comunicación oficial
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <MapPin className="w-4 h-4 inline mr-1" />
-                  Dirección
-                </label>
-                <input
-                  type="text"
-                  value={formData.contact.address}
-                  onChange={(e) => handleContactChange('address', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Ej: Avenida Principal 123, Zona 10"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Dirección física completa del gimnasio
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ciudad
-                </label>
-                <input
-                  type="text"
-                  value={formData.contact.city}
-                  onChange={(e) => handleContactChange('city', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Ej: Guatemala, Guatemala"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Ciudad y departamento donde se ubica el gimnasio
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Código Postal
-                </label>
-                <input
-                  type="text"
-                  value={formData.contact.zipCode}
-                  onChange={(e) => handleContactChange('zipCode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Ej: 01010"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Código postal de la zona (opcional)
-                </p>
-              </div>
-              
-            </div>
-          </div>
-        )}
-        
-        {/* Sección: Redes Sociales */}
-        {activeSection === 'social' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-lg font-medium text-gray-900">
-                  Redes Sociales
-                </h4>
-                <p className="text-sm text-gray-600 mt-1">
-                  Enlaces a redes sociales que aparecen en el footer de tu página web
-                </p>
-              </div>
-              
-              {sectionChanges.social && (
-                <button
-                  onClick={() => handleSectionSave('social')}
-                  disabled={savingSection === 'social'}
-                  className="btn-primary btn-sm"
-                >
-                  {savingSection === 'social' ? (
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Guardar Redes Sociales
-                </button>
-              )}
-            </div>
-            
-            <div className="space-y-6">
-              {socialPlatforms.map((platform) => (
-                <div key={platform.key} className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center">
-                      <platform.icon className={`w-5 h-5 text-${platform.color} mr-3`} />
-                      <div>
-                        <h5 className="font-medium text-gray-900">{platform.label}</h5>
-                        <p className="text-xs text-gray-600">{platform.description}</p>
-                      </div>
-                      
-                      {formData.social[platform.key]?.url && formData.social[platform.key]?.active && (
-                        <span className="ml-3 text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                          ✓ Configurado
-                        </span>
-                      )}
-                    </div>
-                    
-                    <label className="inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={formData.social[platform.key]?.active !== false}
-                        onChange={(e) => handleSocialChange(platform.key, 'active', e.target.checked)}
-                        className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">Activo</span>
-                    </label>
+              return (
+                <div key={network} className="flex items-center space-x-4">
+                  <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg">
+                    <IconComponent className="w-6 h-6 text-gray-600" />
                   </div>
                   
-                  <input
-                    type="url"
-                    value={formData.social[platform.key]?.url || ''}
-                    onChange={(e) => handleSocialChange(platform.key, 'url', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    placeholder={platform.placeholder}
-                    disabled={formData.social[platform.key]?.active === false}
-                  />
-                  
-                  {formData.social[platform.key]?.url && formData.social[platform.key]?.active && (
-                    <div className="mt-2 flex items-center justify-between">
-                      <p className="text-xs text-gray-500">
-                        Los usuarios podrán acceder desde el footer de la página
-                      </p>
-                      <a
-                        href={formData.social[platform.key].url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center"
-                      >
-                        <Eye className="w-3 h-3 mr-1" />
-                        Vista previa
-                      </a>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {networkName}
+                    </label>
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => handleInputChange('social', network, e.target.value)}
+                      placeholder={`https://www.${network}.com/tu-gimnasio`}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={previewMode}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      {/* PESTAÑA: ESTADÍSTICAS */}
+      {activeTab === 'stats' && (
+        <div className="bg-white rounded-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Users className="w-4 h-4 inline mr-1" />
+                Número de Miembros
+              </label>
+              <input
+                type="number"
+                value={formData.stats.membersCount}
+                onChange={(e) => handleInputChange('stats', 'membersCount', parseInt(e.target.value) || 0)}
+                placeholder="500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+                min="0"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Star className="w-4 h-4 inline mr-1" />
+                Entrenadores Profesionales
+              </label>
+              <input
+                type="number"
+                value={formData.stats.trainersCount}
+                onChange={(e) => handleInputChange('stats', 'trainersCount', parseInt(e.target.value) || 0)}
+                placeholder="15"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+                min="0"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Clock className="w-4 h-4 inline mr-1" />
+                Años de Experiencia
+              </label>
+              <input
+                type="number"
+                value={formData.stats.yearsActive}
+                onChange={(e) => handleInputChange('stats', 'yearsActive', parseInt(e.target.value) || 0)}
+                placeholder="10"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+                min="0"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <CheckCircle className="w-4 h-4 inline mr-1" />
+                Historias de Éxito
+              </label>
+              <input
+                type="number"
+                value={formData.stats.successStories}
+                onChange={(e) => handleInputChange('stats', 'successStories', parseInt(e.target.value) || 0)}
+                placeholder="100"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={previewMode}
+                min="0"
+              />
+            </div>
+            
+          </div>
+        </div>
+      )}
+      
+      {/* VISTA PREVIA */}
+      {previewMode && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+          <h3 className="text-lg font-medium text-blue-900 mb-4 flex items-center">
+            <Eye className="w-5 h-5 mr-2" />
+            Vista Previa
+          </h3>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {formData.name || 'Nombre del Gimnasio'}
+              </h1>
+              <p className="text-lg text-blue-600">
+                {formData.tagline || 'Tu eslogan aquí'}
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Información de Contacto</h4>
+                <div className="space-y-2 text-sm text-gray-600">
+                  {formData.address && (
+                    <div className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      {formData.address}
+                    </div>
+                  )}
+                  {formData.phone && (
+                    <div className="flex items-center">
+                      <Phone className="w-4 h-4 mr-2" />
+                      {formData.phone}
+                    </div>
+                  )}
+                  {formData.email && (
+                    <div className="flex items-center">
+                      <Mail className="w-4 h-4 mr-2" />
+                      {formData.email}
                     </div>
                   )}
                 </div>
-              ))}
+              </div>
+              
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Estadísticas</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {formData.stats.membersCount || 0}
+                    </div>
+                    <div className="text-gray-600">Miembros</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {formData.stats.trainersCount || 0}
+                    </div>
+                    <div className="text-gray-600">Entrenadores</div>
+                  </div>
+                </div>
+              </div>
             </div>
             
-            {/* Resumen de redes sociales activas */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h6 className="font-medium text-blue-900 mb-2">
-                Resumen de Redes Sociales
-              </h6>
-              <div className="text-sm text-blue-800">
-                <p>
-                  Redes activas: <strong>
-                    {Object.keys(formData.social).filter(key => 
-                      formData.social[key].url && formData.social[key].active
-                    ).length}
-                  </strong> de {socialPlatforms.length}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {socialPlatforms.map((platform) => {
-                    const isActive = formData.social[platform.key]?.url && formData.social[platform.key]?.active;
+            {formData.description && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-900 mb-2">Acerca de Nosotros</h4>
+                <p className="text-gray-600">{formData.description}</p>
+              </div>
+            )}
+            
+            {/* Redes sociales */}
+            {Object.values(formData.social).some(url => url) && (
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-2">Síguenos</h4>
+                <div className="flex space-x-3">
+                  {Object.entries(formData.social).map(([network, url]) => {
+                    if (!url) return null;
+                    const IconComponent = getSocialIcon(network);
+                    
                     return (
-                      <span
-                        key={platform.key}
-                        className={`text-xs px-2 py-1 rounded ${
-                          isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {platform.label}
-                      </span>
+                      <div key={network} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                        <IconComponent className="w-4 h-4 text-gray-600" />
+                      </div>
                     );
                   })}
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-        
-        {/* Sección: Estadísticas */}
-        {activeSection === 'stats' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-lg font-medium text-gray-900">
-                  Estadísticas Destacadas
-                </h4>
-                <p className="text-sm text-gray-600 mt-1">
-                  Números importantes que aparecen en la sección principal (hero) de tu página web
-                </p>
-              </div>
-              
-              {sectionChanges.stats && (
-                <button
-                  onClick={() => handleSectionSave('stats')}
-                  disabled={savingSection === 'stats'}
-                  className="btn-primary btn-sm"
-                >
-                  {savingSection === 'stats' ? (
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Guardar Estadísticas
-                </button>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Users className="w-4 h-4 inline mr-1" />
-                  Total de Miembros
-                </label>
-                <input
-                  type="number"
-                  value={formData.stats.members}
-                  onChange={(e) => handleStatsChange('members', parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  min="0"
-                  max="99999"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Número de miembros activos actuales del gimnasio
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Award className="w-4 h-4 inline mr-1" />
-                  Entrenadores Certificados
-                </label>
-                <input
-                  type="number"
-                  value={formData.stats.trainers}
-                  onChange={(e) => handleStatsChange('trainers', parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  min="0"
-                  max="999"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Número de entrenadores profesionales y certificados
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Trophy className="w-4 h-4 inline mr-1" />
-                  Años de Experiencia
-                </label>
-                <input
-                  type="number"
-                  value={formData.stats.experience}
-                  onChange={(e) => handleStatsChange('experience', parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  min="0"
-                  max="100"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Años que lleva operando el gimnasio o experiencia del equipo
-                </p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Star className="w-4 h-4 inline mr-1" />
-                  Satisfacción del Cliente (%)
-                </label>
-                <input
-                  type="number"
-                  value={formData.stats.satisfaction}
-                  onChange={(e) => handleStatsChange('satisfaction', parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  min="0"
-                  max="100"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Porcentaje de satisfacción basado en encuestas o reviews de clientes
-                </p>
-              </div>
-              
-            </div>
-            
-            {/* Preview de estadísticas */}
-            <div className="bg-gray-50 rounded-lg p-6">
-              <h6 className="font-medium text-gray-900 mb-4 flex items-center">
-                <Eye className="w-4 h-4 mr-2" />
-                Vista previa en página web:
-              </h6>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary-600 mb-1">
-                    {formData.stats.members.toLocaleString()}
-                  </div>
-                  <div className="text-sm text-gray-600">Miembros</div>
-                </div>
-                
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary-600 mb-1">
-                    {formData.stats.trainers}
-                  </div>
-                  <div className="text-sm text-gray-600">Entrenadores</div>
-                </div>
-                
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary-600 mb-1">
-                    {formData.stats.experience}
-                  </div>
-                  <div className="text-sm text-gray-600">Años</div>
-                </div>
-                
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary-600 mb-1">
-                    {formData.stats.satisfaction}%
-                  </div>
-                  <div className="text-sm text-gray-600">Satisfacción</div>
-                </div>
-              </div>
-              
-              <p className="text-xs text-gray-500 text-center mt-4">
-                Estas estadísticas aparecen prominentemente en la sección principal de tu página web
-              </p>
-            </div>
-          </div>
-        )}
-        
-      </div>
+        </div>
+      )}
       
     </div>
   );
