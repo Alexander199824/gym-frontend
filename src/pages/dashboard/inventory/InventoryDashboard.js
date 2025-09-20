@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/InventoryDashboard.js  
 // FUNCIÓN: Dashboard central de inventario conectado al backend real
-// ACTUALIZADO: Para usar inventoryService con rutas correctas del manual
+// ACTUALIZADO: Corregido error de onSave no definido
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -307,15 +307,13 @@ const InventoryDashboard = () => {
     setHasUnsavedChanges(hasChanges);
   };
   
-  // Guardar datos
+  // Función corregida para manejar guardado - CORRECCIÓN DEL ERROR
   const handleSave = async (data) => {
     try {
       console.log('💾 Saving inventory data:', data);
       
-      if (data.type === 'products' && onSave) {
-        await onSave(data);
-      }
-      
+      // Los componentes hijos manejan su propio guardado con inventoryService
+      // Solo mostramos mensaje y refrescamos datos
       showSuccess('Datos guardados exitosamente');
       setHasUnsavedChanges(false);
       

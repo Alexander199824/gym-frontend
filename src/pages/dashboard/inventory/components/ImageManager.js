@@ -717,4 +717,4 @@ const ImageManager = ({ productId, productName, onImagesChange }) => {
   );
 };
 
-export default ImageManager;
+export default ImageManager; 
