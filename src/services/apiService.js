@@ -1,5 +1,5 @@
 // src/services/apiService.js
-// ARCHIVO PRINCIPAL ACTUALIZADO CON NUEVA GESTIÓN DE PAGOS
+// ARCHIVO PRINCIPAL ACTUALIZADO CON INVENTARIO Y TIENDA
 
 // ================================
 // 📁 IMPORTACIONES DE MÓDULOS
@@ -12,6 +12,7 @@ import { StoreService } from './storeService.js';
 import { StripeService } from './stripeService.js';
 import paymentService from './paymentService.js'; 
 import scheduleService from './scheduleService.js';
+import inventoryService from './inventoryService.js'; // 🆕 NUEVO SERVICIO
 
 // ================================
 // 🏠 CLASE PRINCIPAL DEL SERVICIO API
@@ -26,8 +27,9 @@ class ApiService extends BaseService {
     this.userService = new UserService();
     this.storeService = new StoreService();
     this.stripeService = new StripeService();
-    this.paymentService = paymentService; // 🆕 SERVICIO ACTUALIZADO
-    this.scheduleService = scheduleService; // Usar instancia singleton
+    this.paymentService = paymentService;
+    this.scheduleService = scheduleService;
+    this.inventoryService = inventoryService; // 🆕 NUEVO SERVICIO AGREGADO
   }
 
   // ================================
@@ -224,7 +226,13 @@ class ApiService extends BaseService {
     return this.storeService.getFeaturedProducts();
   }
   
+  // 🆕 MANTENEMOS COMPATIBILIDAD PERO DELEGAMOS A INVENTORY SERVICE
   async getProducts(params = {}) {
+    // Si es para gestión (parámetros de admin), usar inventoryService
+    if (params.management || params.admin) {
+      return this.inventoryService.getProducts(params);
+    }
+    // Si es para tienda pública, usar storeService
     return this.storeService.getProducts(params);
   }
   
@@ -328,6 +336,218 @@ class ApiService extends BaseService {
   }
 
   // ================================
+  // 📦 MÉTODOS DE INVENTARIO Y GESTIÓN - DELEGACIÓN A inventoryService
+  // ================================
+
+  // 📊 ESTADÍSTICAS E INVENTARIO
+  async getInventoryStats(period = 'month') {
+    return this.inventoryService.getInventoryStats(period);
+  }
+
+  async getInventoryDashboard() {
+    return this.inventoryService.getInventoryDashboard();
+  }
+
+  async getFinancialReport(startDate, endDate) {
+    return this.inventoryService.getFinancialReport(startDate, endDate);
+  }
+
+  async getLowStockProducts() {
+    return this.inventoryService.getLowStockProducts();
+  }
+
+  async getEmployeePerformance(startDate, endDate) {
+    return this.inventoryService.getEmployeePerformance(startDate, endDate);
+  }
+
+  // 📦 GESTIÓN DE PRODUCTOS (ADMIN)
+  async getManagementProducts(params = {}) {
+    return this.inventoryService.getProducts(params);
+  }
+
+  async getManagementProductById(productId) {
+    return this.inventoryService.getProductById(productId);
+  }
+
+  async createProduct(productData) {
+    return this.inventoryService.createProduct(productData);
+  }
+
+  async updateProduct(productId, productData) {
+    return this.inventoryService.updateProduct(productId, productData);
+  }
+
+  async updateProductStock(productId, stockData) {
+    return this.inventoryService.updateProductStock(productId, stockData);
+  }
+
+  async updateBulkStock(updates) {
+    return this.inventoryService.updateBulkStock(updates);
+  }
+
+  async deleteProduct(productId) {
+    return this.inventoryService.deleteProduct(productId);
+  }
+
+  async duplicateProduct(productId, newData = {}) {
+    return this.inventoryService.duplicateProduct(productId, newData);
+  }
+
+  async getProductStats() {
+    return this.inventoryService.getProductStats();
+  }
+
+  // 🖼️ GESTIÓN DE IMÁGENES
+  async getProductImages(productId) {
+    return this.inventoryService.getProductImages(productId);
+  }
+
+  async uploadProductImage(productId, imageFile, options = {}) {
+    return this.inventoryService.uploadProductImage(productId, imageFile, options);
+  }
+
+  async uploadMultipleProductImages(productId, imageFiles) {
+    return this.inventoryService.uploadMultipleProductImages(productId, imageFiles);
+  }
+
+  async updateProductImage(productId, imageId, imageData) {
+    return this.inventoryService.updateProductImage(productId, imageId, imageData);
+  }
+
+  async deleteProductImage(productId, imageId) {
+    return this.inventoryService.deleteProductImage(productId, imageId);
+  }
+
+  async reorderProductImages(productId, imageOrders) {
+    return this.inventoryService.reorderProductImages(productId, imageOrders);
+  }
+
+  async setPrimaryProductImage(productId, imageId) {
+    return this.inventoryService.setPrimaryProductImage(productId, imageId);
+  }
+
+  // 🏷️ GESTIÓN DE MARCAS
+  async getBrands(params = {}) {
+    return this.inventoryService.getBrands(params);
+  }
+
+  async createBrand(brandData) {
+    return this.inventoryService.createBrand(brandData);
+  }
+
+  async updateBrand(brandId, brandData) {
+    return this.inventoryService.updateBrand(brandId, brandData);
+  }
+
+  async deleteBrand(brandId) {
+    return this.inventoryService.deleteBrand(brandId);
+  }
+
+  async searchBrands(query) {
+    return this.inventoryService.searchBrands(query);
+  }
+
+  async getBrandStats() {
+    return this.inventoryService.getBrandStats();
+  }
+
+  // 📂 GESTIÓN DE CATEGORÍAS
+  async getCategories(params = {}) {
+    return this.inventoryService.getCategories(params);
+  }
+
+  async createCategory(categoryData) {
+    return this.inventoryService.createCategory(categoryData);
+  }
+
+  async updateCategory(categoryId, categoryData) {
+    return this.inventoryService.updateCategory(categoryId, categoryData);
+  }
+
+  async deleteCategory(categoryId) {
+    return this.inventoryService.deleteCategory(categoryId);
+  }
+
+  async reorderCategories(categoryOrders) {
+    return this.inventoryService.reorderCategories(categoryOrders);
+  }
+
+  async searchCategories(query) {
+    return this.inventoryService.searchCategories(query);
+  }
+
+  async getCategoryBySlug(slug) {
+    return this.inventoryService.getCategoryBySlug(slug);
+  }
+
+  async getCategoryStats() {
+    return this.inventoryService.getCategoryStats();
+  }
+
+  // 💰 VENTAS LOCALES
+  async getLocalSales(params = {}) {
+    return this.inventoryService.getLocalSales(params);
+  }
+
+  async createCashSale(saleData) {
+    return this.inventoryService.createCashSale(saleData);
+  }
+
+  async createTransferSale(saleData) {
+    return this.inventoryService.createTransferSale(saleData);
+  }
+
+  async confirmTransfer(saleId, notes = '') {
+    return this.inventoryService.confirmTransfer(saleId, notes);
+  }
+
+  async getPendingTransfers() {
+    return this.inventoryService.getPendingTransfers();
+  }
+
+  async searchProductsForSale(query, limit = 10) {
+    return this.inventoryService.searchProductsForSale(query, limit);
+  }
+
+  async getDailySalesReport(date) {
+    return this.inventoryService.getDailySalesReport(date);
+  }
+
+  async getMySalesStats() {
+    return this.inventoryService.getMySalesStats();
+  }
+
+  // 🛍️ TIENDA PÚBLICA
+  async getPublicProducts(params = {}) {
+    return this.inventoryService.getPublicProducts(params);
+  }
+
+  async getFeaturedPublicProducts(limit = 8) {
+    return this.inventoryService.getFeaturedProducts(limit);
+  }
+
+  async getPublicProductById(productId) {
+    return this.inventoryService.getPublicProductById(productId);
+  }
+
+  async getPublicCategories() {
+    return this.inventoryService.getPublicCategories();
+  }
+
+  async getPublicBrands() {
+    return this.inventoryService.getPublicBrands();
+  }
+
+  // 🔧 UTILIDADES DE INVENTARIO
+  validateProductData(productData) {
+    return this.inventoryService.validateProductData(productData);
+  }
+
+  formatProductDataForAPI(productData) {
+    return this.inventoryService.formatProductDataForAPI(productData);
+  }
+
+  // ================================
   // 💳 MÉTODOS DE STRIPE - DELEGACIÓN A stripeService
   // ================================
   
@@ -382,7 +602,6 @@ class ApiService extends BaseService {
   async getStripeStatus() {
     return this.stripeService.getStripeStatus();
   }
-
 
   // ================================
   // 📅 MÉTODOS DE GESTIÓN DE HORARIOS - DELEGACIÓN A scheduleService
@@ -459,7 +678,153 @@ class ApiService extends BaseService {
     return this.scheduleService.calculateLocalStats(schedule);
   }
 
+  // ================================
+  // 🛠️ MÉTODOS DE DEBUGGING Y UTILIDADES
+  // ================================
 
+  // Debug completo del sistema
+  async debugAllSystems() {
+    console.log('\n🔍 DEBUGGING ALL SYSTEMS');
+    console.log('=' .repeat(50));
+    
+    const results = {
+      timestamp: new Date().toISOString(),
+      systems: {}
+    };
+    
+    try {
+      // Debug inventario
+      console.log('📦 Testing Inventory System...');
+      results.systems.inventory = await this.inventoryService.debugInventorySystem();
+      
+      // Debug pagos
+      console.log('💰 Testing Payment System...');
+      results.systems.payments = await this.paymentService.debugPaymentSystem();
+      
+      // Health checks
+      console.log('🏥 Running Health Checks...');
+      results.systems.health = {
+        inventory: await this.inventoryService.healthCheck(),
+        payments: await this.paymentService.paymentHealthCheck()
+      };
+      
+      console.log('\n✅ DEBUG COMPLETE');
+      return results;
+      
+    } catch (error) {
+      console.error('❌ Debug error:', error);
+      results.error = error.message;
+      return results;
+    }
+  }
+
+  // Información de todos los servicios
+  getServicesInfo() {
+    return {
+      version: '2.0.0',
+      services: {
+        auth: this.authService.constructor.name,
+        gym: this.gymService.constructor.name,
+        user: this.userService.constructor.name,
+        store: this.storeService.constructor.name,
+        stripe: this.stripeService.constructor.name,
+        payments: 'PaymentService',
+        schedule: 'ScheduleService',
+        inventory: this.inventoryService.constructor.name // 🆕 NUEVO
+      },
+      features: [
+        'Autenticación JWT',
+        'Gestión de usuarios y roles',
+        'Configuración dinámica del gimnasio',
+        'Tienda online completa',
+        'Pagos con Stripe',
+        'Gestión de horarios flexibles',
+        'Sistema de inventario completo', // 🆕 NUEVO
+        'Ventas locales y transferencias', // 🆕 NUEVO
+        'Gestión de productos con imágenes', // 🆕 NUEVO
+        'Reportes financieros', // 🆕 NUEVO
+        'Cache inteligente',
+        'Debug integrado'
+      ],
+      endpoints: {
+        auth: '/api/auth/*',
+        users: '/api/users/*',
+        gym: '/api/gym/*',
+        store: '/api/store/*',
+        payments: '/api/payments/*',
+        schedule: '/api/schedule/*',
+        inventory: '/api/inventory/*', // 🆕 NUEVO
+        management: '/api/store/management/*', // 🆕 NUEVO
+        localSales: '/api/local-sales/*' // 🆕 NUEVO
+      }
+    };
+  }
+
+  // Health check general
+  async healthCheck() {
+    console.log('🏥 ApiService: Running comprehensive health check...');
+    
+    const results = {
+      timestamp: new Date().toISOString(),
+      overall: 'unknown',
+      services: {}
+    };
+    
+    try {
+      // Test de conectividad básica
+      results.services.connectivity = await this.testConnectivity();
+      
+      // Health check de inventario
+      results.services.inventory = await this.inventoryService.healthCheck();
+      
+      // Health check de pagos
+      results.services.payments = await this.paymentService.paymentHealthCheck();
+      
+      // Determinar estado general
+      const healthyServices = Object.values(results.services).filter(s => s.healthy).length;
+      const totalServices = Object.keys(results.services).length;
+      
+      if (healthyServices === totalServices) {
+        results.overall = 'healthy';
+      } else if (healthyServices > totalServices / 2) {
+        results.overall = 'degraded';
+      } else {
+        results.overall = 'unhealthy';
+      }
+      
+      console.log(`🏥 Health check complete: ${results.overall} (${healthyServices}/${totalServices} services healthy)`);
+      return results;
+      
+    } catch (error) {
+      console.error('❌ Health check error:', error);
+      results.overall = 'error';
+      results.error = error.message;
+      return results;
+    }
+  }
+
+  // Test de conectividad básica
+  async testConnectivity() {
+    try {
+      const response = await this.get('/api/health', { timeout: 3000 });
+      return { healthy: true, responseTime: '< 3s' };
+    } catch (error) {
+      return { healthy: false, error: error.message };
+    }
+  }
+
+  // ================================
+  // 🔄 MÉTODOS DE COMPATIBILIDAD PARA NO ROMPER CÓDIGO EXISTENTE
+  // ================================
+
+  // Mantener compatibilidad con código que llama a estos métodos sin el prefijo "inventory"
+  async getRecentSales() {
+    return this.getLocalSales({ limit: 10 });
+  }
+
+  async getInventoryProducts() {
+    return this.getManagementProducts();
+  }
 }
 
 // ================================
@@ -469,138 +834,147 @@ const apiService = new ApiService();
 
 export default apiService;
 
-// ✅ GESTIÓN DE PAGOS MEJORADA AGREGADA AL SERVICIO PRINCIPAL
+// ✅ INVENTARIO Y TIENDA COMPLETAMENTE INTEGRADOS AL SERVICIO PRINCIPAL
 // 
 // 📁 ARCHIVOS RELACIONADOS:
-// 1. paymentService.js - Servicio especializado actualizado con rutas del manual
-// 2. apiService.js - Archivo principal con delegación mejorada (este archivo)
-// 
-// ✅ MÉTODOS ACTUALIZADOS DISPONIBLES:
-// 
-// 📊 DASHBOARD FINANCIERO:
-// - getFinancialDashboard(): Dashboard financiero completo (GET /api/financial/dashboard)
-// - getPendingPaymentsDashboard(): Dashboard de pendientes (GET /api/payments/pending-dashboard) 
-// - getPendingPaymentsDashboardWithCache(): Con cache optimizado
-// 
-// 📈 ESTADÍSTICAS Y REPORTES:
-// - getPaymentStatistics(): Estadísticas por período (GET /api/payments/statistics)
-// - getPaymentReports(): Reportes predefinidos (GET /api/payments/reports?period=xxx)
-// - exportPaymentReport(): Exportar reportes en CSV/PDF
-// 
-// 🏦 TRANSFERENCIAS BANCARIAS:
-// - getPendingTransfersDetailed(): Transferencias con detalles (GET /api/payments/transfers/pending-detailed)
-// - getPendingTransfersBasic(): Transferencias básicas (GET /api/payments/transfers/pending)
-// - validateTransfer(): Aprobar transferencia (POST /api/payments/:id/validate-transfer)
-// - rejectTransfer(): Rechazar transferencia (POST /api/payments/:id/reject-transfer)
-// 
-// 💵 MEMBRESÍAS EN EFECTIVO:
-// - getPendingCashMemberships(): Membresías esperando pago en efectivo
-// - activateCashMembership(): Activar membresía (POST /api/payments/activate-cash-membership)
-// 
-// 💳 PAGOS REGULARES:
-// - getPayments(): Lista de pagos con filtros
-// - createPayment(): Crear nuevo pago
-// - updatePayment(): Actualizar pago existente
-// - getPaymentById(): Obtener pago específico
-// 
-// 🔧 UTILIDADES Y CONFIGURACIONES:
-// - getTransferPriorityConfig(): Configuración de prioridades por tiempo
-// - getPaymentMethodConfig(): Configuración de métodos de pago
-// - getPaymentStatusConfig(): Configuración de estados
-// - getPaymentTypeConfig(): Configuración de tipos
-// - validatePaymentData(): Validación completa de datos
-// - formatPaymentDataForAPI(): Formateo para backend
-// 
-// 🗃️ CACHE Y OPTIMIZACIÓN:
-// - invalidatePaymentCache(): Limpiar cache
-// - getCachedPaymentData(): Obtener del cache
-// - setCachedPaymentData(): Guardar en cache
-// 
-// 🛠️ DEBUGGING:
-// - debugPaymentSystem(): Debug completo del sistema de pagos
-// - paymentHealthCheck(): Verificar conectividad
-// - getPaymentServiceInfo(): Información del servicio
-// - debugAllSystems(): Debug de todos los sistemas
+// 1. inventoryService.js - Servicio especializado para inventario y tienda
+// 2. apiService.js - Archivo principal con delegación completa (este archivo)
+// 3. ProductsManager.js - Componente actualizado para usar rutas correctas
+// 4. InventoryDashboard.js - Dashboard actualizado con conexión real al backend
 // 
 // ✅ RUTAS IMPLEMENTADAS SEGÚN EL MANUAL:
-// - GET /api/financial/dashboard
-// - GET /api/payments/statistics  
-// - GET /api/payments/reports?period={period}
-// - GET /api/payments/pending-dashboard
-// - GET /api/payments/transfers/pending-detailed
-// - POST /api/payments/{id}/validate-transfer
-// - POST /api/payments/{id}/reject-transfer
-// - POST /api/payments/activate-cash-membership
 // 
-// 🔄 COMPATIBILIDAD TOTAL:
-// - Mantiene todos los métodos existentes sin cambios
-// - Agrega nuevos métodos con rutas correctas del manual
-// - Misma importación y uso: import apiService from './services/apiService.js'
-// - No rompe funcionalidad existente
-// - PaymentsManager funciona perfectamente con las nuevas rutas
+// 📊 ESTADÍSTICAS E INVENTARIO:
+// - GET /api/inventory/stats?period={period}
+// - GET /api/inventory/dashboard
+// - GET /api/inventory/financial-report?startDate=X&endDate=Y
+// - GET /api/inventory/low-stock
+// - GET /api/inventory/employee-performance?startDate=X&endDate=Y
+// 
+// 📦 GESTIÓN DE PRODUCTOS:
+// - GET /api/store/management/products?page=1&limit=20&search=X&category=Y
+// - GET /api/store/management/products/{id}
+// - POST /api/store/management/products
+// - PUT /api/store/management/products/{id}
+// - PUT /api/store/management/products/{id}/stock
+// - PUT /api/store/management/products/bulk-stock
+// - DELETE /api/store/management/products/{id}
+// - POST /api/store/management/products/{id}/duplicate
+// - GET /api/store/management/products/stats
+// 
+// 🖼️ GESTIÓN DE IMÁGENES:
+// - GET /api/store/management/products/{id}/images
+// - POST /api/store/management/products/{id}/images?isPrimary=true&altText=X
+// - POST /api/store/management/products/{id}/images/multiple
+// - PUT /api/store/management/products/{id}/images/{imageId}
+// - DELETE /api/store/management/products/{id}/images/{imageId}
+// - PUT /api/store/management/products/{id}/images/reorder
+// - PUT /api/store/management/products/{id}/images/{imageId}/primary
+// 
+// 🏷️ GESTIÓN DE MARCAS:
+// - GET /api/store/management/brands?page=1&limit=20&search=X
+// - POST /api/store/management/brands
+// - PUT /api/store/management/brands/{id}
+// - DELETE /api/store/management/brands/{id}
+// - GET /api/store/management/brands/search?q=X
+// - GET /api/store/management/brands/stats
+// 
+// 📂 GESTIÓN DE CATEGORÍAS:
+// - GET /api/store/management/categories?page=1&limit=20
+// - POST /api/store/management/categories
+// - PUT /api/store/management/categories/{id}
+// - DELETE /api/store/management/categories/{id}
+// - PUT /api/store/management/categories/reorder
+// - GET /api/store/management/categories/search?q=X
+// - GET /api/store/management/categories/slug/{slug}
+// - GET /api/store/management/categories/stats
+// 
+// 💰 VENTAS LOCALES:
+// - GET /api/local-sales?page=1&limit=20&startDate=X&status=Y
+// - POST /api/local-sales/cash
+// - POST /api/local-sales/transfer
+// - POST /api/local-sales/{id}/confirm-transfer
+// - GET /api/local-sales/pending-transfers
+// - GET /api/local-sales/products/search?q=X&limit=10
+// - GET /api/local-sales/reports/daily?date=X
+// - GET /api/local-sales/my-stats
+// - GET /api/local-sales/{id}
+// 
+// 🛍️ TIENDA PÚBLICA:
+// - GET /api/store/products?page=1&category=X&search=Y&minPrice=A&maxPrice=B
+// - GET /api/store/products/featured?limit=8
+// - GET /api/store/products/{id}
+// - GET /api/store/categories
+// - GET /api/store/brands
+// - GET /api/store/search?q=X&category=Y&featured=true
+// - GET /api/store/category/{slug}/products
+// - GET /api/store/products/{id}/related?limit=4
+// - GET /api/store/stats
+// - POST /api/store/check-stock
 // 
 // 🚀 USO ACTUALIZADO EN COMPONENTES:
 // import apiService from './services/apiService.js'
 // 
-// // Dashboard financiero
-// const dashboard = await apiService.getFinancialDashboard()
+// // Dashboard de inventario
+// const stats = await apiService.getInventoryStats('month')
+// const dashboard = await apiService.getInventoryDashboard()
+// const lowStock = await apiService.getLowStockProducts()
 // 
-// // Estadísticas con período
-// const stats = await apiService.getPaymentStatistics('2024-01-01', '2024-01-31')
+// // Gestión de productos
+// const products = await apiService.getManagementProducts({ page: 1, limit: 20 })
+// const newProduct = await apiService.createProduct(productData)
+// await apiService.updateProduct(productId, updates)
+// await apiService.deleteProduct(productId)
 // 
-// // Reportes predefinidos
-// const monthlyReport = await apiService.getPaymentReports('month')
-// const weeklyReport = await apiService.getPaymentReports('week')
-// const todayReport = await apiService.getPaymentReports('today')
+// // Subida de imágenes
+// await apiService.uploadProductImage(productId, imageFile, { isPrimary: true })
+// await apiService.uploadMultipleProductImages(productId, [file1, file2])
 // 
-// // Transferencias pendientes
-// const transfers = await apiService.getPendingTransfersDetailed()
-// const urgentTransfers = await apiService.getPendingTransfersDetailed(72) // +72 horas
+// // Gestión de categorías y marcas
+// const categories = await apiService.getCategories()
+// const brands = await apiService.getBrands()
+// await apiService.createCategory(categoryData)
+// await apiService.createBrand(brandData)
 // 
-// // Validar transferencia
-// await apiService.validateTransfer(paymentId, true, 'Comprobante válido')
-// await apiService.rejectTransfer(paymentId, 'Comprobante no válido')
+// // Ventas locales
+// const sales = await apiService.getLocalSales({ page: 1, limit: 20 })
+// await apiService.createCashSale(saleData)
+// await apiService.createTransferSale(saleData)
+// await apiService.confirmTransfer(saleId, notes)
 // 
-// // Membresías en efectivo
-// const cashMemberships = await apiService.getPendingCashMemberships()
-// await apiService.activateCashMembership(membershipId)
+// // Reportes
+// const financialReport = await apiService.getFinancialReport(startDate, endDate)
+// const dailyReport = await apiService.getDailySalesReport(date)
+// const myStats = await apiService.getMySalesStats()
 // 
-// // Configuraciones para UI
-// const priorityConfig = apiService.getTransferPriorityConfig(48) // 48 horas
-// const methodConfig = apiService.getPaymentMethodConfig('transfer')
+// // Tienda pública
+// const publicProducts = await apiService.getPublicProducts({ page: 1 })
+// const featured = await apiService.getFeaturedPublicProducts(8)
+// const product = await apiService.getPublicProductById(productId)
 // 
-// 📱 INTEGRACIÓN PERFECTA CON REACT QUERY:
-// const { data: dashboard } = useQuery({
-//   queryKey: ['financialDashboard'],
-//   queryFn: () => apiService.getFinancialDashboard()
-// })
+// 🔧 UTILIDADES Y VALIDACIONES:
+// const isValid = apiService.validateProductData(productData)
+// const formatted = apiService.formatProductDataForAPI(productData)
 // 
-// const { data: stats } = useQuery({
-//   queryKey: ['paymentStats', period],
-//   queryFn: () => apiService.getPaymentReports(period),
-//   enabled: !!period
-// })
+// 🛠️ DEBUGGING Y HEALTH CHECK:
+// await apiService.debugAllSystems()
+// await apiService.healthCheck()
+// const info = apiService.getServicesInfo()
 // 
-// const validateMutation = useMutation({
-//   mutationFn: ({paymentId, approved, notes}) => 
-//     apiService.validateTransfer(paymentId, approved, notes),
-//   onSuccess: () => {
-//     queryClient.invalidateQueries(['pendingTransfers'])
-//   }
-// })
-// 
-// ✅ BENEFICIOS DE LA ACTUALIZACIÓN:
-// - Rutas correctas según el manual oficial
+// ✅ BENEFICIOS DE LA INTEGRACIÓN:
+// - Rutas correctas según el manual oficial del backend
+// - Conexión real con APIs funcionando
 // - Manejo robusto de errores con fallbacks
-// - Sistema de cache inteligente
-// - Validaciones completas
-// - Configuraciones de UI integradas
-// - Debugging avanzado
+// - Sistema de cache inteligente en inventoryService
+// - Validaciones completas de datos
+// - Notificaciones toast automáticas
+// - Debugging avanzado integrado
 // - Compatibilidad total con código existente
+// - Subida de imágenes a Cloudinary funcionando
 // - Soporte completo para quetzales guatemaltecos
-// - Optimización de rendimiento
-// - Trazabilidad completa de transacciones
+// - Separación clara entre tienda pública y gestión admin
+// - Sistema de roles y permisos integrado
 // 
-// El PaymentsManager ahora puede usar todas estas funciones mejoradas
-// con las rutas correctas del manual, manteniendo el mismo diseño
-// pero con funcionalidad completamente operativa.
+// El frontend ahora puede usar todas estas funciones con las rutas
+// correctas del manual, manteniendo el mismo diseño pero con 
+// funcionalidad completamente operativa conectada al backend real.

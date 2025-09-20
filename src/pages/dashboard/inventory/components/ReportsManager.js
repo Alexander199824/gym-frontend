@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/components/ReportsManager.js
-// FUNCIÓN: Generación y gestión de reportes de inventario y ventas
-// ACTUALIZADO: Import CreditCard corregido
+// FUNCIÓN: Generación y gestión de reportes conectado al backend real
+// ACTUALIZADO: Para usar inventoryService con rutas correctas del manual
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -9,15 +9,16 @@ import {
   Filter, Eye, Share, FileText, Printer, Mail,
   Package, ShoppingBag, Coins, Users, Clock,
   Star, Award, Target, Activity, Zap, AlertTriangle,
-  CreditCard // ✅ AGREGADO: Import faltante de CreditCard
+  CreditCard, Loader, RotateCcw
 } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
+import inventoryService from '../../../../services/inventoryService';
 
 const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
   const { formatCurrency, formatDate, showSuccess, showError, isMobile } = useApp();
   
   // Estados locales
-  const [activeReport, setActiveReport] = useState('sales');
+  const [activeReport, setActiveReport] = useState('financial');
   const [reportData, setReportData] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState({
@@ -28,10 +29,10 @@ const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
   // Tipos de reportes disponibles
   const reportTypes = [
     {
-      id: 'sales',
-      title: 'Reporte de Ventas',
-      description: 'Análisis detallado de ventas por período',
-      icon: TrendingUp,
+      id: 'financial',
+      title: 'Reporte Financiero',
+      description: 'Ingresos, costos y rentabilidad detallados',
+      icon: Coins,
       color: 'green'
     },
     {
@@ -42,187 +43,197 @@ const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
       color: 'blue'
     },
     {
-      id: 'financial',
-      title: 'Reporte Financiero',
-      description: 'Ingresos, costos y rentabilidad',
-      icon: Coins,
-      color: 'yellow'
+      id: 'sales',
+      title: 'Reporte de Ventas',
+      description: 'Análisis detallado de ventas por período',
+      icon: TrendingUp,
+      color: 'purple'
     },
     {
-      id: 'customers',
-      title: 'Reporte de Clientes',
-      description: 'Análisis de comportamiento de clientes',
+      id: 'employees',
+      title: 'Performance de Empleados',
+      description: 'Rendimiento del equipo de ventas',
       icon: Users,
-      color: 'purple'
+      color: 'indigo'
     }
   ];
   
-  // Generar datos del reporte según el tipo activo
+  // Cargar reporte cuando cambie el tipo activo
   useEffect(() => {
-    generateReportData();
-  }, [activeReport, inventoryData, period, selectedDateRange]);
+    generateReport();
+  }, [activeReport, selectedDateRange]);
   
-  const generateReportData = async () => {
+  const generateReport = async () => {
     setIsGenerating(true);
+    setReportData(null);
     
     try {
-      // Simular tiempo de generación
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`📊 Generating ${activeReport} report...`);
       
-      // Datos base del inventario
-      const stats = inventoryData?.stats?.data || {};
-      const products = inventoryData?.products?.data || [];
-      const sales = inventoryData?.sales?.data || [];
-      
-      let data;
+      let response;
       
       switch (activeReport) {
-        case 'sales':
-          data = generateSalesReport(stats, sales);
-          break;
-        case 'products':
-          data = generateProductsReport(stats, products);
-          break;
         case 'financial':
-          data = generateFinancialReport(stats, sales);
+          response = await inventoryService.getFinancialReport(
+            selectedDateRange.start,
+            selectedDateRange.end
+          );
           break;
-        case 'customers':
-          data = generateCustomersReport(sales);
+          
+        case 'products':
+          response = await inventoryService.getLowStockProducts();
           break;
+          
+        case 'sales':
+          response = await inventoryService.getDailySalesReport(selectedDateRange.end);
+          break;
+          
+        case 'employees':
+          response = await inventoryService.getEmployeePerformance(
+            selectedDateRange.start,
+            selectedDateRange.end
+          );
+          break;
+          
         default:
-          data = {};
+          throw new Error(`Unknown report type: ${activeReport}`);
       }
       
-      setReportData(data);
+      if (response && response.success) {
+        setReportData(response.data);
+        console.log(`✅ ${activeReport} report generated successfully`);
+      } else {
+        throw new Error(`Failed to generate ${activeReport} report`);
+      }
+      
     } catch (error) {
-      console.error('Error generando reporte:', error);
-      showError('Error al generar el reporte');
+      console.error(`❌ Error generating ${activeReport} report:`, error);
+      
+      // Mostrar datos de ejemplo en caso de error
+      setReportData(generateFallbackData(activeReport));
+      showError(`Error al generar reporte. Mostrando datos de ejemplo.`);
     } finally {
       setIsGenerating(false);
     }
   };
   
-  // Generar reporte de ventas
-  const generateSalesReport = (stats, sales) => ({
-    summary: {
-      totalSales: sales.length,
-      totalRevenue: stats.salesThisMonth || 67000,
-      averageTicket: stats.salesThisMonth > 0 ? (stats.salesThisMonth / sales.length) || 0 : 0,
-      topSellingDay: 'Miércoles',
-      growthRate: 15.3
-    },
-    breakdown: {
-      daily: [
-        { date: '2024-01-15', sales: 12, revenue: 3200 },
-        { date: '2024-01-16', sales: 8, revenue: 2100 },
-        { date: '2024-01-17', sales: 15, revenue: 4300 },
-        { date: '2024-01-18', sales: 18, revenue: 5100 },
-        { date: '2024-01-19', sales: 10, revenue: 2800 }
-      ],
-      byCategory: [
-        { category: 'Suplementos', sales: 35, revenue: 8750, percentage: 42 },
-        { category: 'Proteínas', sales: 28, revenue: 7000, percentage: 34 },
-        { category: 'Ropa', sales: 15, revenue: 3750, percentage: 18 },
-        { category: 'Accesorios', sales: 8, revenue: 1250, percentage: 6 }
-      ],
-      paymentMethods: [
-        { method: 'Efectivo', count: 45, percentage: 52 },
-        { method: 'Tarjeta', count: 32, percentage: 37 },
-        { method: 'Transferencia', count: 9, percentage: 11 }
-      ]
+  // Generar datos de ejemplo en caso de error
+  const generateFallbackData = (reportType) => {
+    switch (reportType) {
+      case 'financial':
+        return {
+          period: {
+            startDate: selectedDateRange.start,
+            endDate: selectedDateRange.end
+          },
+          revenue: {
+            online: 15000,
+            local: 25000,
+            total: 40000
+          },
+          movements: {
+            income: { count: 120, total: 42000 },
+            expense: { count: 25, total: 8000 }
+          },
+          paymentMethods: {
+            cash: { count: 80, total: 25000 },
+            transfer: { count: 40, total: 15000 }
+          },
+          netIncome: 34000
+        };
+        
+      case 'products':
+        return {
+          products: [
+            {
+              id: 1,
+              name: 'Proteína Whey Premium',
+              sku: 'WHE-PRO-001',
+              currentStock: 3,
+              minStock: 5,
+              shortage: 2,
+              category: 'Suplementos',
+              brand: 'MuscleTech',
+              price: 250.00,
+              isOutOfStock: false,
+              urgency: 'medium'
+            }
+          ],
+          summary: {
+            totalProducts: 1,
+            outOfStock: 0,
+            critical: 0,
+            high: 0,
+            medium: 1
+          }
+        };
+        
+      case 'sales':
+        return {
+          date: selectedDateRange.end,
+          summary: {
+            totalSales: 15,
+            totalRevenue: 3750,
+            averageTicket: 250,
+            cashSales: 10,
+            transferSales: 5
+          },
+          hourlyBreakdown: [],
+          topProducts: [
+            {
+              name: 'Proteína Whey Premium',
+              quantity: 5,
+              revenue: 1250
+            }
+          ]
+        };
+        
+      case 'employees':
+        return {
+          period: {
+            startDate: selectedDateRange.start,
+            endDate: selectedDateRange.end
+          },
+          employees: [
+            {
+              employee: {
+                id: 2,
+                name: 'Juan Pérez',
+                role: 'colaborador'
+              },
+              sales: {
+                total: 45,
+                revenue: 12500,
+                average: 277.78,
+                cash: 30,
+                transfer: 15,
+                pending: 0
+              }
+            }
+          ]
+        };
+        
+      default:
+        return {};
     }
-  });
-  
-  // Generar reporte de productos
-  const generateProductsReport = (stats, products) => ({
-    summary: {
-      totalProducts: stats.totalProducts || 0,
-      inStock: (stats.totalProducts || 0) - (stats.outOfStockProducts || 0),
-      lowStock: stats.lowStockProducts || 0,
-      outOfStock: stats.outOfStockProducts || 0,
-      totalValue: stats.totalValue || 0
-    },
-    topProducts: [
-      { name: 'Proteína Whey Premium', sold: 25, revenue: 6250 },
-      { name: 'Creatina Monohidratada', sold: 18, revenue: 1530 },
-      { name: 'Pre-entreno Energía', sold: 12, revenue: 1440 },
-      { name: 'BCAA Recovery', sold: 10, revenue: 750 },
-      { name: 'Glutamina Pura', sold: 8, revenue: 640 }
-    ],
-    categoryPerformance: [
-      { category: 'Suplementos', products: 15, averageRotation: 2.3 },
-      { category: 'Proteínas', products: 8, averageRotation: 3.1 },
-      { category: 'Ropa', products: 12, averageRotation: 1.2 },
-      { category: 'Accesorios', products: 10, averageRotation: 0.8 }
-    ],
-    stockAlerts: products.filter(p => (p.stock || 0) <= (p.minStock || 5)).slice(0, 5)
-  });
-  
-  // Generar reporte financiero
-  const generateFinancialReport = (stats, sales) => ({
-    summary: {
-      totalRevenue: stats.salesThisMonth || 67000,
-      totalCosts: 45000,
-      grossProfit: (stats.salesThisMonth || 67000) - 45000,
-      profitMargin: 32.8,
-      operatingExpenses: 15000,
-      netProfit: (stats.salesThisMonth || 67000) - 45000 - 15000
-    },
-    breakdown: {
-      revenueByCategory: [
-        { category: 'Suplementos', revenue: 28000, cost: 18000, profit: 10000 },
-        { category: 'Proteínas', revenue: 22000, cost: 15000, profit: 7000 },
-        { category: 'Ropa', revenue: 12000, cost: 8000, profit: 4000 },
-        { category: 'Accesorios', revenue: 5000, cost: 4000, profit: 1000 }
-      ],
-      monthlyTrend: [
-        { month: 'Octubre', revenue: 58000, profit: 18000 },
-        { month: 'Noviembre', revenue: 62000, profit: 19500 },
-        { month: 'Diciembre', revenue: 67000, profit: 22000 }
-      ]
-    }
-  });
-  
-  // Generar reporte de clientes
-  const generateCustomersReport = (sales) => ({
-    summary: {
-      totalCustomers: 245,
-      newCustomers: 15,
-      returningCustomers: 230,
-      averageOrderValue: 285,
-      customerLifetimeValue: 1250
-    },
-    topCustomers: [
-      { name: 'María González', orders: 8, totalSpent: 2100 },
-      { name: 'Carlos Ruiz', orders: 6, totalSpent: 1850 },
-      { name: 'Ana Martínez', orders: 5, totalSpent: 1650 },
-      { name: 'Luis Hernández', orders: 4, totalSpent: 1200 },
-      { name: 'Patricia López', orders: 7, totalSpent: 1900 }
-    ],
-    demographics: {
-      ageGroups: [
-        { range: '18-25', count: 45, percentage: 18 },
-        { range: '26-35', count: 95, percentage: 39 },
-        { range: '36-45', count: 75, percentage: 31 },
-        { range: '46+', count: 30, percentage: 12 }
-      ],
-      frequencySegments: [
-        { segment: 'Clientes VIP', count: 25, criteria: '10+ compras' },
-        { segment: 'Regulares', count: 85, criteria: '3-9 compras' },
-        { segment: 'Ocasionales', count: 135, criteria: '1-2 compras' }
-      ]
-    }
-  });
+  };
   
   // Exportar reporte
-  const handleExportReport = (format) => {
-    setIsGenerating(true);
-    
-    // Simular exportación
-    setTimeout(() => {
-      setIsGenerating(false);
+  const handleExportReport = async (format) => {
+    try {
+      setIsGenerating(true);
+      
+      // Simular tiempo de exportación
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       showSuccess(`Reporte exportado como ${format.toUpperCase()}`);
-    }, 2000);
+      
+    } catch (error) {
+      console.error('❌ Error exporting report:', error);
+      showError('Error al exportar el reporte');
+    } finally {
+      setIsGenerating(false);
+    }
   };
   
   // Obtener colores para categorías
@@ -231,7 +242,8 @@ const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
       green: 'bg-green-100 text-green-600',
       blue: 'bg-blue-100 text-blue-600',
       yellow: 'bg-yellow-100 text-yellow-600',
-      purple: 'bg-purple-100 text-purple-600'
+      purple: 'bg-purple-100 text-purple-600',
+      indigo: 'bg-indigo-100 text-indigo-600'
     };
     return colors[color] || colors.blue;
   };
@@ -304,8 +316,17 @@ const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
           
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleExportReport('pdf')}
+              onClick={generateReport}
               disabled={isGenerating}
+              className="btn-secondary btn-sm"
+            >
+              <RotateCcw className={`w-4 h-4 mr-1 ${isGenerating ? 'animate-spin' : ''}`} />
+              Actualizar
+            </button>
+            
+            <button
+              onClick={() => handleExportReport('pdf')}
+              disabled={isGenerating || !reportData}
               className="btn-secondary btn-sm"
             >
               <Download className="w-4 h-4 mr-1" />
@@ -314,20 +335,11 @@ const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
             
             <button
               onClick={() => handleExportReport('excel')}
-              disabled={isGenerating}
+              disabled={isGenerating || !reportData}
               className="btn-secondary btn-sm"
             >
               <FileText className="w-4 h-4 mr-1" />
               Excel
-            </button>
-            
-            <button
-              onClick={() => handleExportReport('print')}
-              disabled={isGenerating}
-              className="btn-secondary btn-sm"
-            >
-              <Printer className="w-4 h-4 mr-1" />
-              Imprimir
             </button>
           </div>
           
@@ -345,7 +357,7 @@ const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
               Generando Reporte
             </h3>
             <p className="text-gray-600">
-              Analizando datos y preparando el reporte...
+              Conectando con el backend y analizando datos...
             </p>
             <div className="mt-4 w-48 h-2 bg-gray-200 rounded-full mx-auto overflow-hidden">
               <div className="h-full bg-purple-600 rounded-full animate-pulse"></div>
@@ -355,7 +367,7 @@ const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
       ) : reportData ? (
         <div className="space-y-6">
           
-          {/* RESUMEN DEL REPORTE */}
+          {/* HEADER DEL REPORTE */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -366,156 +378,278 @@ const ReportsManager = ({ inventoryData, period, onPeriodChange }) => {
               </span>
             </div>
             
-            {/* Métricas del resumen */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {Object.entries(reportData.summary || {}).map(([key, value], index) => {
-                const labels = {
-                  totalSales: 'Ventas Totales',
-                  totalRevenue: 'Ingresos Totales',
-                  totalProducts: 'Productos Totales',
-                  totalCustomers: 'Clientes Totales',
-                  averageTicket: 'Ticket Promedio',
-                  grossProfit: 'Ganancia Bruta',
-                  profitMargin: 'Margen (%)',
-                  inStock: 'En Stock',
-                  lowStock: 'Stock Bajo',
-                  outOfStock: 'Sin Stock',
-                  newCustomers: 'Nuevos Clientes',
-                  growthRate: 'Crecimiento (%)'
-                };
-                
-                const isMonetary = ['totalRevenue', 'averageTicket', 'grossProfit', 'totalValue', 'netProfit'].includes(key);
-                const isPercentage = ['profitMargin', 'growthRate'].includes(key);
-                
-                let displayValue = value;
-                if (isMonetary) {
-                  displayValue = formatCurrency(value);
-                } else if (isPercentage) {
-                  displayValue = `${value}%`;
-                }
-                
-                return (
-                  <div key={index} className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-gray-900 mb-1">
-                      {displayValue}
+            {/* CONTENIDO ESPECÍFICO POR TIPO DE REPORTE */}
+            
+            {/* REPORTE FINANCIERO */}
+            {activeReport === 'financial' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600 mb-1">
+                      {formatCurrency(reportData.revenue?.total || 0)}
                     </div>
-                    <div className="text-sm text-gray-600">
-                      {labels[key] || key}
+                    <div className="text-sm text-green-700">Ingresos Totales</div>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600 mb-1">
+                      {formatCurrency(reportData.netIncome || 0)}
+                    </div>
+                    <div className="text-sm text-blue-700">Ingreso Neto</div>
+                  </div>
+                  
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600 mb-1">
+                      {reportData.movements?.income?.count || 0}
+                    </div>
+                    <div className="text-sm text-purple-700">Transacciones</div>
+                  </div>
+                </div>
+                
+                {/* Desglose por métodos de pago */}
+                {reportData.paymentMethods && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Métodos de Pago
+                    </h3>
+                    <div className="space-y-3">
+                      {Object.entries(reportData.paymentMethods).map(([method, data]) => (
+                        <div key={method} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center">
+                            {method === 'cash' ? (
+                              <Coins className="w-5 h-5 text-green-600 mr-3" />
+                            ) : (
+                              <CreditCard className="w-5 h-5 text-blue-600 mr-3" />
+                            )}
+                            <span className="font-medium text-gray-900 capitalize">
+                              {method === 'cash' ? 'Efectivo' : 'Transferencia'}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-gray-900">
+                              {formatCurrency(data.total)}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {data.count} transacciones
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            )}
+            
+            {/* REPORTE DE PRODUCTOS */}
+            {activeReport === 'products' && (
+              <div className="space-y-6">
+                {reportData.summary && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {reportData.summary.totalProducts}
+                      </div>
+                      <div className="text-sm text-blue-700">Total Productos</div>
+                    </div>
+                    
+                    <div className="bg-yellow-50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {reportData.summary.medium || 0}
+                      </div>
+                      <div className="text-sm text-yellow-700">Stock Bajo</div>
+                    </div>
+                    
+                    <div className="bg-red-50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-red-600">
+                        {reportData.summary.outOfStock}
+                      </div>
+                      <div className="text-sm text-red-700">Sin Stock</div>
+                    </div>
+                    
+                    <div className="bg-green-50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {reportData.summary.totalProducts - reportData.summary.outOfStock - (reportData.summary.medium || 0)}
+                      </div>
+                      <div className="text-sm text-green-700">Stock Normal</div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Lista de productos con stock bajo */}
+                {reportData.products && reportData.products.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Productos que Requieren Atención
+                    </h3>
+                    <div className="space-y-3">
+                      {reportData.products.map((product, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-center">
+                            <AlertTriangle className="w-5 h-5 text-yellow-600 mr-3" />
+                            <div>
+                              <div className="font-medium text-gray-900">{product.name}</div>
+                              <div className="text-sm text-gray-600">
+                                {product.category} • {product.brand} • SKU: {product.sku}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-red-600">
+                              Stock: {product.currentStock}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Mínimo: {product.minStock}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* REPORTE DE VENTAS */}
+            {activeReport === 'sales' && (
+              <div className="space-y-6">
+                {reportData.summary && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-green-50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {reportData.summary.totalSales}
+                      </div>
+                      <div className="text-sm text-green-700">Ventas Totales</div>
+                    </div>
+                    
+                    <div className="bg-blue-50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {formatCurrency(reportData.summary.totalRevenue)}
+                      </div>
+                      <div className="text-sm text-blue-700">Ingresos</div>
+                    </div>
+                    
+                    <div className="bg-purple-50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {formatCurrency(reportData.summary.averageTicket)}
+                      </div>
+                      <div className="text-sm text-purple-700">Ticket Promedio</div>
+                    </div>
+                    
+                    <div className="bg-indigo-50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-indigo-600">
+                        {((reportData.summary.cashSales / reportData.summary.totalSales) * 100).toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-indigo-700">Ventas en Efectivo</div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Productos más vendidos */}
+                {reportData.topProducts && reportData.topProducts.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Productos Más Vendidos
+                    </h3>
+                    <div className="space-y-3">
+                      {reportData.topProducts.map((product, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                              <span className="text-sm font-bold text-purple-600">
+                                #{index + 1}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">{product.name}</div>
+                              <div className="text-sm text-gray-600">
+                                {product.quantity} unidades vendidas
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-green-600">
+                              {formatCurrency(product.revenue)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* REPORTE DE EMPLEADOS */}
+            {activeReport === 'employees' && (
+              <div className="space-y-6">
+                {reportData.employees && reportData.employees.length > 0 ? (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                      Performance del Equipo
+                    </h3>
+                    <div className="space-y-4">
+                      {reportData.employees.map((emp, index) => (
+                        <div key={index} className="bg-gray-50 p-6 rounded-lg">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center">
+                              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                                <Users className="w-6 h-6 text-blue-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-900">
+                                  {emp.employee.name}
+                                </h4>
+                                <p className="text-sm text-gray-600 capitalize">
+                                  {emp.employee.role}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-green-600">
+                                {emp.sales.total}
+                              </div>
+                              <div className="text-sm text-gray-600">Ventas Totales</div>
+                            </div>
+                            
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-blue-600">
+                                {formatCurrency(emp.sales.revenue)}
+                              </div>
+                              <div className="text-sm text-gray-600">Ingresos</div>
+                            </div>
+                            
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-purple-600">
+                                {formatCurrency(emp.sales.average)}
+                              </div>
+                              <div className="text-sm text-gray-600">Promedio</div>
+                            </div>
+                            
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-orange-600">
+                                {emp.sales.pending || 0}
+                              </div>
+                              <div className="text-sm text-gray-600">Pendientes</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No hay datos de empleados disponibles</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
           </div>
-          
-          {/* CONTENIDO ESPECÍFICO POR TIPO DE REPORTE */}
-          {activeReport === 'sales' && reportData.breakdown && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              {/* Ventas por categoría */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Ventas por Categoría
-                </h3>
-                <div className="space-y-3">
-                  {reportData.breakdown.byCategory.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 bg-purple-500 rounded-full mr-3"></div>
-                        <span className="text-sm font-medium text-gray-700">
-                          {item.category}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-gray-900">
-                          {formatCurrency(item.revenue)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {item.percentage}% • {item.sales} ventas
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Métodos de pago */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Métodos de Pago
-                </h3>
-                <div className="space-y-3">
-                  {reportData.breakdown.paymentMethods.map((method, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                          method.method === 'Efectivo' ? 'bg-green-100' :
-                          method.method === 'Tarjeta' ? 'bg-blue-100' : 'bg-purple-100'
-                        }`}>
-                          {method.method === 'Efectivo' ? (
-                            <Coins className="w-4 h-4 text-green-600" />
-                          ) : method.method === 'Tarjeta' ? (
-                            <CreditCard className="w-4 h-4 text-blue-600" />
-                          ) : (
-                            <FileText className="w-4 h-4 text-purple-600" />
-                          )}
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">
-                          {method.method}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-gray-900">
-                          {method.count}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {method.percentage}%
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-            </div>
-          )}
-          
-          {/* Productos top (para reporte de productos) */}
-          {activeReport === 'products' && reportData.topProducts && (
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Top 5 Productos Más Vendidos
-              </h3>
-              
-              <div className="space-y-3">
-                {reportData.topProducts.map((product, index) => (
-                  <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-sm font-bold text-blue-600">
-                          {index + 1}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {product.name}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {product.sold} unidades vendidas
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-green-600">
-                        {formatCurrency(product.revenue)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm p-12">
