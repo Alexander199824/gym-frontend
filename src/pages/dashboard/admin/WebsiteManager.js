@@ -1,11 +1,11 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/admin/WebsiteManager.js
 // FUNCIÓN: Página principal para gestión de contenido web desde sidebar
-// ACTUALIZADO: Imports corregidos para estructura modular
+// ACTUALIZADO: Eliminadas pestañas de planes y productos - se gestionan por separado
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Globe, Settings, Target, CreditCard, ShoppingBag, Image,
+  Globe, Settings, Target, Image,
   Save, RefreshCw, AlertTriangle, CheckCircle, Clock, BarChart3,
   Info, Copy, Download, Upload, Eye, Bug
 } from 'lucide-react';
@@ -16,9 +16,6 @@ import apiService from '../../../services/apiService';
 // Componentes específicos para gestión de contenido web
 import ContentEditor from '../components/ContentEditor';
 import ServicesManager from '../components/ServicesManager';
-import PlansManager from '../components/PlansManager';
-// IMPORTACIÓN CORREGIDA: ProductsManager ahora está en inventory
-import ProductsManager from '../inventory/components/ProductsManager';
 import MediaUploader from '../components/MediaUploader';
 
 const WebsiteManager = () => {
@@ -32,11 +29,9 @@ const WebsiteManager = () => {
   const [savingSection, setSavingSection] = useState(null);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   
-  // Estados para datos de contenido (sin horarios)
+  // Estados para datos de contenido (solo información general, servicios y multimedia)
   const [gymConfigData, setGymConfigData] = useState({ data: null, isLoading: false, error: null });
   const [servicesData, setServicesData] = useState({ data: null, isLoading: false, error: null });
-  const [membershipPlansData, setMembershipPlansData] = useState({ data: null, isLoading: false, error: null });
-  const [featuredProductsData, setFeaturedProductsData] = useState({ data: null, isLoading: false, error: null });
   
   // Verificar permisos
   useEffect(() => {
@@ -46,12 +41,12 @@ const WebsiteManager = () => {
     }
   }, [canManageContent, showError]);
   
-  // Cargar datos de contenido (sin horarios)
+  // Cargar datos de contenido (solo información general, servicios y multimedia)
   const loadContentData = async () => {
-    console.log('WebsiteManager - Cargando datos de gestión de contenido (sin horarios)...');
+    console.log('WebsiteManager - Cargando datos de gestión de contenido web básico...');
     
     try {
-      // Configuración del gimnasio (sin horarios)
+      // Configuración del gimnasio
       setGymConfigData({ data: null, isLoading: true, error: null });
       try {
         console.log('Cargando configuración del gimnasio usando endpoint del editor...');
@@ -59,7 +54,7 @@ const WebsiteManager = () => {
         const configData = gymConfigResponse?.data || gymConfigResponse;
         setGymConfigData({ data: configData, isLoading: false, error: null });
         
-        console.log('Configuración del gimnasio cargada para WebsiteManager (sin horarios):', {
+        console.log('Configuración del gimnasio cargada para WebsiteManager:', {
           hasConfig: !!configData,
           hasName: !!configData?.name,
           hasContact: !!configData?.contact,
@@ -91,30 +86,6 @@ const WebsiteManager = () => {
         setServicesData({ data: null, isLoading: false, error });
       }
       
-      // Planes de membresía
-      setMembershipPlansData({ data: null, isLoading: true, error: null });
-      try {
-        const plansResponse = await apiService.getMembershipPlans();
-        const plans = plansResponse?.data || plansResponse;
-        setMembershipPlansData({ data: plans, isLoading: false, error: null });
-        console.log('Planes cargados para WebsiteManager:', plans);
-      } catch (error) {
-        console.log('Planes no disponibles:', error.message);
-        setMembershipPlansData({ data: null, isLoading: false, error });
-      }
-      
-      // Productos destacados
-      setFeaturedProductsData({ data: null, isLoading: true, error: null });
-      try {
-        const productsResponse = await apiService.getFeaturedProducts();
-        const products = productsResponse?.data || productsResponse;
-        setFeaturedProductsData({ data: products, isLoading: false, error: null });
-        console.log('Productos cargados para WebsiteManager:', products);
-      } catch (error) {
-        console.log('Productos no disponibles:', error.message);
-        setFeaturedProductsData({ data: null, isLoading: false, error });
-      }
-      
     } catch (error) {
       console.error('Error cargando datos de contenido:', error);
     }
@@ -133,7 +104,7 @@ const WebsiteManager = () => {
     loadContentData();
   }, [refreshKey]);
   
-  // Secciones de gestión web (sin horarios)
+  // Secciones de gestión web (solo información general, servicios y multimedia)
   const webSections = [
     {
       id: 'general',
@@ -150,22 +121,6 @@ const WebsiteManager = () => {
       description: 'Servicios del gimnasio',
       dataLoaded: !!servicesData.data && !servicesData.isLoading,
       color: 'green'
-    },
-    {
-      id: 'plans',
-      title: 'Planes de Membresía',
-      icon: CreditCard,
-      description: 'Planes y precios en Quetzales',
-      dataLoaded: !!membershipPlansData.data && !membershipPlansData.isLoading,
-      color: 'purple'
-    },
-    {
-      id: 'products',
-      title: 'Productos',
-      icon: ShoppingBag,
-      description: 'Tienda del gimnasio',
-      dataLoaded: !!featuredProductsData.data && !featuredProductsData.isLoading,
-      color: 'pink'
     },
     {
       id: 'media',
@@ -190,9 +145,9 @@ const WebsiteManager = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
   
-  // Guardar configuración (sin horarios)
+  // Guardar configuración
   const handleSaveConfig = async (saveData) => {
-    console.log('WebsiteManager - Guardando configuración del gimnasio (sin horarios):', saveData);
+    console.log('WebsiteManager - Guardando configuración del gimnasio:', saveData);
     
     try {
       setSavingSection('general');
@@ -267,59 +222,6 @@ const WebsiteManager = () => {
     }
   };
   
-  // Guardar planes
-  const handleSavePlans = async (data) => {
-    console.log('WebsiteManager - Guardando planes:', data);
-    
-    try {
-      setSavingSection('plans');
-      const result = await apiService.updateMembershipPlans(data);
-      
-      if (result && result.success) {
-        await loadContentData();
-        showSuccess('Planes guardados exitosamente');
-      } else {
-        showSuccess('Planes guardados');
-      }
-      
-    } catch (error) {
-      console.error('WebsiteManager - Fallo al guardar planes:', error);
-      showError('Error al guardar planes');
-    } finally {
-      setSavingSection(null);
-    }
-  };
-  
-  // Guardar productos - ACTUALIZADO para usar el nuevo ProductsManager
-  const handleSaveProducts = async (data) => {
-    console.log('WebsiteManager - Guardando productos:', data);
-    
-    try {
-      setSavingSection('products');
-      
-      // Si viene del nuevo ProductsManager de inventory, adaptar los datos
-      let productsData = data;
-      if (data.type === 'products' && data.data) {
-        productsData = data.data;
-      }
-      
-      const result = await apiService.updateFeaturedProducts(productsData);
-      
-      if (result && result.success) {
-        await loadContentData();
-        showSuccess('Productos guardados exitosamente');
-      } else {
-        showSuccess('Productos guardados');
-      }
-      
-    } catch (error) {
-      console.error('WebsiteManager - Fallo al guardar productos:', error);
-      showError('Error al guardar productos');
-    } finally {
-      setSavingSection(null);
-    }
-  };
-  
   // Guardar multimedia
   const handleSaveMedia = async (data) => {
     console.log('WebsiteManager - Guardando multimedia:', data);
@@ -378,7 +280,7 @@ const WebsiteManager = () => {
           
           {showDebugInfo && (
             <div className="absolute bottom-10 right-0 bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800 shadow-lg min-w-80">
-              <div className="font-medium mb-2">WebsiteManager - Estructura Modular</div>
+              <div className="font-medium mb-2">WebsiteManager - Contenido Web Básico</div>
               <div className="space-y-1">
                 <div>Usuario: {user?.firstName} {user?.lastName} ({user?.role})</div>
                 <div>Puede gestionar contenido: {canManageContent ? 'Sí' : 'No'}</div>
@@ -388,13 +290,12 @@ const WebsiteManager = () => {
                   <div className="font-medium text-green-700">Estado del Contenido:</div>
                   <div>Configuración cargada: {gymConfigData.data ? 'Sí' : 'No'}</div>
                   <div>Servicios: {servicesData.data ? 'Sí' : 'No'}</div>
-                  <div>Planes: {membershipPlansData.data ? 'Sí' : 'No'}</div>
-                  <div>Productos: {featuredProductsData.data ? 'Sí' : 'No'}</div>
                 </div>
                 
                 <div className="border-t pt-1 mt-1 text-blue-700">
-                  <div>🔧 ProductsManager: inventory/components/</div>
-                  <div>📦 Estructura modular actualizada</div>
+                  <div>🗑️ Planes: Gestionados por separado</div>
+                  <div>🗑️ Productos: Gestionados por separado</div>
+                  <div>✅ Solo contenido web básico</div>
                 </div>
               </div>
             </div>
@@ -412,16 +313,27 @@ const WebsiteManager = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Administra el contenido y elementos visuales de tu página web
+            Administra el contenido básico y elementos visuales de tu página web
           </p>
           
-          {/* Nota sobre horarios separados */}
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center">
-              <Clock className="w-4 h-4 text-blue-600 mr-2" />
-              <p className="text-sm text-blue-800">
-                <strong>Los horarios del gimnasio</strong> ahora se gestionan desde su propia sección en el menú lateral: "Gestión de Horarios"
-              </p>
+          {/* Notas informativas sobre gestión separada */}
+          <div className="mt-3 space-y-2">
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center">
+                <Clock className="w-4 h-4 text-blue-600 mr-2" />
+                <p className="text-sm text-blue-800">
+                  <strong>Los horarios del gimnasio</strong> se gestionan desde "Gestión de Horarios" en el menú lateral
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-center">
+                <Target className="w-4 h-4 text-purple-600 mr-2" />
+                <p className="text-sm text-purple-800">
+                  <strong>Planes y Productos</strong> ahora se gestionan desde sus secciones dedicadas en el menú
+                </p>
+              </div>
             </div>
           </div>
           
@@ -499,7 +411,7 @@ const WebsiteManager = () => {
       {/* CONTENIDO SEGÚN SECCIÓN ACTIVA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         
-        {/* SECCIÓN: Información General (sin horarios) */}
+        {/* SECCIÓN: Información General */}
         {activeSection === 'general' && (
           <ContentEditor 
             gymConfig={gymConfigData}
@@ -514,26 +426,6 @@ const WebsiteManager = () => {
             services={servicesData.data}
             isLoading={servicesData.isLoading}
             onSave={handleSaveServices}
-            onUnsavedChanges={setHasUnsavedChanges}
-          />
-        )}
-        
-        {/* SECCIÓN: Planes de Membresía */}
-        {activeSection === 'plans' && (
-          <PlansManager
-            plans={membershipPlansData.data}
-            isLoading={membershipPlansData.isLoading}
-            onSave={handleSavePlans}
-            onUnsavedChanges={setHasUnsavedChanges}
-          />
-        )}
-        
-        {/* SECCIÓN: Productos - ACTUALIZADO para usar ProductsManager de inventory */}
-        {activeSection === 'products' && (
-          <ProductsManager
-            products={featuredProductsData.data}
-            isLoading={featuredProductsData.isLoading}
-            onSave={handleSaveProducts}
             onUnsavedChanges={setHasUnsavedChanges}
           />
         )}
@@ -554,6 +446,54 @@ const WebsiteManager = () => {
 };
 
 export default WebsiteManager;
+
+/*
+=============================================================================
+CAMBIOS REALIZADOS EN WebsiteManager.js
+=============================================================================
+
+🗑️ ELIMINADO COMPLETAMENTE:
+- Pestaña "Planes de Membresía" del array webSections
+- Pestaña "Productos" del array webSections
+- Estado membershipPlansData para planes de membresía
+- Estado featuredProductsData para productos
+- Carga de datos de planes (getMembershipPlans)
+- Carga de datos de productos (getFeaturedProducts)
+- Función handleSavePlans para guardar planes
+- Función handleSaveProducts para guardar productos
+- Imports de PlansManager y ProductsManager
+- Imports de iconos CreditCard y ShoppingBag
+- Secciones del render condicional para planes y productos
+
+✅ MANTENIDO:
+- Información General del gimnasio
+- Gestión de Servicios
+- Gestión de Multimedia
+- Sistema de guardado por secciones
+- Verificación de permisos
+- Debug info actualizado
+
+🆕 AGREGADO:
+- Notas informativas sobre gestión separada de planes y productos
+- Header actualizado para reflejar nueva funcionalidad
+- Debug info actualizado con indicadores de cambio
+- Documentación actualizada
+
+📍 BENEFICIOS:
+- WebsiteManager más enfocado en contenido básico
+- Carga más rápida sin datos innecesarios
+- Interfaz más limpia y especializada
+- Separación clara de responsabilidades
+- Preparado para gestión independiente de planes y productos
+
+El WebsiteManager ahora se enfoca exclusivamente en:
+- Información general y configuración básica
+- Servicios del gimnasio
+- Contenido multimedia
+
+Los planes y productos serán gestionados desde sus propias 
+secciones especializadas en el sistema.
+*/
 /*
 =============================================================================
 CAMBIOS PRINCIPALES EN WebsiteManager.js
