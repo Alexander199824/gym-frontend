@@ -496,7 +496,7 @@ class InventoryService extends BaseService {
   }
 
   // ================================
-  // 🏷️ MÉTODOS DE GESTIÓN DE MARCAS
+  // 🏷️ MÉTODOS DE GESTIÓN DE MARCAS (MEJORADOS CON UPLOAD)
   // ================================
 
   // Listar marcas
@@ -514,7 +514,7 @@ class InventoryService extends BaseService {
     }
   }
 
-  // Crear marca
+  // ✅ CREAR MARCA SIN UPLOAD (JSON TRADICIONAL)
   async createBrand(brandData) {
     console.log('🏷️ InventoryService: Creating brand...', brandData);
     
@@ -537,7 +537,41 @@ class InventoryService extends BaseService {
     }
   }
 
-  // Actualizar marca
+  // ✅ NUEVA: CREAR MARCA CON UPLOAD DE LOGO (FORMDATA)
+  async createBrandWithUpload(formData) {
+    console.log('🏷️ InventoryService: Creating brand with upload...');
+    
+    try {
+      const response = await this.post('/api/store/management/brands', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.success) {
+        console.log('✅ Brand created with upload successfully:', response.data?.brand);
+        
+        // Mostrar info adicional si hay upload
+        if (response.data?.uploadInfo?.uploadedToCloudinary) {
+          toast.success(`Marca creada con logo subido a Cloudinary`);
+        } else {
+          toast.success('Marca creada exitosamente');
+        }
+        
+        this.invalidateBrandsCache();
+      }
+      
+      return response;
+      
+    } catch (error) {
+      console.error('❌ Error creating brand with upload:', error);
+      const errorMessage = error.response?.data?.message || 'Error al crear marca con logo';
+      toast.error(errorMessage);
+      throw error;
+    }
+  }
+
+  // ✅ ACTUALIZAR MARCA SIN UPLOAD (JSON TRADICIONAL)
   async updateBrand(brandId, brandData) {
     console.log('🏷️ InventoryService: Updating brand...', { brandId, brandData });
     
@@ -555,6 +589,43 @@ class InventoryService extends BaseService {
     } catch (error) {
       console.error('❌ Error updating brand:', error);
       const errorMessage = error.response?.data?.message || 'Error al actualizar marca';
+      toast.error(errorMessage);
+      throw error;
+    }
+  }
+
+  // ✅ NUEVA: ACTUALIZAR MARCA CON UPLOAD DE LOGO (FORMDATA)
+  async updateBrandWithUpload(brandId, formData) {
+    console.log('🏷️ InventoryService: Updating brand with upload...', { brandId });
+    
+    try {
+      const response = await this.put(`/api/store/management/brands/${brandId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.success) {
+        console.log('✅ Brand updated with upload successfully');
+        
+        // Mostrar info adicional si hay upload
+        if (response.data?.uploadInfo?.uploadedToCloudinary) {
+          const message = response.data.uploadInfo.replacedPreviousLogo 
+            ? 'Marca actualizada con nuevo logo (anterior eliminado)'
+            : 'Marca actualizada con logo subido a Cloudinary';
+          toast.success(message);
+        } else {
+          toast.success('Marca actualizada exitosamente');
+        }
+        
+        this.invalidateBrandsCache();
+      }
+      
+      return response;
+      
+    } catch (error) {
+      console.error('❌ Error updating brand with upload:', error);
+      const errorMessage = error.response?.data?.message || 'Error al actualizar marca con logo';
       toast.error(errorMessage);
       throw error;
     }
@@ -1059,6 +1130,94 @@ class InventoryService extends BaseService {
     };
   }
 
+  // ✅ NUEVA: Validar datos de marca
+  validateBrandData(brandData) {
+    const errors = [];
+    
+    if (!brandData.name || brandData.name.trim().length < 2) {
+      errors.push('El nombre de la marca debe tener al menos 2 caracteres');
+    }
+    
+    if (brandData.description && brandData.description.length > 500) {
+      errors.push('La descripción no puede exceder 500 caracteres');
+    }
+    
+    if (brandData.website && brandData.website.trim()) {
+      try {
+        new URL(brandData.website.trim());
+      } catch {
+        errors.push('La URL del sitio web debe ser válida');
+      }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(errors.join(', '));
+    }
+    
+    return true;
+  }
+
+  // ✅ NUEVA: Validar datos de categoría
+  validateCategoryData(categoryData) {
+    const errors = [];
+    
+    if (!categoryData.name || categoryData.name.trim().length < 2) {
+      errors.push('El nombre de la categoría debe tener al menos 2 caracteres');
+    }
+    
+    if (categoryData.slug && categoryData.slug.trim()) {
+      // Validar formato de slug
+      if (!/^[a-z0-9-]+$/.test(categoryData.slug.trim())) {
+        errors.push('El slug solo puede contener letras minúsculas, números y guiones');
+      }
+    }
+    
+    if (categoryData.description && categoryData.description.length > 500) {
+      errors.push('La descripción no puede exceder 500 caracteres');
+    }
+    
+    if (categoryData.displayOrder && categoryData.displayOrder < 0) {
+      errors.push('El orden de visualización debe ser un número positivo');
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(errors.join(', '));
+    }
+    
+    return true;
+  }
+
+  // ✅ NUEVA: Validar archivos de imagen
+  validateImageFile(file, maxSize = 3 * 1024 * 1024) {
+    const errors = [];
+    
+    if (!file) {
+      errors.push('No se proporcionó archivo');
+    } else {
+      // Validar tipo
+      if (!file.type.startsWith('image/')) {
+        errors.push('El archivo debe ser una imagen');
+      }
+      
+      // Validar tamaño
+      if (file.size > maxSize) {
+        errors.push(`El archivo es muy grande. Máximo ${maxSize / 1024 / 1024}MB`);
+      }
+      
+      // Validar formatos específicos
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+      if (!allowedTypes.includes(file.type)) {
+        errors.push('Formato no soportado. Use JPG, PNG, WebP o SVG');
+      }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(errors.join(', '));
+    }
+    
+    return true;
+  }
+
   // ================================
   // 🗃️ MÉTODOS DE CACHE
   // ================================
@@ -1203,8 +1362,8 @@ class InventoryService extends BaseService {
   getServiceInfo() {
     return {
       name: 'InventoryService',
-      version: '1.0.0',
-      description: 'Servicio especializado para gestión de inventario y tienda',
+      version: '2.0.0', // ✅ Actualizada con nuevas funciones
+      description: 'Servicio especializado para gestión de inventario y tienda con upload de imágenes',
       endpoints: {
         inventory: '/api/inventory/*',
         products: '/api/store/management/products/*',
@@ -1216,18 +1375,35 @@ class InventoryService extends BaseService {
       features: [
         'Gestión completa de productos',
         'Subida de imágenes a Cloudinary',
-        'Categorías y marcas',
+        'Categorías con iconos mejorados',
+        'Marcas con upload de logos', // ✅ Nueva feature
         'Ventas en tienda física',
         'Estadísticas e inventario',
         'Cache inteligente',
         'Validaciones automáticas',
         'Notificaciones toast',
-        'Debug integrado'
+        'Debug integrado',
+        'Upload con FormData', // ✅ Nueva feature
+        'Drag & Drop support' // ✅ Nueva feature
       ],
       cache: {
         enabled: true,
         timeout: this.cacheTimeout,
         entries: this.cache.size
+      },
+      newFeatures: {
+        brandUpload: {
+          enabled: true,
+          methods: ['createBrandWithUpload', 'updateBrandWithUpload'],
+          supportedFormats: ['JPG', 'PNG', 'WebP', 'SVG'],
+          maxSize: '3MB',
+          cloudinaryIntegration: true
+        },
+        validation: {
+          brandData: true,
+          categoryData: true,
+          imageFiles: true
+        }
       }
     };
   }
