@@ -3,6 +3,7 @@
 // Modal Editor para Planes de Membresía - Componente Separado
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus, Edit, Trash2, Save, X, CreditCard, Crown, Calendar,
   Shield, Star, Check, AlertTriangle, Eye, EyeOff, Loader, 
@@ -37,7 +38,7 @@ const PlanEditorModal = ({
   const [modalStep, setModalStep] = useState(0);
   const [originalFormData, setOriginalFormData] = useState(null);
   
-  // Estado del formulario
+  // Estado del formulario - MUY IMPORTANTE: sin dependencias que lo reseteen
   const [planFormData, setPlanFormData] = useState(getEmptyPlan());
   
   // Estados para características con búsqueda
@@ -97,22 +98,32 @@ const PlanEditorModal = ({
     ]
   };
   
-  // Inicializar datos cuando se abre el modal
+  // INICIALIZAR DATOS SOLO UNA VEZ - SIN RESETS AUTOMÁTICOS
   useEffect(() => {
     if (show) {
-      if (isCreating) {
-        const emptyPlan = getEmptyPlan();
-        setPlanFormData(emptyPlan);
-        setOriginalFormData(emptyPlan);
-      } else if (initialPlan) {
-        const planCopy = { ...initialPlan };
-        setPlanFormData(planCopy);
-        setOriginalFormData(planCopy);
+      // Solo inicializar si no hay datos o si cambió el tipo de operación
+      const needsInitialization = !planFormData.name || 
+        (isCreating && originalFormData && originalFormData.id) ||
+        (!isCreating && initialPlan && (!originalFormData || originalFormData.id !== initialPlan.id));
+      
+      if (needsInitialization) {
+        if (isCreating) {
+          const emptyPlan = getEmptyPlan();
+          console.log('🆕 Inicializando plan vacío para crear');
+          setPlanFormData(emptyPlan);
+          setOriginalFormData(emptyPlan);
+          setModalStep(0);
+        } else if (initialPlan) {
+          const planCopy = { ...initialPlan };
+          console.log('✏️ Inicializando plan para editar:', planCopy.name);
+          setPlanFormData(planCopy);
+          setOriginalFormData(planCopy);
+          setModalStep(0);
+        }
+        setFeatureSearch('');
       }
-      setModalStep(0);
-      setFeatureSearch('');
     }
-  }, [show, initialPlan, isCreating, getEmptyPlan]);
+  }, [show, isCreating]); // SOLO show e isCreating, NO initialPlan ni getEmptyPlan
   
   // Funciones existentes
   const hasFormChanges = () => {
@@ -159,7 +170,7 @@ const PlanEditorModal = ({
         document.body.style.overflow = originalStyle;
       };
     }
-  }, [show, planFormData, originalFormData]);
+  }, [show]); // Solo depende de show
   
   const handleCancelWithConfirmation = () => {
     const hasChanges = hasFormChanges();
@@ -178,6 +189,7 @@ const PlanEditorModal = ({
   };
   
   const handleCancel = () => {
+    console.log('❌ Cancelando modal');
     setPlanFormData(getEmptyPlan());
     setOriginalFormData(null);
     setModalStep(0);
@@ -191,17 +203,22 @@ const PlanEditorModal = ({
       
       if (!planFormData.name.trim()) {
         showError('El nombre del plan es obligatorio');
+        setModalStep(0);
         return;
       }
       
       if (planFormData.price <= 0) {
         showError('El precio debe ser mayor a 0');
+        setModalStep(2);
         return;
       }
       
       if (!planFormData.value.trim()) {
         planFormData.value = planFormData.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
       }
+      
+      console.log('💾 Guardando plan:', planFormData.name);
+      console.log('📋 Características:', planFormData.features);
       
       onSave(planFormData);
       
@@ -211,6 +228,41 @@ const PlanEditorModal = ({
     } finally {
       setSaving(false);
     }
+  };
+  
+  // Navegación mejorada entre pasos SIN resetear datos
+  const handleStepChange = (newStep) => {
+    if (newStep < 0 || newStep >= steps.length) return;
+    
+    // Validaciones por paso antes de avanzar
+    if (newStep > modalStep) {
+      switch (modalStep) {
+        case 0:
+          if (!planFormData.name.trim()) {
+            showError('Complete el nombre del plan antes de continuar');
+            return;
+          }
+          break;
+        case 2:
+          if (planFormData.price <= 0) {
+            showError('Complete el precio del plan antes de continuar');
+            return;
+          }
+          break;
+      }
+    }
+    
+    console.log(`📄 Cambiando al paso ${newStep + 1}`);
+    setModalStep(newStep);
+  };
+  
+  // HANDLER PARA CAMBIOS EN PLAN - PRESERVAR CARACTERÍSTICAS
+  const handlePlanFormChange = (newPlan) => {
+    console.log('📝 Actualizando datos del plan:', newPlan.name);
+    if (newPlan.features && newPlan.features.length > 0) {
+      console.log('✅ Características preservadas:', newPlan.features.length);
+    }
+    setPlanFormData(newPlan);
   };
   
   if (!show) return null;
@@ -238,9 +290,27 @@ const PlanEditorModal = ({
     return planFormData.name.trim().length > 0 && planFormData.price > 0;
   };
   
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-4 pb-4 overflow-auto bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className={`w-full max-w-4xl mx-4 bg-white rounded-xl shadow-2xl max-h-full flex flex-col`}>
+  // USAR PORTAL PARA RENDERIZAR FUERA DEL DOM TREE Y EVITAR Z-INDEX ISSUES
+  const modalContent = (
+    <div 
+      className="fixed inset-0 flex items-center justify-center p-4 overflow-auto bg-black bg-opacity-50 backdrop-blur-sm"
+      style={{
+        zIndex: 2147483647, // MÁXIMO Z-INDEX POSIBLE
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
+      }}
+    >
+      <div 
+        className="w-full max-w-5xl bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden mx-auto my-4"
+        style={{ 
+          maxHeight: 'calc(100vh - 32px)',
+          height: 'auto',
+          minHeight: '600px'
+        }}
+      >
         
         {/* Header fijo compacto */}
         <div className="bg-white border-b border-gray-200 px-4 py-3 rounded-t-xl flex-shrink-0">
@@ -278,16 +348,13 @@ const PlanEditorModal = ({
             {steps.map((stepItem, index) => (
               <button
                 key={stepItem.id}
-                onClick={() => setModalStep(stepItem.id)}
-                disabled={index > modalStep && !canContinueToNextStep()}
+                onClick={() => handleStepChange(stepItem.id)}
                 className={`flex-1 px-2 py-2 text-xs font-medium border-b-2 transition-all duration-200 ${
                   modalStep === stepItem.id
                     ? 'border-primary-500 text-primary-600 bg-primary-50'
                     : index < modalStep 
-                      ? 'border-green-500 text-green-600 hover:bg-green-50'
-                      : index === modalStep + 1 && canContinueToNextStep()
-                        ? 'border-transparent text-gray-600 hover:text-primary-600 hover:bg-gray-50'
-                        : 'border-transparent text-gray-400 cursor-not-allowed'
+                      ? 'border-green-500 text-green-600 hover:bg-green-50 cursor-pointer'
+                      : 'border-transparent text-gray-600 hover:text-primary-600 hover:bg-gray-50 cursor-pointer'
                 }`}
               >
                 <div className="flex items-center justify-center space-x-1">
@@ -304,7 +371,7 @@ const PlanEditorModal = ({
         </div>
         
         {/* Layout principal con vista previa */}
-        <div className="flex flex-1 min-h-0">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
           
           {/* Panel contenido */}
           <div className={`${isMobile ? 'w-full' : 'w-2/3'} flex flex-col min-h-0`}>
@@ -314,7 +381,7 @@ const PlanEditorModal = ({
               {modalStep === 0 && (
                 <CompactBasicInfoStep 
                   plan={planFormData} 
-                  onChange={setPlanFormData} 
+                  onChange={handlePlanFormChange} 
                   durationType={durationType}
                 />
               )}
@@ -322,7 +389,7 @@ const PlanEditorModal = ({
               {modalStep === 1 && (
                 <CompactFeaturesStep 
                   plan={planFormData}
-                  onChange={setPlanFormData}
+                  onChange={handlePlanFormChange}
                   predefinedFeatures={predefinedFeatures}
                   featureSearch={featureSearch}
                   onFeatureSearchChange={setFeatureSearch}
@@ -333,7 +400,7 @@ const PlanEditorModal = ({
               {modalStep === 2 && (
                 <CompactPricingStep 
                   plan={planFormData} 
-                  onChange={setPlanFormData} 
+                  onChange={handlePlanFormChange} 
                   calculateDiscount={calculateDiscount}
                   durationType={durationType}
                 />
@@ -342,7 +409,7 @@ const PlanEditorModal = ({
               {modalStep === 3 && (
                 <CompactDesignStep 
                   plan={planFormData} 
-                  onChange={setPlanFormData}
+                  onChange={handlePlanFormChange}
                   availableIcons={availableIcons}
                   availableColors={availableColors}
                   getIconComponent={getIconComponent}
@@ -355,11 +422,11 @@ const PlanEditorModal = ({
           
           {/* Panel vista previa (solo desktop) */}
           {!isMobile && (
-            <div className="w-1/3 bg-gradient-to-br from-gray-900 to-gray-800 p-4 flex flex-col">
+            <div className="w-1/3 bg-gradient-to-br from-gray-900 to-gray-800 p-4 flex flex-col overflow-hidden">
               <h3 className="text-white text-sm font-semibold mb-4 text-center">
                 Vista Previa
               </h3>
-              <div className="flex-1 flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center overflow-hidden">
                 <CompactPlanPreview 
                   plan={planFormData}
                   getIconComponent={getIconComponent}
@@ -388,7 +455,7 @@ const PlanEditorModal = ({
                   <span className="text-white/80">Precio</span>
                 </div>
                 <div className="flex items-center text-xs">
-                  <span className="text-white/80">{planFormData.features.length} características</span>
+                  <span className="text-white/80">{planFormData.features?.length || 0} características</span>
                 </div>
               </div>
             </div>
@@ -410,7 +477,7 @@ const PlanEditorModal = ({
               
               {modalStep > 0 && (
                 <button
-                  onClick={() => setModalStep(modalStep - 1)}
+                  onClick={() => handleStepChange(modalStep - 1)}
                   className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
@@ -422,7 +489,7 @@ const PlanEditorModal = ({
             <div className="flex items-center space-x-2">
               {modalStep < steps.length - 1 ? (
                 <button
-                  onClick={() => setModalStep(modalStep + 1)}
+                  onClick={() => handleStepChange(modalStep + 1)}
                   disabled={!canContinueToNextStep()}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
@@ -462,6 +529,9 @@ const PlanEditorModal = ({
       </div>
     </div>
   );
+  
+  // USAR PORTAL para renderizar en document.body y evitar z-index issues
+  return createPortal(modalContent, document.body);
 };
 
 // Vista previa compacta para desktop
@@ -539,7 +609,7 @@ const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateD
             Incluye:
           </h4>
           
-          {plan.features.length > 0 ? (
+          {plan.features && plan.features.length > 0 ? (
             <div className="space-y-1 max-h-24 overflow-y-auto">
               {plan.features.slice(0, 3).map((feature, idx) => (
                 <div key={idx} className="flex items-start text-xs text-gray-700">
@@ -719,31 +789,41 @@ const CompactFeaturesStep = ({
   
   const handleAddFeature = () => {
     if (featureSearch.trim() && !plan.features.includes(featureSearch.trim())) {
+      const newFeatures = [...(plan.features || []), featureSearch.trim()];
+      console.log('➕ Agregando característica:', featureSearch.trim());
+      console.log('📋 Total características:', newFeatures.length);
       onChange({
         ...plan,
-        features: [...plan.features, featureSearch.trim()]
+        features: newFeatures
       });
       onFeatureSearchChange('');
     }
   };
   
   const handleAddPredefinedFeature = (feature) => {
-    if (!plan.features.includes(feature)) {
+    if (!(plan.features || []).includes(feature)) {
+      const newFeatures = [...(plan.features || []), feature];
+      console.log('➕ Agregando característica predefinida:', feature);
+      console.log('📋 Total características:', newFeatures.length);
       onChange({
         ...plan,
-        features: [...plan.features, feature]
+        features: newFeatures
       });
     }
   };
   
   const handleRemoveFeature = (featureToRemove) => {
+    const newFeatures = (plan.features || []).filter(f => f !== featureToRemove);
+    console.log('➖ Eliminando característica:', featureToRemove);
+    console.log('📋 Total características:', newFeatures.length);
     onChange({
       ...plan,
-      features: plan.features.filter(f => f !== featureToRemove)
+      features: newFeatures
     });
   };
   
   const filteredFeatures = getFilteredPredefinedFeatures();
+  const currentFeatures = plan.features || [];
   
   return (
     <div className="space-y-4">
@@ -775,7 +855,7 @@ const CompactFeaturesStep = ({
           />
           <button
             onClick={handleAddFeature}
-            disabled={!featureSearch.trim() || plan.features.includes(featureSearch.trim())}
+            disabled={!featureSearch.trim() || currentFeatures.includes(featureSearch.trim())}
             className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
             <Plus className="w-4 h-4 mr-1" />
@@ -803,14 +883,14 @@ const CompactFeaturesStep = ({
                   <button
                     key={idx}
                     onClick={() => handleAddPredefinedFeature(feature)}
-                    disabled={plan.features.includes(feature)}
+                    disabled={currentFeatures.includes(feature)}
                     className={`text-left w-full px-3 py-2 text-sm rounded-lg border transition-all ${
-                      plan.features.includes(feature)
+                      currentFeatures.includes(feature)
                         ? 'border-green-200 bg-green-50 text-green-700 cursor-not-allowed'
                         : 'border-gray-200 hover:bg-primary-50 hover:border-primary-300 text-gray-700'
                     }`}
                   >
-                    {plan.features.includes(feature) ? (
+                    {currentFeatures.includes(feature) ? (
                       <Check className="w-3 h-3 inline mr-2 text-green-600" />
                     ) : (
                       <Plus className="w-3 h-3 inline mr-2 text-primary-600" />
@@ -854,14 +934,14 @@ const CompactFeaturesStep = ({
                 <button
                   key={idx}
                   onClick={() => handleAddPredefinedFeature(feature)}
-                  disabled={plan.features.includes(feature)}
+                  disabled={currentFeatures.includes(feature)}
                   className={`text-left w-full px-3 py-2 text-sm rounded-lg border transition-all ${
-                    plan.features.includes(feature)
+                    currentFeatures.includes(feature)
                       ? 'border-green-200 bg-green-50 text-green-700 cursor-not-allowed'
                       : 'border-gray-200 hover:bg-primary-50 hover:border-primary-300 text-gray-700'
                   }`}
                 >
-                  {plan.features.includes(feature) ? (
+                  {currentFeatures.includes(feature) ? (
                     <Check className="w-3 h-3 inline mr-2 text-green-600" />
                   ) : (
                     <Plus className="w-3 h-3 inline mr-2 text-primary-600" />
@@ -875,15 +955,15 @@ const CompactFeaturesStep = ({
       )}
       
       {/* CARACTERÍSTICAS SELECCIONADAS */}
-      {plan.features.length > 0 && (
+      {currentFeatures.length > 0 && (
         <div>
           <h4 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
             <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-            Características Seleccionadas ({plan.features.length})
+            Características Seleccionadas ({currentFeatures.length})
           </h4>
           <div className="bg-gradient-to-br from-primary-50 to-secondary-50 border-2 border-primary-200 rounded-lg p-3">
             <div className="space-y-2 max-h-40 overflow-y-auto">
-              {plan.features.map((feature, idx) => (
+              {currentFeatures.map((feature, idx) => (
                 <div
                   key={idx}
                   className="flex items-center justify-between p-2 bg-white border border-primary-200 rounded-lg shadow-sm"
@@ -905,7 +985,7 @@ const CompactFeaturesStep = ({
         </div>
       )}
       
-      {plan.features.length === 0 && (
+      {currentFeatures.length === 0 && (
         <div className="text-center py-6">
           <div className="w-12 h-12 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-3">
             <Package className="w-6 h-6 text-gray-400" />
@@ -982,21 +1062,20 @@ const CompactPricingStep = ({ plan, onChange, calculateDiscount, durationType })
         </div>
       </div>
       
-      <div>
-        <label className="block text-sm font-semibold text-gray-900 mb-2">
-          Duración del Plan
-        </label>
-        <select
-          value={plan.duration}
-          onChange={(e) => onChange({ ...plan, duration: e.target.value })}
-          className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
-        >
-          {durationType.map((duration) => (
-            <option key={duration.value} value={duration.value}>
-              {duration.label}
-            </option>
-          ))}
-        </select>
+      {/* MOSTRAR DURACIÓN ACTUAL - SOLO INFORMATIVO, NO EDITABLE AQUÍ */}
+      <div className="bg-gray-50 rounded-lg p-3">
+        <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+          <Clock className="w-4 h-4 mr-2" />
+          Información de Duración
+        </h4>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-700">
+            Duración configurada: <span className="font-medium">{duration?.label}</span>
+          </span>
+          <span className="text-xs text-gray-500">
+            (Configurado en el paso anterior)
+          </span>
+        </div>
       </div>
       
       <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-lg p-4">
