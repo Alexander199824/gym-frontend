@@ -98,6 +98,25 @@ const PlanEditorModal = ({
     ]
   };
   
+  // ETIQUETAS PREDEFINIDAS PARA SUGERENCIAS
+  const predefinedLabels = [
+    // Nivel básico
+    'Básico', 'Estándar', 'Inicial', 'Starter',
+    
+    // Nivel intermedio
+    'Premium', 'Plus', 'Pro', 'Avanzado', 'Elite',
+    
+    // Nivel premium
+    'VIP', 'Platinum', 'Gold', 'Diamond', 'Executive',
+    
+    // Especializados
+    'Fitness', 'CrossFit', 'Yoga', 'Familiar', 
+    'Estudiante', 'Senior', 'Corporate', 'Anual',
+    
+    // Descriptivos
+    'Completo', 'Total', 'Unlimited', 'Max', 'Full'
+  ];
+  
   // INICIALIZAR DATOS SOLO UNA VEZ - SIN RESETS AUTOMÁTICOS
   useEffect(() => {
     if (show) {
@@ -383,6 +402,7 @@ const PlanEditorModal = ({
                   plan={planFormData} 
                   onChange={handlePlanFormChange} 
                   durationType={durationType}
+                  predefinedLabels={predefinedLabels}
                 />
               )}
               
@@ -422,39 +442,42 @@ const PlanEditorModal = ({
           
           {/* Panel vista previa (solo desktop) */}
           {!isMobile && (
-            <div className="w-1/3 bg-gradient-to-br from-gray-900 to-gray-800 p-4 flex flex-col overflow-hidden">
+            <div className="w-1/3 bg-gradient-to-br from-gray-900 to-gray-800 p-4 flex flex-col">
               <h3 className="text-white text-sm font-semibold mb-4 text-center">
                 Vista Previa
               </h3>
-              <div className="flex-1 flex items-center justify-center overflow-hidden">
-                <CompactPlanPreview 
-                  plan={planFormData}
-                  getIconComponent={getIconComponent}
-                  getColorStyles={getColorStyles}
-                  calculateDiscount={calculateDiscount}
-                  durationType={durationType}
-                />
+              <div className="flex-1 flex items-center justify-center overflow-y-auto py-4">
+                <div className="w-full flex justify-center">
+                  <CompactPlanPreview 
+                    plan={planFormData}
+                    getIconComponent={getIconComponent}
+                    getColorStyles={getColorStyles}
+                    calculateDiscount={calculateDiscount}
+                    durationType={durationType}
+                  />
+                </div>
               </div>
               
               {/* Validaciones compactas */}
-              <div className="mt-4 space-y-1">
+              <div className="mt-3 space-y-1 px-1">
                 <div className="flex items-center text-xs">
                   {planFormData.name.trim() ? (
-                    <Check className="w-3 h-3 text-green-400 mr-1" />
+                    <Check className="w-3 h-3 text-green-400 mr-2 flex-shrink-0" />
                   ) : (
-                    <X className="w-3 h-3 text-red-400 mr-1" />
+                    <X className="w-3 h-3 text-red-400 mr-2 flex-shrink-0" />
                   )}
                   <span className="text-white/80">Nombre</span>
                 </div>
                 <div className="flex items-center text-xs">
                   {planFormData.price > 0 ? (
-                    <Check className="w-3 h-3 text-green-400 mr-1" />
+                    <Check className="w-3 h-3 text-green-400 mr-2 flex-shrink-0" />
                   ) : (
-                    <X className="w-3 h-3 text-red-400 mr-1" />
+                    <X className="w-3 h-3 text-red-400 mr-2 flex-shrink-0" />
                   )}
                   <span className="text-white/80">Precio</span>
                 </div>
                 <div className="flex items-center text-xs">
+                  <span className="text-white/60 mr-2">•</span>
                   <span className="text-white/80">{planFormData.features?.length || 0} características</span>
                 </div>
               </div>
@@ -542,7 +565,7 @@ const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateD
   const duration = durationType.find(d => d.value === plan.duration);
   
   return (
-    <div className={`w-full max-w-xs bg-white rounded-xl border-2 shadow-lg overflow-hidden ${
+    <div className={`w-full max-w-sm bg-white rounded-xl border-2 shadow-lg overflow-hidden ${
       plan.isPopular ? 'border-yellow-400 ring-2 ring-yellow-100' : 'border-gray-200'
     }`}>
       
@@ -555,40 +578,40 @@ const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateD
         </div>
       )}
       
-      <div className="p-4">
-        <div className="text-center mb-4">
-          <div className={`w-12 h-12 mx-auto rounded-lg ${colorStyles.bg} flex items-center justify-center mb-3 shadow-md`}>
-            <IconComponent className={`w-6 h-6 ${colorStyles.text}`} />
+      <div className="p-3">
+        <div className="text-center mb-3">
+          <div className={`w-10 h-10 mx-auto rounded-lg ${colorStyles.bg} flex items-center justify-center mb-2 shadow-md`}>
+            <IconComponent className={`w-5 h-5 ${colorStyles.text}`} />
           </div>
           
-          <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-2">
+          <h3 className="text-sm font-bold text-gray-900 mb-2 line-clamp-1">
             {plan.name || 'Nombre del Plan'}
           </h3>
           
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
             {plan.label || 'Etiqueta'}
           </span>
         </div>
         
-        <div className="text-center mb-4">
+        <div className="text-center mb-3">
           <div className="flex items-baseline justify-center space-x-1">
-            <span className="text-2xl font-bold text-gray-900">
+            <span className="text-xl font-bold text-gray-900">
               Q{(plan.price || 0).toLocaleString()}
             </span>
             {plan.originalPrice && plan.originalPrice > plan.price && (
-              <span className="text-lg text-gray-500 line-through">
+              <span className="text-sm text-gray-500 line-through">
                 Q{plan.originalPrice.toLocaleString()}
               </span>
             )}
           </div>
           
-          <div className="text-gray-600 text-sm mt-1">
+          <div className="text-gray-600 text-xs mt-1">
             por {duration?.label.toLowerCase() || 'mes'}
           </div>
           
           {discount > 0 && (
             <div className="mt-2">
-              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-bold">
+              <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-bold">
                 Ahorras {discount}%
               </span>
             </div>
@@ -596,8 +619,8 @@ const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateD
         </div>
         
         {plan.description && (
-          <div className="text-center mb-3">
-            <p className="text-gray-600 text-xs line-clamp-2">
+          <div className="text-center mb-2">
+            <p className="text-gray-600 text-xs line-clamp-1">
               {plan.description}
             </p>
           </div>
@@ -610,23 +633,23 @@ const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateD
           </h4>
           
           {plan.features && plan.features.length > 0 ? (
-            <div className="space-y-1 max-h-24 overflow-y-auto">
-              {plan.features.slice(0, 3).map((feature, idx) => (
+            <div className="space-y-1 max-h-16 overflow-y-auto">
+              {plan.features.slice(0, 2).map((feature, idx) => (
                 <div key={idx} className="flex items-start text-xs text-gray-700">
                   <Check className="w-3 h-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
                   <span className="line-clamp-1">{feature}</span>
                 </div>
               ))}
-              {plan.features.length > 3 && (
+              {plan.features.length > 2 && (
                 <div className="text-center pt-1">
                   <span className="text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
-                    +{plan.features.length - 3} más
+                    +{plan.features.length - 2} más
                   </span>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-2">
+            <div className="text-center py-1">
               <span className="text-xs text-gray-400 italic">
                 Sin características
               </span>
@@ -634,7 +657,7 @@ const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateD
           )}
         </div>
         
-        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center space-x-2">
+        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-center">
           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
             plan.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
           }`}>
@@ -647,7 +670,19 @@ const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateD
 };
 
 // Componentes de pasos compactos
-const CompactBasicInfoStep = ({ plan, onChange, durationType }) => (
+const CompactBasicInfoStep = ({ plan, onChange, durationType, predefinedLabels }) => {
+  const [showLabelSuggestions, setShowLabelSuggestions] = useState(false);
+  
+  const handleSelectLabel = (label) => {
+    onChange({ ...plan, label: label });
+    setShowLabelSuggestions(false);
+  };
+
+  const filteredLabels = predefinedLabels.filter(label => 
+    label.toLowerCase().includes((plan.label || '').toLowerCase())
+  );
+
+  return (
   <div className="space-y-4">
     
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -697,17 +732,62 @@ const CompactBasicInfoStep = ({ plan, onChange, durationType }) => (
           />
         </div>
         
-        <div>
-          <label className="block text-sm font-semibold text-gray-900 mb-2">
+        <div className="relative">
+          <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center">
             Etiqueta Corta
+            <button
+              type="button"
+              onClick={() => setShowLabelSuggestions(!showLabelSuggestions)}
+              className="ml-2 p-1 text-primary-600 hover:bg-primary-50 rounded transition-colors"
+              title="Ver sugerencias"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
           </label>
           <input
             type="text"
             value={plan.label}
             onChange={(e) => onChange({ ...plan, label: e.target.value })}
+            onFocus={() => setShowLabelSuggestions(true)}
             className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
             placeholder="Premium"
           />
+          
+          {/* Sugerencias dropdown */}
+          {showLabelSuggestions && filteredLabels.length > 0 && (
+            <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-32 overflow-y-auto">
+              <div className="p-2">
+                <div className="text-xs text-gray-500 mb-2 flex items-center">
+                  <Tag className="w-3 h-3 mr-1" />
+                  Sugerencias de etiquetas
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {filteredLabels.slice(0, 8).map((label, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectLabel(label)}
+                      className={`text-left px-2 py-1 text-xs rounded border transition-all ${
+                        plan.label === label
+                          ? 'border-primary-300 bg-primary-50 text-primary-700'
+                          : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Click outside handler */}
+          {showLabelSuggestions && (
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setShowLabelSuggestions(false)}
+            />
+          )}
         </div>
       </div>
       
@@ -775,7 +855,8 @@ const CompactBasicInfoStep = ({ plan, onChange, durationType }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const CompactFeaturesStep = ({ 
   plan, 
@@ -1214,7 +1295,7 @@ const CompactDesignPreviewCard = ({ plan, getIconComponent, getColorStyles }) =>
   const colorStyles = getColorStyles(plan.color);
   
   return (
-    <div className={`w-48 bg-white rounded-lg border-2 shadow-md ${colorStyles.border} ${plan.isPopular ? 'ring-2 ring-yellow-100' : ''}`}>
+    <div className={`w-40 bg-white rounded-lg border-2 shadow-md ${colorStyles.border} ${plan.isPopular ? 'ring-2 ring-yellow-100' : ''}`}>
       
       {plan.isPopular && (
         <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-center py-1 rounded-t-lg">
@@ -1225,21 +1306,21 @@ const CompactDesignPreviewCard = ({ plan, getIconComponent, getColorStyles }) =>
         </div>
       )}
       
-      <div className="p-4">
+      <div className="p-3">
         <div className="text-center">
-          <div className={`w-10 h-10 mx-auto rounded-lg ${colorStyles.bg} flex items-center justify-center mb-2`}>
-            <IconComponent className={`w-5 h-5 ${colorStyles.text}`} />
+          <div className={`w-8 h-8 mx-auto rounded-lg ${colorStyles.bg} flex items-center justify-center mb-2`}>
+            <IconComponent className={`w-4 h-4 ${colorStyles.text}`} />
           </div>
           
-          <h4 className="font-bold text-gray-900 mb-1 text-sm">
+          <h4 className="font-bold text-gray-900 mb-1 text-xs line-clamp-1">
             {plan.name || 'Nombre del Plan'}
           </h4>
           
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
             {plan.label || 'Etiqueta'}
           </span>
           
-          <div className="text-lg font-bold text-gray-900 mt-2">
+          <div className="text-sm font-bold text-gray-900 mt-2">
             Q{(plan.price || 0).toLocaleString()}
           </div>
           
