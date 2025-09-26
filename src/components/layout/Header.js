@@ -7,7 +7,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   Menu, 
   Bell, 
-  Search, 
   User, 
   Settings, 
   LogOut, 
@@ -36,13 +35,10 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
   
   // Estados locales
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // Referencias
   const userMenuRef = useRef(null);
-  const searchRef = useRef(null);
   
   // Cerrar menú al hacer click fuera
   useEffect(() => {
@@ -55,16 +51,6 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
-  // Manejar búsqueda
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/dashboard/search?q=${encodeURIComponent(searchQuery)}`);
-      setSearchQuery('');
-      searchRef.current?.blur();
-    }
-  };
   
   // Cambiar tema
   const toggleTheme = () => {
@@ -178,41 +164,6 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
         {/* Logo del gimnasio */}
         <GymLogo size="md" variant="professional" showText={true} />
         
-      </div>
-      
-      {/* CENTRO - Barra de búsqueda */}
-      <div className="flex-1 max-w-lg mx-4 hidden md:block">
-        <form onSubmit={handleSearch} className="relative">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              placeholder="Buscar usuarios, membresías, pagos..."
-              className={`
-                w-full pl-10 pr-4 py-2 rounded-xl border transition-all duration-200
-                ${searchFocused 
-                  ? 'border-primary-500 ring-2 ring-primary-500 ring-opacity-20' 
-                  : 'border-gray-300 hover:border-gray-400'
-                }
-                focus:outline-none
-              `}
-            />
-          </div>
-          
-          {/* Sugerencias de búsqueda */}
-          {searchFocused && searchQuery && (
-            <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-elite mt-1 z-50">
-              <div className="p-3 text-sm text-gray-500">
-                Presiona Enter para buscar "{searchQuery}"
-              </div>
-            </div>
-          )}
-        </form>
       </div>
       
       {/* LADO DERECHO - Acciones del usuario */}
@@ -371,12 +322,11 @@ DOCUMENTACIÓN DEL COMPONENTE Header
 
 PROPÓSITO:
 Este componente implementa la barra superior (header) del dashboard de la aplicación del gimnasio,
-proporcionando navegación principal, búsqueda global, gestión de usuario y acceso a funcionalidades
-clave como notificaciones y configuración personal.
+proporcionando navegación principal, gestión de usuario y acceso a funcionalidades clave como 
+notificaciones y configuración personal.
 
 FUNCIONALIDADES PRINCIPALES:
 - Navegación responsive con menú hamburguesa
-- Sistema de búsqueda global integrado
 - Gestión de cuenta de usuario con menú dropdown
 - Panel de notificaciones con contador visual
 - Cambio de tema claro/oscuro
@@ -400,7 +350,6 @@ COMPONENTES IMPORTADOS:
 ICONOS DE LUCIDE REACT:
 - Menu: Botón de menú hamburguesa para navegación
 - Bell: Icono de notificaciones con contador
-- Search: Icono de búsqueda en barra de input
 - User: Acceso al perfil personal del usuario
 - Settings: Configuración personal (no del sistema)
 - LogOut: Botón de cierre de sesión
@@ -409,8 +358,6 @@ ICONOS DE LUCIDE REACT:
 
 ESTADOS MANEJADOS LOCALMENTE:
 - showUserMenu: Control del menú dropdown del usuario
-- searchQuery: Contenido actual de la barra de búsqueda
-- searchFocused: Estado de foco en el campo de búsqueda
 - isLoggingOut: Control del proceso de cierre de sesión
 
 QUE SE MUESTRA AL USUARIO:
@@ -419,17 +366,9 @@ ELEMENTOS VISUALES PRINCIPALES:
 - Header principal fijo en la parte superior (64px de altura)
 - Logo del gimnasio en el lado izquierdo con texto
 - Botón de menú hamburguesa para navegación móvil/desktop
-- Barra de búsqueda central (oculta en móvil por espacio)
 - Botón de cambio de tema (sol/luna) en el lado derecho
 - Campana de notificaciones con contador rojo si hay pendientes
 - Avatar del usuario con menú dropdown expandible
-
-BARRA DE BÚSQUEDA:
-- Campo de búsqueda con placeholder "Buscar usuarios, membresías, pagos..."
-- Icono de lupa integrado en el lado izquierdo
-- Efecto de focus con borde azul y sombra sutil
-- Sugerencia emergente "Presiona Enter para buscar [query]"
-- Solo visible en escritorio (oculta en móvil por espacio)
 
 AVATAR Y MENÚ DE USUARIO:
 - Avatar circular con gradiente de fondo del gimnasio
@@ -461,7 +400,6 @@ CAMBIO DE TEMA:
 
 INTERACCIONES DISPONIBLES:
 - Clic en menú hamburguesa abre/cierra sidebar o menú móvil
-- Búsqueda por Enter o envío de formulario
 - Clic en notificaciones abre panel lateral
 - Clic en avatar despliega menú de usuario
 - Clic fuera del menú lo cierra automáticamente
@@ -469,7 +407,7 @@ INTERACCIONES DISPONIBLES:
 
 RESPONSIVE DESIGN:
 - En móvil: Solo se muestra menú, logo, tema, notificaciones y avatar
-- En escritorio: Incluye barra de búsqueda completa en el centro
+- En escritorio: Mismos elementos con más espacio entre ellos
 - Avatar compacto en móvil (solo imagen), expandido en escritorio
 - Espaciado adaptativo entre elementos
 
@@ -484,13 +422,6 @@ CARACTERÍSTICAS DE SEGURIDAD:
 - Fallback de redirección forzada en caso de errores
 - Prevención de clicks múltiples durante logout
 - Spinner visual durante proceso de cierre
-
-BÚSQUEDA GLOBAL:
-- Búsqueda por usuarios registrados en el gimnasio
-- Búsqueda por membresías activas y vencidas
-- Búsqueda por pagos y transacciones en quetzales
-- Redirección automática a página de resultados
-- Encoding seguro de parámetros de búsqueda
 
 GESTIÓN DE MEMORIA:
 - Event listeners con cleanup automático
@@ -512,7 +443,6 @@ ACCESIBILIDAD:
 - Contraste adecuado en todos los elementos
 
 INTEGRACIÓN CON EL SISTEMA DEL GIMNASIO:
-- Búsqueda específica para entidades del gimnasio
 - Roles contextuales para gestión de permisos
 - Notificaciones de membresías y pagos en quetzales
 - Avatar personalizable para miembros del gimnasio
