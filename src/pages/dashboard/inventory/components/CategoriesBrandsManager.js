@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/components/CategoriesBrandsManager.js
-// FUNCIÓN: Gestión completa de categorías y marcas con más iconos y upload mejorado
+// FUNCIÓN: Gestión completa de categorías y marcas con diseño mejorado y compacto
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -8,7 +8,7 @@ import {
   Package, Folder, Star, ArrowUp, ArrowDown,
   Loader, RotateCcw, Grid, List, Copy, Check,
   AlertTriangle, CheckCircle, Building, Hash,
-  // ✅ NUEVOS ICONOS PARA CATEGORÍAS
+  // ✅ ICONOS PARA CATEGORÍAS
   Dumbbell, Heart, Activity, Zap, Target, Trophy,
   Apple, Coffee, Pill, ShoppingBag, Shirt, Watch,
   BookOpen, Music, Headphones, Camera, Gamepad2,
@@ -37,7 +37,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  // ✅ NUEVOS ESTADOS PARA UPLOAD DE MARCAS
+  // ✅ ESTADOS PARA UPLOAD DE MARCAS
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoPreview, setLogoPreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -66,7 +66,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
     isActive: true
   };
   
-  // ✅ ICONOS AMPLIADOS PARA CATEGORÍAS - ORGANIZADOS POR CATEGORÍA
+  // ✅ ICONOS ORGANIZADOS POR CATEGORÍA
   const availableIcons = [
     // Fitness & Deportes
     { name: 'dumbbell', icon: Dumbbell, label: 'Pesas', category: 'Fitness' },
@@ -343,7 +343,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // MÉTODOS DE MARCAS (MEJORADOS CON UPLOAD)
+  // MÉTODOS DE MARCAS
   const handleCreateBrand = () => {
     setEditingBrand({ ...emptyBrand });
     setIsCreating(true);
@@ -439,29 +439,57 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6">
       
-      {/* HEADER MEJORADO */}
+      {/* ✅ HEADER MEJORADO CON COLORES DEL DASHBOARD */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Categorías y Marcas</h2>
-          <p className="text-gray-600">Gestiona las categorías y marcas de tu inventario</p>
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+              <Tag className="w-6 h-6 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900">Categorías y Marcas</h2>
+          </div>
+          <p className="text-gray-600 mb-4">Gestiona las categorías y marcas de tu inventario</p>
           
-          {/* Métricas mejoradas */}
-          <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg">
-              <div className="text-lg font-bold">{categories.length}</div>
-              <div className="text-xs opacity-90">Categorías</div>
+          {/* ✅ Métricas con colores consistentes */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{categories.length}</div>
+                  <div className="text-sm opacity-90">Categorías</div>
+                </div>
+                <Folder className="w-8 h-8 opacity-80" />
+              </div>
             </div>
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg">
-              <div className="text-lg font-bold">{brands.length}</div>
-              <div className="text-xs opacity-90">Marcas</div>
+            
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{brands.length}</div>
+                  <div className="text-sm opacity-90">Marcas</div>
+                </div>
+                <Building className="w-8 h-8 opacity-80" />
+              </div>
             </div>
-            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg">
-              <div className="text-lg font-bold">{categories.filter(c => c.isActive !== false).length}</div>
-              <div className="text-xs opacity-90">Cat. Activas</div>
+            
+            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-3 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{categories.filter(c => c.isActive !== false).length}</div>
+                  <div className="text-sm opacity-90">Cat. Activas</div>
+                </div>
+                <CheckCircle className="w-8 h-8 opacity-80" />
+              </div>
             </div>
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg">
-              <div className="text-lg font-bold">{brands.filter(b => b.isActive !== false).length}</div>
-              <div className="text-xs opacity-90">Mar. Activas</div>
+            
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-3 rounded-xl shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{brands.filter(b => b.isActive !== false).length}</div>
+                  <div className="text-sm opacity-90">Mar. Activas</div>
+                </div>
+                <Star className="w-8 h-8 opacity-80" />
+              </div>
             </div>
           </div>
         </div>
@@ -469,7 +497,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
         <div className="flex items-center gap-3">
           <button
             onClick={loadAllData}
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
             disabled={isLoading}
           >
             <RotateCcw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
@@ -486,7 +514,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* NAVEGACIÓN DE PESTAÑAS MEJORADA */}
+      {/* ✅ NAVEGACIÓN DE PESTAÑAS MEJORADA */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <nav className="flex">
           <button
@@ -533,7 +561,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
         </nav>
       </div>
       
-      {/* FILTROS MEJORADOS */}
+      {/* ✅ FILTROS MEJORADOS */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
           
@@ -666,7 +694,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
                             </div>
                           </div>
                           
-                          {/* Acciones mejoradas */}
+                          {/* Acciones */}
                           <div className="flex items-center space-x-2">
                             <button
                               onClick={() => handleEditCategory(category)}
@@ -792,7 +820,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
                           </div>
                         </div>
                         
-                        {/* Acciones mejoradas */}
+                        {/* Acciones */}
                         <div className="flex items-center space-x-2">
                           {brand.logoUrl && (
                             <button
@@ -830,95 +858,122 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
         </>
       )}
       
-      {/* MODAL DE CATEGORÍA MEJORADO */}
+      {/* ✅ MODAL DE CATEGORÍA REDISEÑADO - MÁS COMPACTO */}
       {showCategoryModal && editingCategory && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-8">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-purple-100">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+                    <Tag className="w-4 h-4 text-white" />
+                  </div>
                   {isCreating ? 'Nueva Categoría' : 'Editar Categoría'}
                 </h3>
-                <p className="text-gray-600">
-                  {isCreating ? 'Crea una nueva categoría para organizar tus productos' : 'Modifica los datos de la categoría'}
+                <p className="text-sm text-gray-600 mt-1">
+                  {isCreating ? 'Organiza tus productos con categorías' : 'Modifica los datos de la categoría'}
                 </p>
               </div>
               <button
                 onClick={() => setShowCategoryModal(false)}
-                className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-lg transition-all"
+                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-white hover:bg-opacity-50 rounded-lg transition-all"
                 disabled={isSaving}
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Body scrollable */}
+            <div className="flex-1 overflow-y-auto p-6">
               
-              {/* Formulario */}
+              {/* Preview del icono seleccionado */}
+              <div className="mb-6 p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl text-center">
+                {(() => {
+                  const IconComponent = getCategoryIcon(editingCategory.iconName);
+                  return (
+                    <div className="flex items-center justify-center gap-4">
+                      <div className="w-16 h-16 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                        <IconComponent className="w-8 h-8 text-purple-600" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-purple-900">
+                          {editingCategory.name || 'Nombre de la categoría'}
+                        </p>
+                        <p className="text-xs text-purple-600">
+                          {availableIcons.find(icon => icon.name === editingCategory.iconName)?.label || 'Icono seleccionado'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              
               <div className="space-y-6">
                 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Nombre de la categoría *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingCategory.name}
-                    onChange={(e) => setEditingCategory(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                    placeholder="Ej: Suplementos Deportivos, Equipos de Gimnasio..."
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Slug (URL amigable)
-                  </label>
-                  <input
-                    type="text"
-                    value={editingCategory.slug}
-                    onChange={(e) => setEditingCategory(prev => ({ ...prev, slug: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                    placeholder="se-genera-automaticamente"
-                  />
-                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                    <Check className="w-3 h-3" />
-                    Se genera automáticamente basado en el nombre si se deja vacío
-                  </p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Descripción
-                  </label>
-                  <textarea
-                    value={editingCategory.description}
-                    onChange={(e) => setEditingCategory(prev => ({ ...prev, description: e.target.value }))}
-                    rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                    placeholder="Describe brevemente qué tipo de productos incluye esta categoría..."
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
+                {/* Información básica */}
+                <div className="grid grid-cols-1 gap-4">
+                  
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Orden de visualización
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Nombre de la categoría *
                     </label>
                     <input
-                      type="number"
-                      min="1"
-                      value={editingCategory.displayOrder}
-                      onChange={(e) => setEditingCategory(prev => ({ 
-                        ...prev, 
-                        displayOrder: parseInt(e.target.value) || 1 
-                      }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                      type="text"
+                      value={editingCategory.name}
+                      onChange={(e) => setEditingCategory(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                      placeholder="Ej: Suplementos Deportivos, Equipos de Gimnasio..."
+                      required
                     />
                   </div>
                   
-                  <div className="flex items-end">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Slug (URL)
+                      </label>
+                      <input
+                        type="text"
+                        value={editingCategory.slug}
+                        onChange={(e) => setEditingCategory(prev => ({ ...prev, slug: e.target.value }))}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                        placeholder="auto-generado"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Orden
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editingCategory.displayOrder}
+                        onChange={(e) => setEditingCategory(prev => ({ 
+                          ...prev, 
+                          displayOrder: parseInt(e.target.value) || 1 
+                        }))}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Descripción
+                    </label>
+                    <textarea
+                      value={editingCategory.description}
+                      onChange={(e) => setEditingCategory(prev => ({ ...prev, description: e.target.value }))}
+                      rows={3}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none"
+                      placeholder="Describe brevemente esta categoría..."
+                    />
+                  </div>
+                  
+                  <div className="flex items-center">
                     <label className="flex items-center cursor-pointer">
                       <input
                         type="checkbox"
@@ -929,79 +984,60 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
                       <span className="ml-3 text-sm font-medium text-gray-700">Categoría activa</span>
                     </label>
                   </div>
+                  
                 </div>
                 
-              </div>
-              
-              {/* ✅ SELECTOR DE ICONOS MEJORADO */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-4">
-                  Icono de la categoría
-                </label>
-                
-                {/* Preview del icono seleccionado */}
-                <div className="mb-6 p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl text-center">
-                  {(() => {
-                    const IconComponent = getCategoryIcon(editingCategory.iconName);
-                    return (
-                      <div>
-                        <div className="w-20 h-20 bg-white rounded-xl shadow-md flex items-center justify-center mx-auto mb-3">
-                          <IconComponent className="w-10 h-10 text-purple-600" />
+                {/* ✅ SELECTOR DE ICONOS COMPACTO */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Seleccionar icono
+                  </label>
+                  
+                  {/* Iconos organizados en grid compacto */}
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-h-64 overflow-y-auto">
+                    {Object.entries(groupedIcons).map(([category, icons]) => (
+                      <div key={category} className="mb-4 last:mb-0">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 sticky top-0 bg-gray-50 py-1">
+                          {category}
+                        </h4>
+                        <div className="grid grid-cols-8 gap-2">
+                          {icons.map(iconData => {
+                            const IconComponent = iconData.icon;
+                            return (
+                              <button
+                                key={iconData.name}
+                                type="button"
+                                onClick={() => setEditingCategory(prev => ({ ...prev, iconName: iconData.name }))}
+                                className={`w-10 h-10 border-2 rounded-lg transition-all hover:scale-105 flex items-center justify-center ${
+                                  editingCategory.iconName === iconData.name
+                                    ? 'border-purple-500 bg-purple-50 shadow-md'
+                                    : 'border-gray-200 hover:border-purple-300 bg-white'
+                                }`}
+                                title={iconData.label}
+                              >
+                                <IconComponent className={`w-5 h-5 ${
+                                  editingCategory.iconName === iconData.name 
+                                    ? 'text-purple-600' 
+                                    : 'text-gray-400'
+                                }`} />
+                              </button>
+                            );
+                          })}
                         </div>
-                        <p className="text-sm font-medium text-purple-700">
-                          {availableIcons.find(icon => icon.name === editingCategory.iconName)?.label || 'Icono seleccionado'}
-                        </p>
                       </div>
-                    );
-                  })()}
+                    ))}
+                  </div>
                 </div>
                 
-                {/* Grid de iconos agrupados */}
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {Object.entries(groupedIcons).map(([category, icons]) => (
-                    <div key={category}>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 px-2">
-                        {category}
-                      </h4>
-                      <div className="grid grid-cols-4 gap-2">
-                        {icons.map(iconData => {
-                          const IconComponent = iconData.icon;
-                          return (
-                            <button
-                              key={iconData.name}
-                              type="button"
-                              onClick={() => setEditingCategory(prev => ({ ...prev, iconName: iconData.name }))}
-                              className={`p-3 border-2 rounded-lg transition-all hover:scale-105 ${
-                                editingCategory.iconName === iconData.name
-                                  ? 'border-purple-500 bg-purple-50 shadow-md'
-                                  : 'border-gray-200 hover:border-gray-300'
-                              }`}
-                              title={iconData.label}
-                            >
-                              <IconComponent className={`w-6 h-6 mx-auto ${
-                                editingCategory.iconName === iconData.name 
-                                  ? 'text-purple-600' 
-                                  : 'text-gray-400'
-                              }`} />
-                              <div className="text-xs text-gray-600 mt-1 truncate">
-                                {iconData.label}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
               
             </div>
             
-            {/* Botones de acción mejorados */}
-            <div className="flex justify-end gap-4 mt-8 pt-6 border-t">
+            {/* Footer con botones */}
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-100 bg-gray-50">
               <button
                 onClick={() => setShowCategoryModal(false)}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
                 disabled={isSaving}
               >
                 Cancelar
@@ -1009,17 +1045,17 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
               
               <button
                 onClick={handleSaveCategory}
-                className="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg disabled:opacity-50"
+                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg disabled:opacity-50"
                 disabled={isSaving || !editingCategory.name.trim()}
               >
                 {isSaving ? (
                   <div className="flex items-center">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                     Guardando...
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    <Save className="w-5 h-5 mr-2" />
+                    <Save className="w-4 h-4 mr-2" />
                     {isCreating ? 'Crear Categoría' : 'Guardar Cambios'}
                   </div>
                 )}
@@ -1035,7 +1071,10 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
           <div className="bg-white rounded-xl max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">
+                <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <Building className="w-4 h-4 text-white" />
+                  </div>
                   {isCreating ? 'Nueva Marca' : 'Editar Marca'}
                 </h3>
                 <p className="text-gray-600">
