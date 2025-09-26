@@ -1154,26 +1154,123 @@ class InventoryService extends BaseService {
   }
 
   // Formatear datos de producto para API
-  formatProductDataForAPI(productData) {
-    return {
-      name: productData.name?.trim(),
-      description: productData.description?.trim() || '',
-      price: parseFloat(productData.price),
-      originalPrice: productData.originalPrice ? parseFloat(productData.originalPrice) : null,
-      sku: productData.sku?.trim(),
-      stockQuantity: parseInt(productData.stockQuantity) || 0,
-      minStock: parseInt(productData.minStock) || 5,
-      weight: parseFloat(productData.weight) || null,
-      dimensions: productData.dimensions || null,
-      categoryId: parseInt(productData.categoryId),
-      brandId: parseInt(productData.brandId),
-      isFeatured: Boolean(productData.isFeatured),
-      allowOnlinePayment: Boolean(productData.allowOnlinePayment),
-      allowCardPayment: Boolean(productData.allowCardPayment),
-      allowCashOnDelivery: Boolean(productData.allowCashOnDelivery),
-      deliveryTime: productData.deliveryTime?.trim() || '1-3 días hábiles'
-    };
+  // Formatear datos de producto para API
+formatProductDataForAPI(productData) {
+  console.log('🔧 InventoryService: Formateando datos para API...');
+  console.log('📋 Datos originales:', productData);
+  
+  // ✅ VALIDAR QUE EL OBJETO EXISTE Y TIENE CAMPOS REQUERIDOS
+  if (!productData) {
+    throw new Error('Datos de producto no proporcionados');
   }
+  
+  if (!productData.name || !productData.name.trim()) {
+    throw new Error('El nombre del producto es requerido');
+  }
+  
+  if (!productData.price || parseFloat(productData.price) <= 0) {
+    throw new Error('El precio debe ser mayor a 0');
+  }
+  
+  if (!productData.categoryId) {
+    throw new Error('La categoría es requerida');
+  }
+  
+  // ✅ FORMATEAR DATOS CON VALIDACIONES ROBUSTAS
+  const formattedData = {
+    name: String(productData.name).trim(),
+    description: productData.description ? String(productData.description).trim() : '',
+    price: parseFloat(productData.price) || 0,
+    originalPrice: productData.originalPrice ? parseFloat(productData.originalPrice) : null,
+    sku: productData.sku ? String(productData.sku).trim() : '',
+    stockQuantity: parseInt(productData.stockQuantity) || 0,
+    minStock: parseInt(productData.minStock) || 5,
+    weight: productData.weight ? parseFloat(productData.weight) : null,
+    dimensions: productData.dimensions || null,
+    categoryId: parseInt(productData.categoryId) || null,
+    brandId: productData.brandId ? parseInt(productData.brandId) : null,
+    isFeatured: Boolean(productData.isFeatured),
+    allowOnlinePayment: productData.allowOnlinePayment !== false, // Default true
+    allowCardPayment: productData.allowCardPayment !== false,     // Default true
+    allowCashOnDelivery: productData.allowCashOnDelivery !== false, // Default true
+    deliveryTime: productData.deliveryTime ? String(productData.deliveryTime).trim() : '1-3 días hábiles'
+  };
+  
+  console.log('✅ InventoryService: Datos formateados:', formattedData);
+  
+  // ✅ VALIDACIÓN FINAL
+  if (!formattedData.categoryId) {
+    throw new Error('CategoryId no válido después del formateo');
+  }
+  
+  return formattedData;
+}
+
+// ✅ MÉTODO MEJORADO PARA VALIDAR DATOS DE PRODUCTO
+// Reemplaza también este método:
+
+validateProductData(productData) {
+  console.log('🔍 InventoryService: Validando datos de producto...');
+  
+  const errors = [];
+  
+  // Validaciones requeridas
+  if (!productData.name || productData.name.trim().length < 2) {
+    errors.push('El nombre del producto debe tener al menos 2 caracteres');
+  }
+  
+  if (!productData.price || parseFloat(productData.price) <= 0) {
+    errors.push('El precio debe ser mayor a 0');
+  }
+  
+  if (!productData.categoryId || parseInt(productData.categoryId) <= 0) {
+    errors.push('Debe seleccionar una categoría válida');
+  }
+  
+  // Validaciones opcionales pero importantes
+  if (productData.stockQuantity && parseInt(productData.stockQuantity) < 0) {
+    errors.push('La cantidad de stock no puede ser negativa');
+  }
+  
+  if (productData.minStock && parseInt(productData.minStock) < 0) {
+    errors.push('El stock mínimo no puede ser negativo');
+  }
+  
+  if (productData.weight && parseFloat(productData.weight) < 0) {
+    errors.push('El peso no puede ser negativo');
+  }
+  
+  if (productData.originalPrice && parseFloat(productData.originalPrice) < 0) {
+    errors.push('El precio original no puede ser negativo');
+  }
+  
+  // Validación de descuento lógico
+  if (productData.originalPrice && productData.price) {
+    const original = parseFloat(productData.originalPrice);
+    const current = parseFloat(productData.price);
+    if (original > 0 && current > original) {
+      errors.push('El precio actual no puede ser mayor al precio original');
+    }
+  }
+  
+  // Validación de SKU (si se proporciona)
+  if (productData.sku && productData.sku.trim().length > 100) {
+    errors.push('El SKU no puede exceder 100 caracteres');
+  }
+  
+  // Validación de descripción
+  if (productData.description && productData.description.length > 2000) {
+    errors.push('La descripción no puede exceder 2000 caracteres');
+  }
+  
+  if (errors.length > 0) {
+    console.error('❌ InventoryService: Errores de validación:', errors);
+    throw new Error(errors.join(', '));
+  }
+  
+  console.log('✅ InventoryService: Validación exitosa');
+  return true;
+}
 
   // ✅ Validar datos de marca
   validateBrandData(brandData) {

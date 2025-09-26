@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/components/ProductsManager.js
-// FUNCIÓN: Gestión completa de productos conectado al backend real con sub-componentes modulares
+// FUNCIÓN: Gestión completa de productos conectado al backend real con sub-componentes modulares - VERSIÓN CORREGIDA
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -26,7 +26,7 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // Estados para modal de producto - SIMPLIFICADOS
+  // ✅ ESTADOS CORREGIDOS PARA MODAL DE PRODUCTO
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -127,6 +127,7 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
   // ✅ RECARGAR SOLO CATEGORÍAS (para cuando se crea una nueva desde el modal)
   const loadCategories = async () => {
     try {
+      console.log('ProductsManager: Reloading categories...');
       const categoriesResponse = await inventoryService.getCategories();
       if (categoriesResponse.success && categoriesResponse.data) {
         const categoriesList = categoriesResponse.data.categories || [];
@@ -141,6 +142,7 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
   // ✅ RECARGAR SOLO MARCAS (para cuando se crea una nueva desde el modal)
   const loadBrands = async () => {
     try {
+      console.log('ProductsManager: Reloading brands...');
       const brandsResponse = await inventoryService.getBrands();
       if (brandsResponse.success && brandsResponse.data) {
         const brandsList = brandsResponse.data.brands || [];
@@ -190,25 +192,36 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
     };
   };
   
-  // ✅ MÉTODOS SIMPLIFICADOS PARA EL MODAL
+  // ✅ MÉTODOS CORREGIDOS PARA EL MODAL
   const handleCreateProduct = () => {
-    setEditingProduct(null);
-    setIsCreating(true);
+    console.log('ProductsManager: Creating new product');
+    console.log('Available categories:', categories.length);
+    console.log('Available brands:', brands.length);
+    
+    setEditingProduct(null); // ✅ Null para crear nuevo
+    setIsCreating(true);     // ✅ Flag de creación
     setShowProductModal(true);
   };
   
   const handleEditProduct = (product) => {
-    setEditingProduct(product);
-    setIsCreating(false);
+    console.log('ProductsManager: Editing product:', product);
+    setEditingProduct(product); // ✅ Producto para editar
+    setIsCreating(false);       // ✅ Flag de edición
     setShowProductModal(true);
   };
   
   const handleProductSaved = async (savedProduct) => {
-    console.log('✅ Product saved:', savedProduct);
-    await loadAllData(); // Recargar todos los datos
+    console.log('✅ ProductsManager: Product saved successfully:', savedProduct);
+    
+    // Recargar todos los datos para obtener la información más actualizada
+    await loadAllData();
+    
+    // Notificar al componente padre si existe
     if (onSave) {
       onSave(savedProduct);
     }
+    
+    console.log('✅ ProductsManager: Data reloaded after product save');
   };
   
   // ELIMINAR PRODUCTO
@@ -720,10 +733,13 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* ✅ MODAL USANDO SUB-COMPONENTE */}
+      {/* ✅ MODAL CORREGIDO USANDO SUB-COMPONENTE */}
       <ProductFormModal
         isOpen={showProductModal}
-        onClose={() => setShowProductModal(false)}
+        onClose={() => {
+          console.log('ProductsManager: Closing product modal');
+          setShowProductModal(false);
+        }}
         product={editingProduct}
         onSave={handleProductSaved}
         isCreating={isCreating}
