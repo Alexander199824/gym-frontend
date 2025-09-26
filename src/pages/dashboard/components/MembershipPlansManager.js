@@ -1,7 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/MembershipPlansManager.js
-// FUNCIÓN: Gestión de planes de membresía - VERSIÓN MEJORADA Y MÁS INTUITIVA
-// MEJORADO: Layout responsive, navegación intuitiva, mejor UX
+// VERSIÓN OPTIMIZADA PARA LAYOUT DASHBOARD - Compacta y Responsive
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -29,7 +28,7 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // Estados para modal mejorado
+  // Estados para modal optimizado
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -38,6 +37,10 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
   
   // Estado del formulario
   const [planFormData, setPlanFormData] = useState(getEmptyPlan());
+  
+  // Estados para características con búsqueda
+  const [featureSearch, setFeatureSearch] = useState('');
+  const [showPredefined, setShowPredefined] = useState(true);
   
   // Referencias
   const modalRef = useRef(null);
@@ -48,9 +51,9 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
   const [filterType, setFilterType] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   
-  // CARACTERÍSTICAS PREDEFINIDAS MEJORADAS
+  // CARACTERÍSTICAS PREDEFINIDAS OPTIMIZADAS
   const predefinedFeatures = {
-    '🏋️ Acceso al Gimnasio': [
+    'Acceso al Gimnasio': [
       'Acceso 24/7 todos los días',
       'Acceso en horarios regulares (6am-10pm)',
       'Acceso a todas las áreas del gimnasio',
@@ -59,7 +62,7 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
       'Estacionamiento incluido',
       'Casilleros personales'
     ],
-    '💪 Equipos y Espacios': [
+    'Equipos y Espacios': [
       'Todas las máquinas cardiovasculares',
       'Zona completa de pesas libres',
       'Área de entrenamiento funcional',
@@ -68,7 +71,7 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
       'Cancha deportiva multiusos',
       'Sauna y vapor incluidos'
     ],
-    '🎯 Clases y Entrenamientos': [
+    'Clases y Entrenamientos': [
       'Clases grupales ilimitadas',
       'Yoga y meditación incluidos',
       'Spinning y ciclismo indoor',
@@ -77,7 +80,7 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
       'Zumba y bailes latinos',
       'Aeróbicos y cardio dance'
     ],
-    '👨‍💼 Servicios Personalizados': [
+    'Servicios Personalizados': [
       'Entrenador personal incluido',
       'Plan nutricional personalizado',
       'Asesoría fitness inicial',
@@ -86,7 +89,7 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
       'Consulta nutricional',
       'Análisis de composición corporal'
     ],
-    '🎁 Beneficios Adicionales': [
+    'Beneficios Adicionales': [
       'Toallas limpias incluidas',
       'Invitados permitidos (2 por mes)',
       '20% descuento en suplementos',
@@ -154,10 +157,29 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     };
   }
   
-  // Función para verificar si hay cambios
+  // Funciones existentes (mismas que antes, solo optimizadas para espacio)
   const hasFormChanges = () => {
     if (!originalFormData) return false;
     return JSON.stringify(planFormData) !== JSON.stringify(originalFormData);
+  };
+  
+  // Filtrar características predefinidas según búsqueda
+  const getFilteredPredefinedFeatures = () => {
+    if (!featureSearch.trim()) return predefinedFeatures;
+    
+    const search = featureSearch.toLowerCase();
+    const filtered = {};
+    
+    Object.keys(predefinedFeatures).forEach(category => {
+      const matchingFeatures = predefinedFeatures[category].filter(feature =>
+        feature.toLowerCase().includes(search)
+      );
+      if (matchingFeatures.length > 0) {
+        filtered[category] = matchingFeatures;
+      }
+    });
+    
+    return filtered;
   };
   
   // Handler mejorado para ESC key
@@ -172,7 +194,6 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     
     if (showEditModal) {
       document.addEventListener('keydown', handleEscKey, true);
-      // Prevenir scroll del body
       const originalStyle = window.getComputedStyle(document.body).overflow;
       document.body.style.overflow = 'hidden';
       
@@ -183,7 +204,6 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     }
   }, [showEditModal, planFormData, originalFormData]);
   
-  // Función para cancelar con confirmación mejorada
   const handleCancelWithConfirmation = () => {
     const hasChanges = hasFormChanges();
     
@@ -200,7 +220,7 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     }
   };
   
-  // CARGAR DATOS
+  // CARGAR DATOS (mismo código existente)
   const loadMembershipPlans = useCallback(async (showSpinner = false) => {
     try {
       if (showSpinner) setLoading(true);
@@ -320,23 +340,19 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     }
   }, [initialPlans, showError]);
   
-  // Cargar al montar
   useEffect(() => {
     if (!isDataLoaded && !initialLoading) {
       loadMembershipPlans(true);
     }
   }, [loadMembershipPlans, isDataLoaded, initialLoading]);
   
-  // Notificar cambios
   useEffect(() => {
     if (onUnsavedChanges) {
       onUnsavedChanges(hasUnsavedChanges);
     }
   }, [hasUnsavedChanges, onUnsavedChanges]);
   
-  // FUNCIONES PRINCIPALES
-  
-  // Guardar todo
+  // FUNCIONES PRINCIPALES (mismas que antes)
   const handleSaveAll = async () => {
     try {
       setSaving(true);
@@ -372,7 +388,6 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     }
   };
   
-  // Crear plan mejorado
   const handleCreatePlan = () => {
     const emptyPlan = getEmptyPlan();
     setIsCreating(true);
@@ -380,10 +395,10 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     setPlanFormData(emptyPlan);
     setOriginalFormData(emptyPlan);
     setModalStep(0);
+    setFeatureSearch('');
     setShowEditModal(true);
   };
   
-  // Editar plan
   const handleEditPlan = (plan) => {
     const planCopy = { ...plan };
     setIsCreating(false);
@@ -391,10 +406,10 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     setPlanFormData(planCopy);
     setOriginalFormData(planCopy);
     setModalStep(0);
+    setFeatureSearch('');
     setShowEditModal(true);
   };
   
-  // Cancelar
   const handleCancel = () => {
     setShowEditModal(false);
     setEditingPlan(null);
@@ -402,14 +417,13 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     setModalStep(0);
     setPlanFormData(getEmptyPlan());
     setOriginalFormData(null);
+    setFeatureSearch('');
   };
   
-  // Guardar plan individual
   const handleSavePlan = async () => {
     try {
       setSaving(true);
       
-      // Validaciones básicas
       if (!planFormData.name.trim()) {
         showError('El nombre del plan es obligatorio');
         return;
@@ -420,12 +434,10 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
         return;
       }
       
-      // Generar valor si no existe
       if (!planFormData.value.trim()) {
         planFormData.value = planFormData.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
       }
       
-      // Validar ID único
       const existingPlan = membershipPlans.find(p => 
         p.value === planFormData.value && p.id !== editingPlan?.id
       );
@@ -434,7 +446,6 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
         return;
       }
       
-      // Manejar popular único
       if (planFormData.isPopular) {
         setMembershipPlans(prev => prev.map(plan => 
           plan.id !== editingPlan?.id ? { ...plan, isPopular: false } : plan
@@ -475,7 +486,6 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     }
   };
   
-  // Otras funciones
   const handleDeletePlan = (planId) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar este plan?')) {
       setMembershipPlans(prev => prev.filter(plan => plan.id !== planId));
@@ -531,7 +541,6 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
     return Math.round(((originalPrice - price) / originalPrice) * 100);
   };
   
-  // Filtrar y ordenar planes
   const getFilteredPlans = () => {
     let filtered = [...membershipPlans];
     
@@ -567,194 +576,194 @@ const MembershipPlansManager = ({ plans: initialPlans, isLoading: initialLoading
   
   const filteredPlans = getFilteredPlans();
 
-  // Loading
+  // Loading optimizado
   if ((loading && !isDataLoaded) || initialLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
-            <CreditCard className="w-8 h-8 text-white animate-pulse" />
+          <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
+            <CreditCard className="w-6 h-6 text-white animate-pulse" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">
             Cargando Planes
           </h3>
-          <p className="text-gray-600">Preparando tu contenido...</p>
+          <p className="text-gray-600 text-sm">Preparando tu contenido...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="p-4 max-w-7xl mx-auto">
-        
-        {/* HEADER SIMPLIFICADO */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+    <div className="space-y-4">
+      
+      {/* HEADER COMPACTO */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+          
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 mb-1">
+              Planes de Membresía
+            </h1>
+            <p className="text-gray-600 text-sm mb-2">
+              Gestiona los planes de tu gimnasio
+            </p>
             
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Planes de Membresía
-              </h1>
-              <p className="text-gray-600">
-                Gestiona los planes de tu gimnasio
-              </p>
-              
-              {membershipPlans.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
-                    {membershipPlans.length} total
+            {membershipPlans.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                  {membershipPlans.length} total
+                </span>
+                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                  {membershipPlans.filter(p => p.isActive).length} activos
+                </span>
+                {membershipPlans.some(p => p.isPopular) && (
+                  <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium">
+                    1 popular
                   </span>
-                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
-                    {membershipPlans.filter(p => p.isActive).length} activos
-                  </span>
-                  {membershipPlans.some(p => p.isPopular) && (
-                    <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium">
-                      1 popular
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="text-xs border border-gray-300 rounded-lg px-2 py-1"
+            >
+              <option value="all">Todos</option>
+              <option value="active">Activos</option>
+              <option value="inactive">Inactivos</option>
+              <option value="popular">Popular</option>
+            </select>
             
-            <div className="flex items-center space-x-3">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-2"
-              >
-                <option value="all">Todos</option>
-                <option value="active">Activos</option>
-                <option value="inactive">Inactivos</option>
-                <option value="popular">Popular</option>
-              </select>
-              
+            <button
+              onClick={() => loadMembershipPlans(true)}
+              disabled={loading}
+              className="px-3 py-1 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center"
+            >
+              <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Actualizar</span>
+            </button>
+            
+            {hasUnsavedChanges && (
               <button
-                onClick={() => loadMembershipPlans(true)}
-                disabled={loading}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                onClick={handleSaveAll}
+                disabled={saving}
+                className="px-3 py-1 text-xs text-white bg-green-600 rounded-lg hover:bg-green-700 flex items-center"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <Save className="w-3 h-3 mr-1" />
+                Guardar
               </button>
-              
-              {hasUnsavedChanges && (
-                <button
-                  onClick={handleSaveAll}
-                  disabled={saving}
-                  className="px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700"
-                >
-                  <Save className="w-4 h-4 mr-2 inline" />
-                  Guardar
-                </button>
-              )}
-              
-              <button
-                onClick={handleCreatePlan}
-                className="px-4 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700"
-              >
-                <Plus className="w-4 h-4 mr-2 inline" />
-                Nuevo Plan
-              </button>
-            </div>
+            )}
+            
+            <button
+              onClick={handleCreatePlan}
+              className="px-3 py-1 text-xs text-white bg-primary-600 rounded-lg hover:bg-primary-700 flex items-center"
+            >
+              <Plus className="w-3 h-3 mr-1" />
+              <span className="hidden sm:inline">Nuevo</span>
+            </button>
           </div>
         </div>
-        
-        {/* ALERTA DE CAMBIOS */}
-        {hasUnsavedChanges && (
-          <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded-r-lg">
-            <div className="flex items-center">
-              <AlertTriangle className="w-5 h-5 text-amber-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-amber-800">
-                  Tienes cambios sin guardar
-                </p>
-                <button
-                  onClick={handleSaveAll}
-                  className="text-sm text-amber-800 underline hover:text-amber-900 mt-1"
-                >
-                  Guardar ahora
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* CONTENIDO */}
-        {filteredPlans.length === 0 ? (
-          <EmptyState onCreatePlan={handleCreatePlan} />
-        ) : (
-          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-            {filteredPlans.map((plan) => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                onEdit={() => handleEditPlan(plan)}
-                onDelete={() => handleDeletePlan(plan.id)}
-                onDuplicate={() => handleDuplicatePlan(plan)}
-                onToggleActive={() => handleToggleActive(plan.id)}
-                onTogglePopular={() => handleTogglePopular(plan.id)}
-                getIconComponent={getIconComponent}
-                getColorStyles={getColorStyles}
-                calculateDiscount={calculateDiscount}
-                durationType={durationType}
-              />
-            ))}
-          </div>
-        )}
-        
-        {/* MODAL COMPLETAMENTE REDISEÑADO */}
-        {showEditModal && (
-          <ImprovedPlanModal
-            show={showEditModal}
-            plan={planFormData}
-            isCreating={isCreating}
-            saving={saving}
-            step={modalStep}
-            predefinedFeatures={predefinedFeatures}
-            availableIcons={availableIcons}
-            availableColors={availableColors}
-            durationType={durationType}
-            onChange={setPlanFormData}
-            onSave={handleSavePlan}
-            onCancel={handleCancelWithConfirmation}
-            onStepChange={setModalStep}
-            getIconComponent={getIconComponent}
-            getColorStyles={getColorStyles}
-            calculateDiscount={calculateDiscount}
-            isMobile={isMobile}
-            modalRef={modalRef}
-            contentRef={contentRef}
-          />
-        )}
       </div>
+      
+      {/* ALERTA DE CAMBIOS */}
+      {hasUnsavedChanges && (
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-lg">
+          <div className="flex items-center">
+            <AlertTriangle className="w-4 h-4 text-amber-600 mr-2" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800">
+                Tienes cambios sin guardar
+              </p>
+            </div>
+            <button
+              onClick={handleSaveAll}
+              className="text-sm text-amber-800 underline hover:text-amber-900 ml-2"
+            >
+              Guardar
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* CONTENIDO COMPACTO */}
+      {filteredPlans.length === 0 ? (
+        <CompactEmptyState onCreatePlan={handleCreatePlan} />
+      ) : (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+          {filteredPlans.map((plan) => (
+            <CompactPlanCard
+              key={plan.id}
+              plan={plan}
+              onEdit={() => handleEditPlan(plan)}
+              onDelete={() => handleDeletePlan(plan.id)}
+              onDuplicate={() => handleDuplicatePlan(plan)}
+              onToggleActive={() => handleToggleActive(plan.id)}
+              onTogglePopular={() => handleTogglePopular(plan.id)}
+              getIconComponent={getIconComponent}
+              getColorStyles={getColorStyles}
+              calculateDiscount={calculateDiscount}
+              durationType={durationType}
+            />
+          ))}
+        </div>
+      )}
+      
+      {/* MODAL OPTIMIZADO PARA ESPACIO */}
+      {showEditModal && (
+        <OptimizedPlanModal
+          show={showEditModal}
+          plan={planFormData}
+          isCreating={isCreating}
+          saving={saving}
+          step={modalStep}
+          predefinedFeatures={predefinedFeatures}
+          availableIcons={availableIcons}
+          availableColors={availableColors}
+          durationType={durationType}
+          featureSearch={featureSearch}
+          onFeatureSearchChange={setFeatureSearch}
+          onChange={setPlanFormData}
+          onSave={handleSavePlan}
+          onCancel={handleCancelWithConfirmation}
+          onStepChange={setModalStep}
+          getIconComponent={getIconComponent}
+          getColorStyles={getColorStyles}
+          calculateDiscount={calculateDiscount}
+          getFilteredPredefinedFeatures={getFilteredPredefinedFeatures}
+          isMobile={isMobile}
+        />
+      )}
     </div>
   );
 };
 
-// COMPONENTE: Estado Vacío
-const EmptyState = ({ onCreatePlan }) => (
-  <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-    <div className="w-16 h-16 mx-auto bg-gradient-to-r from-primary-100 to-secondary-100 rounded-xl flex items-center justify-center mb-6">
-      <CreditCard className="w-8 h-8 text-primary-600" />
+// COMPONENTE: Estado Vacío Compacto
+const CompactEmptyState = ({ onCreatePlan }) => (
+  <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+    <div className="w-12 h-12 mx-auto bg-gradient-to-r from-primary-100 to-secondary-100 rounded-lg flex items-center justify-center mb-4">
+      <CreditCard className="w-6 h-6 text-primary-600" />
     </div>
-    <h3 className="text-xl font-bold text-gray-900 mb-3">
+    <h3 className="text-lg font-bold text-gray-900 mb-2">
       No hay planes configurados
     </h3>
-    <p className="text-gray-600 mb-6">
+    <p className="text-gray-600 mb-4 text-sm">
       Crea tu primer plan de membresía para empezar
     </p>
     <button
       onClick={onCreatePlan}
-      className="px-6 py-3 text-white bg-primary-600 rounded-lg hover:bg-primary-700"
+      className="px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 text-sm"
     >
-      <Plus className="w-5 h-5 mr-2 inline" />
+      <Plus className="w-4 h-4 mr-2 inline" />
       Crear Primer Plan
     </button>
   </div>
 );
 
-// COMPONENTE: Tarjeta de Plan
-const PlanCard = ({ 
+// COMPONENTE: Tarjeta de Plan Compacta
+const CompactPlanCard = ({ 
   plan, 
   onEdit, 
   onDelete, 
@@ -773,88 +782,78 @@ const PlanCard = ({
   const [showDropdown, setShowDropdown] = useState(false);
   
   return (
-    <div className={`relative bg-white border-2 rounded-xl shadow-sm hover:shadow-md transition-all ${
-      plan.isPopular ? 'border-yellow-400 ring-2 ring-yellow-100' : 'border-gray-200'
+    <div className={`relative bg-white border-2 rounded-lg shadow-sm hover:shadow-md transition-all ${
+      plan.isPopular ? 'border-yellow-400 ring-1 ring-yellow-100' : 'border-gray-200'
     } ${!plan.isActive ? 'opacity-60' : ''}`}>
       
-      {/* Badges */}
-      <div className="absolute top-3 left-3 z-10 flex flex-col space-y-1">
+      {/* Badges compactos */}
+      <div className="absolute top-2 left-2 z-10 flex flex-wrap gap-1">
         {plan.isPopular && (
-          <span className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-            <Star className="w-3 h-3 mr-1 inline fill-current" />
-            POPULAR
+          <span className="bg-yellow-500 text-white px-2 py-0.5 rounded-full text-xs font-bold flex items-center">
+            <Star className="w-2 h-2 mr-1 fill-current" />
+            POP
           </span>
         )}
         {!plan.isActive && (
-          <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-            INACTIVO
+          <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+            OFF
           </span>
         )}
         {discount > 0 && (
-          <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold">
+          <span className="bg-green-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
             -{discount}%
           </span>
         )}
       </div>
       
-      <div className="p-6">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className={`w-14 h-14 mx-auto rounded-xl ${colorStyles.bg} flex items-center justify-center mb-4`}>
-            <IconComponent className={`w-7 h-7 ${colorStyles.text}`} />
+      <div className="p-4">
+        {/* Header compacto */}
+        <div className="text-center mb-4">
+          <div className={`w-10 h-10 mx-auto rounded-lg ${colorStyles.bg} flex items-center justify-center mb-3`}>
+            <IconComponent className={`w-5 h-5 ${colorStyles.text}`} />
           </div>
           
-          <h3 className="text-lg font-bold text-gray-900 mb-2">
+          <h3 className="text-base font-bold text-gray-900 mb-1 line-clamp-1">
             {plan.name}
           </h3>
           
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
             {plan.label}
           </span>
-          
-          {plan.description && (
-            <p className="text-gray-600 text-sm mt-3">
-              {plan.description}
-            </p>
-          )}
         </div>
         
-        {/* Precio */}
-        <div className="text-center mb-6">
-          <div className="flex items-baseline justify-center space-x-2">
-            <span className="text-2xl font-bold text-gray-900">
+        {/* Precio compacto */}
+        <div className="text-center mb-4">
+          <div className="flex items-baseline justify-center space-x-1">
+            <span className="text-xl font-bold text-gray-900">
               Q{plan.price.toLocaleString()}
             </span>
             {plan.originalPrice && plan.originalPrice > plan.price && (
-              <span className="text-lg text-gray-500 line-through">
+              <span className="text-sm text-gray-500 line-through">
                 Q{plan.originalPrice.toLocaleString()}
               </span>
             )}
           </div>
           
-          <div className="text-sm text-gray-600 mt-1">
+          <div className="text-xs text-gray-600 mt-1">
             por {duration?.label.toLowerCase()}
           </div>
         </div>
         
-        {/* Características */}
+        {/* Características limitadas */}
         {plan.features && plan.features.length > 0 && (
-          <div className="mb-6">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-              <Check className="w-4 h-4 text-green-500 mr-2" />
-              Incluye:
-            </h4>
-            <div className="space-y-2">
-              {plan.features.slice(0, 4).map((feature, idx) => (
-                <div key={idx} className="flex items-start text-sm text-gray-700">
-                  <Check className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>{feature}</span>
+          <div className="mb-4">
+            <div className="space-y-1">
+              {plan.features.slice(0, 2).map((feature, idx) => (
+                <div key={idx} className="flex items-start text-xs text-gray-700">
+                  <Check className="w-3 h-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                  <span className="line-clamp-1">{feature}</span>
                 </div>
               ))}
-              {plan.features.length > 4 && (
-                <div className="text-center pt-2">
-                  <span className="text-xs text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
-                    +{plan.features.length - 4} beneficios más
+              {plan.features.length > 2 && (
+                <div className="text-center pt-1">
+                  <span className="text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
+                    +{plan.features.length - 2} más
                   </span>
                 </div>
               )}
@@ -862,54 +861,54 @@ const PlanCard = ({
           </div>
         )}
         
-        {/* Acciones */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-          <div className="flex items-center space-x-2">
+        {/* Acciones compactas */}
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <div className="flex items-center space-x-1">
             <button
               onClick={onTogglePopular}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-md transition-colors ${
                 plan.isPopular ? 'text-yellow-600 bg-yellow-50' : 'text-gray-400 hover:text-yellow-600'
               }`}
             >
-              <Star className={`w-4 h-4 ${plan.isPopular ? 'fill-current' : ''}`} />
+              <Star className={`w-3 h-3 ${plan.isPopular ? 'fill-current' : ''}`} />
             </button>
             
             <button
               onClick={onToggleActive}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-md transition-colors ${
                 plan.isActive ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'
               }`}
             >
-              {plan.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              {plan.isActive ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
             </button>
           </div>
           
           <div className="flex items-center space-x-1">
             <button
               onClick={onEdit}
-              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md"
             >
-              <Edit className="w-4 h-4" />
+              <Edit className="w-3 h-3" />
             </button>
             
             <div className="relative">
               <button
                 onClick={() => setShowDropdown(!showDropdown)}
-                className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg"
+                className="p-1.5 text-gray-600 hover:bg-gray-50 rounded-md"
               >
-                <MoreHorizontal className="w-4 h-4" />
+                <MoreHorizontal className="w-3 h-3" />
               </button>
               
               {showDropdown && (
-                <div className="absolute right-0 top-full mt-1 w-40 bg-white border rounded-lg shadow-lg z-20">
+                <div className="absolute right-0 top-full mt-1 w-32 bg-white border rounded-lg shadow-lg z-20">
                   <button
                     onClick={() => {
                       onDuplicate();
                       setShowDropdown(false);
                     }}
-                    className="w-full flex items-center px-3 py-2 text-sm hover:bg-gray-50"
+                    className="w-full flex items-center px-3 py-2 text-xs hover:bg-gray-50"
                   >
-                    <Copy className="w-4 h-4 mr-2" />
+                    <Copy className="w-3 h-3 mr-2" />
                     Duplicar
                   </button>
                   <button
@@ -917,9 +916,9 @@ const PlanCard = ({
                       onDelete();
                       setShowDropdown(false);
                     }}
-                    className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                    className="w-full flex items-center px-3 py-2 text-xs text-red-600 hover:bg-red-50"
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
+                    <Trash2 className="w-3 h-3 mr-2" />
                     Eliminar
                   </button>
                 </div>
@@ -932,8 +931,8 @@ const PlanCard = ({
   );
 };
 
-// COMPONENTE: Modal Completamente Rediseñado y Mejorado
-const ImprovedPlanModal = ({ 
+// COMPONENTE: Modal Optimizado para Espacio
+const OptimizedPlanModal = ({ 
   show, 
   plan, 
   isCreating, 
@@ -943,6 +942,8 @@ const ImprovedPlanModal = ({
   availableIcons,
   availableColors,
   durationType,
+  featureSearch,
+  onFeatureSearchChange,
   onChange, 
   onSave, 
   onCancel,
@@ -950,34 +951,27 @@ const ImprovedPlanModal = ({
   getIconComponent,
   getColorStyles,
   calculateDiscount,
-  isMobile,
-  modalRef,
-  contentRef
+  getFilteredPredefinedFeatures,
+  isMobile
 }) => {
   if (!show) return null;
   
   const steps = [
-    { id: 0, title: 'Información Básica', icon: Info, description: 'Nombre y detalles' },
-    { id: 1, title: 'Características', icon: CheckCircle, description: 'Beneficios incluidos' },
-    { id: 2, title: 'Precios', icon: DollarSign, description: 'Configuración de precios' },
-    { id: 3, title: 'Diseño', icon: Palette, description: 'Apariencia visual' }
+    { id: 0, title: 'Info', icon: Info, description: 'Básica' },
+    { id: 1, title: 'Características', icon: CheckCircle, description: 'Beneficios' },
+    { id: 2, title: 'Precios', icon: DollarSign, description: 'Costos' },
+    { id: 3, title: 'Diseño', icon: Palette, description: 'Visual' }
   ];
   
   const currentStep = steps[step] || steps[0];
   
-  // Validar si puede continuar al siguiente paso
   const canContinueToNextStep = () => {
     switch (step) {
-      case 0:
-        return plan.name.trim().length > 0;
-      case 1:
-        return true; // Siempre puede continuar desde características
-      case 2:
-        return plan.price > 0;
-      case 3:
-        return true;
-      default:
-        return false;
+      case 0: return plan.name.trim().length > 0;
+      case 1: return true;
+      case 2: return plan.price > 0;
+      case 3: return true;
+      default: return false;
     }
   };
   
@@ -986,152 +980,80 @@ const ImprovedPlanModal = ({
   };
   
   return (
-    <div 
-      className="fixed inset-0 z-[9999] flex"
-      style={{ 
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(8px)'
-      }}
-    >
-      {/* LAYOUT PRINCIPAL DEL MODAL */}
-      <div className="flex w-full h-full">
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-4 pb-4 overflow-auto bg-black bg-opacity-50 backdrop-blur-sm">
+      <div className={`w-full max-w-4xl mx-4 bg-white rounded-xl shadow-2xl max-h-full flex flex-col`}>
         
-        {/* PANEL IZQUIERDO - Vista Previa (Desktop) */}
-        {!isMobile && (
-          <div className="w-1/3 bg-gradient-to-br from-gray-900 to-gray-800 p-8 flex flex-col items-center justify-center">
-            <h3 className="text-white text-lg font-semibold mb-6 text-center">
-              Vista Previa del Plan
-            </h3>
-            <EnhancedPlanPreview 
-              plan={plan}
-              getIconComponent={getIconComponent}
-              getColorStyles={getColorStyles}
-              calculateDiscount={calculateDiscount}
-              durationType={durationType}
-            />
-            
-            {/* Indicadores de validación */}
-            <div className="mt-6 space-y-2 w-full max-w-xs">
-              <div className="flex items-center text-sm">
-                {plan.name.trim() ? (
-                  <Check className="w-4 h-4 text-green-400 mr-2" />
-                ) : (
-                  <X className="w-4 h-4 text-red-400 mr-2" />
-                )}
-                <span className="text-white/80">Nombre del plan</span>
-              </div>
-              <div className="flex items-center text-sm">
-                {plan.price > 0 ? (
-                  <Check className="w-4 h-4 text-green-400 mr-2" />
-                ) : (
-                  <X className="w-4 h-4 text-red-400 mr-2" />
-                )}
-                <span className="text-white/80">Precio configurado</span>
-              </div>
-              <div className="flex items-center text-sm">
-                {plan.features.length > 0 ? (
-                  <Check className="w-4 h-4 text-green-400 mr-2" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4 text-yellow-400 mr-2" />
-                )}
-                <span className="text-white/80">
-                  {plan.features.length} características
-                </span>
-              </div>
+        {/* Header fijo compacto */}
+        <div className="bg-white border-b border-gray-200 px-4 py-3 rounded-t-xl flex-shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">
+                {isCreating ? 'Crear Plan' : 'Editar Plan'}
+              </h2>
+              <p className="text-gray-600 text-sm">{currentStep.description}</p>
             </div>
+            
+            <button
+              onClick={onCancel}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
           </div>
-        )}
-        
-        {/* PANEL DERECHO - Formulario */}
-        <div className={`${isMobile ? 'w-full' : 'w-2/3'} bg-white flex flex-col`}>
           
-          {/* Header Fijo */}
-          <div className="bg-white border-b border-gray-200 p-4 md:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">
-                  {isCreating ? 'Crear Nuevo Plan' : 'Editar Plan'}
-                </h2>
-                <p className="text-gray-600 text-sm md:text-base mt-1">
-                  {currentStep.description}
-                </p>
-              </div>
-              
+          {/* Progress compacto */}
+          <div className="flex justify-between text-xs text-gray-500 mb-2">
+            <span>Paso {step + 1} de {steps.length}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div 
+              className="bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full h-1.5 transition-all duration-500"
+              style={{ width: `${((step + 1) / steps.length) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+        
+        {/* Navegación por pasos compacta */}
+        <div className="bg-white border-b border-gray-200 flex-shrink-0">
+          <div className="flex">
+            {steps.map((stepItem, index) => (
               <button
-                onClick={onCancel}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                key={stepItem.id}
+                onClick={() => onStepChange(stepItem.id)}
+                disabled={index > step && !canContinueToNextStep()}
+                className={`flex-1 px-2 py-2 text-xs font-medium border-b-2 transition-all duration-200 ${
+                  step === stepItem.id
+                    ? 'border-primary-500 text-primary-600 bg-primary-50'
+                    : index < step 
+                      ? 'border-green-500 text-green-600 hover:bg-green-50'
+                      : index === step + 1 && canContinueToNextStep()
+                        ? 'border-transparent text-gray-600 hover:text-primary-600 hover:bg-gray-50'
+                        : 'border-transparent text-gray-400 cursor-not-allowed'
+                }`}
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <div className="flex items-center justify-center space-x-1">
+                  {index < step ? (
+                    <Check className="w-3 h-3 text-green-600" />
+                  ) : (
+                    <stepItem.icon className="w-3 h-3" />
+                  )}
+                  <span className="hidden sm:inline">{stepItem.title}</span>
+                </div>
               </button>
-            </div>
-            
-            {/* Progress Bar */}
-            <div className="mb-4">
-              <div className="flex justify-between text-xs text-gray-500 mb-2">
-                <span>Paso {step + 1} de {steps.length}</span>
-                <span>{Math.round(((step + 1) / steps.length) * 100)}% completado</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full h-2 transition-all duration-500"
-                  style={{ width: `${((step + 1) / steps.length) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-            
-            {/* Vista previa móvil compacta */}
-            {isMobile && (
-              <div className="bg-gray-50 rounded-lg p-3">
-                <CompactPlanPreview 
-                  plan={plan}
-                  getIconComponent={getIconComponent}
-                  getColorStyles={getColorStyles}
-                />
-              </div>
-            )}
+            ))}
           </div>
+        </div>
+        
+        {/* Layout principal con vista previa */}
+        <div className="flex flex-1 min-h-0">
           
-          {/* Navegación por Pasos */}
-          <div className="bg-white border-b border-gray-200">
-            <div className="flex">
-              {steps.map((stepItem, index) => (
-                <button
-                  key={stepItem.id}
-                  onClick={() => onStepChange(stepItem.id)}
-                  disabled={index > step && !canContinueToNextStep()}
-                  className={`flex-1 px-2 md:px-4 py-3 text-xs md:text-sm font-medium border-b-3 transition-all duration-200 ${
-                    step === stepItem.id
-                      ? 'border-primary-500 text-primary-600 bg-primary-50'
-                      : index < step 
-                        ? 'border-green-500 text-green-600 hover:bg-green-50'
-                        : index === step + 1 && canContinueToNextStep()
-                          ? 'border-transparent text-gray-600 hover:text-primary-600 hover:bg-gray-50'
-                          : 'border-transparent text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-1 md:space-x-2">
-                    {index < step ? (
-                      <Check className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <stepItem.icon className="w-4 h-4" />
-                    )}
-                    <span className="hidden sm:inline">{stepItem.title}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          {/* Contenido con Scroll Optimizado */}
-          <div 
-            className="flex-1 overflow-y-auto"
-            style={{ 
-              maxHeight: isMobile ? 'calc(100vh - 280px)' : 'calc(100vh - 250px)',
-            }}
-          >
-            <div className="p-4 md:p-6">
+          {/* Panel contenido */}
+          <div className={`${isMobile ? 'w-full' : 'w-2/3'} flex flex-col min-h-0`}>
+            
+            {/* Contenido con scroll */}
+            <div className="flex-1 overflow-y-auto p-4">
               {step === 0 && (
-                <ImprovedBasicInfoStep 
+                <CompactBasicInfoStep 
                   plan={plan} 
                   onChange={onChange} 
                   durationType={durationType}
@@ -1139,15 +1061,18 @@ const ImprovedPlanModal = ({
               )}
               
               {step === 1 && (
-                <ImprovedFeaturesStep 
+                <CompactFeaturesStep 
                   plan={plan}
                   onChange={onChange}
                   predefinedFeatures={predefinedFeatures}
+                  featureSearch={featureSearch}
+                  onFeatureSearchChange={onFeatureSearchChange}
+                  getFilteredPredefinedFeatures={getFilteredPredefinedFeatures}
                 />
               )}
               
               {step === 2 && (
-                <ImprovedPricingStep 
+                <CompactPricingStep 
                   plan={plan} 
                   onChange={onChange} 
                   calculateDiscount={calculateDiscount}
@@ -1156,7 +1081,7 @@ const ImprovedPlanModal = ({
               )}
               
               {step === 3 && (
-                <ImprovedDesignStep 
+                <CompactDesignStep 
                   plan={plan} 
                   onChange={onChange}
                   availableIcons={availableIcons}
@@ -1166,254 +1091,247 @@ const ImprovedPlanModal = ({
                 />
               )}
             </div>
+            
           </div>
           
-          {/* Footer Fijo con Navegación */}
-          <div className="bg-white border-t border-gray-200 p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              
-              {/* Botones Izquierda */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={onCancel}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                
-                {step > 0 && (
-                  <button
-                    onClick={() => onStepChange(step - 1)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center"
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    <span className="hidden sm:inline">Anterior</span>
-                  </button>
-                )}
+          {/* Panel vista previa (solo desktop) */}
+          {!isMobile && (
+            <div className="w-1/3 bg-gradient-to-br from-gray-900 to-gray-800 p-4 flex flex-col">
+              <h3 className="text-white text-sm font-semibold mb-4 text-center">
+                Vista Previa
+              </h3>
+              <div className="flex-1 flex items-center justify-center">
+                <CompactPlanPreview 
+                  plan={plan}
+                  getIconComponent={getIconComponent}
+                  getColorStyles={getColorStyles}
+                  calculateDiscount={calculateDiscount}
+                  durationType={durationType}
+                />
               </div>
               
-              {/* Botones Derecha */}
-              <div className="flex items-center space-x-2">
-                {step < steps.length - 1 ? (
-                  <button
-                    onClick={() => onStepChange(step + 1)}
-                    disabled={!canContinueToNextStep()}
-                    className="px-6 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-                  >
-                    <span className="hidden sm:inline">Siguiente</span>
-                    <span className="sm:hidden">Sig.</span>
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={onSave}
-                    disabled={saving || !canFinish()}
-                    className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-                  >
-                    {saving ? (
-                      <>
-                        <Loader className="w-4 h-4 animate-spin mr-2" />
-                        <span className="hidden sm:inline">Guardando...</span>
-                        <span className="sm:hidden">...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        <span className="hidden sm:inline">
-                          {isCreating ? 'Crear Plan' : 'Guardar'}
-                        </span>
-                        <span className="sm:hidden">
-                          {isCreating ? 'Crear' : 'Guardar'}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                )}
+              {/* Validaciones compactas */}
+              <div className="mt-4 space-y-1">
+                <div className="flex items-center text-xs">
+                  {plan.name.trim() ? (
+                    <Check className="w-3 h-3 text-green-400 mr-1" />
+                  ) : (
+                    <X className="w-3 h-3 text-red-400 mr-1" />
+                  )}
+                  <span className="text-white/80">Nombre</span>
+                </div>
+                <div className="flex items-center text-xs">
+                  {plan.price > 0 ? (
+                    <Check className="w-3 h-3 text-green-400 mr-1" />
+                  ) : (
+                    <X className="w-3 h-3 text-red-400 mr-1" />
+                  )}
+                  <span className="text-white/80">Precio</span>
+                </div>
+                <div className="flex items-center text-xs">
+                  <span className="text-white/80">{plan.features.length} características</span>
+                </div>
               </div>
             </div>
-            
-            {/* Indicador de estado en footer */}
-            <div className="mt-3 flex items-center justify-center">
-              <div className="flex items-center space-x-4 text-xs text-gray-500">
-                <span className={canFinish() ? 'text-green-600' : 'text-amber-600'}>
-                  {canFinish() ? '✓ Listo para guardar' : '⚠ Completa los campos requeridos'}
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
           
         </div>
+        
+        {/* Footer fijo */}
+        <div className="bg-white border-t border-gray-200 p-4 rounded-b-xl flex-shrink-0">
+          <div className="flex items-center justify-between">
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={onCancel}
+                className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              
+              {step > 0 && (
+                <button
+                  onClick={() => onStepChange(step - 1)}
+                  className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Anterior</span>
+                </button>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {step < steps.length - 1 ? (
+                <button
+                  onClick={() => onStepChange(step + 1)}
+                  disabled={!canContinueToNextStep()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  Siguiente
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </button>
+              ) : (
+                <button
+                  onClick={onSave}
+                  disabled={saving || !canFinish()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {saving ? (
+                    <>
+                      <Loader className="w-4 h-4 animate-spin mr-2" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      {isCreating ? 'Crear' : 'Guardar'}
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Estado en footer */}
+          <div className="mt-2 text-center">
+            <span className={`text-xs ${canFinish() ? 'text-green-600' : 'text-amber-600'}`}>
+              {canFinish() ? '✓ Listo para guardar' : '⚠ Completa los campos requeridos'}
+            </span>
+          </div>
+        </div>
+        
       </div>
     </div>
   );
 };
 
-// Vista previa mejorada para desktop
-const EnhancedPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateDiscount, durationType }) => {
+// Vista previa compacta para desktop
+const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles, calculateDiscount, durationType }) => {
   const IconComponent = getIconComponent(plan.iconName);
   const colorStyles = getColorStyles(plan.color);
   const discount = calculateDiscount(plan.price, plan.originalPrice);
   const duration = durationType.find(d => d.value === plan.duration);
   
   return (
-    <div className={`w-full max-w-sm bg-white rounded-2xl border-2 shadow-xl overflow-hidden ${
-      plan.isPopular ? 'border-yellow-400 ring-4 ring-yellow-100' : 'border-gray-200'
+    <div className={`w-full max-w-xs bg-white rounded-xl border-2 shadow-lg overflow-hidden ${
+      plan.isPopular ? 'border-yellow-400 ring-2 ring-yellow-100' : 'border-gray-200'
     }`}>
       
-      {/* Header */}
       {plan.isPopular && (
-        <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-center py-2">
-          <span className="text-white text-sm font-bold">
-            <Star className="w-4 h-4 inline mr-1 fill-current" />
-            MÁS POPULAR
+        <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-center py-1">
+          <span className="text-white text-xs font-bold">
+            <Star className="w-3 h-3 inline mr-1 fill-current" />
+            POPULAR
           </span>
         </div>
       )}
       
-      <div className="p-6">
-        {/* Icono y título */}
-        <div className="text-center mb-6">
-          <div className={`w-16 h-16 mx-auto rounded-2xl ${colorStyles.bg} flex items-center justify-center mb-4 shadow-lg`}>
-            <IconComponent className={`w-8 h-8 ${colorStyles.text}`} />
+      <div className="p-4">
+        <div className="text-center mb-4">
+          <div className={`w-12 h-12 mx-auto rounded-lg ${colorStyles.bg} flex items-center justify-center mb-3 shadow-md`}>
+            <IconComponent className={`w-6 h-6 ${colorStyles.text}`} />
           </div>
           
-          <h3 className="text-xl font-bold text-gray-900 mb-2">
+          <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-2">
             {plan.name || 'Nombre del Plan'}
           </h3>
           
-          <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${colorStyles.bg} ${colorStyles.text} border-2 ${colorStyles.border}`}>
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
             {plan.label || 'Etiqueta'}
           </span>
         </div>
         
-        {/* Precio */}
-        <div className="text-center mb-6">
-          <div className="flex items-baseline justify-center space-x-2">
-            <span className="text-3xl font-bold text-gray-900">
+        <div className="text-center mb-4">
+          <div className="flex items-baseline justify-center space-x-1">
+            <span className="text-2xl font-bold text-gray-900">
               Q{(plan.price || 0).toLocaleString()}
             </span>
             {plan.originalPrice && plan.originalPrice > plan.price && (
-              <span className="text-xl text-gray-500 line-through">
+              <span className="text-lg text-gray-500 line-through">
                 Q{plan.originalPrice.toLocaleString()}
               </span>
             )}
           </div>
           
-          <div className="text-gray-600 mt-2">
+          <div className="text-gray-600 text-sm mt-1">
             por {duration?.label.toLowerCase() || 'mes'}
           </div>
           
           {discount > 0 && (
             <div className="mt-2">
-              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold">
+              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-bold">
                 Ahorras {discount}%
               </span>
             </div>
           )}
         </div>
         
-        {/* Descripción */}
         {plan.description && (
-          <div className="text-center mb-4">
-            <p className="text-gray-600 text-sm">
+          <div className="text-center mb-3">
+            <p className="text-gray-600 text-xs line-clamp-2">
               {plan.description}
             </p>
           </div>
         )}
         
-        {/* Características */}
-        <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-gray-900 flex items-center">
-            <Check className="w-4 h-4 text-green-500 mr-2" />
-            Lo que incluye:
+        <div>
+          <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center">
+            <Check className="w-3 h-3 text-green-500 mr-1" />
+            Incluye:
           </h4>
           
           {plan.features.length > 0 ? (
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {plan.features.slice(0, 5).map((feature, idx) => (
-                <div key={idx} className="flex items-start text-sm text-gray-700">
-                  <Check className="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>{feature}</span>
+            <div className="space-y-1 max-h-24 overflow-y-auto">
+              {plan.features.slice(0, 3).map((feature, idx) => (
+                <div key={idx} className="flex items-start text-xs text-gray-700">
+                  <Check className="w-3 h-3 text-green-500 mr-1 mt-0.5 flex-shrink-0" />
+                  <span className="line-clamp-1">{feature}</span>
                 </div>
               ))}
-              {plan.features.length > 5 && (
-                <div className="text-center pt-2">
-                  <span className="text-xs text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
-                    +{plan.features.length - 5} beneficios más
+              {plan.features.length > 3 && (
+                <div className="text-center pt-1">
+                  <span className="text-xs text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
+                    +{plan.features.length - 3} más
                   </span>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-4">
-              <span className="text-sm text-gray-400 italic">
-                Agrega características al plan
+            <div className="text-center py-2">
+              <span className="text-xs text-gray-400 italic">
+                Sin características
               </span>
             </div>
           )}
         </div>
         
-        {/* Estados */}
-        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-center space-x-3">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center space-x-2">
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
             plan.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
           }`}>
             {plan.isActive ? 'Activo' : 'Inactivo'}
           </span>
-          
-          {plan.isPopular && (
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-              Popular
-            </span>
-          )}
         </div>
       </div>
     </div>
   );
 };
 
-// Vista previa compacta para móvil
-const CompactPlanPreview = ({ plan, getIconComponent, getColorStyles }) => {
-  const IconComponent = getIconComponent(plan.iconName);
-  const colorStyles = getColorStyles(plan.color);
-  
-  return (
-    <div className="flex items-center space-x-3">
-      <div className={`w-10 h-10 rounded-lg ${colorStyles.bg} flex items-center justify-center`}>
-        <IconComponent className={`w-5 h-5 ${colorStyles.text}`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="font-semibold text-gray-900 truncate">
-          {plan.name || 'Nombre del Plan'}
-        </h4>
-        <p className="text-sm text-gray-600">
-          Q{(plan.price || 0).toLocaleString()} • {plan.features.length} beneficios
-        </p>
-      </div>
-      {plan.isPopular && (
-        <Star className="w-4 h-4 text-yellow-500 fill-current" />
-      )}
-    </div>
-  );
-};
-
-// Componentes de pasos mejorados con mejor UX
-const ImprovedBasicInfoStep = ({ plan, onChange, durationType }) => (
-  <div className="space-y-6">
+// Componentes de pasos compactos
+const CompactBasicInfoStep = ({ plan, onChange, durationType }) => (
+  <div className="space-y-4">
     
-    {/* Información principal */}
-    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-      <h3 className="text-lg font-semibold text-blue-900 mb-2 flex items-center">
-        <Info className="w-5 h-5 mr-2" />
-        Información Básica del Plan
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+      <h3 className="text-base font-semibold text-blue-900 mb-1 flex items-center">
+        <Info className="w-4 h-4 mr-2" />
+        Información Básica
       </h3>
       <p className="text-blue-700 text-sm">
-        Configura el nombre, descripción y duración de tu plan de membresía.
+        Configura el nombre, descripción y duración.
       </p>
     </div>
     
-    <div className="grid grid-cols-1 gap-6">
-      {/* Nombre del plan */}
+    <div className="grid grid-cols-1 gap-4">
       <div>
         <label className="block text-sm font-semibold text-gray-900 mb-2">
           Nombre del Plan <span className="text-red-500">*</span>
@@ -1431,16 +1349,12 @@ const ImprovedBasicInfoStep = ({ plan, onChange, durationType }) => (
               label: newName
             });
           }}
-          className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+          className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
           placeholder="Ej: Plan Premium Elite"
         />
-        <p className="text-xs text-gray-500 mt-1">
-          Este será el nombre principal que verán tus clientes
-        </p>
       </div>
       
-      {/* Campos en grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             ID del Plan
@@ -1449,12 +1363,9 @@ const ImprovedBasicInfoStep = ({ plan, onChange, durationType }) => (
             type="text"
             value={plan.value}
             onChange={(e) => onChange({ ...plan, value: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
-            className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl bg-gray-50 focus:bg-white focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+            className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
             placeholder="premium_elite"
           />
-          <p className="text-xs text-gray-500 mt-1">
-            Identificador único (se genera automáticamente)
-          </p>
         </div>
         
         <div>
@@ -1465,16 +1376,12 @@ const ImprovedBasicInfoStep = ({ plan, onChange, durationType }) => (
             type="text"
             value={plan.label}
             onChange={(e) => onChange({ ...plan, label: e.target.value })}
-            className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+            className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
             placeholder="Premium"
           />
-          <p className="text-xs text-gray-500 mt-1">
-            Texto corto para mostrar en tarjetas
-          </p>
         </div>
       </div>
       
-      {/* Descripción */}
       <div>
         <label className="block text-sm font-semibold text-gray-900 mb-2">
           Descripción del Plan
@@ -1482,16 +1389,12 @@ const ImprovedBasicInfoStep = ({ plan, onChange, durationType }) => (
         <textarea
           value={plan.description}
           onChange={(e) => onChange({ ...plan, description: e.target.value })}
-          rows={4}
-          className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all resize-none"
+          rows={3}
+          className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500 resize-none"
           placeholder="Describe los beneficios principales de este plan..."
         />
-        <p className="text-xs text-gray-500 mt-1">
-          Una descripción atractiva ayuda a vender mejor el plan
-        </p>
       </div>
       
-      {/* Duración */}
       <div>
         <label className="block text-sm font-semibold text-gray-900 mb-2">
           Duración del Plan
@@ -1499,7 +1402,7 @@ const ImprovedBasicInfoStep = ({ plan, onChange, durationType }) => (
         <select
           value={plan.duration}
           onChange={(e) => onChange({ ...plan, duration: e.target.value })}
-          className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+          className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
         >
           {durationType.map((duration) => (
             <option key={duration.value} value={duration.value}>
@@ -1507,40 +1410,36 @@ const ImprovedBasicInfoStep = ({ plan, onChange, durationType }) => (
             </option>
           ))}
         </select>
-        <p className="text-xs text-gray-500 mt-1">
-          Define por cuánto tiempo es válido el plan
-        </p>
       </div>
       
-      {/* Configuraciones adicionales */}
-      <div className="bg-gray-50 rounded-xl p-4">
-        <h4 className="text-sm font-semibold text-gray-900 mb-3">
-          Configuraciones del Plan
+      <div className="bg-gray-50 rounded-lg p-3">
+        <h4 className="text-sm font-semibold text-gray-900 mb-2">
+          Configuraciones
         </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:bg-white hover:border-primary-300 cursor-pointer transition-all">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="flex items-center p-3 border-2 border-gray-200 rounded-lg hover:bg-white hover:border-primary-300 cursor-pointer">
             <input
               type="checkbox"
               checked={plan.isPopular}
               onChange={(e) => onChange({ ...plan, isPopular: e.target.checked })}
-              className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
-            <div className="ml-3">
+            <div className="ml-2">
               <span className="text-sm font-medium text-gray-900">Plan Popular</span>
-              <p className="text-xs text-gray-500">Se destaca con badge especial</p>
+              <p className="text-xs text-gray-500">Badge especial</p>
             </div>
           </label>
           
-          <label className="flex items-center p-4 border-2 border-gray-200 rounded-xl hover:bg-white hover:border-primary-300 cursor-pointer transition-all">
+          <label className="flex items-center p-3 border-2 border-gray-200 rounded-lg hover:bg-white hover:border-primary-300 cursor-pointer">
             <input
               type="checkbox"
               checked={plan.isActive}
               onChange={(e) => onChange({ ...plan, isActive: e.target.checked })}
-              className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
-            <div className="ml-3">
+            <div className="ml-2">
               <span className="text-sm font-medium text-gray-900">Plan Activo</span>
-              <p className="text-xs text-gray-500">Visible para los clientes</p>
+              <p className="text-xs text-gray-500">Visible para clientes</p>
             </div>
           </label>
         </div>
@@ -1549,17 +1448,23 @@ const ImprovedBasicInfoStep = ({ plan, onChange, durationType }) => (
   </div>
 );
 
-const ImprovedFeaturesStep = ({ plan, onChange, predefinedFeatures }) => {
-  const [newFeature, setNewFeature] = useState('');
+const CompactFeaturesStep = ({ 
+  plan, 
+  onChange, 
+  predefinedFeatures,
+  featureSearch,
+  onFeatureSearchChange,
+  getFilteredPredefinedFeatures
+}) => {
   const [activeCategory, setActiveCategory] = useState(Object.keys(predefinedFeatures)[0]);
   
   const handleAddFeature = () => {
-    if (newFeature.trim() && !plan.features.includes(newFeature.trim())) {
+    if (featureSearch.trim() && !plan.features.includes(featureSearch.trim())) {
       onChange({
         ...plan,
-        features: [...plan.features, newFeature.trim()]
+        features: [...plan.features, featureSearch.trim()]
       });
-      setNewFeature('');
+      onFeatureSearchChange('');
     }
   };
   
@@ -1579,117 +1484,160 @@ const ImprovedFeaturesStep = ({ plan, onChange, predefinedFeatures }) => {
     });
   };
   
+  const filteredFeatures = getFilteredPredefinedFeatures();
+  
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       
-      {/* Información de la sección */}
-      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-        <h3 className="text-lg font-semibold text-green-900 mb-2 flex items-center">
-          <CheckCircle className="w-5 h-5 mr-2" />
+      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+        <h3 className="text-base font-semibold text-green-900 mb-1 flex items-center">
+          <CheckCircle className="w-4 h-4 mr-2" />
           Características del Plan
         </h3>
         <p className="text-green-700 text-sm">
-          Agrega las características y beneficios que incluye este plan. Puedes usar las sugerencias o crear las tuyas.
+          Busca o crea características para tu plan.
         </p>
       </div>
       
-      {/* Características sugeridas */}
+      {/* CAMPO DE BÚSQUEDA/AGREGAR PRIMERO */}
       <div>
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">
-          🎯 Características Sugeridas
+        <h4 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+          <Search className="w-4 h-4 mr-2" />
+          Buscar o Crear Característica
         </h4>
-        
-        {/* Categorías */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {Object.keys(predefinedFeatures).map((category) => (
-            <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                activeCategory === category
-                  ? 'bg-primary-500 text-white shadow-lg scale-105'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-        
-        {/* Lista de características */}
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-4">
-          <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
-            {predefinedFeatures[activeCategory]?.map((feature, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleAddPredefinedFeature(feature)}
-                disabled={plan.features.includes(feature)}
-                className={`text-left px-4 py-3 text-sm rounded-xl border-2 transition-all duration-200 ${
-                  plan.features.includes(feature)
-                    ? 'border-green-200 bg-green-50 text-green-700 cursor-not-allowed'
-                    : 'border-gray-200 hover:bg-primary-50 hover:border-primary-300 text-gray-700 hover:scale-102'
-                }`}
-              >
-                {plan.features.includes(feature) ? (
-                  <Check className="w-4 h-4 inline mr-2 text-green-600" />
-                ) : (
-                  <Plus className="w-4 h-4 inline mr-2 text-primary-600" />
-                )}
-                {feature}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      
-      {/* Característica personalizada */}
-      <div>
-        <h4 className="text-lg font-semibold text-gray-900 mb-3">
-          ➕ Agregar Característica Personalizada
-        </h4>
-        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+        <div className="flex space-x-2">
           <input
             type="text"
-            value={newFeature}
-            onChange={(e) => setNewFeature(e.target.value)}
-            className="flex-1 px-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
-            placeholder="Escribe una característica personalizada..."
+            value={featureSearch}
+            onChange={(e) => onFeatureSearchChange(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
+            placeholder="Busca una característica o escribe una nueva..."
             onKeyPress={(e) => e.key === 'Enter' && handleAddFeature()}
           />
           <button
             onClick={handleAddFeature}
-            disabled={!newFeature.trim() || plan.features.includes(newFeature.trim())}
-            className="px-6 py-3 text-base font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 flex items-center justify-center"
+            disabled={!featureSearch.trim() || plan.features.includes(featureSearch.trim())}
+            className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
           >
-            <Plus className="w-5 h-5 mr-2" />
+            <Plus className="w-4 h-4 mr-1" />
             Agregar
           </button>
         </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Escribe para buscar en características predefinidas o crear una nueva
+        </p>
       </div>
       
-      {/* Lista de características seleccionadas */}
+      {/* CARACTERÍSTICAS FILTRADAS */}
+      {featureSearch.trim() && Object.keys(filteredFeatures).length > 0 && (
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center">
+            <Target className="w-4 h-4 mr-2" />
+            Resultados de búsqueda
+          </h4>
+          
+          {Object.keys(filteredFeatures).map((category) => (
+            <div key={category} className="mb-3">
+              <h5 className="text-xs font-medium text-gray-700 mb-2">{category}</h5>
+              <div className="space-y-1">
+                {filteredFeatures[category].map((feature, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAddPredefinedFeature(feature)}
+                    disabled={plan.features.includes(feature)}
+                    className={`text-left w-full px-3 py-2 text-sm rounded-lg border transition-all ${
+                      plan.features.includes(feature)
+                        ? 'border-green-200 bg-green-50 text-green-700 cursor-not-allowed'
+                        : 'border-gray-200 hover:bg-primary-50 hover:border-primary-300 text-gray-700'
+                    }`}
+                  >
+                    {plan.features.includes(feature) ? (
+                      <Check className="w-3 h-3 inline mr-2 text-green-600" />
+                    ) : (
+                      <Plus className="w-3 h-3 inline mr-2 text-primary-600" />
+                    )}
+                    {feature}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* TODAS LAS CARACTERÍSTICAS PREDEFINIDAS (cuando no hay búsqueda) */}
+      {!featureSearch.trim() && (
+        <div>
+          <h4 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Características Sugeridas
+          </h4>
+          
+          <div className="flex flex-wrap gap-2 mb-3">
+            {Object.keys(predefinedFeatures).map((category) => (
+              <button
+                key={category}
+                onClick={() => setActiveCategory(category)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                  activeCategory === category
+                    ? 'bg-primary-500 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+          
+          <div className="bg-white border-2 border-gray-200 rounded-lg p-3 max-h-40 overflow-y-auto">
+            <div className="space-y-1">
+              {predefinedFeatures[activeCategory]?.map((feature, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleAddPredefinedFeature(feature)}
+                  disabled={plan.features.includes(feature)}
+                  className={`text-left w-full px-3 py-2 text-sm rounded-lg border transition-all ${
+                    plan.features.includes(feature)
+                      ? 'border-green-200 bg-green-50 text-green-700 cursor-not-allowed'
+                      : 'border-gray-200 hover:bg-primary-50 hover:border-primary-300 text-gray-700'
+                  }`}
+                >
+                  {plan.features.includes(feature) ? (
+                    <Check className="w-3 h-3 inline mr-2 text-green-600" />
+                  ) : (
+                    <Plus className="w-3 h-3 inline mr-2 text-primary-600" />
+                  )}
+                  {feature}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* CARACTERÍSTICAS SELECCIONADAS */}
       {plan.features.length > 0 && (
         <div>
-          <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-            <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
-            Características del Plan ({plan.features.length})
+          <h4 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+            <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+            Características Seleccionadas ({plan.features.length})
           </h4>
-          <div className="bg-gradient-to-br from-primary-50 to-secondary-50 border-2 border-primary-200 rounded-xl p-4">
-            <div className="space-y-3 max-h-60 overflow-y-auto">
+          <div className="bg-gradient-to-br from-primary-50 to-secondary-50 border-2 border-primary-200 rounded-lg p-3">
+            <div className="space-y-2 max-h-40 overflow-y-auto">
               {plan.features.map((feature, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-3 bg-white border border-primary-200 rounded-xl shadow-sm hover:shadow-md transition-all"
+                  className="flex items-center justify-between p-2 bg-white border border-primary-200 rounded-lg shadow-sm"
                 >
-                  <span className="flex items-center text-primary-800 flex-1">
-                    <CheckCircle className="w-5 h-5 mr-3 text-primary-600" />
+                  <span className="flex items-center text-primary-800 flex-1 text-sm">
+                    <CheckCircle className="w-4 h-4 mr-2 text-primary-600" />
                     <span className="font-medium">{feature}</span>
                   </span>
                   <button
                     onClick={() => handleRemoveFeature(feature)}
-                    className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-all"
+                    className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
@@ -1699,15 +1647,15 @@ const ImprovedFeaturesStep = ({ plan, onChange, predefinedFeatures }) => {
       )}
       
       {plan.features.length === 0 && (
-        <div className="text-center py-8">
-          <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <Package className="w-8 h-8 text-gray-400" />
+        <div className="text-center py-6">
+          <div className="w-12 h-12 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-3">
+            <Package className="w-6 h-6 text-gray-400" />
           </div>
-          <h4 className="text-lg font-medium text-gray-900 mb-2">
-            No hay características agregadas
+          <h4 className="text-base font-medium text-gray-900 mb-1">
+            No hay características
           </h4>
-          <p className="text-gray-500">
-            Agrega características para hacer más atractivo tu plan
+          <p className="text-gray-500 text-sm">
+            Busca o agrega características para tu plan
           </p>
         </div>
       )}
@@ -1715,27 +1663,25 @@ const ImprovedFeaturesStep = ({ plan, onChange, predefinedFeatures }) => {
   );
 };
 
-const ImprovedPricingStep = ({ plan, onChange, calculateDiscount, durationType }) => {
+const CompactPricingStep = ({ plan, onChange, calculateDiscount, durationType }) => {
   const discount = calculateDiscount(plan.price, plan.originalPrice);
   const duration = durationType.find(d => d.value === plan.duration);
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       
-      {/* Información de la sección */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-        <h3 className="text-lg font-semibold text-yellow-900 mb-2 flex items-center">
-          <DollarSign className="w-5 h-5 mr-2" />
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+        <h3 className="text-base font-semibold text-yellow-900 mb-1 flex items-center">
+          <DollarSign className="w-4 h-4 mr-2" />
           Configuración de Precios
         </h3>
         <p className="text-yellow-700 text-sm">
-          Define el precio de tu plan. Puedes configurar un precio original para mostrar descuentos.
+          Define el precio de tu plan en quetzales.
         </p>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
-        {/* Precio actual */}
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             Precio del Plan <span className="text-red-500">*</span>
@@ -1750,16 +1696,12 @@ const ImprovedPricingStep = ({ plan, onChange, calculateDiscount, durationType }
               min="0"
               value={plan.price}
               onChange={(e) => onChange({ ...plan, price: parseFloat(e.target.value) || 0 })}
-              className="w-full pl-8 pr-4 py-4 text-xl font-bold border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+              className="w-full pl-8 pr-3 py-3 text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
               placeholder="0.00"
             />
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Este es el precio que pagarán tus clientes
-          </p>
         </div>
         
-        {/* Precio original */}
         <div>
           <label className="block text-sm font-semibold text-gray-900 mb-2">
             Precio Original (Opcional)
@@ -1774,17 +1716,13 @@ const ImprovedPricingStep = ({ plan, onChange, calculateDiscount, durationType }
               min="0"
               value={plan.originalPrice || ''}
               onChange={(e) => onChange({ ...plan, originalPrice: parseFloat(e.target.value) || null })}
-              className="w-full pl-8 pr-4 py-4 text-xl font-bold border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+              className="w-full pl-8 pr-3 py-3 text-lg font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
               placeholder="0.00"
             />
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Para mostrar descuentos y ofertas especiales
-          </p>
         </div>
       </div>
       
-      {/* Duración */}
       <div>
         <label className="block text-sm font-semibold text-gray-900 mb-2">
           Duración del Plan
@@ -1792,7 +1730,7 @@ const ImprovedPricingStep = ({ plan, onChange, calculateDiscount, durationType }
         <select
           value={plan.duration}
           onChange={(e) => onChange({ ...plan, duration: e.target.value })}
-          className="w-full px-4 py-3 text-base border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+          className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-100 focus:border-primary-500"
         >
           {durationType.map((duration) => (
             <option key={duration.value} value={duration.value}>
@@ -1802,44 +1740,38 @@ const ImprovedPricingStep = ({ plan, onChange, calculateDiscount, durationType }
         </select>
       </div>
       
-      {/* Vista previa del precio */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-lg p-4">
+        <h4 className="text-base font-semibold text-gray-900 mb-3 text-center">
           Vista Previa del Precio
         </h4>
         
         <div className="text-center">
-          <div className="flex items-baseline justify-center space-x-3 mb-2">
-            <span className="text-4xl font-bold text-gray-900">
+          <div className="flex items-baseline justify-center space-x-2 mb-2">
+            <span className="text-3xl font-bold text-gray-900">
               Q{(plan.price || 0).toLocaleString()}
             </span>
             {plan.originalPrice && plan.originalPrice > plan.price && (
-              <span className="text-2xl text-gray-500 line-through">
+              <span className="text-xl text-gray-500 line-through">
                 Q{plan.originalPrice.toLocaleString()}
               </span>
             )}
           </div>
           
-          <div className="text-gray-600 text-lg mb-4">
+          <div className="text-gray-600 text-base mb-3">
             por {duration?.label.toLowerCase() || 'periodo'}
           </div>
           
           {discount > 0 && (
-            <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-bold">
-              <TrendingUp className="w-4 h-4 mr-2" />
+            <div className="inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold">
+              <TrendingUp className="w-4 h-4 mr-1" />
               ¡Descuento del {discount}%!
             </div>
           )}
           
           {plan.price > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-3 pt-3 border-t border-gray-200">
               <div className="text-sm text-gray-600">
                 <div>Precio por día: Q{(plan.price / (duration?.days || 30)).toFixed(2)}</div>
-                {duration?.value === 'yearly' && (
-                  <div className="mt-1 text-primary-600 font-medium">
-                    Ahorro anual vs mensual: Q{((plan.price * 12) - (plan.price || 0)).toLocaleString()}
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1847,9 +1779,9 @@ const ImprovedPricingStep = ({ plan, onChange, calculateDiscount, durationType }
       </div>
       
       {plan.price <= 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-          <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-          <p className="text-red-800 font-medium">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+          <AlertTriangle className="w-6 h-6 text-red-500 mx-auto mb-2" />
+          <p className="text-red-800 font-medium text-sm">
             Debes establecer un precio mayor a Q0.00
           </p>
         </div>
@@ -1858,40 +1790,38 @@ const ImprovedPricingStep = ({ plan, onChange, calculateDiscount, durationType }
   );
 };
 
-const ImprovedDesignStep = ({ plan, onChange, availableIcons, availableColors, getIconComponent, getColorStyles }) => {
+const CompactDesignStep = ({ plan, onChange, availableIcons, availableColors, getIconComponent, getColorStyles }) => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       
-      {/* Información de la sección */}
-      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-        <h3 className="text-lg font-semibold text-purple-900 mb-2 flex items-center">
-          <Palette className="w-5 h-5 mr-2" />
+      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+        <h3 className="text-base font-semibold text-purple-900 mb-1 flex items-center">
+          <Palette className="w-4 h-4 mr-2" />
           Diseño del Plan
         </h3>
         <p className="text-purple-700 text-sm">
-          Personaliza la apariencia visual de tu plan con iconos y colores atractivos.
+          Personaliza la apariencia visual.
         </p>
       </div>
       
-      {/* Selección de icono */}
       <div>
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">
-          🎨 Icono del Plan
+        <h4 className="text-base font-semibold text-gray-900 mb-3">
+          Icono del Plan
         </h4>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
           {availableIcons.map((icon) => {
             const IconComponent = icon.component;
             return (
               <button
                 key={icon.id}
                 onClick={() => onChange({ ...plan, iconName: icon.id })}
-                className={`p-4 border-2 rounded-xl flex flex-col items-center space-y-2 text-xs transition-all duration-200 hover:scale-105 ${
+                className={`p-3 border-2 rounded-lg flex flex-col items-center space-y-1 text-xs transition-all ${
                   plan.iconName === icon.id 
-                    ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-lg scale-105' 
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-md' 
                     : 'border-gray-200 hover:bg-gray-50 text-gray-700'
                 }`}
               >
-                <IconComponent className="w-8 h-8" />
+                <IconComponent className="w-6 h-6" />
                 <span className="font-medium">{icon.name}</span>
               </button>
             );
@@ -1899,25 +1829,24 @@ const ImprovedDesignStep = ({ plan, onChange, availableIcons, availableColors, g
         </div>
       </div>
       
-      {/* Selección de color */}
       <div>
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">
-          🌈 Color del Plan
+        <h4 className="text-base font-semibold text-gray-900 mb-3">
+          Color del Plan
         </h4>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {availableColors.map(color => (
             <button
               key={color.value}
               onClick={() => onChange({ ...plan, color: color.value })}
-              className={`p-4 rounded-xl border-2 flex items-center space-x-4 transition-all duration-200 hover:scale-102 ${
+              className={`p-3 rounded-lg border-2 flex items-center space-x-3 transition-all ${
                 plan.color === color.value 
-                  ? 'border-primary-500 ring-4 ring-primary-100 shadow-lg scale-102' 
+                  ? 'border-primary-500 ring-2 ring-primary-100 shadow-md' 
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className={`w-8 h-8 rounded-lg ${color.bg} border-2 ${color.border}`}></div>
+              <div className={`w-6 h-6 rounded-md ${color.bg} border ${color.border}`}></div>
               <div className="text-left">
-                <div className="font-medium text-gray-900">{color.label}</div>
+                <div className="font-medium text-gray-900 text-sm">{color.label}</div>
                 <div className="text-xs text-gray-500">Estilo {color.label.split(' ')[1]}</div>
               </div>
             </button>
@@ -1925,66 +1854,58 @@ const ImprovedDesignStep = ({ plan, onChange, availableIcons, availableColors, g
         </div>
       </div>
       
-      {/* Vista previa del diseño */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-lg p-4">
+        <h4 className="text-base font-semibold text-gray-900 mb-3 text-center">
           Vista Previa del Diseño
         </h4>
         
         <div className="flex justify-center">
-          <DesignPreviewCard 
+          <CompactDesignPreviewCard 
             plan={plan}
             getIconComponent={getIconComponent}
             getColorStyles={getColorStyles}
           />
-        </div>
-        
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
-            Así se verá tu plan en la página web y aplicación móvil
-          </p>
         </div>
       </div>
     </div>
   );
 };
 
-// Componente para vista previa de diseño
-const DesignPreviewCard = ({ plan, getIconComponent, getColorStyles }) => {
+const CompactDesignPreviewCard = ({ plan, getIconComponent, getColorStyles }) => {
   const IconComponent = getIconComponent(plan.iconName);
   const colorStyles = getColorStyles(plan.color);
   
   return (
-    <div className={`w-64 bg-white rounded-xl border-2 shadow-lg ${colorStyles.border} ${plan.isPopular ? 'ring-4 ring-yellow-100' : ''}`}>
+    <div className={`w-48 bg-white rounded-lg border-2 shadow-md ${colorStyles.border} ${plan.isPopular ? 'ring-2 ring-yellow-100' : ''}`}>
       
       {plan.isPopular && (
-        <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-center py-2 rounded-t-xl">
-          <span className="text-white text-sm font-bold">
-            <Star className="w-4 h-4 inline mr-1 fill-current" />
+        <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-center py-1 rounded-t-lg">
+          <span className="text-white text-xs font-bold">
+            <Star className="w-3 h-3 inline mr-1 fill-current" />
             POPULAR
           </span>
         </div>
       )}
       
-      <div className="p-6">
+      <div className="p-4">
         <div className="text-center">
-          <div className={`w-12 h-12 mx-auto rounded-xl ${colorStyles.bg} flex items-center justify-center mb-3`}>
-            <IconComponent className={`w-6 h-6 ${colorStyles.text}`} />
+          <div className={`w-10 h-10 mx-auto rounded-lg ${colorStyles.bg} flex items-center justify-center mb-2`}>
+            <IconComponent className={`w-5 h-5 ${colorStyles.text}`} />
           </div>
           
-          <h4 className="font-bold text-gray-900 mb-1">
+          <h4 className="font-bold text-gray-900 mb-1 text-sm">
             {plan.name || 'Nombre del Plan'}
           </h4>
           
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorStyles.bg} ${colorStyles.text} border ${colorStyles.border}`}>
             {plan.label || 'Etiqueta'}
           </span>
           
-          <div className="text-2xl font-bold text-gray-900 mt-3">
+          <div className="text-lg font-bold text-gray-900 mt-2">
             Q{(plan.price || 0).toLocaleString()}
           </div>
           
-          <div className="text-sm text-gray-600">
+          <div className="text-xs text-gray-600">
             por mes
           </div>
         </div>
