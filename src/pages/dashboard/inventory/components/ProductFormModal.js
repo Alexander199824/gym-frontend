@@ -4,7 +4,8 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Package, Save, X, Loader, Plus, Building, Tag
+  Package, Save, X, Loader, Plus, Building, Tag,
+  CloudUpload, Image, Trash, Camera, Search, ChevronDown
 } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
 import inventoryService from '../../../../services/inventoryService';
@@ -33,6 +34,18 @@ const ProductFormModal = ({
   // ✅ ESTADOS PARA SUB-MODALES
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
+  
+  // ✅ ESTADOS PARA UPLOAD DE IMAGEN DEL PRODUCTO
+  const [productImage, setProductImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // ✅ ESTADOS PARA FILTRADO DE CATEGORÍAS Y MARCAS
+  const [categorySearch, setCategorySearch] = useState('');
+  const [brandSearch, setBrandSearch] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false);
   
   // Plantilla para nuevo producto
   const emptyProduct = {
@@ -75,8 +88,138 @@ const ProductFormModal = ({
       } else {
         setEditingProduct({ ...emptyProduct });
       }
+      
+      // Limpiar estados de imagen
+      setProductImage(null);
+      setImagePreview(null);
+      setUploadingImage(false);
+      
+      // Limpiar filtros
+      setCategorySearch('');
+      setBrandSearch('');
+      setShowCategoryDropdown(false);
+      setShowBrandDropdown(false);
     }
   }, [isOpen, product]);
+  
+  // ✅ CERRAR DROPDOWNS AL HACER CLIC FUERA
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.category-dropdown-container')) {
+        setShowCategoryDropdown(false);
+      }
+      if (!event.target.closest('.brand-dropdown-container')) {
+        setShowBrandDropdown(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+  
+  // ✅ MÉTODOS PARA MANEJO DE IMAGEN
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleImageFile(file);
+    }
+  };
+  
+  const handleImageFile = (file) => {
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      showError('Por favor selecciona un archivo de imagen válido');
+      return;
+    }
+    
+    // Validar tamaño (5MB max para productos)
+    if (file.size > 5 * 1024 * 1024) {
+      showError('El archivo es muy grande. Máximo 5MB');
+      return;
+    }
+    
+    // Crear preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target.result);
+      setProductImage(file);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+  
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDragging(false);
+    }
+  };
+  
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files).filter(file => 
+      file.type.startsWith('image/')
+    );
+    
+    if (files.length > 0) {
+      handleImageFile(files[0]);
+    }
+  };
+  
+  const clearImage = () => {
+    setProductImage(null);
+    setImagePreview(null);
+    // Reset file input
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) fileInput.value = '';
+  };
+  
+  // ✅ FILTRADO DE CATEGORÍAS Y MARCAS
+  const filteredCategories = categories.filter(category =>
+    category.name.toLowerCase().includes(categorySearch.toLowerCase())
+  );
+  
+  const filteredBrands = brands.filter(brand =>
+    brand.name.toLowerCase().includes(brandSearch.toLowerCase())
+  );
+  
+  const getSelectedCategoryName = () => {
+    const selected = categories.find(c => c.id == editingProduct?.categoryId);
+    return selected?.name || '';
+  };
+  
+  const getSelectedBrandName = () => {
+    const selected = brands.find(b => b.id == editingProduct?.brandId);
+    return selected?.name || '';
+  };
+  
+  const handleCategorySelect = (category) => {
+    setEditingProduct(prev => ({ ...prev, categoryId: category.id }));
+    setCategorySearch(category.name);
+    setShowCategoryDropdown(false);
+  };
+  
+  const handleBrandSelect = (brand) => {
+    setEditingProduct(prev => ({ ...prev, brandId: brand.id }));
+    setBrandSearch(brand.name);
+    setShowBrandDropdown(false);
+  };
   
   // ✅ HANDLERS PARA CATEGORÍAS
   const handleCreateCategory = () => {
@@ -132,19 +275,64 @@ const ProductFormModal = ({
     
     try {
       setIsSaving(true);
-      
-      // Formatear datos para API
-      const productData = inventoryService.formatProductDataForAPI(editingProduct);
+      setUploadingImage(true);
       
       let response;
-      if (isCreating) {
-        response = await inventoryService.createProduct(productData);
+      
+      // ✅ SI HAY IMAGEN, USAR FORMDATA COMO EN EL TEST EXITOSO
+      if (productImage && isCreating) {
+        const formData = new FormData();
+        
+        // Añadir todos los campos del producto al FormData
+        formData.append('name', editingProduct.name.trim());
+        formData.append('description', editingProduct.description?.trim() || '');
+        formData.append('price', parseFloat(editingProduct.price));
+        if (editingProduct.originalPrice) {
+          formData.append('originalPrice', parseFloat(editingProduct.originalPrice));
+        }
+        formData.append('sku', editingProduct.sku?.trim() || '');
+        formData.append('stockQuantity', parseInt(editingProduct.stockQuantity) || 0);
+        formData.append('minStock', parseInt(editingProduct.minStock) || 5);
+        if (editingProduct.weight) {
+          formData.append('weight', parseFloat(editingProduct.weight));
+        }
+        if (editingProduct.dimensions) {
+          formData.append('dimensions', JSON.stringify(editingProduct.dimensions));
+        }
+        formData.append('categoryId', parseInt(editingProduct.categoryId));
+        if (editingProduct.brandId) {
+          formData.append('brandId', parseInt(editingProduct.brandId));
+        }
+        formData.append('isFeatured', editingProduct.isFeatured);
+        formData.append('allowOnlinePayment', editingProduct.allowOnlinePayment);
+        formData.append('allowCardPayment', editingProduct.allowCardPayment);
+        formData.append('allowCashOnDelivery', editingProduct.allowCashOnDelivery);
+        formData.append('deliveryTime', editingProduct.deliveryTime?.trim() || '1-3 días hábiles');
+        
+        // ✅ AÑADIR LA IMAGEN (PATRÓN EXITOSO DEL TEST)
+        formData.append('image', productImage);
+        formData.append('isPrimary', 'true');
+        formData.append('altText', `${editingProduct.name} - Imagen principal`);
+        formData.append('displayOrder', '1');
+        
+        response = await inventoryService.createProductWithImage(formData);
       } else {
-        response = await inventoryService.updateProduct(editingProduct.id, productData);
+        // ✅ SIN IMAGEN, USAR JSON TRADICIONAL
+        const productData = inventoryService.formatProductDataForAPI(editingProduct);
+        
+        if (isCreating) {
+          response = await inventoryService.createProduct(productData);
+        } else {
+          response = await inventoryService.updateProduct(editingProduct.id, productData);
+        }
       }
       
       if (response.success) {
-        showSuccess(isCreating ? 'Producto creado exitosamente' : 'Producto actualizado exitosamente');
+        const message = isCreating 
+          ? (productImage ? 'Producto creado con imagen subida a Cloudinary' : 'Producto creado exitosamente')
+          : 'Producto actualizado exitosamente';
+        showSuccess(message);
+        
         if (onSave) {
           onSave(response.data);
         }
@@ -156,6 +344,7 @@ const ProductFormModal = ({
       showError(`Error al guardar producto: ${error.message}`);
     } finally {
       setIsSaving(false);
+      setUploadingImage(false);
     }
   };
   
@@ -227,7 +416,7 @@ const ProductFormModal = ({
                     />
                   </div>
                   
-                  {/* ✅ CATEGORÍA CON OPCIÓN DE CREAR */}
+                  {/* ✅ CATEGORÍA CON FILTRO Y BÚSQUEDA */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">
@@ -242,22 +431,62 @@ const ProductFormModal = ({
                         Nueva Categoría
                       </button>
                     </div>
-                    <select
-                      value={editingProduct.categoryId}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, categoryId: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                      required
-                    >
-                      <option value="">Selecciona una categoría</option>
-                      {categories.map(category => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative category-dropdown-container">
+                      <div className="flex">
+                        <input
+                          type="text"
+                          value={categorySearch || getSelectedCategoryName()}
+                          onChange={(e) => {
+                            setCategorySearch(e.target.value);
+                            setShowCategoryDropdown(true);
+                            if (!e.target.value) {
+                              setEditingProduct(prev => ({ ...prev, categoryId: '' }));
+                            }
+                          }}
+                          onFocus={() => {
+                            setCategorySearch('');
+                            setShowCategoryDropdown(true);
+                          }}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                          placeholder="Buscar categoría..."
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                          className="px-3 border border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </div>
+                      
+                      {showCategoryDropdown && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {filteredCategories.length === 0 ? (
+                            <div className="p-3 text-gray-500 text-sm">
+                              No se encontraron categorías
+                            </div>
+                          ) : (
+                            filteredCategories.map(category => (
+                              <button
+                                key={category.id}
+                                type="button"
+                                onClick={() => handleCategorySelect(category)}
+                                className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="font-medium text-gray-900">{category.name}</div>
+                                {category.description && (
+                                  <div className="text-xs text-gray-500 mt-1">{category.description}</div>
+                                )}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
-                  {/* ✅ MARCA CON OPCIÓN DE CREAR */}
+                  {/* ✅ MARCA CON FILTRO Y BÚSQUEDA */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">
@@ -272,18 +501,69 @@ const ProductFormModal = ({
                         Nueva Marca
                       </button>
                     </div>
-                    <select
-                      value={editingProduct.brandId}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, brandId: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    >
-                      <option value="">Selecciona una marca</option>
-                      {brands.map(brand => (
-                        <option key={brand.id} value={brand.id}>
-                          {brand.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <div className="flex">
+                        <input
+                          type="text"
+                          value={brandSearch || getSelectedBrandName()}
+                          onChange={(e) => {
+                            setBrandSearch(e.target.value);
+                            setShowBrandDropdown(true);
+                            if (!e.target.value) {
+                              setEditingProduct(prev => ({ ...prev, brandId: '' }));
+                            }
+                          }}
+                          onFocus={() => {
+                            setBrandSearch('');
+                            setShowBrandDropdown(true);
+                          }}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          placeholder="Buscar marca..."
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowBrandDropdown(!showBrandDropdown)}
+                          className="px-3 border border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </div>
+                      
+                      {showBrandDropdown && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {filteredBrands.length === 0 ? (
+                            <div className="p-3 text-gray-500 text-sm">
+                              No se encontraron marcas
+                            </div>
+                          ) : (
+                            filteredBrands.map(brand => (
+                              <button
+                                key={brand.id}
+                                type="button"
+                                onClick={() => handleBrandSelect(brand)}
+                                className="w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {brand.logoUrl && (
+                                    <img 
+                                      src={brand.logoUrl} 
+                                      alt={brand.name}
+                                      className="w-8 h-8 object-cover rounded"
+                                    />
+                                  )}
+                                  <div>
+                                    <div className="font-medium text-gray-900">{brand.name}</div>
+                                    {brand.description && (
+                                      <div className="text-xs text-gray-500 mt-1">{brand.description}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div>
@@ -301,6 +581,95 @@ const ProductFormModal = ({
                   
                 </div>
               </div>
+              
+              {/* ✅ IMAGEN DEL PRODUCTO */}
+              {isCreating && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Camera className="w-5 h-5 text-green-600" />
+                    Imagen del Producto
+                  </h4>
+                  
+                  {/* Zona de drag & drop */}
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer ${
+                      isDragging 
+                        ? 'border-green-500 bg-green-50' 
+                        : 'border-gray-300 hover:border-green-400'
+                    }`}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById('product-image-upload')?.click()}
+                  >
+                    <input
+                      id="product-image-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageSelect}
+                    />
+                    
+                    {imagePreview ? (
+                      <div className="space-y-4">
+                        <div className="w-32 h-32 mx-auto bg-gray-100 rounded-lg overflow-hidden">
+                          <img
+                            src={imagePreview}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {productImage?.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {productImage && (productImage.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearImage();
+                          }}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          <Trash className="w-4 h-4 inline mr-1" />
+                          Eliminar imagen
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <CloudUpload className={`w-12 h-12 mx-auto mb-4 ${
+                          isDragging ? 'text-green-600' : 'text-gray-400'
+                        }`} />
+                        <p className={`text-lg font-medium mb-2 ${
+                          isDragging ? 'text-green-600' : 'text-gray-900'
+                        }`}>
+                          {isDragging ? 'Suelta la imagen aquí' : 'Arrastra una imagen o haz clic'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          PNG, JPG, WebP hasta 5MB
+                        </p>
+                        <p className="text-xs text-green-600 mt-2">
+                          ☁️ Se subirá automáticamente a Cloudinary
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {uploadingImage && (
+                    <div className="mt-4 text-center">
+                      <div className="inline-flex items-center text-green-600">
+                        <Loader className="w-4 h-4 animate-spin mr-2" />
+                        Subiendo imagen a Cloudinary...
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             {/* COLUMNA 2: PRECIOS E INVENTARIO */}
