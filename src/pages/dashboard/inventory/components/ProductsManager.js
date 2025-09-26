@@ -1,11 +1,10 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/components/ProductsManager.js
-// FUNCIÓN: Gestión completa de productos conectado al backend real
-// ACTUALIZADO: Para usar inventoryService y rutas correctas del manual
+// FUNCIÓN: Gestión completa de productos conectado al backend real con sub-componentes modulares
 
 import React, { useState, useEffect } from 'react';
 import {
-  Plus, Edit, Trash2, Save, X, ShoppingBag, Package, 
+  Plus, Edit, Trash2, ShoppingBag, Package, 
   Star, Check, AlertTriangle, Eye, EyeOff, Image,
   DollarSign, Hash, Tag, Loader, Box, Search,
   Filter, Grid, List, Download, Upload, Copy,
@@ -13,6 +12,9 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
 import inventoryService from '../../../../services/inventoryService';
+
+// ✅ IMPORTAR EL SUB-COMPONENTE
+import ProductFormModal from './ProductFormModal';
 
 const ProductsManager = ({ onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, formatCurrency, isMobile } = useApp();
@@ -24,11 +26,10 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // Estados para modal de producto
+  // Estados para modal de producto - SIMPLIFICADOS
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   
   // Estados para filtros y vista
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,31 +40,6 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
   // Estados para imágenes
   const [uploadingImages, setUploadingImages] = useState({});
   const [productImages, setProductImages] = useState({});
-  
-  // Plantilla para nuevo producto
-  const emptyProduct = {
-    name: '',
-    description: '',
-    price: '',
-    originalPrice: '',
-    sku: '',
-    stockQuantity: '',
-    minStock: 5,
-    weight: '',
-    dimensions: {
-      length: '',
-      width: '',
-      height: '',
-      unit: 'cm'
-    },
-    categoryId: '',
-    brandId: '',
-    isFeatured: false,
-    allowOnlinePayment: true,
-    allowCardPayment: true,
-    allowCashOnDelivery: true,
-    deliveryTime: '1-3 días hábiles'
-  };
   
   // Filtros de stock
   const stockFilters = [
@@ -148,6 +124,34 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
     setProductImages(imagesMap);
   };
   
+  // ✅ RECARGAR SOLO CATEGORÍAS (para cuando se crea una nueva desde el modal)
+  const loadCategories = async () => {
+    try {
+      const categoriesResponse = await inventoryService.getCategories();
+      if (categoriesResponse.success && categoriesResponse.data) {
+        const categoriesList = categoriesResponse.data.categories || [];
+        setCategories(categoriesList);
+        console.log(`✅ Reloaded ${categoriesList.length} categories`);
+      }
+    } catch (error) {
+      console.error('❌ Error loading categories:', error);
+    }
+  };
+  
+  // ✅ RECARGAR SOLO MARCAS (para cuando se crea una nueva desde el modal)
+  const loadBrands = async () => {
+    try {
+      const brandsResponse = await inventoryService.getBrands();
+      if (brandsResponse.success && brandsResponse.data) {
+        const brandsList = brandsResponse.data.brands || [];
+        setBrands(brandsList);
+        console.log(`✅ Reloaded ${brandsList.length} brands`);
+      }
+    } catch (error) {
+      console.error('❌ Error loading brands:', error);
+    }
+  };
+  
   // FILTRAR PRODUCTOS
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -186,57 +190,24 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
     };
   };
   
-  // CREAR NUEVO PRODUCTO
+  // ✅ MÉTODOS SIMPLIFICADOS PARA EL MODAL
   const handleCreateProduct = () => {
-    setEditingProduct({ ...emptyProduct });
+    setEditingProduct(null);
     setIsCreating(true);
     setShowProductModal(true);
   };
   
-  // EDITAR PRODUCTO
   const handleEditProduct = (product) => {
-    setEditingProduct({
-      ...product,
-      price: product.price?.toString() || '',
-      originalPrice: product.originalPrice?.toString() || '',
-      stockQuantity: product.stockQuantity?.toString() || '',
-      minStock: product.minStock?.toString() || '5',
-      weight: product.weight?.toString() || '',
-      dimensions: product.dimensions || emptyProduct.dimensions
-    });
+    setEditingProduct(product);
     setIsCreating(false);
     setShowProductModal(true);
   };
   
-  // GUARDAR PRODUCTO
-  const handleSaveProduct = async () => {
-    if (!editingProduct) return;
-    
-    try {
-      setIsSaving(true);
-      
-      // Formatear datos para API
-      const productData = inventoryService.formatProductDataForAPI(editingProduct);
-      
-      let response;
-      if (isCreating) {
-        response = await inventoryService.createProduct(productData);
-      } else {
-        response = await inventoryService.updateProduct(editingProduct.id, productData);
-      }
-      
-      if (response.success) {
-        setShowProductModal(false);
-        setEditingProduct(null);
-        await loadAllData(); // Recargar datos
-        showSuccess(isCreating ? 'Producto creado exitosamente' : 'Producto actualizado exitosamente');
-      }
-      
-    } catch (error) {
-      console.error('❌ Error saving product:', error);
-      // El error ya se muestra en el servicio
-    } finally {
-      setIsSaving(false);
+  const handleProductSaved = async (savedProduct) => {
+    console.log('✅ Product saved:', savedProduct);
+    await loadAllData(); // Recargar todos los datos
+    if (onSave) {
+      onSave(savedProduct);
     }
   };
   
@@ -749,283 +720,18 @@ const ProductsManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* MODAL DE PRODUCTO */}
-      {showProductModal && editingProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900">
-                {isCreating ? 'Nuevo Producto' : 'Editar Producto'}
-              </h3>
-              <button
-                onClick={() => setShowProductModal(false)}
-                className="text-gray-500 hover:text-gray-700"
-                disabled={isSaving}
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Información básica */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900">Información Básica</h4>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre del producto *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProduct.name}
-                    onChange={(e) => setEditingProduct(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="Ej: Proteína Whey Premium"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción
-                  </label>
-                  <textarea
-                    value={editingProduct.description}
-                    onChange={(e) => setEditingProduct(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="Descripción detallada del producto..."
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Categoría *
-                    </label>
-                    <select
-                      value={editingProduct.categoryId}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, categoryId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      required
-                    >
-                      <option value="">Selecciona categoría</option>
-                      {categories.map(category => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Marca
-                    </label>
-                    <select
-                      value={editingProduct.brandId}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, brandId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    >
-                      <option value="">Selecciona marca</option>
-                      {brands.map(brand => (
-                        <option key={brand.id} value={brand.id}>
-                          {brand.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    SKU
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProduct.sku}
-                    onChange={(e) => setEditingProduct(prev => ({ ...prev, sku: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="Código único del producto"
-                  />
-                </div>
-              </div>
-              
-              {/* Precios e inventario */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900">Precios e Inventario</h4>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Precio de venta * (Q)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editingProduct.price}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, price: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Precio original (Q)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editingProduct.originalPrice}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, originalPrice: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cantidad en stock
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editingProduct.stockQuantity}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, stockQuantity: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="0"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Stock mínimo
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editingProduct.minStock}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, minStock: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="5"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Peso (kg)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={editingProduct.weight}
-                    onChange={(e) => setEditingProduct(prev => ({ ...prev, weight: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="0.0"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tiempo de entrega
-                  </label>
-                  <input
-                    type="text"
-                    value={editingProduct.deliveryTime}
-                    onChange={(e) => setEditingProduct(prev => ({ ...prev, deliveryTime: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    placeholder="1-3 días hábiles"
-                  />
-                </div>
-                
-                {/* Opciones */}
-                <div className="space-y-3">
-                  <h5 className="font-medium text-gray-900">Opciones</h5>
-                  
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={editingProduct.isFeatured}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, isFeatured: e.target.checked }))}
-                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Producto destacado</span>
-                  </label>
-                  
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={editingProduct.allowOnlinePayment}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, allowOnlinePayment: e.target.checked }))}
-                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Permitir pago online</span>
-                  </label>
-                  
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={editingProduct.allowCardPayment}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, allowCardPayment: e.target.checked }))}
-                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Permitir pago con tarjeta</span>
-                  </label>
-                  
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={editingProduct.allowCashOnDelivery}
-                      onChange={(e) => setEditingProduct(prev => ({ ...prev, allowCashOnDelivery: e.target.checked }))}
-                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Permitir pago contra entrega</span>
-                  </label>
-                </div>
-              </div>
-              
-            </div>
-            
-            {/* Botones de acción */}
-            <div className="flex justify-end gap-4 mt-8">
-              <button
-                onClick={() => setShowProductModal(false)}
-                className="btn-secondary"
-                disabled={isSaving}
-              >
-                Cancelar
-              </button>
-              
-              <button
-                onClick={handleSaveProduct}
-                className="btn-primary"
-                disabled={isSaving || !editingProduct.name || !editingProduct.price || !editingProduct.categoryId}
-              >
-                {isSaving ? (
-                  <div className="flex items-center">
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
-                    Guardando...
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <Save className="w-4 h-4 mr-2" />
-                    {isCreating ? 'Crear Producto' : 'Guardar Cambios'}
-                  </div>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ✅ MODAL USANDO SUB-COMPONENTE */}
+      <ProductFormModal
+        isOpen={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        product={editingProduct}
+        onSave={handleProductSaved}
+        isCreating={isCreating}
+        categories={categories}
+        brands={brands}
+        onCategoriesUpdate={loadCategories}
+        onBrandsUpdate={loadBrands}
+      />
       
     </div>
   );

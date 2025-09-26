@@ -1,24 +1,24 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/components/CategoriesBrandsManager.js
-// FUNCIÓN: Gestión completa de categorías y marcas con diseño mejorado y compacto
+// FUNCIÓN: Gestión completa de categorías y marcas con sub-componentes modulares
 
 import React, { useState, useEffect } from 'react';
 import {
-  Plus, Edit, Trash2, Save, X, Search, Tag, 
-  Package, Folder, Star, ArrowUp, ArrowDown,
-  Loader, RotateCcw, Grid, List, Copy, Check,
+  Plus, Edit, Trash2, Search, Tag, 
+  Package, Folder, RotateCcw, 
   AlertTriangle, CheckCircle, Building, Hash,
-  // ✅ ICONOS PARA CATEGORÍAS
-  Dumbbell, Heart, Activity, Zap, Target, Trophy,
-  Apple, Coffee, Pill, ShoppingBag, Shirt, Watch,
-  BookOpen, Music, Headphones, Camera, Gamepad2,
-  Car, Home, Wrench, Palette, Globe, Shield,
-  // ✅ ICONOS PARA UPLOAD
-  Upload, CloudUpload, Image, FileImage, Trash,
-  Eye, Download, Link, RefreshCw
+  Link, Globe, Eye, Dumbbell, Heart, Activity, 
+  Zap, Target, Trophy, Apple, Coffee, Pill, 
+  ShoppingBag, Shirt, Watch, BookOpen, Music, 
+  Headphones, Camera, Gamepad2, Car, Home, 
+  Wrench, Palette, Globe as GlobeIcon, Shield
 } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
 import inventoryService from '../../../../services/inventoryService';
+
+// ✅ IMPORTAR LOS SUB-COMPONENTES
+import CategoryFormModal from './CategoryFormModal';
+import BrandFormModal from './BrandFormModal';
 
 const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
   const { showSuccess, showError, isMobile } = useApp();
@@ -29,95 +29,49 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasChanges, setHasChanges] = useState(false);
   
-  // Estados para modales
+  // Estados para modales - SIMPLIFICADOS
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingBrand, setEditingBrand] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // ✅ ESTADOS PARA UPLOAD DE MARCAS
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [logoPreview, setLogoPreview] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [logoSource, setLogoSource] = useState('url'); // 'url' | 'upload'
   
   // Estados para filtros
   const [activeTab, setActiveTab] = useState('categories');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   
-  // Plantillas vacías
-  const emptyCategory = {
-    name: '',
-    slug: '',
-    description: '',
-    iconName: 'package',
-    displayOrder: 1,
-    isActive: true
-  };
-  
-  const emptyBrand = {
-    name: '',
-    description: '',
-    logoUrl: '',
-    website: '',
-    isActive: true
-  };
-  
-  // ✅ ICONOS ORGANIZADOS POR CATEGORÍA
+  // ✅ ICONOS PARA MOSTRAR EN LA LISTA (solo para referencia visual)
   const availableIcons = [
-    // Fitness & Deportes
-    { name: 'dumbbell', icon: Dumbbell, label: 'Pesas', category: 'Fitness' },
-    { name: 'activity', icon: Activity, label: 'Actividad', category: 'Fitness' },
-    { name: 'target', icon: Target, label: 'Objetivo', category: 'Fitness' },
-    { name: 'trophy', icon: Trophy, label: 'Trofeo', category: 'Fitness' },
-    { name: 'zap', icon: Zap, label: 'Energía', category: 'Fitness' },
-    { name: 'heart', icon: Heart, label: 'Salud', category: 'Fitness' },
-    
-    // Nutrición & Suplementos
-    { name: 'apple', icon: Apple, label: 'Nutrición', category: 'Nutrición' },
-    { name: 'coffee', icon: Coffee, label: 'Bebidas', category: 'Nutrición' },
-    { name: 'pill', icon: Pill, label: 'Suplementos', category: 'Nutrición' },
-    
-    // Ropa & Accesorios
-    { name: 'shirt', icon: Shirt, label: 'Ropa', category: 'Accesorios' },
-    { name: 'watch', icon: Watch, label: 'Relojes', category: 'Accesorios' },
-    { name: 'shopping-bag', icon: ShoppingBag, label: 'Bolsas', category: 'Accesorios' },
-    
-    // Tecnología
-    { name: 'headphones', icon: Headphones, label: 'Audio', category: 'Tecnología' },
-    { name: 'camera', icon: Camera, label: 'Cámara', category: 'Tecnología' },
-    { name: 'gamepad2', icon: Gamepad2, label: 'Gaming', category: 'Tecnología' },
-    
-    // Hogar & Lifestyle
-    { name: 'home', icon: Home, label: 'Hogar', category: 'Lifestyle' },
-    { name: 'car', icon: Car, label: 'Automóvil', category: 'Lifestyle' },
-    { name: 'book-open', icon: BookOpen, label: 'Educación', category: 'Lifestyle' },
-    { name: 'music', icon: Music, label: 'Música', category: 'Lifestyle' },
-    
-    // Herramientas & Servicios
-    { name: 'wrench', icon: Wrench, label: 'Herramientas', category: 'Servicios' },
-    { name: 'shield', icon: Shield, label: 'Seguridad', category: 'Servicios' },
-    { name: 'globe', icon: Globe, label: 'Global', category: 'Servicios' },
-    
-    // Generales
-    { name: 'package', icon: Package, label: 'Paquete', category: 'General' },
-    { name: 'tag', icon: Tag, label: 'Etiqueta', category: 'General' },
-    { name: 'star', icon: Star, label: 'Estrella', category: 'General' },
-    { name: 'folder', icon: Folder, label: 'Carpeta', category: 'General' },
-    { name: 'building', icon: Building, label: 'Edificio', category: 'General' },
-    { name: 'hash', icon: Hash, label: 'Hash', category: 'General' },
-    { name: 'palette', icon: Palette, label: 'Arte', category: 'General' }
+    { name: 'dumbbell', icon: Dumbbell },
+    { name: 'heart', icon: Heart },
+    { name: 'activity', icon: Activity },
+    { name: 'zap', icon: Zap },
+    { name: 'target', icon: Target },
+    { name: 'trophy', icon: Trophy },
+    { name: 'apple', icon: Apple },
+    { name: 'coffee', icon: Coffee },
+    { name: 'pill', icon: Pill },
+    { name: 'shopping-bag', icon: ShoppingBag },
+    { name: 'shirt', icon: Shirt },
+    { name: 'watch', icon: Watch },
+    { name: 'book-open', icon: BookOpen },
+    { name: 'music', icon: Music },
+    { name: 'headphones', icon: Headphones },
+    { name: 'camera', icon: Camera },
+    { name: 'gamepad2', icon: Gamepad2 },
+    { name: 'car', icon: Car },
+    { name: 'home', icon: Home },
+    { name: 'wrench', icon: Wrench },
+    { name: 'palette', icon: Palette },
+    { name: 'globe', icon: GlobeIcon },
+    { name: 'shield', icon: Shield },
+    { name: 'package', icon: Package },
+    { name: 'tag', icon: Tag },
+    { name: 'folder', icon: Folder },
+    { name: 'building', icon: Building },
+    { name: 'hash', icon: Hash }
   ];
-  
-  // Agrupar iconos por categoría
-  const groupedIcons = availableIcons.reduce((acc, icon) => {
-    if (!acc[icon.category]) acc[icon.category] = [];
-    acc[icon.category].push(icon);
-    return acc;
-  }, {});
   
   // Filtros de estado
   const statusFilters = [
@@ -195,133 +149,24 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
     return matchesSearch && matchesStatus;
   });
   
-  // ✅ MÉTODOS DE UPLOAD PARA MARCAS
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      handleLogoFile(file);
-    }
-  };
-  
-  const handleLogoFile = (file) => {
-    // Validar tipo de archivo
-    if (!file.type.startsWith('image/')) {
-      showError('Por favor selecciona un archivo de imagen válido');
-      return;
-    }
-    
-    // Validar tamaño (3MB max)
-    if (file.size > 3 * 1024 * 1024) {
-      showError('El archivo es muy grande. Máximo 3MB');
-      return;
-    }
-    
-    // Crear preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setLogoPreview({
-        file,
-        url: e.target.result,
-        name: file.name,
-        size: file.size
-      });
-      
-      // Limpiar URL manual si se selecciona archivo
-      setEditingBrand(prev => ({ ...prev, logoUrl: '' }));
-    };
-    reader.readAsDataURL(file);
-  };
-  
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-  
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!e.currentTarget.contains(e.relatedTarget)) {
-      setIsDragging(false);
-    }
-  };
-  
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-  
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    
-    const files = Array.from(e.dataTransfer.files).filter(file => 
-      file.type.startsWith('image/')
-    );
-    
-    if (files.length > 0) {
-      handleLogoFile(files[0]);
-    }
-  };
-  
-  const clearLogo = () => {
-    setLogoPreview(null);
-    setEditingBrand(prev => ({ ...prev, logoUrl: '' }));
-    // Reset file input
-    const fileInput = document.querySelector('input[type="file"]');
-    if (fileInput) fileInput.value = '';
-  };
-  
-  // MÉTODOS DE CATEGORÍAS
+  // MÉTODOS DE CATEGORÍAS - SIMPLIFICADOS
   const handleCreateCategory = () => {
-    setEditingCategory({ ...emptyCategory });
+    setEditingCategory(null);
     setIsCreating(true);
     setShowCategoryModal(true);
   };
   
   const handleEditCategory = (category) => {
-    setEditingCategory({ ...category });
+    setEditingCategory(category);
     setIsCreating(false);
     setShowCategoryModal(true);
   };
   
-  const handleSaveCategory = async () => {
-    if (!editingCategory.name.trim()) {
-      showError('El nombre de la categoría es obligatorio');
-      return;
-    }
-    
-    setIsSaving(true);
-    
-    try {
-      // Generar slug automáticamente si no existe
-      if (!editingCategory.slug) {
-        editingCategory.slug = editingCategory.name
-          .toLowerCase()
-          .replace(/[^\w\s-]/g, '')
-          .replace(/[\s_-]+/g, '-')
-          .replace(/^-+|-+$/g, '');
-      }
-      
-      let response;
-      if (isCreating) {
-        response = await inventoryService.createCategory(editingCategory);
-      } else {
-        response = await inventoryService.updateCategory(editingCategory.id, editingCategory);
-      }
-      
-      if (response.success) {
-        setShowCategoryModal(false);
-        setEditingCategory(null);
-        await loadAllData();
-        showSuccess(isCreating ? 'Categoría creada exitosamente' : 'Categoría actualizada exitosamente');
-      }
-      
-    } catch (error) {
-      console.error('❌ Error saving category:', error);
-    } finally {
-      setIsSaving(false);
+  const handleCategorySaved = async (savedCategory) => {
+    console.log('✅ Category saved:', savedCategory);
+    await loadAllData(); // Recargar datos
+    if (onSave) {
+      onSave(savedCategory);
     }
   };
   
@@ -340,75 +185,28 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
       
     } catch (error) {
       console.error('❌ Error deleting category:', error);
+      showError(`Error al eliminar categoría: ${error.message}`);
     }
   };
   
-  // MÉTODOS DE MARCAS
+  // MÉTODOS DE MARCAS - SIMPLIFICADOS
   const handleCreateBrand = () => {
-    setEditingBrand({ ...emptyBrand });
+    setEditingBrand(null);
     setIsCreating(true);
-    setLogoPreview(null);
-    setLogoSource('url');
     setShowBrandModal(true);
   };
   
   const handleEditBrand = (brand) => {
-    setEditingBrand({ ...brand });
+    setEditingBrand(brand);
     setIsCreating(false);
-    setLogoPreview(null);
-    setLogoSource(brand.logoUrl ? 'url' : 'upload');
     setShowBrandModal(true);
   };
   
-  const handleSaveBrand = async () => {
-    if (!editingBrand.name.trim()) {
-      showError('El nombre de la marca es obligatorio');
-      return;
-    }
-    
-    setIsSaving(true);
-    setUploadingLogo(true);
-    
-    try {
-      let response;
-      
-      // ✅ SI HAY ARCHIVO, USAR FORMDATA PARA UPLOAD
-      if (logoPreview && logoPreview.file) {
-        const formData = new FormData();
-        formData.append('name', editingBrand.name.trim());
-        formData.append('description', editingBrand.description?.trim() || '');
-        formData.append('website', editingBrand.website?.trim() || '');
-        formData.append('isActive', editingBrand.isActive);
-        formData.append('logo', logoPreview.file); // Archivo para Cloudinary
-        
-        if (isCreating) {
-          response = await inventoryService.createBrandWithUpload(formData);
-        } else {
-          response = await inventoryService.updateBrandWithUpload(editingBrand.id, formData);
-        }
-      } else {
-        // ✅ SI NO HAY ARCHIVO, USAR JSON NORMAL
-        if (isCreating) {
-          response = await inventoryService.createBrand(editingBrand);
-        } else {
-          response = await inventoryService.updateBrand(editingBrand.id, editingBrand);
-        }
-      }
-      
-      if (response.success) {
-        setShowBrandModal(false);
-        setEditingBrand(null);
-        setLogoPreview(null);
-        await loadAllData();
-        showSuccess(isCreating ? 'Marca creada exitosamente' : 'Marca actualizada exitosamente');
-      }
-      
-    } catch (error) {
-      console.error('❌ Error saving brand:', error);
-      showError(`Error al guardar marca: ${error.message}`);
-    } finally {
-      setIsSaving(false);
-      setUploadingLogo(false);
+  const handleBrandSaved = async (savedBrand) => {
+    console.log('✅ Brand saved:', savedBrand);
+    await loadAllData(); // Recargar datos
+    if (onSave) {
+      onSave(savedBrand);
     }
   };
   
@@ -427,6 +225,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
       
     } catch (error) {
       console.error('❌ Error deleting brand:', error);
+      showError(`Error al eliminar marca: ${error.message}`);
     }
   };
   
@@ -488,7 +287,7 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
                   <div className="text-2xl font-bold">{brands.filter(b => b.isActive !== false).length}</div>
                   <div className="text-sm opacity-90">Mar. Activas</div>
                 </div>
-                <Star className="w-8 h-8 opacity-80" />
+                <CheckCircle className="w-8 h-8 opacity-80" />
               </div>
             </div>
           </div>
@@ -858,500 +657,22 @@ const CategoriesBrandsManager = ({ onSave, onUnsavedChanges }) => {
         </>
       )}
       
-      {/* ✅ MODAL DE CATEGORÍA REDISEÑADO - MÁS COMPACTO */}
-      {showCategoryModal && editingCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-purple-100">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
-                    <Tag className="w-4 h-4 text-white" />
-                  </div>
-                  {isCreating ? 'Nueva Categoría' : 'Editar Categoría'}
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {isCreating ? 'Organiza tus productos con categorías' : 'Modifica los datos de la categoría'}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowCategoryModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-white hover:bg-opacity-50 rounded-lg transition-all"
-                disabled={isSaving}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            {/* Body scrollable */}
-            <div className="flex-1 overflow-y-auto p-6">
-              
-              {/* Preview del icono seleccionado */}
-              <div className="mb-6 p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl text-center">
-                {(() => {
-                  const IconComponent = getCategoryIcon(editingCategory.iconName);
-                  return (
-                    <div className="flex items-center justify-center gap-4">
-                      <div className="w-16 h-16 bg-white rounded-xl shadow-sm flex items-center justify-center">
-                        <IconComponent className="w-8 h-8 text-purple-600" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-medium text-purple-900">
-                          {editingCategory.name || 'Nombre de la categoría'}
-                        </p>
-                        <p className="text-xs text-purple-600">
-                          {availableIcons.find(icon => icon.name === editingCategory.iconName)?.label || 'Icono seleccionado'}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-              
-              <div className="space-y-6">
-                
-                {/* Información básica */}
-                <div className="grid grid-cols-1 gap-4">
-                  
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Nombre de la categoría *
-                    </label>
-                    <input
-                      type="text"
-                      value={editingCategory.name}
-                      onChange={(e) => setEditingCategory(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                      placeholder="Ej: Suplementos Deportivos, Equipos de Gimnasio..."
-                      required
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Slug (URL)
-                      </label>
-                      <input
-                        type="text"
-                        value={editingCategory.slug}
-                        onChange={(e) => setEditingCategory(prev => ({ ...prev, slug: e.target.value }))}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                        placeholder="auto-generado"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Orden
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editingCategory.displayOrder}
-                        onChange={(e) => setEditingCategory(prev => ({ 
-                          ...prev, 
-                          displayOrder: parseInt(e.target.value) || 1 
-                        }))}
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Descripción
-                    </label>
-                    <textarea
-                      value={editingCategory.description}
-                      onChange={(e) => setEditingCategory(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none"
-                      placeholder="Describe brevemente esta categoría..."
-                    />
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editingCategory.isActive}
-                        onChange={(e) => setEditingCategory(prev => ({ ...prev, isActive: e.target.checked }))}
-                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                      />
-                      <span className="ml-3 text-sm font-medium text-gray-700">Categoría activa</span>
-                    </label>
-                  </div>
-                  
-                </div>
-                
-                {/* ✅ SELECTOR DE ICONOS COMPACTO */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Seleccionar icono
-                  </label>
-                  
-                  {/* Iconos organizados en grid compacto */}
-                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 max-h-64 overflow-y-auto">
-                    {Object.entries(groupedIcons).map(([category, icons]) => (
-                      <div key={category} className="mb-4 last:mb-0">
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 sticky top-0 bg-gray-50 py-1">
-                          {category}
-                        </h4>
-                        <div className="grid grid-cols-8 gap-2">
-                          {icons.map(iconData => {
-                            const IconComponent = iconData.icon;
-                            return (
-                              <button
-                                key={iconData.name}
-                                type="button"
-                                onClick={() => setEditingCategory(prev => ({ ...prev, iconName: iconData.name }))}
-                                className={`w-10 h-10 border-2 rounded-lg transition-all hover:scale-105 flex items-center justify-center ${
-                                  editingCategory.iconName === iconData.name
-                                    ? 'border-purple-500 bg-purple-50 shadow-md'
-                                    : 'border-gray-200 hover:border-purple-300 bg-white'
-                                }`}
-                                title={iconData.label}
-                              >
-                                <IconComponent className={`w-5 h-5 ${
-                                  editingCategory.iconName === iconData.name 
-                                    ? 'text-purple-600' 
-                                    : 'text-gray-400'
-                                }`} />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-              </div>
-              
-            </div>
-            
-            {/* Footer con botones */}
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-100 bg-gray-50">
-              <button
-                onClick={() => setShowCategoryModal(false)}
-                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
-                disabled={isSaving}
-              >
-                Cancelar
-              </button>
-              
-              <button
-                onClick={handleSaveCategory}
-                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg disabled:opacity-50"
-                disabled={isSaving || !editingCategory.name.trim()}
-              >
-                {isSaving ? (
-                  <div className="flex items-center">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Guardando...
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <Save className="w-4 h-4 mr-2" />
-                    {isCreating ? 'Crear Categoría' : 'Guardar Cambios'}
-                  </div>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ✅ MODALES USANDO SUB-COMPONENTES */}
+      <CategoryFormModal
+        isOpen={showCategoryModal}
+        onClose={() => setShowCategoryModal(false)}
+        category={editingCategory}
+        onSave={handleCategorySaved}
+        isCreating={isCreating}
+      />
       
-      {/* ✅ MODAL DE MARCA MEJORADO CON UPLOAD */}
-      {showBrandModal && editingBrand && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <Building className="w-4 h-4 text-white" />
-                  </div>
-                  {isCreating ? 'Nueva Marca' : 'Editar Marca'}
-                </h3>
-                <p className="text-gray-600">
-                  {isCreating ? 'Crea una nueva marca para categorizar tus productos' : 'Modifica los datos de la marca'}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowBrandModal(false)}
-                className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-lg transition-all"
-                disabled={isSaving}
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
-              {/* Formulario básico */}
-              <div className="space-y-6">
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Nombre de la marca *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingBrand.name}
-                    onChange={(e) => setEditingBrand(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    placeholder="Ej: Nike, Adidas, MuscleTech, Optimum Nutrition..."
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Descripción
-                  </label>
-                  <textarea
-                    value={editingBrand.description}
-                    onChange={(e) => setEditingBrand(prev => ({ ...prev, description: e.target.value }))}
-                    rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    placeholder="Describe la marca, su historia, valores o características principales..."
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Sitio web
-                  </label>
-                  <input
-                    type="url"
-                    value={editingBrand.website}
-                    onChange={(e) => setEditingBrand(prev => ({ ...prev, website: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    placeholder="https://www.marca.com"
-                  />
-                </div>
-                
-                <div className="flex items-center">
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editingBrand.isActive}
-                      onChange={(e) => setEditingBrand(prev => ({ ...prev, isActive: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="ml-3 text-sm font-medium text-gray-700">Marca activa</span>
-                  </label>
-                </div>
-                
-              </div>
-              
-              {/* ✅ GESTIÓN DE LOGO MEJORADA */}
-              <div className="space-y-6">
-                
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-4">
-                    Logo de la marca
-                  </label>
-                  
-                  {/* Selector de fuente */}
-                  <div className="flex mb-4">
-                    <button
-                      type="button"
-                      onClick={() => setLogoSource('url')}
-                      className={`flex-1 py-2 px-4 text-sm font-medium border-b-2 transition-all ${
-                        logoSource === 'url'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-gray-200 text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      <Link className="w-4 h-4 inline mr-2" />
-                      URL Externa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLogoSource('upload')}
-                      className={`flex-1 py-2 px-4 text-sm font-medium border-b-2 transition-all ${
-                        logoSource === 'upload'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-gray-200 text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      <CloudUpload className="w-4 h-4 inline mr-2" />
-                      Subir Imagen
-                    </button>
-                  </div>
-                  
-                  {/* Contenido según la fuente seleccionada */}
-                  {logoSource === 'url' ? (
-                    <div>
-                      <input
-                        type="url"
-                        value={editingBrand.logoUrl}
-                        onChange={(e) => setEditingBrand(prev => ({ ...prev, logoUrl: e.target.value }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                        placeholder="https://ejemplo.com/logo.png"
-                      />
-                      <p className="text-xs text-gray-500 mt-2">
-                        URL directa a la imagen del logo
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      {/* ✅ ZONA DE DRAG & DROP */}
-                      <div
-                        className={`border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer ${
-                          isDragging 
-                            ? 'border-blue-500 bg-blue-50' 
-                            : 'border-gray-300 hover:border-blue-400'
-                        }`}
-                        onDragEnter={handleDragEnter}
-                        onDragLeave={handleDragLeave}
-                        onDragOver={handleDragOver}
-                        onDrop={handleDrop}
-                        onClick={() => document.getElementById('logo-upload')?.click()}
-                      >
-                        <input
-                          id="logo-upload"
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleFileSelect}
-                        />
-                        
-                        {logoPreview ? (
-                          <div className="space-y-4">
-                            <div className="w-24 h-24 mx-auto bg-gray-100 rounded-lg overflow-hidden">
-                              <img
-                                src={logoPreview.url}
-                                alt="Preview"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {logoPreview.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {(logoPreview.size / 1024).toFixed(1)} KB
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                clearLogo();
-                              }}
-                              className="text-red-600 hover:text-red-800 text-sm"
-                            >
-                              <Trash className="w-4 h-4 inline mr-1" />
-                              Eliminar
-                            </button>
-                          </div>
-                        ) : (
-                          <div>
-                            <CloudUpload className={`w-12 h-12 mx-auto mb-4 ${
-                              isDragging ? 'text-blue-600' : 'text-gray-400'
-                            }`} />
-                            <p className={`text-lg font-medium mb-2 ${
-                              isDragging ? 'text-blue-600' : 'text-gray-900'
-                            }`}>
-                              {isDragging ? 'Suelta la imagen aquí' : 'Arrastra una imagen o haz clic'}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              PNG, JPG, WebP hasta 3MB
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {uploadingLogo && (
-                        <div className="mt-4 text-center">
-                          <div className="inline-flex items-center text-blue-600">
-                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                            Subiendo a Cloudinary...
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Preview del logo actual */}
-                {(editingBrand.logoUrl || logoPreview) && (
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Vista previa</h4>
-                    <div className="flex items-center space-x-4">
-                      <div className="w-16 h-16 bg-white rounded-lg shadow-sm overflow-hidden flex items-center justify-center">
-                        <img
-                          src={logoPreview?.url || editingBrand.logoUrl}
-                          alt="Logo preview"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                        <div className="hidden w-full h-full bg-gray-100 flex items-center justify-center">
-                          <Image className="w-6 h-6 text-gray-400" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{editingBrand.name || 'Nombre de la marca'}</p>
-                        <p className="text-sm text-gray-500">
-                          {logoPreview ? 'Imagen nueva' : 'Imagen actual'}
-                          {editingBrand.logoUrl?.includes('cloudinary.com') && (
-                            <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                              Cloudinary
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-              </div>
-              
-            </div>
-            
-            {/* Botones de acción mejorados */}
-            <div className="flex justify-end gap-4 mt-8 pt-6 border-t">
-              <button
-                onClick={() => {
-                  setShowBrandModal(false);
-                  setLogoPreview(null);
-                }}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all"
-                disabled={isSaving}
-              >
-                Cancelar
-              </button>
-              
-              <button
-                onClick={handleSaveBrand}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg disabled:opacity-50"
-                disabled={isSaving || !editingBrand.name.trim()}
-              >
-                {isSaving ? (
-                  <div className="flex items-center">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    {uploadingLogo ? 'Subiendo...' : 'Guardando...'}
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <Save className="w-5 h-5 mr-2" />
-                    {isCreating ? 'Crear Marca' : 'Guardar Cambios'}
-                  </div>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <BrandFormModal
+        isOpen={showBrandModal}
+        onClose={() => setShowBrandModal(false)}
+        brand={editingBrand}
+        onSave={handleBrandSaved}
+        isCreating={isCreating}
+      />
       
     </div>
   );
