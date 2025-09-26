@@ -1,6 +1,6 @@
 // src/services/inventoryService.js
-// SERVICIO ESPECIALIZADO PARA TIENDA E INVENTARIO
-// Conecta con las rutas reales del backend según el manual
+// SERVICIO ESPECIALIZADO PARA TIENDA E INVENTARIO - VERSIÓN 2.1
+// ✅ ACTUALIZADO: Archivo completo de Git + createProductWithImage mejorado
 
 import toast from 'react-hot-toast';
 import { BaseService } from './baseService.js';
@@ -131,8 +131,53 @@ class InventoryService extends BaseService {
   }
 
   // ================================
-  // 📦 MÉTODOS DE GESTIÓN DE PRODUCTOS
+  // 📦 MÉTODOS DE GESTIÓN DE PRODUCTOS (MEJORADOS)
   // ================================
+
+  // ✅ NUEVO: Crear producto con imagen (usando FormData como en el test exitoso)
+  async createProductWithImage(formData) {
+    console.log('📦 InventoryService: Creating product with image...');
+    
+    try {
+      const response = await this.post('/api/store/management/products', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        timeout: 60000 // 60 segundos como en el test exitoso
+      });
+      
+      if (response.success) {
+        console.log('✅ Product with image created successfully:', response.data?.product);
+        
+        // Mostrar información específica del upload
+        if (response.data?.uploadInfo) {
+          const uploadInfo = response.data.uploadInfo;
+          if (uploadInfo.uploadedToCloudinary) {
+            toast.success(`Producto creado con imagen subida a Cloudinary`);
+            console.log('☁️ Image uploaded to Cloudinary:', {
+              url: uploadInfo.imageUrl,
+              publicId: uploadInfo.publicId,
+              size: uploadInfo.size
+            });
+          } else {
+            toast.success('Producto creado exitosamente');
+          }
+        } else {
+          toast.success('Producto creado exitosamente');
+        }
+        
+        this.invalidateProductsCache();
+      }
+      
+      return response;
+      
+    } catch (error) {
+      console.error('❌ Error creating product with image:', error);
+      const errorMessage = error.response?.data?.message || 'Error al crear producto con imagen';
+      toast.error(errorMessage);
+      throw error;
+    }
+  }
 
   // Listar productos con filtros
   async getProducts(params = {}) {
@@ -164,7 +209,7 @@ class InventoryService extends BaseService {
     }
   }
 
-  // Crear nuevo producto
+  // Crear nuevo producto (método original sin imagen)
   async createProduct(productData) {
     console.log('📦 InventoryService: Creating product...', productData);
     
@@ -537,7 +582,7 @@ class InventoryService extends BaseService {
     }
   }
 
-  // ✅ NUEVA: CREAR MARCA CON UPLOAD DE LOGO (FORMDATA)
+  // ✅ CREAR MARCA CON UPLOAD DE LOGO (FORMDATA)
   async createBrandWithUpload(formData) {
     console.log('🏷️ InventoryService: Creating brand with upload...');
     
@@ -594,7 +639,7 @@ class InventoryService extends BaseService {
     }
   }
 
-  // ✅ NUEVA: ACTUALIZAR MARCA CON UPLOAD DE LOGO (FORMDATA)
+  // ✅ ACTUALIZAR MARCA CON UPLOAD DE LOGO (FORMDATA)
   async updateBrandWithUpload(brandId, formData) {
     console.log('🏷️ InventoryService: Updating brand with upload...', { brandId });
     
@@ -1130,7 +1175,7 @@ class InventoryService extends BaseService {
     };
   }
 
-  // ✅ NUEVA: Validar datos de marca
+  // ✅ Validar datos de marca
   validateBrandData(brandData) {
     const errors = [];
     
@@ -1157,7 +1202,7 @@ class InventoryService extends BaseService {
     return true;
   }
 
-  // ✅ NUEVA: Validar datos de categoría
+  // ✅ Validar datos de categoría
   validateCategoryData(categoryData) {
     const errors = [];
     
@@ -1187,7 +1232,7 @@ class InventoryService extends BaseService {
     return true;
   }
 
-  // ✅ NUEVA: Validar archivos de imagen
+  // ✅ Validar archivos de imagen
   validateImageFile(file, maxSize = 3 * 1024 * 1024) {
     const errors = [];
     
@@ -1358,12 +1403,16 @@ class InventoryService extends BaseService {
     }
   }
 
+  // ================================
+  // 🛠️ INFORMACIÓN DEL SERVICIO
+  // ================================
+
   // Información del servicio
   getServiceInfo() {
     return {
       name: 'InventoryService',
-      version: '2.0.0', // ✅ Actualizada con nuevas funciones
-      description: 'Servicio especializado para gestión de inventario y tienda con upload de imágenes',
+      version: '2.1.0', // ✅ Actualizada con createProductWithImage
+      description: 'Servicio especializado para gestión de inventario y tienda con upload de imágenes para productos',
       endpoints: {
         inventory: '/api/inventory/*',
         products: '/api/store/management/products/*',
@@ -1376,15 +1425,15 @@ class InventoryService extends BaseService {
         'Gestión completa de productos',
         'Subida de imágenes a Cloudinary',
         'Categorías con iconos mejorados',
-        'Marcas con upload de logos', // ✅ Nueva feature
+        'Marcas con upload de logos',
+        'Productos con imagen al crear', // ✅ Nueva feature
         'Ventas en tienda física',
         'Estadísticas e inventario',
         'Cache inteligente',
         'Validaciones automáticas',
         'Notificaciones toast',
-        'Debug integrado',
-        'Upload con FormData', // ✅ Nueva feature
-        'Drag & Drop support' // ✅ Nueva feature
+        'Upload con FormData',
+        'Drag & Drop support'
       ],
       cache: {
         enabled: true,
@@ -1392,17 +1441,20 @@ class InventoryService extends BaseService {
         entries: this.cache.size
       },
       newFeatures: {
+        productWithImage: { // ✅ Nueva feature
+          enabled: true,
+          method: 'createProductWithImage',
+          supportedFormats: ['JPG', 'PNG', 'WebP', 'SVG'],
+          maxSize: '5MB',
+          cloudinaryIntegration: true,
+          description: 'Crear producto con imagen subida automáticamente a Cloudinary'
+        },
         brandUpload: {
           enabled: true,
           methods: ['createBrandWithUpload', 'updateBrandWithUpload'],
           supportedFormats: ['JPG', 'PNG', 'WebP', 'SVG'],
           maxSize: '3MB',
           cloudinaryIntegration: true
-        },
-        validation: {
-          brandData: true,
-          categoryData: true,
-          imageFiles: true
         }
       }
     };
