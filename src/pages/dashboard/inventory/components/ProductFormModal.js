@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/components/ProductFormModal.js
-// FUNCIÓN: Modal reutilizable para crear y editar productos - VERSIÓN CORREGIDA
+// FUNCIÓN: Modal para crear/editar productos usando la lógica del test + inventoryService
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -27,7 +27,7 @@ const ProductFormModal = ({
 }) => {
   const { showSuccess, showError } = useApp();
   
-  // Estados
+  // Estados principales
   const [editingProduct, setEditingProduct] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -35,133 +35,93 @@ const ProductFormModal = ({
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
   
-  // ✅ ESTADOS PARA UPLOAD DE IMAGEN DEL PRODUCTO
+  // ✅ ESTADOS PARA UPLOAD DE IMAGEN
   const [productImage, setProductImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   
-  // ✅ ESTADOS MEJORADOS PARA FILTRADO DE CATEGORÍAS Y MARCAS
+  // ✅ ESTADOS PARA FILTRADO DE CATEGORÍAS Y MARCAS
   const [categorySearch, setCategorySearch] = useState('');
   const [brandSearch, setBrandSearch] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
   
-  // Plantilla para nuevo producto
-  const emptyProduct = {
-    name: '',
-    description: '',
-    price: '',
-    originalPrice: '',
-    sku: '',
-    stockQuantity: '',
-    minStock: '5',
-    weight: '',
-    dimensions: {
-      length: '',
-      width: '',
-      height: '',
-      unit: 'cm'
-    },
-    categoryId: '',
-    brandId: '',
-    isFeatured: false,
-    allowOnlinePayment: true,
-    allowCardPayment: true,
-    allowCashOnDelivery: true,
-    deliveryTime: '1-3 días hábiles'
-  };
-  
-  // ✅ INICIALIZAR DATOS AL ABRIR EL MODAL CON DEBUG
+  // ✅ INICIALIZAR DATOS AL ABRIR EL MODAL
   useEffect(() => {
-  if (isOpen) {
-    console.log('🔄 ProductFormModal: Inicializando modal');
-    console.log('📦 Producto recibido:', product);
-    console.log('🏗️ Es creación:', isCreating);
-    console.log('📂 Categorías disponibles:', categories.length);
-    console.log('🏷️ Marcas disponibles:', brands.length);
-    
-    if (product && !isCreating) {
-      // ✅ EDITANDO PRODUCTO EXISTENTE
-      const initialProduct = {
-        ...product,
-        // ✅ ASEGURAR QUE LOS VALORES SEAN STRINGS PARA LOS INPUTS
-        name: product.name || '',
-        description: product.description || '',
-        price: product.price?.toString() || '',
-        originalPrice: product.originalPrice?.toString() || '',
-        sku: product.sku || '',
-        stockQuantity: product.stockQuantity?.toString() || '0',
-        minStock: product.minStock?.toString() || '5',
-        weight: product.weight?.toString() || '',
-        deliveryTime: product.deliveryTime || '1-3 días hábiles',
-        
-        // ✅ ASEGURAR QUE LOS IDs SEAN STRINGS PARA LOS SELECTS
-        categoryId: product.categoryId?.toString() || '',
-        brandId: product.brandId?.toString() || '',
-        
-        // ✅ ASEGURAR QUE LAS DIMENSIONES EXISTAN
-        dimensions: product.dimensions || {
-          length: '',
-          width: '',
-          height: '',
-          unit: 'cm'
-        },
-        
-        // ✅ ASEGURAR QUE LOS BOOLEANS TENGAN VALORES POR DEFECTO
-        isFeatured: Boolean(product.isFeatured),
-        allowOnlinePayment: product.allowOnlinePayment !== false,
-        allowCardPayment: product.allowCardPayment !== false,
-        allowCashOnDelivery: product.allowCashOnDelivery !== false
-      };
+    if (isOpen) {
+      console.log('🔄 ProductFormModal: Inicializando modal');
       
-      console.log('✅ Producto para edición inicializado:', initialProduct);
-      setEditingProduct(initialProduct);
+      if (product && !isCreating) {
+        // ✅ EDITANDO PRODUCTO EXISTENTE
+        const initialProduct = {
+          ...product,
+          name: product.name || '',
+          description: product.description || '',
+          price: product.price?.toString() || '',
+          originalPrice: product.originalPrice?.toString() || '',
+          sku: product.sku || '',
+          stockQuantity: product.stockQuantity?.toString() || '0',
+          minStock: product.minStock?.toString() || '5',
+          weight: product.weight?.toString() || '',
+          deliveryTime: product.deliveryTime || '1-3 días hábiles',
+          categoryId: product.categoryId?.toString() || '',
+          brandId: product.brandId?.toString() || '',
+          dimensions: product.dimensions || {
+            length: '',
+            width: '',
+            height: '',
+            unit: 'cm'
+          },
+          isFeatured: Boolean(product.isFeatured),
+          allowOnlinePayment: product.allowOnlinePayment !== false,
+          allowCardPayment: product.allowCardPayment !== false,
+          allowCashOnDelivery: product.allowCashOnDelivery !== false
+        };
+        
+        setEditingProduct(initialProduct);
+        
+      } else {
+        // ✅ CREANDO NUEVO PRODUCTO - USAR EXACTAMENTE EL FORMATO DEL TEST
+        const newProduct = {
+          name: '',
+          description: '',
+          price: '',
+          originalPrice: '',
+          sku: '',
+          stockQuantity: '0',
+          minStock: '5',
+          weight: '',
+          dimensions: {
+            length: '',
+            width: '',
+            height: '',
+            unit: 'cm'
+          },
+          categoryId: '',
+          brandId: '',
+          isFeatured: false,
+          allowOnlinePayment: true,
+          allowCardPayment: true,
+          allowCashOnDelivery: true,
+          deliveryTime: '1-3 días hábiles'
+        };
+        
+        setEditingProduct(newProduct);
+      }
       
-    } else {
-      // ✅ CREANDO NUEVO PRODUCTO
-      const newProduct = {
-        name: '',
-        description: '',
-        price: '',
-        originalPrice: '',
-        sku: '',
-        stockQuantity: '0',
-        minStock: '5',
-        weight: '',
-        dimensions: {
-          length: '',
-          width: '',
-          height: '',
-          unit: 'cm'
-        },
-        categoryId: '', // ✅ IMPORTANTE: String vacío para select
-        brandId: '',    // ✅ IMPORTANTE: String vacío para select
-        isFeatured: false,
-        allowOnlinePayment: true,
-        allowCardPayment: true,
-        allowCashOnDelivery: true,
-        deliveryTime: '1-3 días hábiles'
-      };
+      // ✅ LIMPIAR ESTADOS DE IMAGEN
+      setProductImage(null);
+      setImagePreview(null);
+      setUploadingImage(false);
       
-      console.log('✅ Nuevo producto inicializado:', newProduct);
-      setEditingProduct(newProduct);
+      // ✅ LIMPIAR FILTROS
+      setCategorySearch('');
+      setBrandSearch('');
+      setShowCategoryDropdown(false);
+      setShowBrandDropdown(false);
     }
-    
-    // ✅ LIMPIAR ESTADOS DE IMAGEN
-    setProductImage(null);
-    setImagePreview(null);
-    setUploadingImage(false);
-    
-    // ✅ LIMPIAR FILTROS
-    setCategorySearch('');
-    setBrandSearch('');
-    setShowCategoryDropdown(false);
-    setShowBrandDropdown(false);
-    
-    console.log('🔄 ProductFormModal: Inicialización completada');
-  }
-}, [isOpen, product, isCreating, categories.length, brands.length]);
+  }, [isOpen, product, isCreating]);
   
   // ✅ CERRAR DROPDOWNS AL HACER CLIC FUERA
   useEffect(() => {
@@ -195,9 +155,9 @@ const ProductFormModal = ({
       return;
     }
     
-    // Validar tamaño (5MB max para productos)
-    if (file.size > 5 * 1024 * 1024) {
-      showError('El archivo es muy grande. Máximo 5MB');
+    // Validar tamaño (10MB max como en el test)
+    if (file.size > 10 * 1024 * 1024) {
+      showError('El archivo es muy grande. Máximo 10MB');
       return;
     }
     
@@ -251,12 +211,11 @@ const ProductFormModal = ({
   const clearImage = () => {
     setProductImage(null);
     setImagePreview(null);
-    // Reset file input
     const fileInput = document.querySelector('input[type="file"]');
     if (fileInput) fileInput.value = '';
   };
   
-  // ✅ FILTRADO MEJORADO DE CATEGORÍAS Y MARCAS
+  // ✅ FILTRADO DE CATEGORÍAS Y MARCAS
   const filteredCategories = categories.filter(category =>
     category.name.toLowerCase().includes(categorySearch.toLowerCase())
   );
@@ -265,7 +224,7 @@ const ProductFormModal = ({
     brand.name.toLowerCase().includes(brandSearch.toLowerCase())
   );
   
-  // ✅ FUNCIONES MEJORADAS PARA OBTENER NOMBRES SELECCIONADOS
+  // ✅ OBTENER NOMBRES SELECCIONADOS
   const getSelectedCategoryName = () => {
     if (showCategoryDropdown && categorySearch) return categorySearch;
     const selected = categories.find(c => c.id == editingProduct?.categoryId);
@@ -278,202 +237,181 @@ const ProductFormModal = ({
     return selected?.name || '';
   };
   
-  // ✅ HANDLERS MEJORADOS PARA SELECCIÓN
+  // ✅ HANDLERS PARA SELECCIÓN
   const handleCategorySelect = (category) => {
     console.log('📂 Categoría seleccionada:', category);
     setEditingProduct(prev => ({ ...prev, categoryId: category.id }));
-    setCategorySearch(''); // ✅ Limpiar búsqueda
+    setCategorySearch('');
     setShowCategoryDropdown(false);
   };
   
   const handleBrandSelect = (brand) => {
     console.log('🏷️ Marca seleccionada:', brand);
     setEditingProduct(prev => ({ ...prev, brandId: brand.id }));
-    setBrandSearch(''); // ✅ Limpiar búsqueda
+    setBrandSearch('');
     setShowBrandDropdown(false);
   };
   
-  // ✅ HANDLERS PARA CATEGORÍAS
-  const handleCreateCategory = () => {
-    setShowCategoryModal(true);
-  };
+  // ✅ HANDLERS PARA CATEGORÍAS Y MARCAS
+  const handleCreateCategory = () => setShowCategoryModal(true);
+  const handleCreateBrand = () => setShowBrandModal(true);
   
   const handleCategorySaved = (savedCategory) => {
-    console.log('✅ Category saved from product modal:', savedCategory);
-    // Actualizar el producto actual con la nueva categoría
     setEditingProduct(prev => ({ ...prev, categoryId: savedCategory.id }));
-    // Notificar al componente padre para actualizar la lista
-    if (onCategoriesUpdate) {
-      onCategoriesUpdate();
-    }
+    if (onCategoriesUpdate) onCategoriesUpdate();
     showSuccess('Categoría creada y seleccionada');
   };
   
-  // ✅ HANDLERS PARA MARCAS
-  const handleCreateBrand = () => {
-    setShowBrandModal(true);
-  };
-  
   const handleBrandSaved = (savedBrand) => {
-    console.log('✅ Brand saved from product modal:', savedBrand);
-    // Actualizar el producto actual con la nueva marca
     setEditingProduct(prev => ({ ...prev, brandId: savedBrand.id }));
-    // Notificar al componente padre para actualizar la lista
-    if (onBrandsUpdate) {
-      onBrandsUpdate();
-    }
+    if (onBrandsUpdate) onBrandsUpdate();
     showSuccess('Marca creada y seleccionada');
   };
   
-  // ✅ MÉTODO CORREGIDO PARA MANEJAR GUARDADO
+  // ✅ MÉTODO PRINCIPAL DE GUARDADO - USANDO LÓGICA DEL TEST + INVENTORY SERVICE
   const handleSave = async () => {
-  if (!editingProduct) {
-    console.error('❌ No hay producto para guardar');
-    return;
-  }
-  
-  console.log('🔍 ProductFormModal: Iniciando guardado');
-  console.log('📦 Estado del producto ANTES del formateo:', editingProduct);
-  console.log('🖼️ Imagen seleccionada:', productImage?.name);
-  console.log('🏗️ Es creación:', isCreating);
-  
-  // ✅ VALIDACIONES MEJORADAS ANTES DE PROCESAR
-  if (!editingProduct.name?.trim()) {
-    showError('El nombre del producto es obligatorio');
-    console.error('❌ Validación: nombre vacío o undefined');
-    return;
-  }
-  
-  if (!editingProduct.price || parseFloat(editingProduct.price) <= 0) {
-    showError('El precio de venta es obligatorio y debe ser mayor a 0');
-    console.error('❌ Validación: precio inválido', editingProduct.price);
-    return;
-  }
-  
-  if (!editingProduct.categoryId) {
-    showError('Debe seleccionar una categoría');
-    console.error('❌ Validación: categoría no seleccionada');
-    return;
-  }
-  
-  try {
-    setIsSaving(true);
-    
-    // ✅ FORMATEAR DATOS USANDO EL PATRÓN EXITOSO DEL TEST
-    const formattedProductData = {
-      name: String(editingProduct.name).trim(),
-      description: editingProduct.description ? String(editingProduct.description).trim() : '',
-      price: parseFloat(editingProduct.price),
-      originalPrice: editingProduct.originalPrice ? parseFloat(editingProduct.originalPrice) : null,
-      sku: editingProduct.sku ? String(editingProduct.sku).trim() : '',
-      stockQuantity: parseInt(editingProduct.stockQuantity) || 0,
-      minStock: parseInt(editingProduct.minStock) || 5,
-      weight: editingProduct.weight ? parseFloat(editingProduct.weight) : null,
-      dimensions: editingProduct.dimensions || null,
-      categoryId: parseInt(editingProduct.categoryId),
-      brandId: editingProduct.brandId ? parseInt(editingProduct.brandId) : null,
-      isFeatured: Boolean(editingProduct.isFeatured),
-      allowOnlinePayment: editingProduct.allowOnlinePayment !== false,
-      allowCardPayment: editingProduct.allowCardPayment !== false,
-      allowCashOnDelivery: editingProduct.allowCashOnDelivery !== false,
-      deliveryTime: editingProduct.deliveryTime ? String(editingProduct.deliveryTime).trim() : '1-3 días hábiles'
-    };
-    
-    console.log('📋 ProductFormModal: Datos formateados:', formattedProductData);
-    
-    // ✅ VALIDACIÓN FINAL ANTES DE ENVIAR
-    if (!formattedProductData.categoryId || isNaN(formattedProductData.categoryId)) {
-      showError('Error: ID de categoría inválido');
-      console.error('❌ CategoryId inválido después del formateo:', formattedProductData.categoryId);
+    if (!editingProduct) {
+      console.error('❌ No hay producto para guardar');
       return;
     }
     
-    if (isNaN(formattedProductData.price) || formattedProductData.price <= 0) {
-      showError('Error: Precio inválido');
-      console.error('❌ Precio inválido después del formateo:', formattedProductData.price);
+    console.log('🔍 ProductFormModal: Iniciando guardado');
+    console.log('📦 Estado del producto:', editingProduct);
+    console.log('🖼️ Imagen seleccionada:', productImage?.name);
+    console.log('🏗️ Es creación:', isCreating);
+    
+    // ✅ VALIDACIONES ANTES DE PROCESAR (IGUAL QUE EL TEST)
+    if (!editingProduct.name?.trim()) {
+      showError('El nombre del producto es obligatorio');
       return;
     }
     
-    let response;
+    if (!editingProduct.price || parseFloat(editingProduct.price) <= 0) {
+      showError('El precio de venta es obligatorio y debe ser mayor a 0');
+      return;
+    }
     
-    // ✅ DECISIÓN: CREAR CON IMAGEN VS SIN IMAGEN
-    if (productImage && isCreating) {
-      console.log('📤 ProductFormModal: Enviando con FormData (producto + imagen)');
-      setUploadingImage(true);
+    if (!editingProduct.categoryId) {
+      showError('Debe seleccionar una categoría');
+      return;
+    }
+    
+    try {
+      setIsSaving(true);
       
-      // ✅ USAR FORMDATA SOLO PARA IMAGEN, SIGUIENDO EL PATRÓN EXITOSO
-      const formData = new FormData();
+      // ✅ BUSCAR CATEGORÍA Y MARCA EXACTAMENTE COMO EN EL TEST
+      const category = categories.find(c => c.id == editingProduct.categoryId);
+      const brand = brands.find(b => b.id == editingProduct.brandId);
       
-      // ✅ USAR LOS DATOS YA FORMATEADOS (no el objeto original)
-      Object.keys(formattedProductData).forEach(key => {
-        const value = formattedProductData[key];
-        if (value !== null && value !== undefined) {
-          if (key === 'dimensions' && typeof value === 'object') {
-            formData.append(key, JSON.stringify(value));
-          } else {
-            formData.append(key, value.toString());
-          }
-        }
-      });
-      
-      // ✅ AÑADIR LA IMAGEN
-      formData.append('image', productImage);
-      formData.append('isPrimary', 'true');
-      formData.append('altText', `${formattedProductData.name} - Imagen principal`);
-      formData.append('displayOrder', '1');
-      
-      // Debug: Mostrar contenido del FormData
-      console.log('📋 ProductFormModal: Contenido del FormData:');
-      for (let [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`  ${key}: [File] ${value.name} (${value.size} bytes)`);
-        } else {
-          console.log(`  ${key}:`, value);
-        }
+      if (!category) {
+        showError('Categoría no encontrada');
+        return;
       }
       
-      response = await inventoryService.createProductWithImage(formData);
+      // ✅ FORMATEAR DATOS EXACTAMENTE COMO EN EL TEST
+      const productPayload = {
+        name: editingProduct.name,
+        description: editingProduct.description,
+        price: parseFloat(editingProduct.price),
+        originalPrice: editingProduct.originalPrice ? parseFloat(editingProduct.originalPrice) : null,
+        sku: editingProduct.sku,
+        stockQuantity: parseInt(editingProduct.stockQuantity) || 0,
+        minStock: parseInt(editingProduct.minStock) || 5,
+        weight: editingProduct.weight ? parseFloat(editingProduct.weight) : null,
+        dimensions: editingProduct.dimensions,
+        categoryId: category.id,
+        brandId: brand ? brand.id : null,
+        isFeatured: editingProduct.isFeatured,
+        allowOnlinePayment: editingProduct.allowOnlinePayment,
+        allowCardPayment: editingProduct.allowCardPayment,
+        allowCashOnDelivery: editingProduct.allowCashOnDelivery,
+        deliveryTime: editingProduct.deliveryTime
+      };
       
-    } else {
-      // ✅ SIN IMAGEN, USAR JSON TRADICIONAL CON DATOS YA FORMATEADOS
-      console.log('📤 ProductFormModal: Enviando con JSON (solo producto)');
-      console.log('📋 ProductFormModal: Datos JSON a enviar:', formattedProductData);
+      console.log('📋 ProductFormModal: Datos formateados (igual que el test):', productPayload);
+      
+      let response;
       
       if (isCreating) {
-        response = await inventoryService.createProduct(formattedProductData);
+        // ✅ CREAR PRODUCTO CON O SIN IMAGEN USANDO INVENTORY SERVICE
+        if (productImage) {
+          console.log('📤 Creando producto con imagen usando inventoryService...');
+          setUploadingImage(true);
+          
+          // ✅ USAR FORMDATA EXACTAMENTE COMO EN EL TEST
+          const formData = new FormData();
+          
+          // ✅ AGREGAR TODOS LOS CAMPOS DEL PRODUCTO AL FORMDATA
+          Object.keys(productPayload).forEach(key => {
+            const value = productPayload[key];
+            if (value !== null && value !== undefined) {
+              if (key === 'dimensions' && typeof value === 'object') {
+                formData.append(key, JSON.stringify(value));
+              } else {
+                formData.append(key, value.toString());
+              }
+            }
+          });
+          
+          // ✅ AGREGAR LA IMAGEN CON LOS PARÁMETROS DEL TEST
+          formData.append('image', productImage);
+          formData.append('isPrimary', 'true');
+          formData.append('altText', `${productPayload.name} - Imagen principal`);
+          formData.append('displayOrder', '1');
+          
+          // Debug: Mostrar contenido del FormData
+          console.log('📋 ProductFormModal: Contenido del FormData:');
+          for (let [key, value] of formData.entries()) {
+            if (value instanceof File) {
+              console.log(`  ${key}: [File] ${value.name} (${value.size} bytes)`);
+            } else {
+              console.log(`  ${key}:`, value);
+            }
+          }
+          
+          // ✅ CREAR MÉTODO EN INVENTORY SERVICE PARA PRODUCTO CON IMAGEN
+          response = await inventoryService.createProductWithImage(formData);
+          
+        } else {
+          console.log('📤 Creando producto sin imagen usando inventoryService...');
+          response = await inventoryService.createProduct(productPayload);
+        }
+        
       } else {
-        response = await inventoryService.updateProduct(editingProduct.id, formattedProductData);
+        // ✅ ACTUALIZAR PRODUCTO EXISTENTE
+        console.log('📤 Actualizando producto usando inventoryService...');
+        response = await inventoryService.updateProduct(editingProduct.id, productPayload);
       }
-    }
-    
-    if (response.success) {
-      const message = isCreating 
-        ? (productImage ? 'Producto creado con imagen subida a Cloudinary' : 'Producto creado exitosamente')
-        : 'Producto actualizado exitosamente';
       
-      console.log('✅ ProductFormModal: Producto guardado exitosamente');
-      console.log('📋 ProductFormModal: Respuesta del servidor:', response.data);
-      showSuccess(message);
-      
-      if (onSave) {
-        onSave(response.data);
+      // ✅ PROCESAR RESPUESTA
+      if (response.success) {
+        const message = isCreating 
+          ? (productImage ? 'Producto creado con imagen subida a Cloudinary' : 'Producto creado exitosamente')
+          : 'Producto actualizado exitosamente';
+        
+        console.log('✅ ProductFormModal: Producto guardado exitosamente');
+        console.log('📋 ProductFormModal: Respuesta del servidor:', response.data);
+        showSuccess(message);
+        
+        if (onSave) {
+          onSave(response.data);
+        }
+        onClose();
       }
-      onClose();
+      
+    } catch (error) {
+      console.error('❌ ProductFormModal: Error saving product:', error);
+      console.error('📋 ProductFormModal: Estado del producto al fallar:', editingProduct);
+      console.error('📋 ProductFormModal: Respuesta del error:', error.response?.data);
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Error al guardar producto';
+      showError(`Error al guardar producto: ${errorMessage}`);
+    } finally {
+      setIsSaving(false);
+      setUploadingImage(false);
     }
-    
-  } catch (error) {
-    console.error('❌ ProductFormModal: Error saving product:', error);
-    console.error('📋 ProductFormModal: Estado del producto al fallar:', editingProduct);
-    console.error('📋 ProductFormModal: Respuesta del error:', error.response?.data);
-    
-    const errorMessage = error.response?.data?.message || error.message || 'Error al guardar producto';
-    showError(`Error al guardar producto: ${errorMessage}`);
-  } finally {
-    setIsSaving(false);
-    setUploadingImage(false);
-  }
-};
-  
+  };
+
   if (!isOpen || !editingProduct) return null;
 
   return (
@@ -491,7 +429,7 @@ const ProductFormModal = ({
                 {isCreating ? 'Nuevo Producto' : 'Editar Producto'}
               </h3>
               <p className="text-gray-600">
-                {isCreating ? 'Agrega un nuevo producto a tu inventario' : 'Modifica los datos del producto'}
+                {isCreating ? 'Agrega un nuevo producto usando la lógica del test + inventoryService' : 'Modifica los datos del producto'}
               </p>
             </div>
             <button
@@ -522,10 +460,7 @@ const ProductFormModal = ({
                     <input
                       type="text"
                       value={editingProduct.name}
-                      onChange={(e) => {
-                        console.log('📝 Actualizando nombre:', e.target.value);
-                        setEditingProduct(prev => ({ ...prev, name: e.target.value }));
-                      }}
+                      onChange={(e) => setEditingProduct(prev => ({ ...prev, name: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                       placeholder="Ej: Proteína Whey Premium"
                       required
@@ -545,7 +480,7 @@ const ProductFormModal = ({
                     />
                   </div>
                   
-                  {/* ✅ CATEGORÍA CORREGIDA CON FILTRO Y BÚSQUEDA */}
+                  {/* ✅ CATEGORÍA CON FILTRO Y BÚSQUEDA */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">
@@ -617,7 +552,7 @@ const ProductFormModal = ({
                     </div>
                   </div>
                   
-                  {/* ✅ MARCA CORREGIDA CON FILTRO Y BÚSQUEDA */}
+                  {/* ✅ MARCA CON FILTRO Y BÚSQUEDA */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">
@@ -715,7 +650,7 @@ const ProductFormModal = ({
                 </div>
               </div>
               
-              {/* ✅ IMAGEN DEL PRODUCTO */}
+              {/* ✅ IMAGEN DEL PRODUCTO (SOLO PARA CREAR) */}
               {isCreating && (
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -784,7 +719,7 @@ const ProductFormModal = ({
                           {isDragging ? 'Suelta la imagen aquí' : 'Arrastra una imagen o haz clic'}
                         </p>
                         <p className="text-sm text-gray-500">
-                          PNG, JPG, WebP hasta 5MB
+                          PNG, JPG, WebP hasta 10MB
                         </p>
                         <p className="text-xs text-green-600 mt-2">
                           ☁️ Se subirá automáticamente a Cloudinary
@@ -827,10 +762,7 @@ const ProductFormModal = ({
                       step="0.01"
                       min="0"
                       value={editingProduct.price}
-                      onChange={(e) => {
-                        console.log('💰 Actualizando precio:', e.target.value);
-                        setEditingProduct(prev => ({ ...prev, price: e.target.value }));
-                      }}
+                      onChange={(e) => setEditingProduct(prev => ({ ...prev, price: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
                       placeholder="0.00"
                       required
@@ -942,6 +874,74 @@ const ProductFormModal = ({
                 </div>
               </div>
               
+              {/* Dimensiones */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Dimensiones</h4>
+                
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Largo</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={editingProduct.dimensions.length}
+                      onChange={(e) => setEditingProduct(prev => ({ 
+                        ...prev, 
+                        dimensions: { ...prev.dimensions, length: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="0"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Ancho</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={editingProduct.dimensions.width}
+                      onChange={(e) => setEditingProduct(prev => ({ 
+                        ...prev, 
+                        dimensions: { ...prev.dimensions, width: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="0"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Alto</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={editingProduct.dimensions.height}
+                      onChange={(e) => setEditingProduct(prev => ({ 
+                        ...prev, 
+                        dimensions: { ...prev.dimensions, height: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                
+                <select
+                  value={editingProduct.dimensions.unit}
+                  onChange={(e) => setEditingProduct(prev => ({ 
+                    ...prev, 
+                    dimensions: { ...prev.dimensions, unit: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                >
+                  <option value="cm">Centímetros (cm)</option>
+                  <option value="m">Metros (m)</option>
+                  <option value="mm">Milímetros (mm)</option>
+                </select>
+              </div>
+              
               {/* Opciones */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Opciones de Producto</h4>
@@ -1017,7 +1017,7 @@ const ProductFormModal = ({
               {isSaving ? (
                 <div className="flex items-center">
                   <Loader className="w-5 h-5 animate-spin mr-2" />
-                  Guardando...
+                  {uploadingImage ? 'Subiendo imagen...' : 'Guardando...'}
                 </div>
               ) : (
                 <div className="flex items-center">

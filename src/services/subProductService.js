@@ -1,5 +1,5 @@
 // src/services/subProductService.js
-// SUB-SERVICIO PARA GESTIÓN DE PRODUCTOS
+// SUB-SERVICIO PARA GESTIÓN DE PRODUCTOS - USANDO PATRÓN EXACTO DEL TEST
 
 import toast from 'react-hot-toast';
 
@@ -9,41 +9,168 @@ export class SubProductService {
   }
 
   // ================================
-  // 📦 MÉTODOS DE GESTIÓN DE PRODUCTOS
+  // 📦 MÉTODOS DE GESTIÓN DE PRODUCTOS - PATRÓN DEL TEST
   // ================================
 
-  // ✅ CREAR PRODUCTO CON IMAGEN (usando FormData)
+  // ✅ CREAR PRODUCTO CON IMAGEN - EXACTAMENTE COMO EL TEST
   async createProductWithImage(formData) {
-    console.log('📦 SubProductService: Creating product with image...');
+    console.log('📦 SubProductService: Creating product with image (test pattern)...');
     
     try {
-      const response = await this.baseService.post('/api/store/management/products', formData, {
+      // ✅ PASO 1: EXTRAER DATOS DEL PRODUCTO DEL FORMDATA
+      const productData = this.extractProductDataFromFormData(formData);
+      const imageFile = formData.get('image');
+      const isPrimary = formData.get('isPrimary') === 'true';
+      const altText = formData.get('altText') || '';
+      const displayOrder = formData.get('displayOrder') || '1';
+      
+      console.log('📋 Extracted product data:', productData);
+      console.log('🖼️ Image file:', imageFile?.name);
+      
+      // ✅ PASO 2: CREAR PRODUCTO PRIMERO (IGUAL QUE EL TEST)
+      console.log('📤 Creating product first...');
+      const productResponse = await this.baseService.post('/api/store/management/products', productData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        },
-        timeout: 60000
+          'Content-Type': 'application/json'
+        }
       });
       
-      if (response.success) {
-        console.log('✅ Product with image created successfully:', response.data?.product);
-        
-        if (response.data?.uploadInfo?.uploadedToCloudinary) {
-          toast.success(`Producto creado con imagen subida a Cloudinary`);
-        } else {
-          toast.success('Producto creado exitosamente');
-        }
-        
-        this.baseService.invalidateProductsCache();
+      if (!productResponse.success) {
+        throw new Error('Error creating product');
       }
       
-      return response;
+      const createdProduct = productResponse.data.product;
+      console.log('✅ Product created:', createdProduct);
+      
+      // ✅ PASO 3: SUBIR IMAGEN SI EXISTE (EXACTAMENTE COMO EL TEST)
+      if (imageFile) {
+        console.log('📤 Uploading image to product...');
+        
+        try {
+          // ✅ CREAR FORMDATA PARA IMAGEN SOLAMENTE (COMO EN EL TEST)
+          const imageFormData = new FormData();
+          imageFormData.append('image', imageFile, {
+            filename: imageFile.name,
+            contentType: this.getImageContentType(imageFile)
+          });
+          
+          // ✅ USAR EXACTAMENTE LA MISMA URL DEL TEST
+          const imageUploadUrl = `/api/store/management/products/${createdProduct.id}/images?isPrimary=${isPrimary}&altText=${encodeURIComponent(altText)}&displayOrder=${displayOrder}`;
+          
+          console.log('☁️ Uploading to Cloudinary via:', imageUploadUrl);
+          
+          const imageResponse = await this.baseService.post(imageUploadUrl, imageFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            },
+            timeout: 60000 // 60 segundos como en el test
+          });
+          
+          if (imageResponse.success) {
+            console.log('✅ Image uploaded to Cloudinary:', imageResponse.data.image.imageUrl);
+            
+            // ✅ RETORNAR PRODUCTO CON INFO DE IMAGEN
+            return {
+              success: true,
+              data: {
+                product: createdProduct,
+                image: imageResponse.data.image,
+                uploadInfo: {
+                  uploadedToCloudinary: true,
+                  imageUrl: imageResponse.data.image.imageUrl
+                }
+              }
+            };
+          } else {
+            console.log('⚠️ Product created but image upload failed');
+            return {
+              success: true,
+              data: {
+                product: createdProduct,
+                uploadInfo: {
+                  uploadedToCloudinary: false,
+                  error: 'Image upload failed'
+                }
+              }
+            };
+          }
+          
+        } catch (imageError) {
+          console.error('❌ Error uploading image:', imageError);
+          // Producto ya fue creado, solo falló la imagen
+          return {
+            success: true,
+            data: {
+              product: createdProduct,
+              uploadInfo: {
+                uploadedToCloudinary: false,
+                error: imageError.message
+              }
+            }
+          };
+        }
+      }
+      
+      // ✅ PRODUCTO SIN IMAGEN
+      return {
+        success: true,
+        data: {
+          product: createdProduct,
+          uploadInfo: {
+            uploadedToCloudinary: false,
+            reason: 'No image provided'
+          }
+        }
+      };
       
     } catch (error) {
-      console.error('❌ Error creating product with image:', error);
-      const errorMessage = error.response?.data?.message || 'Error al crear producto con imagen';
+      console.error('❌ Error in createProductWithImage:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Error al crear producto con imagen';
       toast.error(errorMessage);
       throw error;
     }
+  }
+
+  // ✅ FUNCIÓN AUXILIAR PARA EXTRAER DATOS DEL FORMDATA
+  extractProductDataFromFormData(formData) {
+    const productData = {};
+    
+    // ✅ EXTRAER TODOS LOS CAMPOS EXCEPTO LA IMAGEN
+    for (let [key, value] of formData.entries()) {
+      if (!['image', 'isPrimary', 'altText', 'displayOrder'].includes(key)) {
+        if (key === 'dimensions') {
+          try {
+            productData[key] = JSON.parse(value);
+          } catch (e) {
+            productData[key] = null;
+          }
+        } else if (['price', 'originalPrice', 'weight'].includes(key)) {
+          productData[key] = value ? parseFloat(value) : null;
+        } else if (['stockQuantity', 'minStock', 'categoryId', 'brandId'].includes(key)) {
+          productData[key] = value ? parseInt(value) : null;
+        } else if (['isFeatured', 'allowOnlinePayment', 'allowCardPayment', 'allowCashOnDelivery'].includes(key)) {
+          productData[key] = value === 'true';
+        } else {
+          productData[key] = value || '';
+        }
+      }
+    }
+    
+    return productData;
+  }
+
+  // ✅ FUNCIÓN AUXILIAR PARA CONTENT TYPE (IGUAL QUE EL TEST)
+  getImageContentType(file) {
+    const name = file.name || '';
+    const ext = name.split('.').pop()?.toLowerCase();
+    const types = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg', 
+      'png': 'image/png',
+      'webp': 'image/webp',
+      'svg': 'image/svg+xml'
+    };
+    return types[ext] || 'image/jpeg';
   }
 
   // Listar productos con filtros
@@ -76,14 +203,22 @@ export class SubProductService {
     }
   }
 
-  // Crear nuevo producto (método original sin imagen)
+  // ✅ CREAR PRODUCTO SIN IMAGEN - EXACTAMENTE COMO EL TEST
   async createProduct(productData) {
-    console.log('📦 SubProductService: Creating product...', productData);
+    console.log('📦 SubProductService: Creating product (test pattern)...', productData);
     
     try {
-      this.validateProductData(productData);
+      // ✅ VALIDAR Y FORMATEAR DATOS EXACTAMENTE COMO EL TEST
+      const formattedProductData = this.formatProductDataForAPI(productData);
       
-      const response = await this.baseService.post('/api/store/management/products', productData);
+      console.log('📋 Formatted product data for API:', formattedProductData);
+      
+      // ✅ USAR EXACTAMENTE LA MISMA RUTA Y HEADERS DEL TEST
+      const response = await this.baseService.post('/api/store/management/products', formattedProductData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (response.success) {
         console.log('✅ Product created successfully:', response.data?.product);
@@ -101,12 +236,19 @@ export class SubProductService {
     }
   }
 
-  // Actualizar producto
+  // ✅ ACTUALIZAR PRODUCTO - EXACTAMENTE COMO EL TEST
   async updateProduct(productId, productData) {
-    console.log('📦 SubProductService: Updating product...', { productId, productData });
+    console.log('📦 SubProductService: Updating product (test pattern)...', { productId, productData });
     
     try {
-      const response = await this.baseService.put(`/api/store/management/products/${productId}`, productData);
+      // ✅ FORMATEAR DATOS EXACTAMENTE COMO EL TEST
+      const formattedProductData = this.formatProductDataForAPI(productData);
+      
+      const response = await this.baseService.put(`/api/store/management/products/${productId}`, formattedProductData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (response.success) {
         console.log('✅ Product updated successfully:', response.data?.product);
@@ -232,11 +374,11 @@ export class SubProductService {
   }
 
   // ================================
-  // 🔧 VALIDACIONES ESPECÍFICAS
+  // 🔧 VALIDACIONES Y FORMATEO - EXACTAMENTE COMO EL TEST
   // ================================
 
   validateProductData(productData) {
-    console.log('🔍 SubProductService: Validando datos de producto...');
+    console.log('🔍 SubProductService: Validating product data (test pattern)...');
     
     const errors = [];
     
@@ -285,56 +427,60 @@ export class SubProductService {
     }
     
     if (errors.length > 0) {
-      console.error('❌ SubProductService: Errores de validación:', errors);
+      console.error('❌ SubProductService: Validation errors:', errors);
       throw new Error(errors.join(', '));
     }
     
-    console.log('✅ SubProductService: Validación exitosa');
+    console.log('✅ SubProductService: Validation successful');
     return true;
   }
 
+  // ✅ FORMATEAR DATOS EXACTAMENTE COMO EL TEST
   formatProductDataForAPI(productData) {
-    console.log('🔧 SubProductService: Formateando datos para API...');
+    console.log('🔧 SubProductService: Formatting data for API (test pattern)...');
     
     if (!productData) {
-      throw new Error('Datos de producto no proporcionados');
+      throw new Error('Product data not provided');
     }
     
+    // ✅ VALIDACIONES PREVIAS IGUAL QUE EL TEST
     if (!productData.name || !productData.name.trim()) {
-      throw new Error('El nombre del producto es requerido');
+      throw new Error('Product name is required');
     }
     
     if (!productData.price || parseFloat(productData.price) <= 0) {
-      throw new Error('El precio debe ser mayor a 0');
+      throw new Error('Price must be greater than 0');
     }
     
     if (!productData.categoryId) {
-      throw new Error('La categoría es requerida');
+      throw new Error('Category is required');
     }
     
+    // ✅ FORMATEAR EXACTAMENTE COMO EN EL TEST
     const formattedData = {
-      name: String(productData.name).trim(),
-      description: productData.description ? String(productData.description).trim() : '',
-      price: parseFloat(productData.price) || 0,
+      name: productData.name,
+      description: productData.description,
+      price: parseFloat(productData.price),
       originalPrice: productData.originalPrice ? parseFloat(productData.originalPrice) : null,
-      sku: productData.sku ? String(productData.sku).trim() : '',
+      sku: productData.sku,
       stockQuantity: parseInt(productData.stockQuantity) || 0,
       minStock: parseInt(productData.minStock) || 5,
       weight: productData.weight ? parseFloat(productData.weight) : null,
-      dimensions: productData.dimensions || null,
-      categoryId: parseInt(productData.categoryId) || null,
+      dimensions: productData.dimensions,
+      categoryId: parseInt(productData.categoryId), // ✅ Asegurar que sea entero
       brandId: productData.brandId ? parseInt(productData.brandId) : null,
-      isFeatured: Boolean(productData.isFeatured),
-      allowOnlinePayment: productData.allowOnlinePayment !== false,
-      allowCardPayment: productData.allowCardPayment !== false,
-      allowCashOnDelivery: productData.allowCashOnDelivery !== false,
-      deliveryTime: productData.deliveryTime ? String(productData.deliveryTime).trim() : '1-3 días hábiles'
+      isFeatured: productData.isFeatured,
+      allowOnlinePayment: productData.allowOnlinePayment,
+      allowCardPayment: productData.allowCardPayment,
+      allowCashOnDelivery: productData.allowCashOnDelivery,
+      deliveryTime: productData.deliveryTime
     };
     
-    console.log('✅ SubProductService: Datos formateados:', formattedData);
+    console.log('✅ SubProductService: Data formatted for API:', formattedData);
     
-    if (!formattedData.categoryId) {
-      throw new Error('CategoryId no válido después del formateo');
+    // ✅ VALIDACIÓN FINAL IGUAL QUE EL TEST
+    if (!formattedData.categoryId || isNaN(formattedData.categoryId)) {
+      throw new Error('Invalid categoryId after formatting');
     }
     
     return formattedData;
