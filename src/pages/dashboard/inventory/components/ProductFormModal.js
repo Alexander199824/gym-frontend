@@ -1,11 +1,12 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/inventory/components/ProductFormModal.js
-// FUNCIÓN: Modal para crear/editar productos usando la lógica del test + inventoryService
+// FUNCIÓN: Modal para crear/editar productos - VERSIÓN CORREGIDA que carga sus propias categorías y marcas
 
 import React, { useState, useEffect } from 'react';
 import {
   Package, Save, X, Loader, Plus, Building, Tag,
-  CloudUpload, Image, Trash, Camera, Search, ChevronDown
+  CloudUpload, Image, Trash, Camera, Search, ChevronDown,
+  RefreshCw, AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
 import inventoryService from '../../../../services/inventoryService';
@@ -20,8 +21,9 @@ const ProductFormModal = ({
   product = null, 
   onSave,
   isCreating = false,
-  categories = [],
-  brands = [],
+  // ✅ MANTENER PROPS OPCIONALES PARA COMPATIBILIDAD
+  categories: propCategories = [],
+  brands: propBrands = [],
   onCategoriesUpdate,
   onBrandsUpdate
 }) => {
@@ -30,6 +32,14 @@ const ProductFormModal = ({
   // Estados principales
   const [editingProduct, setEditingProduct] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // ✅ NUEVOS ESTADOS PARA CARGAR CATEGORÍAS Y MARCAS INDEPENDIENTEMENTE
+  const [categories, setCategories] = useState(propCategories);
+  const [brands, setBrands] = useState(propBrands);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingBrands, setLoadingBrands] = useState(false);
+  const [categoriesError, setCategoriesError] = useState(null);
+  const [brandsError, setBrandsError] = useState(null);
   
   // ✅ ESTADOS PARA SUB-MODALES
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -47,10 +57,116 @@ const ProductFormModal = ({
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
   
-  // ✅ INICIALIZAR DATOS AL ABRIR EL MODAL
+  // ✅ CARGAR CATEGORÍAS INDEPENDIENTEMENTE
+  const loadCategories = async () => {
+    setLoadingCategories(true);
+    setCategoriesError(null);
+    
+    try {
+      console.log('📂 ProductFormModal: Cargando categorías...');
+      const response = await inventoryService.getCategories({ limit: 100 });
+      console.log('📋 ProductFormModal: Respuesta de categorías:', response);
+      
+      if (response.success && response.data) {
+        let categoriesList = [];
+        
+        // ✅ PROBAR DIFERENTES ESTRUCTURAS DE RESPUESTA
+        if (response.data.categories && Array.isArray(response.data.categories)) {
+          categoriesList = response.data.categories;
+        } else if (Array.isArray(response.data)) {
+          categoriesList = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          categoriesList = response.data.data;
+        } else if (response.data.items && Array.isArray(response.data.items)) {
+          categoriesList = response.data.items;
+        }
+        
+        setCategories(categoriesList);
+        console.log(`✅ ProductFormModal: ${categoriesList.length} categorías cargadas`);
+        
+        if (categoriesList.length > 0) {
+          console.log('📋 ProductFormModal: Primera categoría:', categoriesList[0]);
+        }
+        
+      } else {
+        throw new Error('Respuesta inválida del servidor');
+      }
+      
+    } catch (error) {
+      console.error('❌ ProductFormModal: Error cargando categorías:', error);
+      setCategoriesError(error.message);
+      setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+  
+  // ✅ CARGAR MARCAS INDEPENDIENTEMENTE
+  const loadBrands = async () => {
+    setLoadingBrands(true);
+    setBrandsError(null);
+    
+    try {
+      console.log('🏷️ ProductFormModal: Cargando marcas...');
+      const response = await inventoryService.getBrands({ limit: 100 });
+      console.log('📋 ProductFormModal: Respuesta de marcas:', response);
+      
+      if (response.success && response.data) {
+        let brandsList = [];
+        
+        if (response.data.brands && Array.isArray(response.data.brands)) {
+          brandsList = response.data.brands;
+        } else if (Array.isArray(response.data)) {
+          brandsList = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          brandsList = response.data.data;
+        }
+        
+        setBrands(brandsList);
+        console.log(`✅ ProductFormModal: ${brandsList.length} marcas cargadas`);
+        
+      } else {
+        throw new Error('Respuesta inválida del servidor');
+      }
+      
+    } catch (error) {
+      console.error('❌ ProductFormModal: Error cargando marcas:', error);
+      setBrandsError(error.message);
+      setBrands([]);
+    } finally {
+      setLoadingBrands(false);
+    }
+  };
+  
+  // ✅ CARGAR DATOS AL ABRIR EL MODAL
   useEffect(() => {
     if (isOpen) {
-      console.log('🔄 ProductFormModal: Inicializando modal');
+      console.log('🔄 ProductFormModal: Modal abierto, cargando datos...');
+      
+      // ✅ SI NO HAY CATEGORÍAS DESDE PROPS, CARGARLAS
+      if (propCategories.length === 0) {
+        console.log('📂 ProductFormModal: No hay categorías en props, cargando independientemente...');
+        loadCategories();
+      } else {
+        console.log('📂 ProductFormModal: Usando categorías desde props:', propCategories.length);
+        setCategories(propCategories);
+      }
+      
+      // ✅ SI NO HAY MARCAS DESDE PROPS, CARGARLAS
+      if (propBrands.length === 0) {
+        console.log('🏷️ ProductFormModal: No hay marcas en props, cargando independientemente...');
+        loadBrands();
+      } else {
+        console.log('🏷️ ProductFormModal: Usando marcas desde props:', propBrands.length);
+        setBrands(propBrands);
+      }
+    }
+  }, [isOpen, propCategories.length, propBrands.length]);
+  
+  // ✅ INICIALIZAR DATOS DEL PRODUCTO AL ABRIR EL MODAL
+  useEffect(() => {
+    if (isOpen) {
+      console.log('🔄 ProductFormModal: Inicializando producto...');
       
       if (product && !isCreating) {
         // ✅ EDITANDO PRODUCTO EXISTENTE
@@ -82,7 +198,7 @@ const ProductFormModal = ({
         setEditingProduct(initialProduct);
         
       } else {
-        // ✅ CREANDO NUEVO PRODUCTO - USAR EXACTAMENTE EL FORMATO DEL TEST
+        // ✅ CREANDO NUEVO PRODUCTO
         const newProduct = {
           name: '',
           description: '',
@@ -140,7 +256,7 @@ const ProductFormModal = ({
     }
   }, [isOpen]);
   
-  // ✅ MÉTODOS PARA MANEJO DE IMAGEN
+  // ✅ MÉTODOS PARA MANEJO DE IMAGEN (SIN CAMBIOS)
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -149,19 +265,16 @@ const ProductFormModal = ({
   };
   
   const handleImageFile = (file) => {
-    // Validar tipo de archivo
     if (!file.type.startsWith('image/')) {
       showError('Por favor selecciona un archivo de imagen válido');
       return;
     }
     
-    // Validar tamaño (10MB max como en el test)
     if (file.size > 10 * 1024 * 1024) {
       showError('El archivo es muy grande. Máximo 10MB');
       return;
     }
     
-    // Crear preview
     const reader = new FileReader();
     reader.onload = (e) => {
       setImagePreview(e.target.result);
@@ -252,23 +365,27 @@ const ProductFormModal = ({
     setShowBrandDropdown(false);
   };
   
-  // ✅ HANDLERS PARA CATEGORÍAS Y MARCAS
+  // ✅ HANDLERS PARA CATEGORÍAS Y MARCAS CON RECARGA
   const handleCreateCategory = () => setShowCategoryModal(true);
   const handleCreateBrand = () => setShowBrandModal(true);
   
-  const handleCategorySaved = (savedCategory) => {
+  const handleCategorySaved = async (savedCategory) => {
     setEditingProduct(prev => ({ ...prev, categoryId: savedCategory.id }));
+    // ✅ RECARGAR CATEGORÍAS DESPUÉS DE CREAR UNA NUEVA
+    await loadCategories();
     if (onCategoriesUpdate) onCategoriesUpdate();
     showSuccess('Categoría creada y seleccionada');
   };
   
-  const handleBrandSaved = (savedBrand) => {
+  const handleBrandSaved = async (savedBrand) => {
     setEditingProduct(prev => ({ ...prev, brandId: savedBrand.id }));
+    // ✅ RECARGAR MARCAS DESPUÉS DE CREAR UNA NUEVA
+    await loadBrands();
     if (onBrandsUpdate) onBrandsUpdate();
     showSuccess('Marca creada y seleccionada');
   };
   
-  // ✅ MÉTODO PRINCIPAL DE GUARDADO - USANDO LÓGICA DEL TEST + INVENTORY SERVICE
+  // ✅ MÉTODO PRINCIPAL DE GUARDADO (SIN CAMBIOS)
   const handleSave = async () => {
     if (!editingProduct) {
       console.error('❌ No hay producto para guardar');
@@ -280,7 +397,7 @@ const ProductFormModal = ({
     console.log('🖼️ Imagen seleccionada:', productImage?.name);
     console.log('🏗️ Es creación:', isCreating);
     
-    // ✅ VALIDACIONES ANTES DE PROCESAR (IGUAL QUE EL TEST)
+    // ✅ VALIDACIONES ANTES DE PROCESAR
     if (!editingProduct.name?.trim()) {
       showError('El nombre del producto es obligatorio');
       return;
@@ -299,7 +416,7 @@ const ProductFormModal = ({
     try {
       setIsSaving(true);
       
-      // ✅ BUSCAR CATEGORÍA Y MARCA EXACTAMENTE COMO EN EL TEST
+      // ✅ BUSCAR CATEGORÍA Y MARCA
       const category = categories.find(c => c.id == editingProduct.categoryId);
       const brand = brands.find(b => b.id == editingProduct.brandId);
       
@@ -308,7 +425,7 @@ const ProductFormModal = ({
         return;
       }
       
-      // ✅ FORMATEAR DATOS EXACTAMENTE COMO EN EL TEST
+      // ✅ FORMATEAR DATOS
       const productPayload = {
         name: editingProduct.name,
         description: editingProduct.description,
@@ -328,20 +445,17 @@ const ProductFormModal = ({
         deliveryTime: editingProduct.deliveryTime
       };
       
-      console.log('📋 ProductFormModal: Datos formateados (igual que el test):', productPayload);
+      console.log('📋 ProductFormModal: Datos formateados:', productPayload);
       
       let response;
       
       if (isCreating) {
-        // ✅ CREAR PRODUCTO CON O SIN IMAGEN USANDO INVENTORY SERVICE
         if (productImage) {
-          console.log('📤 Creando producto con imagen usando inventoryService...');
+          console.log('📤 Creando producto con imagen...');
           setUploadingImage(true);
           
-          // ✅ USAR FORMDATA EXACTAMENTE COMO EN EL TEST
           const formData = new FormData();
           
-          // ✅ AGREGAR TODOS LOS CAMPOS DEL PRODUCTO AL FORMDATA
           Object.keys(productPayload).forEach(key => {
             const value = productPayload[key];
             if (value !== null && value !== undefined) {
@@ -353,44 +467,29 @@ const ProductFormModal = ({
             }
           });
           
-          // ✅ AGREGAR LA IMAGEN CON LOS PARÁMETROS DEL TEST
           formData.append('image', productImage);
           formData.append('isPrimary', 'true');
           formData.append('altText', `${productPayload.name} - Imagen principal`);
           formData.append('displayOrder', '1');
           
-          // Debug: Mostrar contenido del FormData
-          console.log('📋 ProductFormModal: Contenido del FormData:');
-          for (let [key, value] of formData.entries()) {
-            if (value instanceof File) {
-              console.log(`  ${key}: [File] ${value.name} (${value.size} bytes)`);
-            } else {
-              console.log(`  ${key}:`, value);
-            }
-          }
-          
-          // ✅ CREAR MÉTODO EN INVENTORY SERVICE PARA PRODUCTO CON IMAGEN
           response = await inventoryService.createProductWithImage(formData);
           
         } else {
-          console.log('📤 Creando producto sin imagen usando inventoryService...');
+          console.log('📤 Creando producto sin imagen...');
           response = await inventoryService.createProduct(productPayload);
         }
         
       } else {
-        // ✅ ACTUALIZAR PRODUCTO EXISTENTE
-        console.log('📤 Actualizando producto usando inventoryService...');
+        console.log('📤 Actualizando producto...');
         response = await inventoryService.updateProduct(editingProduct.id, productPayload);
       }
       
-      // ✅ PROCESAR RESPUESTA
       if (response.success) {
         const message = isCreating 
           ? (productImage ? 'Producto creado con imagen subida a Cloudinary' : 'Producto creado exitosamente')
           : 'Producto actualizado exitosamente';
         
         console.log('✅ ProductFormModal: Producto guardado exitosamente');
-        console.log('📋 ProductFormModal: Respuesta del servidor:', response.data);
         showSuccess(message);
         
         if (onSave) {
@@ -401,9 +500,6 @@ const ProductFormModal = ({
       
     } catch (error) {
       console.error('❌ ProductFormModal: Error saving product:', error);
-      console.error('📋 ProductFormModal: Estado del producto al fallar:', editingProduct);
-      console.error('📋 ProductFormModal: Respuesta del error:', error.response?.data);
-      
       const errorMessage = error.response?.data?.message || error.message || 'Error al guardar producto';
       showError(`Error al guardar producto: ${errorMessage}`);
     } finally {
@@ -429,8 +525,15 @@ const ProductFormModal = ({
                 {isCreating ? 'Nuevo Producto' : 'Editar Producto'}
               </h3>
               <p className="text-gray-600">
-                {isCreating ? 'Agrega un nuevo producto usando la lógica del test + inventoryService' : 'Modifica los datos del producto'}
+                {isCreating ? 'Agrega un nuevo producto - Carga independiente de categorías' : 'Modifica los datos del producto'}
               </p>
+              {/* ✅ MOSTRAR DEBUG INFO */}
+              <div className="text-xs text-gray-500 mt-2 flex gap-4">
+                <span>📂 Categorías: {categories.length}</span>
+                <span>🏷️ Marcas: {brands.length}</span>
+                {loadingCategories && <span className="text-blue-600">Cargando categorías...</span>}
+                {loadingBrands && <span className="text-blue-600">Cargando marcas...</span>}
+              </div>
             </div>
             <button
               onClick={onClose}
@@ -480,93 +583,141 @@ const ProductFormModal = ({
                     />
                   </div>
                   
-                  {/* ✅ CATEGORÍA CON FILTRO Y BÚSQUEDA */}
+                  {/* ✅ CATEGORÍA CON MEJOR MANEJO DE ERRORES */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">
-                        Categoría *
+                        Categoría * 
+                        {loadingCategories && (
+                          <span className="text-xs text-blue-600 ml-2">(Cargando...)</span>
+                        )}
+                        {categoriesError && (
+                          <span className="text-xs text-red-600 ml-2">(Error: {categoriesError})</span>
+                        )}
                       </label>
-                      <button
-                        type="button"
-                        onClick={handleCreateCategory}
-                        className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-lg transition-colors"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Nueva Categoría
-                      </button>
-                    </div>
-                    <div className="relative category-dropdown-container">
-                      <div className="flex">
-                        <input
-                          type="text"
-                          value={showCategoryDropdown ? categorySearch : getSelectedCategoryName()}
-                          onChange={(e) => {
-                            setCategorySearch(e.target.value);
-                            setShowCategoryDropdown(true);
-                            if (!e.target.value) {
-                              setEditingProduct(prev => ({ ...prev, categoryId: '' }));
-                            }
-                          }}
-                          onFocus={() => {
-                            if (!editingProduct?.categoryId) {
-                              setCategorySearch('');
-                            }
-                            setShowCategoryDropdown(true);
-                          }}
-                          className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                          placeholder="Buscar categoría..."
-                          required
-                        />
+                      <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                          className="px-3 border border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-50 transition-colors"
+                          onClick={loadCategories}
+                          className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors"
+                          disabled={loadingCategories}
                         >
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                          <RefreshCw className={`w-3 h-3 ${loadingCategories ? 'animate-spin' : ''}`} />
+                          Recargar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCreateCategory}
+                          className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-lg transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Nueva Categoría
                         </button>
                       </div>
-                      
-                      {showCategoryDropdown && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                          {filteredCategories.length === 0 ? (
-                            <div className="p-3 text-gray-500 text-sm">
-                              No se encontraron categorías
-                            </div>
-                          ) : (
-                            filteredCategories.map(category => (
-                              <button
-                                key={category.id}
-                                type="button"
-                                onClick={() => handleCategorySelect(category)}
-                                className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-b-0"
-                              >
-                                <div className="font-medium text-gray-900">{category.name}</div>
-                                {category.description && (
-                                  <div className="text-xs text-gray-500 mt-1">{category.description}</div>
-                                )}
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      )}
                     </div>
+                    
+                    {categoriesError ? (
+                      <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <AlertTriangle className="w-4 h-4 text-red-600" />
+                        <span className="text-sm text-red-700">Error al cargar categorías</span>
+                        <button
+                          onClick={loadCategories}
+                          className="ml-auto text-red-600 hover:text-red-800"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative category-dropdown-container">
+                        <div className="flex">
+                          <input
+                            type="text"
+                            value={showCategoryDropdown ? categorySearch : getSelectedCategoryName()}
+                            onChange={(e) => {
+                              setCategorySearch(e.target.value);
+                              setShowCategoryDropdown(true);
+                              if (!e.target.value) {
+                                setEditingProduct(prev => ({ ...prev, categoryId: '' }));
+                              }
+                            }}
+                            onFocus={() => {
+                              if (!editingProduct?.categoryId) {
+                                setCategorySearch('');
+                              }
+                              setShowCategoryDropdown(true);
+                            }}
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                            placeholder={loadingCategories ? "Cargando categorías..." : "Buscar categoría..."}
+                            required
+                            disabled={loadingCategories}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                            className="px-3 border border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-50 transition-colors"
+                            disabled={loadingCategories}
+                          >
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          </button>
+                        </div>
+                        
+                        {showCategoryDropdown && !loadingCategories && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {filteredCategories.length === 0 ? (
+                              <div className="p-3 text-gray-500 text-sm">
+                                {categories.length === 0 ? 'No hay categorías disponibles' : 'No se encontraron categorías'}
+                              </div>
+                            ) : (
+                              filteredCategories.map(category => (
+                                <button
+                                  key={category.id}
+                                  type="button"
+                                  onClick={() => handleCategorySelect(category)}
+                                  className="w-full text-left px-4 py-3 hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-b-0"
+                                >
+                                  <div className="font-medium text-gray-900">{category.name}</div>
+                                  {category.description && (
+                                    <div className="text-xs text-gray-500 mt-1">{category.description}</div>
+                                  )}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
-                  {/* ✅ MARCA CON FILTRO Y BÚSQUEDA */}
+                  {/* ✅ MARCA CON MEJOR MANEJO DE ERRORES */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-sm font-semibold text-gray-700">
                         Marca
+                        {loadingBrands && (
+                          <span className="text-xs text-blue-600 ml-2">(Cargando...)</span>
+                        )}
                       </label>
-                      <button
-                        type="button"
-                        onClick={handleCreateBrand}
-                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Nueva Marca
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={loadBrands}
+                          className="text-xs text-gray-600 hover:text-gray-800 flex items-center gap-1 bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded-lg transition-colors"
+                          disabled={loadingBrands}
+                        >
+                          <RefreshCw className={`w-3 h-3 ${loadingBrands ? 'animate-spin' : ''}`} />
+                          Recargar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCreateBrand}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Nueva Marca
+                        </button>
+                      </div>
                     </div>
+                    
                     <div className="relative brand-dropdown-container">
                       <div className="flex">
                         <input
@@ -586,22 +737,24 @@ const ProductFormModal = ({
                             setShowBrandDropdown(true);
                           }}
                           className="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                          placeholder="Buscar marca..."
+                          placeholder={loadingBrands ? "Cargando marcas..." : "Buscar marca..."}
+                          disabled={loadingBrands}
                         />
                         <button
                           type="button"
                           onClick={() => setShowBrandDropdown(!showBrandDropdown)}
                           className="px-3 border border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-50 transition-colors"
+                          disabled={loadingBrands}
                         >
                           <ChevronDown className="w-4 h-4 text-gray-400" />
                         </button>
                       </div>
                       
-                      {showBrandDropdown && (
+                      {showBrandDropdown && !loadingBrands && (
                         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                           {filteredBrands.length === 0 ? (
                             <div className="p-3 text-gray-500 text-sm">
-                              No se encontraron marcas
+                              {brands.length === 0 ? 'No hay marcas disponibles' : 'No se encontraron marcas'}
                             </div>
                           ) : (
                             filteredBrands.map(brand => (
@@ -658,7 +811,6 @@ const ProductFormModal = ({
                     Imagen del Producto
                   </h4>
                   
-                  {/* Zona de drag & drop */}
                   <div
                     className={`border-2 border-dashed rounded-lg p-6 text-center transition-all cursor-pointer ${
                       isDragging 
@@ -740,7 +892,7 @@ const ProductFormModal = ({
               )}
             </div>
             
-            {/* COLUMNA 2: PRECIOS E INVENTARIO */}
+            {/* COLUMNA 2: EL RESTO DEL FORMULARIO SE MANTIENE IGUAL */}
             <div className="space-y-6">
               
               {/* Precios */}
