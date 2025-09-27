@@ -74,40 +74,94 @@ const ProductFormModal = ({
   
   // ✅ INICIALIZAR DATOS AL ABRIR EL MODAL CON DEBUG
   useEffect(() => {
-    if (isOpen) {
-      console.log('🔄 ProductFormModal: Inicializando modal');
-      console.log('📦 Producto recibido:', product);
-      console.log('🏗️ Es creación:', isCreating);
+  if (isOpen) {
+    console.log('🔄 ProductFormModal: Inicializando modal');
+    console.log('📦 Producto recibido:', product);
+    console.log('🏗️ Es creación:', isCreating);
+    console.log('📂 Categorías disponibles:', categories.length);
+    console.log('🏷️ Marcas disponibles:', brands.length);
+    
+    if (product && !isCreating) {
+      // ✅ EDITANDO PRODUCTO EXISTENTE
+      const initialProduct = {
+        ...product,
+        // ✅ ASEGURAR QUE LOS VALORES SEAN STRINGS PARA LOS INPUTS
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price?.toString() || '',
+        originalPrice: product.originalPrice?.toString() || '',
+        sku: product.sku || '',
+        stockQuantity: product.stockQuantity?.toString() || '0',
+        minStock: product.minStock?.toString() || '5',
+        weight: product.weight?.toString() || '',
+        deliveryTime: product.deliveryTime || '1-3 días hábiles',
+        
+        // ✅ ASEGURAR QUE LOS IDs SEAN STRINGS PARA LOS SELECTS
+        categoryId: product.categoryId?.toString() || '',
+        brandId: product.brandId?.toString() || '',
+        
+        // ✅ ASEGURAR QUE LAS DIMENSIONES EXISTAN
+        dimensions: product.dimensions || {
+          length: '',
+          width: '',
+          height: '',
+          unit: 'cm'
+        },
+        
+        // ✅ ASEGURAR QUE LOS BOOLEANS TENGAN VALORES POR DEFECTO
+        isFeatured: Boolean(product.isFeatured),
+        allowOnlinePayment: product.allowOnlinePayment !== false,
+        allowCardPayment: product.allowCardPayment !== false,
+        allowCashOnDelivery: product.allowCashOnDelivery !== false
+      };
       
-      if (product) {
-        const initialProduct = {
-          ...product,
-          price: product.price?.toString() || '',
-          originalPrice: product.originalPrice?.toString() || '',
-          stockQuantity: product.stockQuantity?.toString() || '',
-          minStock: product.minStock?.toString() || '5',
-          weight: product.weight?.toString() || '',
-          dimensions: product.dimensions || emptyProduct.dimensions
-        };
-        console.log('✅ Producto para edición:', initialProduct);
-        setEditingProduct(initialProduct);
-      } else {
-        console.log('✅ Nuevo producto con plantilla:', emptyProduct);
-        setEditingProduct({ ...emptyProduct });
-      }
+      console.log('✅ Producto para edición inicializado:', initialProduct);
+      setEditingProduct(initialProduct);
       
-      // Limpiar estados de imagen
-      setProductImage(null);
-      setImagePreview(null);
-      setUploadingImage(false);
+    } else {
+      // ✅ CREANDO NUEVO PRODUCTO
+      const newProduct = {
+        name: '',
+        description: '',
+        price: '',
+        originalPrice: '',
+        sku: '',
+        stockQuantity: '0',
+        minStock: '5',
+        weight: '',
+        dimensions: {
+          length: '',
+          width: '',
+          height: '',
+          unit: 'cm'
+        },
+        categoryId: '', // ✅ IMPORTANTE: String vacío para select
+        brandId: '',    // ✅ IMPORTANTE: String vacío para select
+        isFeatured: false,
+        allowOnlinePayment: true,
+        allowCardPayment: true,
+        allowCashOnDelivery: true,
+        deliveryTime: '1-3 días hábiles'
+      };
       
-      // Limpiar filtros
-      setCategorySearch('');
-      setBrandSearch('');
-      setShowCategoryDropdown(false);
-      setShowBrandDropdown(false);
+      console.log('✅ Nuevo producto inicializado:', newProduct);
+      setEditingProduct(newProduct);
     }
-  }, [isOpen, product, isCreating]);
+    
+    // ✅ LIMPIAR ESTADOS DE IMAGEN
+    setProductImage(null);
+    setImagePreview(null);
+    setUploadingImage(false);
+    
+    // ✅ LIMPIAR FILTROS
+    setCategorySearch('');
+    setBrandSearch('');
+    setShowCategoryDropdown(false);
+    setShowBrandDropdown(false);
+    
+    console.log('🔄 ProductFormModal: Inicialización completada');
+  }
+}, [isOpen, product, isCreating, categories.length, brands.length]);
   
   // ✅ CERRAR DROPDOWNS AL HACER CLIC FUERA
   useEffect(() => {
@@ -273,135 +327,152 @@ const ProductFormModal = ({
   
   // ✅ MÉTODO CORREGIDO PARA MANEJAR GUARDADO
   const handleSave = async () => {
-    if (!editingProduct) {
-      console.error('❌ No hay producto para guardar');
+  if (!editingProduct) {
+    console.error('❌ No hay producto para guardar');
+    return;
+  }
+  
+  console.log('🔍 ProductFormModal: Iniciando guardado');
+  console.log('📦 Estado del producto ANTES del formateo:', editingProduct);
+  console.log('🖼️ Imagen seleccionada:', productImage?.name);
+  console.log('🏗️ Es creación:', isCreating);
+  
+  // ✅ VALIDACIONES MEJORADAS ANTES DE PROCESAR
+  if (!editingProduct.name?.trim()) {
+    showError('El nombre del producto es obligatorio');
+    console.error('❌ Validación: nombre vacío o undefined');
+    return;
+  }
+  
+  if (!editingProduct.price || parseFloat(editingProduct.price) <= 0) {
+    showError('El precio de venta es obligatorio y debe ser mayor a 0');
+    console.error('❌ Validación: precio inválido', editingProduct.price);
+    return;
+  }
+  
+  if (!editingProduct.categoryId) {
+    showError('Debe seleccionar una categoría');
+    console.error('❌ Validación: categoría no seleccionada');
+    return;
+  }
+  
+  try {
+    setIsSaving(true);
+    
+    // ✅ FORMATEAR DATOS USANDO EL PATRÓN EXITOSO DEL TEST
+    const formattedProductData = {
+      name: String(editingProduct.name).trim(),
+      description: editingProduct.description ? String(editingProduct.description).trim() : '',
+      price: parseFloat(editingProduct.price),
+      originalPrice: editingProduct.originalPrice ? parseFloat(editingProduct.originalPrice) : null,
+      sku: editingProduct.sku ? String(editingProduct.sku).trim() : '',
+      stockQuantity: parseInt(editingProduct.stockQuantity) || 0,
+      minStock: parseInt(editingProduct.minStock) || 5,
+      weight: editingProduct.weight ? parseFloat(editingProduct.weight) : null,
+      dimensions: editingProduct.dimensions || null,
+      categoryId: parseInt(editingProduct.categoryId),
+      brandId: editingProduct.brandId ? parseInt(editingProduct.brandId) : null,
+      isFeatured: Boolean(editingProduct.isFeatured),
+      allowOnlinePayment: editingProduct.allowOnlinePayment !== false,
+      allowCardPayment: editingProduct.allowCardPayment !== false,
+      allowCashOnDelivery: editingProduct.allowCashOnDelivery !== false,
+      deliveryTime: editingProduct.deliveryTime ? String(editingProduct.deliveryTime).trim() : '1-3 días hábiles'
+    };
+    
+    console.log('📋 ProductFormModal: Datos formateados:', formattedProductData);
+    
+    // ✅ VALIDACIÓN FINAL ANTES DE ENVIAR
+    if (!formattedProductData.categoryId || isNaN(formattedProductData.categoryId)) {
+      showError('Error: ID de categoría inválido');
+      console.error('❌ CategoryId inválido después del formateo:', formattedProductData.categoryId);
       return;
     }
     
-    console.log('🔍 ProductFormModal: Iniciando guardado');
-    console.log('📦 Estado del producto:', editingProduct);
-    console.log('🖼️ Imagen seleccionada:', productImage?.name);
-    console.log('🏗️ Es creación:', isCreating);
-    
-    // ✅ VALIDACIONES MEJORADAS
-    if (!editingProduct.name?.trim()) {
-      showError('El nombre del producto es obligatorio');
-      console.error('❌ Validación: nombre vacío');
+    if (isNaN(formattedProductData.price) || formattedProductData.price <= 0) {
+      showError('Error: Precio inválido');
+      console.error('❌ Precio inválido después del formateo:', formattedProductData.price);
       return;
     }
     
-    if (!editingProduct.price || parseFloat(editingProduct.price) <= 0) {
-      showError('El precio de venta es obligatorio y debe ser mayor a 0');
-      console.error('❌ Validación: precio inválido', editingProduct.price);
-      return;
-    }
+    let response;
     
-    if (!editingProduct.categoryId) {
-      showError('Debe seleccionar una categoría');
-      console.error('❌ Validación: categoría no seleccionada');
-      return;
-    }
-    
-    try {
-      setIsSaving(true);
+    // ✅ DECISIÓN: CREAR CON IMAGEN VS SIN IMAGEN
+    if (productImage && isCreating) {
+      console.log('📤 ProductFormModal: Enviando con FormData (producto + imagen)');
       setUploadingImage(true);
       
-      let response;
+      // ✅ USAR FORMDATA SOLO PARA IMAGEN, SIGUIENDO EL PATRÓN EXITOSO
+      const formData = new FormData();
       
-      // ✅ SI HAY IMAGEN Y ES CREACIÓN, USAR FORMDATA
-      if (productImage && isCreating) {
-        console.log('📤 ProductFormModal: Enviando con FormData (producto + imagen)');
-        
-        const formData = new FormData();
-        
-        // ✅ AÑADIR TODOS LOS CAMPOS CORRECTAMENTE
-        formData.append('name', editingProduct.name.trim());
-        formData.append('description', editingProduct.description?.trim() || '');
-        formData.append('price', parseFloat(editingProduct.price));
-        
-        if (editingProduct.originalPrice) {
-          formData.append('originalPrice', parseFloat(editingProduct.originalPrice));
-        }
-        
-        formData.append('sku', editingProduct.sku?.trim() || '');
-        formData.append('stockQuantity', parseInt(editingProduct.stockQuantity) || 0);
-        formData.append('minStock', parseInt(editingProduct.minStock) || 5);
-        
-        if (editingProduct.weight) {
-          formData.append('weight', parseFloat(editingProduct.weight));
-        }
-        
-        if (editingProduct.dimensions) {
-          formData.append('dimensions', JSON.stringify(editingProduct.dimensions));
-        }
-        
-        formData.append('categoryId', parseInt(editingProduct.categoryId));
-        
-        if (editingProduct.brandId) {
-          formData.append('brandId', parseInt(editingProduct.brandId));
-        }
-        
-        formData.append('isFeatured', editingProduct.isFeatured || false);
-        formData.append('allowOnlinePayment', editingProduct.allowOnlinePayment !== false);
-        formData.append('allowCardPayment', editingProduct.allowCardPayment !== false);
-        formData.append('allowCashOnDelivery', editingProduct.allowCashOnDelivery !== false);
-        formData.append('deliveryTime', editingProduct.deliveryTime?.trim() || '1-3 días hábiles');
-        
-        // ✅ AÑADIR LA IMAGEN
-        formData.append('image', productImage);
-        formData.append('isPrimary', 'true');
-        formData.append('altText', `${editingProduct.name} - Imagen principal`);
-        formData.append('displayOrder', '1');
-        
-        // Debug: Mostrar contenido del FormData
-        console.log('📋 ProductFormModal: Contenido del FormData:');
-        for (let [key, value] of formData.entries()) {
-          if (value instanceof File) {
-            console.log(`  ${key}: [File] ${value.name} (${value.size} bytes)`);
+      // ✅ USAR LOS DATOS YA FORMATEADOS (no el objeto original)
+      Object.keys(formattedProductData).forEach(key => {
+        const value = formattedProductData[key];
+        if (value !== null && value !== undefined) {
+          if (key === 'dimensions' && typeof value === 'object') {
+            formData.append(key, JSON.stringify(value));
           } else {
-            console.log(`  ${key}:`, value);
+            formData.append(key, value.toString());
           }
         }
-        
-        response = await inventoryService.createProductWithImage(formData);
-        
-      } else {
-        // ✅ SIN IMAGEN, USAR JSON TRADICIONAL
-        console.log('📤 ProductFormModal: Enviando con JSON (solo producto)');
-        
-        const productData = inventoryService.formatProductDataForAPI(editingProduct);
-        console.log('📋 ProductFormModal: Datos JSON formateados:', productData);
-        
-        if (isCreating) {
-          response = await inventoryService.createProduct(productData);
+      });
+      
+      // ✅ AÑADIR LA IMAGEN
+      formData.append('image', productImage);
+      formData.append('isPrimary', 'true');
+      formData.append('altText', `${formattedProductData.name} - Imagen principal`);
+      formData.append('displayOrder', '1');
+      
+      // Debug: Mostrar contenido del FormData
+      console.log('📋 ProductFormModal: Contenido del FormData:');
+      for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`  ${key}: [File] ${value.name} (${value.size} bytes)`);
         } else {
-          response = await inventoryService.updateProduct(editingProduct.id, productData);
+          console.log(`  ${key}:`, value);
         }
       }
       
-      if (response.success) {
-        const message = isCreating 
-          ? (productImage ? 'Producto creado con imagen subida a Cloudinary' : 'Producto creado exitosamente')
-          : 'Producto actualizado exitosamente';
-        
-        console.log('✅ ProductFormModal: Producto guardado exitosamente');
-        showSuccess(message);
-        
-        if (onSave) {
-          onSave(response.data);
-        }
-        onClose();
-      }
+      response = await inventoryService.createProductWithImage(formData);
       
-    } catch (error) {
-      console.error('❌ ProductFormModal: Error saving product:', error);
-      console.error('📋 ProductFormModal: Estado del producto al fallar:', editingProduct);
-      showError(`Error al guardar producto: ${error.message}`);
-    } finally {
-      setIsSaving(false);
-      setUploadingImage(false);
+    } else {
+      // ✅ SIN IMAGEN, USAR JSON TRADICIONAL CON DATOS YA FORMATEADOS
+      console.log('📤 ProductFormModal: Enviando con JSON (solo producto)');
+      console.log('📋 ProductFormModal: Datos JSON a enviar:', formattedProductData);
+      
+      if (isCreating) {
+        response = await inventoryService.createProduct(formattedProductData);
+      } else {
+        response = await inventoryService.updateProduct(editingProduct.id, formattedProductData);
+      }
     }
-  };
+    
+    if (response.success) {
+      const message = isCreating 
+        ? (productImage ? 'Producto creado con imagen subida a Cloudinary' : 'Producto creado exitosamente')
+        : 'Producto actualizado exitosamente';
+      
+      console.log('✅ ProductFormModal: Producto guardado exitosamente');
+      console.log('📋 ProductFormModal: Respuesta del servidor:', response.data);
+      showSuccess(message);
+      
+      if (onSave) {
+        onSave(response.data);
+      }
+      onClose();
+    }
+    
+  } catch (error) {
+    console.error('❌ ProductFormModal: Error saving product:', error);
+    console.error('📋 ProductFormModal: Estado del producto al fallar:', editingProduct);
+    console.error('📋 ProductFormModal: Respuesta del error:', error.response?.data);
+    
+    const errorMessage = error.response?.data?.message || error.message || 'Error al guardar producto';
+    showError(`Error al guardar producto: ${errorMessage}`);
+  } finally {
+    setIsSaving(false);
+    setUploadingImage(false);
+  }
+};
   
   if (!isOpen || !editingProduct) return null;
 

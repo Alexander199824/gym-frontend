@@ -1,10 +1,19 @@
 // src/services/inventoryService.js
-// SERVICIO ESPECIALIZADO PARA TIENDA E INVENTARIO - VERSIÓN 2.1
-// ✅ ACTUALIZADO: Archivo completo de Git + createProductWithImage mejorado
+// SERVICIO PRINCIPAL QUE GESTIONA TODOS LOS SUB-SERVICIOS
+// ✅ MANTIENE LA MISMA INTERFAZ PÚBLICA - NO REQUIERE CAMBIOS EN OTROS ARCHIVOS
 
 import toast from 'react-hot-toast';
 import { BaseService } from './baseService.js';
 import { api } from './apiConfig.js';
+
+// Importar todos los sub-servicios
+import { SubProductService } from './subProductService.js';
+import { SubBrandService } from './subBrandService.js';
+import { SubCategoryService } from './subCategoryService.js';
+import { SubImageService } from './subImageService.js';
+import { SubSalesService } from './subSalesService.js';
+import { SubStatsService } from './subStatsService.js';
+import { SubPublicStoreService } from './subPublicStoreService.js';
 
 class InventoryService extends BaseService {
   constructor() {
@@ -13,1320 +22,284 @@ class InventoryService extends BaseService {
     // Cache para optimizar requests
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutos
+    
+    // ✅ INICIALIZAR SUB-SERVICIOS
+    this._initializeSubServices();
   }
 
   // ================================
-  // 📊 MÉTODOS DE ESTADÍSTICAS E INVENTARIO
+  // 🎯 INICIALIZACIÓN DE SUB-SERVICIOS
   // ================================
 
-  // Obtener estadísticas principales del dashboard
+  _initializeSubServices() {
+    console.log('🎯 InventoryService: Initializing sub-services...');
+    
+    // Crear instancias de sub-servicios pasando `this` como base
+    this.subProducts = new SubProductService(this);
+    this.subBrands = new SubBrandService(this);
+    this.subCategories = new SubCategoryService(this);
+    this.subImages = new SubImageService(this);
+    this.subSales = new SubSalesService(this);
+    this.subStats = new SubStatsService(this);
+    this.subPublicStore = new SubPublicStoreService(this);
+    
+    console.log('✅ InventoryService: All sub-services initialized');
+  }
+
+  // ================================
+  // 📊 MÉTODOS DE ESTADÍSTICAS E INVENTARIO (DELEGADOS)
+  // ================================
+
   async getInventoryStats(period = 'month') {
-    console.log('📊 InventoryService: Getting inventory stats...', { period });
-    
-    try {
-      const response = await this.get('/api/inventory/stats', { 
-        params: { period } 
-      });
-      
-      console.log('✅ Inventory stats response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting inventory stats:', error);
-      
-      // Fallback con datos ejemplo si el endpoint no está disponible
-      console.warn('⚠️ Using fallback inventory stats');
-      return {
-        success: true,
-        data: {
-          inventory: {
-            totalProducts: 0,
-            lowStockProducts: 0,
-            outOfStockProducts: 0,
-            totalValue: 0
-          },
-          sales: {
-            period: period,
-            data: []
-          },
-          products: {
-            topSelling: []
-          },
-          alerts: {
-            pendingTransfers: { total: 0, online: 0, local: 0 },
-            lowStockProducts: 0
-          },
-          categories: []
-        }
-      };
-    }
+    return this.subStats.getInventoryStats(period);
   }
 
-  // Dashboard completo de inventario
   async getInventoryDashboard() {
-    console.log('📊 InventoryService: Getting inventory dashboard...');
-    
-    try {
-      const response = await this.get('/api/inventory/dashboard');
-      console.log('✅ Inventory dashboard response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting inventory dashboard:', error);
-      throw error;
-    }
+    return this.subStats.getInventoryDashboard();
   }
 
-  // Reporte financiero
   async getFinancialReport(startDate, endDate) {
-    console.log('💰 InventoryService: Getting financial report...', { startDate, endDate });
-    
-    try {
-      const params = {};
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
-      
-      const response = await this.get('/api/inventory/financial-report', { params });
-      console.log('✅ Financial report response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting financial report:', error);
-      throw error;
-    }
+    return this.subStats.getFinancialReport(startDate, endDate);
   }
 
-  // Productos con stock bajo
   async getLowStockProducts() {
-    console.log('⚠️ InventoryService: Getting low stock products...');
-    
-    try {
-      const response = await this.get('/api/inventory/low-stock');
-      console.log('✅ Low stock products response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting low stock products:', error);
-      throw error;
-    }
+    return this.subStats.getLowStockProducts();
   }
 
-  // Performance de empleados (solo admin)
   async getEmployeePerformance(startDate, endDate) {
-    console.log('👥 InventoryService: Getting employee performance...', { startDate, endDate });
-    
-    try {
-      const params = {};
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
-      
-      const response = await this.get('/api/inventory/employee-performance', { params });
-      console.log('✅ Employee performance response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting employee performance:', error);
-      throw error;
-    }
+    return this.subStats.getEmployeePerformance(startDate, endDate);
   }
 
   // ================================
-  // 📦 MÉTODOS DE GESTIÓN DE PRODUCTOS (MEJORADOS)
+  // 📦 MÉTODOS DE GESTIÓN DE PRODUCTOS (DELEGADOS)
   // ================================
 
-  // ✅ NUEVO: Crear producto con imagen (usando FormData como en el test exitoso)
   async createProductWithImage(formData) {
-    console.log('📦 InventoryService: Creating product with image...');
-    
-    try {
-      const response = await this.post('/api/store/management/products', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
-        timeout: 60000 // 60 segundos como en el test exitoso
-      });
-      
-      if (response.success) {
-        console.log('✅ Product with image created successfully:', response.data?.product);
-        
-        // Mostrar información específica del upload
-        if (response.data?.uploadInfo) {
-          const uploadInfo = response.data.uploadInfo;
-          if (uploadInfo.uploadedToCloudinary) {
-            toast.success(`Producto creado con imagen subida a Cloudinary`);
-            console.log('☁️ Image uploaded to Cloudinary:', {
-              url: uploadInfo.imageUrl,
-              publicId: uploadInfo.publicId,
-              size: uploadInfo.size
-            });
-          } else {
-            toast.success('Producto creado exitosamente');
-          }
-        } else {
-          toast.success('Producto creado exitosamente');
-        }
-        
-        this.invalidateProductsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error creating product with image:', error);
-      const errorMessage = error.response?.data?.message || 'Error al crear producto con imagen';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subProducts.createProductWithImage(formData);
   }
 
-  // Listar productos con filtros
   async getProducts(params = {}) {
-    console.log('📦 InventoryService: Getting products...', params);
-    
-    try {
-      const response = await this.get('/api/store/management/products', { params });
-      console.log('✅ Products response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting products:', error);
-      throw error;
-    }
+    return this.subProducts.getProducts(params);
   }
 
-  // Obtener producto específico
   async getProductById(productId) {
-    console.log('📦 InventoryService: Getting product by ID...', { productId });
-    
-    try {
-      const response = await this.get(`/api/store/management/products/${productId}`);
-      console.log('✅ Product by ID response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting product by ID:', error);
-      throw error;
-    }
+    return this.subProducts.getProductById(productId);
   }
 
-  // Crear nuevo producto (método original sin imagen)
   async createProduct(productData) {
-    console.log('📦 InventoryService: Creating product...', productData);
-    
-    try {
-      // Validar datos requeridos
-      this.validateProductData(productData);
-      
-      const response = await this.post('/api/store/management/products', productData);
-      
-      if (response.success) {
-        console.log('✅ Product created successfully:', response.data?.product);
-        toast.success('Producto creado exitosamente');
-        this.invalidateProductsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error creating product:', error);
-      const errorMessage = error.response?.data?.message || 'Error al crear producto';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subProducts.createProduct(productData);
   }
 
-  // Actualizar producto
   async updateProduct(productId, productData) {
-    console.log('📦 InventoryService: Updating product...', { productId, productData });
-    
-    try {
-      const response = await this.put(`/api/store/management/products/${productId}`, productData);
-      
-      if (response.success) {
-        console.log('✅ Product updated successfully:', response.data?.product);
-        toast.success('Producto actualizado exitosamente');
-        this.invalidateProductsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error updating product:', error);
-      const errorMessage = error.response?.data?.message || 'Error al actualizar producto';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subProducts.updateProduct(productId, productData);
   }
 
-  // Actualizar stock de producto
   async updateProductStock(productId, stockData) {
-    console.log('📦 InventoryService: Updating product stock...', { productId, stockData });
-    
-    try {
-      const response = await this.put(`/api/store/management/products/${productId}/stock`, stockData);
-      
-      if (response.success) {
-        console.log('✅ Product stock updated successfully');
-        toast.success('Stock actualizado exitosamente');
-        this.invalidateProductsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error updating product stock:', error);
-      const errorMessage = error.response?.data?.message || 'Error al actualizar stock';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subProducts.updateProductStock(productId, stockData);
   }
 
-  // Actualización masiva de stock
   async updateBulkStock(updates) {
-    console.log('📦 InventoryService: Bulk updating stock...', { updates });
-    
-    try {
-      const response = await this.put('/api/store/management/products/bulk-stock', { updates });
-      
-      if (response.success) {
-        console.log('✅ Bulk stock updated successfully');
-        toast.success('Stock actualizado masivamente');
-        this.invalidateProductsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error bulk updating stock:', error);
-      const errorMessage = error.response?.data?.message || 'Error en actualización masiva';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subProducts.updateBulkStock(updates);
   }
 
-  // Eliminar producto
   async deleteProduct(productId) {
-    console.log('📦 InventoryService: Deleting product...', { productId });
-    
-    try {
-      const response = await this.delete(`/api/store/management/products/${productId}`);
-      
-      if (response.success) {
-        console.log('✅ Product deleted successfully');
-        toast.success('Producto eliminado exitosamente');
-        this.invalidateProductsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error deleting product:', error);
-      const errorMessage = error.response?.data?.message || 'Error al eliminar producto';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subProducts.deleteProduct(productId);
   }
 
-  // Duplicar producto
   async duplicateProduct(productId, newData = {}) {
-    console.log('📦 InventoryService: Duplicating product...', { productId, newData });
-    
-    try {
-      const response = await this.post(`/api/store/management/products/${productId}/duplicate`, newData);
-      
-      if (response.success) {
-        console.log('✅ Product duplicated successfully');
-        toast.success('Producto duplicado exitosamente');
-        this.invalidateProductsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error duplicating product:', error);
-      const errorMessage = error.response?.data?.message || 'Error al duplicar producto';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subProducts.duplicateProduct(productId, newData);
   }
 
-  // Estadísticas de productos
   async getProductStats() {
-    console.log('📊 InventoryService: Getting product stats...');
-    
-    try {
-      const response = await this.get('/api/store/management/products/stats');
-      console.log('✅ Product stats response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting product stats:', error);
-      throw error;
-    }
+    return this.subProducts.getProductStats();
   }
 
   // ================================
-  // 🖼️ MÉTODOS DE GESTIÓN DE IMÁGENES
+  // 🖼️ MÉTODOS DE GESTIÓN DE IMÁGENES (DELEGADOS)
   // ================================
 
-  // Obtener imágenes de un producto
   async getProductImages(productId) {
-    console.log('🖼️ InventoryService: Getting product images...', { productId });
-    
-    try {
-      const response = await this.get(`/api/store/management/products/${productId}/images`);
-      console.log('✅ Product images response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting product images:', error);
-      throw error;
-    }
+    return this.subImages.getProductImages(productId);
   }
 
-  // Subir imagen individual
   async uploadProductImage(productId, imageFile, options = {}) {
-    console.log('🖼️ InventoryService: Uploading product image...', { productId, options });
-    
-    try {
-      const formData = new FormData();
-      formData.append('image', imageFile);
-      
-      // Construir query params
-      const params = new URLSearchParams();
-      if (options.isPrimary) params.append('isPrimary', 'true');
-      if (options.altText) params.append('altText', options.altText);
-      if (options.displayOrder) params.append('displayOrder', options.displayOrder);
-      
-      const url = `/api/store/management/products/${productId}/images${params.toString() ? '?' + params.toString() : ''}`;
-      
-      const response = await this.post(url, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.success) {
-        console.log('✅ Product image uploaded successfully:', response.data?.image);
-        toast.success('Imagen subida exitosamente');
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error uploading product image:', error);
-      const errorMessage = error.response?.data?.message || 'Error al subir imagen';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subImages.uploadProductImage(productId, imageFile, options);
   }
 
-  // Subir múltiples imágenes
   async uploadMultipleProductImages(productId, imageFiles) {
-    console.log('🖼️ InventoryService: Uploading multiple product images...', { productId, count: imageFiles.length });
-    
-    try {
-      const formData = new FormData();
-      imageFiles.forEach((file, index) => {
-        formData.append('images', file);
-      });
-      
-      const response = await this.post(`/api/store/management/products/${productId}/images/multiple`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.success) {
-        console.log('✅ Multiple images uploaded successfully');
-        toast.success(`${imageFiles.length} imágenes subidas exitosamente`);
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error uploading multiple images:', error);
-      const errorMessage = error.response?.data?.message || 'Error al subir imágenes';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subImages.uploadMultipleProductImages(productId, imageFiles);
   }
 
-  // Actualizar imagen
   async updateProductImage(productId, imageId, imageData) {
-    console.log('🖼️ InventoryService: Updating product image...', { productId, imageId, imageData });
-    
-    try {
-      const response = await this.put(`/api/store/management/products/${productId}/images/${imageId}`, imageData);
-      
-      if (response.success) {
-        console.log('✅ Product image updated successfully');
-        toast.success('Imagen actualizada exitosamente');
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error updating product image:', error);
-      const errorMessage = error.response?.data?.message || 'Error al actualizar imagen';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subImages.updateProductImage(productId, imageId, imageData);
   }
 
-  // Eliminar imagen
   async deleteProductImage(productId, imageId) {
-    console.log('🖼️ InventoryService: Deleting product image...', { productId, imageId });
-    
-    try {
-      const response = await this.delete(`/api/store/management/products/${productId}/images/${imageId}`);
-      
-      if (response.success) {
-        console.log('✅ Product image deleted successfully');
-        toast.success('Imagen eliminada exitosamente');
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error deleting product image:', error);
-      const errorMessage = error.response?.data?.message || 'Error al eliminar imagen';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subImages.deleteProductImage(productId, imageId);
   }
 
-  // Reordenar imágenes
   async reorderProductImages(productId, imageOrders) {
-    console.log('🖼️ InventoryService: Reordering product images...', { productId, imageOrders });
-    
-    try {
-      const response = await this.put(`/api/store/management/products/${productId}/images/reorder`, { imageOrders });
-      
-      if (response.success) {
-        console.log('✅ Product images reordered successfully');
-        toast.success('Orden de imágenes actualizado');
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error reordering product images:', error);
-      const errorMessage = error.response?.data?.message || 'Error al reordenar imágenes';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subImages.reorderProductImages(productId, imageOrders);
   }
 
-  // Establecer imagen primaria
   async setPrimaryProductImage(productId, imageId) {
-    console.log('🖼️ InventoryService: Setting primary product image...', { productId, imageId });
-    
-    try {
-      const response = await this.put(`/api/store/management/products/${productId}/images/${imageId}/primary`);
-      
-      if (response.success) {
-        console.log('✅ Primary image set successfully');
-        toast.success('Imagen principal establecida');
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error setting primary image:', error);
-      const errorMessage = error.response?.data?.message || 'Error al establecer imagen principal';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subImages.setPrimaryProductImage(productId, imageId);
   }
 
   // ================================
-  // 🏷️ MÉTODOS DE GESTIÓN DE MARCAS (MEJORADOS CON UPLOAD)
+  // 🏷️ MÉTODOS DE GESTIÓN DE MARCAS (DELEGADOS)
   // ================================
 
-  // Listar marcas
   async getBrands(params = {}) {
-    console.log('🏷️ InventoryService: Getting brands...', params);
-    
-    try {
-      const response = await this.get('/api/store/management/brands', { params });
-      console.log('✅ Brands response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting brands:', error);
-      throw error;
-    }
+    return this.subBrands.getBrands(params);
   }
 
-  // ✅ CREAR MARCA SIN UPLOAD (JSON TRADICIONAL)
   async createBrand(brandData) {
-    console.log('🏷️ InventoryService: Creating brand...', brandData);
-    
-    try {
-      const response = await this.post('/api/store/management/brands', brandData);
-      
-      if (response.success) {
-        console.log('✅ Brand created successfully:', response.data?.brand);
-        toast.success('Marca creada exitosamente');
-        this.invalidateBrandsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error creating brand:', error);
-      const errorMessage = error.response?.data?.message || 'Error al crear marca';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subBrands.createBrand(brandData);
   }
 
-  // ✅ CREAR MARCA CON UPLOAD DE LOGO (FORMDATA)
   async createBrandWithUpload(formData) {
-    console.log('🏷️ InventoryService: Creating brand with upload...');
-    
-    try {
-      const response = await this.post('/api/store/management/brands', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.success) {
-        console.log('✅ Brand created with upload successfully:', response.data?.brand);
-        
-        // Mostrar info adicional si hay upload
-        if (response.data?.uploadInfo?.uploadedToCloudinary) {
-          toast.success(`Marca creada con logo subido a Cloudinary`);
-        } else {
-          toast.success('Marca creada exitosamente');
-        }
-        
-        this.invalidateBrandsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error creating brand with upload:', error);
-      const errorMessage = error.response?.data?.message || 'Error al crear marca con logo';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subBrands.createBrandWithUpload(formData);
   }
 
-  // ✅ ACTUALIZAR MARCA SIN UPLOAD (JSON TRADICIONAL)
   async updateBrand(brandId, brandData) {
-    console.log('🏷️ InventoryService: Updating brand...', { brandId, brandData });
-    
-    try {
-      const response = await this.put(`/api/store/management/brands/${brandId}`, brandData);
-      
-      if (response.success) {
-        console.log('✅ Brand updated successfully');
-        toast.success('Marca actualizada exitosamente');
-        this.invalidateBrandsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error updating brand:', error);
-      const errorMessage = error.response?.data?.message || 'Error al actualizar marca';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subBrands.updateBrand(brandId, brandData);
   }
 
-  // ✅ ACTUALIZAR MARCA CON UPLOAD DE LOGO (FORMDATA)
   async updateBrandWithUpload(brandId, formData) {
-    console.log('🏷️ InventoryService: Updating brand with upload...', { brandId });
-    
-    try {
-      const response = await this.put(`/api/store/management/brands/${brandId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
-      if (response.success) {
-        console.log('✅ Brand updated with upload successfully');
-        
-        // Mostrar info adicional si hay upload
-        if (response.data?.uploadInfo?.uploadedToCloudinary) {
-          const message = response.data.uploadInfo.replacedPreviousLogo 
-            ? 'Marca actualizada con nuevo logo (anterior eliminado)'
-            : 'Marca actualizada con logo subido a Cloudinary';
-          toast.success(message);
-        } else {
-          toast.success('Marca actualizada exitosamente');
-        }
-        
-        this.invalidateBrandsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error updating brand with upload:', error);
-      const errorMessage = error.response?.data?.message || 'Error al actualizar marca con logo';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subBrands.updateBrandWithUpload(brandId, formData);
   }
 
-  // Eliminar marca
   async deleteBrand(brandId) {
-    console.log('🏷️ InventoryService: Deleting brand...', { brandId });
-    
-    try {
-      const response = await this.delete(`/api/store/management/brands/${brandId}`);
-      
-      if (response.success) {
-        console.log('✅ Brand deleted successfully');
-        toast.success('Marca eliminada exitosamente');
-        this.invalidateBrandsCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error deleting brand:', error);
-      const errorMessage = error.response?.data?.message || 'Error al eliminar marca';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subBrands.deleteBrand(brandId);
   }
 
-  // Buscar marcas (autocomplete)
   async searchBrands(query) {
-    console.log('🏷️ InventoryService: Searching brands...', { query });
-    
-    try {
-      const response = await this.get('/api/store/management/brands/search', {
-        params: { q: query }
-      });
-      console.log('✅ Brand search response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error searching brands:', error);
-      throw error;
-    }
+    return this.subBrands.searchBrands(query);
   }
 
-  // Estadísticas de marcas
   async getBrandStats() {
-    console.log('📊 InventoryService: Getting brand stats...');
-    
-    try {
-      const response = await this.get('/api/store/management/brands/stats');
-      console.log('✅ Brand stats response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting brand stats:', error);
-      throw error;
-    }
+    return this.subBrands.getBrandStats();
   }
 
   // ================================
-  // 📂 MÉTODOS DE GESTIÓN DE CATEGORÍAS
+  // 📂 MÉTODOS DE GESTIÓN DE CATEGORÍAS (DELEGADOS)
   // ================================
 
-  // Listar categorías
   async getCategories(params = {}) {
-    console.log('📂 InventoryService: Getting categories...', params);
-    
-    try {
-      const response = await this.get('/api/store/management/categories', { params });
-      console.log('✅ Categories response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting categories:', error);
-      throw error;
-    }
+    return this.subCategories.getCategories(params);
   }
 
-  // Crear categoría
   async createCategory(categoryData) {
-    console.log('📂 InventoryService: Creating category...', categoryData);
-    
-    try {
-      const response = await this.post('/api/store/management/categories', categoryData);
-      
-      if (response.success) {
-        console.log('✅ Category created successfully:', response.data?.category);
-        toast.success('Categoría creada exitosamente');
-        this.invalidateCategoriesCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error creating category:', error);
-      const errorMessage = error.response?.data?.message || 'Error al crear categoría';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subCategories.createCategory(categoryData);
   }
 
-  // Actualizar categoría
   async updateCategory(categoryId, categoryData) {
-    console.log('📂 InventoryService: Updating category...', { categoryId, categoryData });
-    
-    try {
-      const response = await this.put(`/api/store/management/categories/${categoryId}`, categoryData);
-      
-      if (response.success) {
-        console.log('✅ Category updated successfully');
-        toast.success('Categoría actualizada exitosamente');
-        this.invalidateCategoriesCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error updating category:', error);
-      const errorMessage = error.response?.data?.message || 'Error al actualizar categoría';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subCategories.updateCategory(categoryId, categoryData);
   }
 
-  // Eliminar categoría
   async deleteCategory(categoryId) {
-    console.log('📂 InventoryService: Deleting category...', { categoryId });
-    
-    try {
-      const response = await this.delete(`/api/store/management/categories/${categoryId}`);
-      
-      if (response.success) {
-        console.log('✅ Category deleted successfully');
-        toast.success('Categoría eliminada exitosamente');
-        this.invalidateCategoriesCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error deleting category:', error);
-      const errorMessage = error.response?.data?.message || 'Error al eliminar categoría';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subCategories.deleteCategory(categoryId);
   }
 
-  // Reordenar categorías
   async reorderCategories(categoryOrders) {
-    console.log('📂 InventoryService: Reordering categories...', { categoryOrders });
-    
-    try {
-      const response = await this.put('/api/store/management/categories/reorder', { categoryOrders });
-      
-      if (response.success) {
-        console.log('✅ Categories reordered successfully');
-        toast.success('Orden de categorías actualizado');
-        this.invalidateCategoriesCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error reordering categories:', error);
-      const errorMessage = error.response?.data?.message || 'Error al reordenar categorías';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subCategories.reorderCategories(categoryOrders);
   }
 
-  // Buscar categorías
   async searchCategories(query) {
-    console.log('📂 InventoryService: Searching categories...', { query });
-    
-    try {
-      const response = await this.get('/api/store/management/categories/search', {
-        params: { q: query }
-      });
-      console.log('✅ Category search response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error searching categories:', error);
-      throw error;
-    }
+    return this.subCategories.searchCategories(query);
   }
 
-  // Obtener categoría por slug
   async getCategoryBySlug(slug) {
-    console.log('📂 InventoryService: Getting category by slug...', { slug });
-    
-    try {
-      const response = await this.get(`/api/store/management/categories/slug/${slug}`);
-      console.log('✅ Category by slug response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting category by slug:', error);
-      throw error;
-    }
+    return this.subCategories.getCategoryBySlug(slug);
   }
 
-  // Estadísticas de categorías
   async getCategoryStats() {
-    console.log('📊 InventoryService: Getting category stats...');
-    
-    try {
-      const response = await this.get('/api/store/management/categories/stats');
-      console.log('✅ Category stats response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting category stats:', error);
-      throw error;
-    }
+    return this.subCategories.getCategoryStats();
   }
 
   // ================================
-  // 💰 MÉTODOS DE VENTAS LOCALES
+  // 💰 MÉTODOS DE VENTAS LOCALES (DELEGADOS)
   // ================================
 
-  // Listar ventas locales
   async getLocalSales(params = {}) {
-    console.log('💰 InventoryService: Getting local sales...', params);
-    
-    try {
-      const response = await this.get('/api/local-sales', { params });
-      console.log('✅ Local sales response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting local sales:', error);
-      throw error;
-    }
+    return this.subSales.getLocalSales(params);
   }
 
-  // Crear venta en efectivo
   async createCashSale(saleData) {
-    console.log('💰 InventoryService: Creating cash sale...', saleData);
-    
-    try {
-      const response = await this.post('/api/local-sales/cash', saleData);
-      
-      if (response.success) {
-        console.log('✅ Cash sale created successfully');
-        toast.success('Venta en efectivo registrada');
-        this.invalidateSalesCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error creating cash sale:', error);
-      const errorMessage = error.response?.data?.message || 'Error al registrar venta';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subSales.createCashSale(saleData);
   }
 
-  // Crear venta por transferencia
   async createTransferSale(saleData) {
-    console.log('💰 InventoryService: Creating transfer sale...', saleData);
-    
-    try {
-      const response = await this.post('/api/local-sales/transfer', saleData);
-      
-      if (response.success) {
-        console.log('✅ Transfer sale created successfully');
-        toast.success('Venta por transferencia registrada');
-        this.invalidateSalesCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error creating transfer sale:', error);
-      const errorMessage = error.response?.data?.message || 'Error al registrar venta por transferencia';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subSales.createTransferSale(saleData);
   }
 
-  // Confirmar transferencia (solo admin)
   async confirmTransfer(saleId, notes = '') {
-    console.log('💰 InventoryService: Confirming transfer...', { saleId, notes });
-    
-    try {
-      const response = await this.post(`/api/local-sales/${saleId}/confirm-transfer`, { notes });
-      
-      if (response.success) {
-        console.log('✅ Transfer confirmed successfully');
-        toast.success('Transferencia confirmada');
-        this.invalidateSalesCache();
-      }
-      
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error confirming transfer:', error);
-      const errorMessage = error.response?.data?.message || 'Error al confirmar transferencia';
-      toast.error(errorMessage);
-      throw error;
-    }
+    return this.subSales.confirmTransfer(saleId, notes);
   }
 
-  // Obtener transferencias pendientes
   async getPendingTransfers() {
-    console.log('💰 InventoryService: Getting pending transfers...');
-    
-    try {
-      const response = await this.get('/api/local-sales/pending-transfers');
-      console.log('✅ Pending transfers response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting pending transfers:', error);
-      throw error;
-    }
+    return this.subSales.getPendingTransfers();
   }
 
-  // Buscar productos para venta
   async searchProductsForSale(query, limit = 10) {
-    console.log('💰 InventoryService: Searching products for sale...', { query, limit });
-    
-    try {
-      const response = await this.get('/api/local-sales/products/search', {
-        params: { q: query, limit }
-      });
-      console.log('✅ Products for sale search response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error searching products for sale:', error);
-      throw error;
-    }
+    return this.subSales.searchProductsForSale(query, limit);
   }
 
-  // Reporte diario de ventas
   async getDailySalesReport(date) {
-    console.log('💰 InventoryService: Getting daily sales report...', { date });
-    
-    try {
-      const response = await this.get('/api/local-sales/reports/daily', {
-        params: { date }
-      });
-      console.log('✅ Daily sales report response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting daily sales report:', error);
-      throw error;
-    }
+    return this.subSales.getDailySalesReport(date);
   }
 
-  // Estadísticas personales (colaborador)
   async getMySalesStats() {
-    console.log('💰 InventoryService: Getting my sales stats...');
-    
-    try {
-      const response = await this.get('/api/local-sales/my-stats');
-      console.log('✅ My sales stats response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting my sales stats:', error);
-      throw error;
-    }
+    return this.subSales.getMySalesStats();
   }
 
   // ================================
-  // 🛍️ MÉTODOS DE TIENDA PÚBLICA
+  // 🛍️ MÉTODOS DE TIENDA PÚBLICA (DELEGADOS)
   // ================================
 
-  // Productos públicos (sin autenticación)
   async getPublicProducts(params = {}) {
-    console.log('🛍️ InventoryService: Getting public products...', params);
-    
-    try {
-      const response = await this.get('/api/store/products', { params });
-      console.log('✅ Public products response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting public products:', error);
-      throw error;
-    }
+    return this.subPublicStore.getPublicProducts(params);
   }
 
-  // Productos destacados
   async getFeaturedProducts(limit = 8) {
-    console.log('🛍️ InventoryService: Getting featured products...', { limit });
-    
-    try {
-      const response = await this.get('/api/store/products/featured', {
-        params: { limit }
-      });
-      console.log('✅ Featured products response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting featured products:', error);
-      throw error;
-    }
+    return this.subPublicStore.getFeaturedProducts(limit);
   }
 
-  // Producto público específico
   async getPublicProductById(productId) {
-    console.log('🛍️ InventoryService: Getting public product by ID...', { productId });
-    
-    try {
-      const response = await this.get(`/api/store/products/${productId}`);
-      console.log('✅ Public product by ID response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting public product by ID:', error);
-      throw error;
-    }
+    return this.subPublicStore.getPublicProductById(productId);
   }
 
-  // Categorías públicas
   async getPublicCategories() {
-    console.log('🛍️ InventoryService: Getting public categories...');
-    
-    try {
-      const response = await this.get('/api/store/categories');
-      console.log('✅ Public categories response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting public categories:', error);
-      throw error;
-    }
+    return this.subPublicStore.getPublicCategories();
   }
 
-  // Marcas públicas
   async getPublicBrands() {
-    console.log('🛍️ InventoryService: Getting public brands...');
-    
-    try {
-      const response = await this.get('/api/store/brands');
-      console.log('✅ Public brands response:', response);
-      return response;
-      
-    } catch (error) {
-      console.error('❌ Error getting public brands:', error);
-      throw error;
-    }
+    return this.subPublicStore.getPublicBrands();
   }
 
   // ================================
-  // 🔧 MÉTODOS AUXILIARES Y VALIDACIONES
+  // 🔧 MÉTODOS AUXILIARES Y VALIDACIONES (LOCALES)
   // ================================
 
-  // Validar datos de producto
+  // Validar datos de producto (delegado a sub-servicio)
   validateProductData(productData) {
-    const errors = [];
-    
-    if (!productData.name || productData.name.trim().length < 3) {
-      errors.push('El nombre del producto debe tener al menos 3 caracteres');
-    }
-    
-    if (!productData.price || productData.price <= 0) {
-      errors.push('El precio debe ser mayor a 0');
-    }
-    
-    if (productData.stockQuantity && productData.stockQuantity < 0) {
-      errors.push('La cantidad de stock no puede ser negativa');
-    }
-    
-    if (!productData.categoryId) {
-      errors.push('Debe seleccionar una categoría');
-    }
-    
-    if (errors.length > 0) {
-      throw new Error(errors.join(', '));
-    }
-    
-    return true;
+    return this.subProducts.validateProductData(productData);
   }
 
-  // Formatear datos de producto para API
-  // Formatear datos de producto para API
-formatProductDataForAPI(productData) {
-  console.log('🔧 InventoryService: Formateando datos para API...');
-  console.log('📋 Datos originales:', productData);
-  
-  // ✅ VALIDAR QUE EL OBJETO EXISTE Y TIENE CAMPOS REQUERIDOS
-  if (!productData) {
-    throw new Error('Datos de producto no proporcionados');
+  // Formatear datos de producto para API (delegado a sub-servicio)
+  formatProductDataForAPI(productData) {
+    return this.subProducts.formatProductDataForAPI(productData);
   }
-  
-  if (!productData.name || !productData.name.trim()) {
-    throw new Error('El nombre del producto es requerido');
-  }
-  
-  if (!productData.price || parseFloat(productData.price) <= 0) {
-    throw new Error('El precio debe ser mayor a 0');
-  }
-  
-  if (!productData.categoryId) {
-    throw new Error('La categoría es requerida');
-  }
-  
-  // ✅ FORMATEAR DATOS CON VALIDACIONES ROBUSTAS
-  const formattedData = {
-    name: String(productData.name).trim(),
-    description: productData.description ? String(productData.description).trim() : '',
-    price: parseFloat(productData.price) || 0,
-    originalPrice: productData.originalPrice ? parseFloat(productData.originalPrice) : null,
-    sku: productData.sku ? String(productData.sku).trim() : '',
-    stockQuantity: parseInt(productData.stockQuantity) || 0,
-    minStock: parseInt(productData.minStock) || 5,
-    weight: productData.weight ? parseFloat(productData.weight) : null,
-    dimensions: productData.dimensions || null,
-    categoryId: parseInt(productData.categoryId) || null,
-    brandId: productData.brandId ? parseInt(productData.brandId) : null,
-    isFeatured: Boolean(productData.isFeatured),
-    allowOnlinePayment: productData.allowOnlinePayment !== false, // Default true
-    allowCardPayment: productData.allowCardPayment !== false,     // Default true
-    allowCashOnDelivery: productData.allowCashOnDelivery !== false, // Default true
-    deliveryTime: productData.deliveryTime ? String(productData.deliveryTime).trim() : '1-3 días hábiles'
-  };
-  
-  console.log('✅ InventoryService: Datos formateados:', formattedData);
-  
-  // ✅ VALIDACIÓN FINAL
-  if (!formattedData.categoryId) {
-    throw new Error('CategoryId no válido después del formateo');
-  }
-  
-  return formattedData;
-}
 
-// ✅ MÉTODO MEJORADO PARA VALIDAR DATOS DE PRODUCTO
-// Reemplaza también este método:
-
-validateProductData(productData) {
-  console.log('🔍 InventoryService: Validando datos de producto...');
-  
-  const errors = [];
-  
-  // Validaciones requeridas
-  if (!productData.name || productData.name.trim().length < 2) {
-    errors.push('El nombre del producto debe tener al menos 2 caracteres');
-  }
-  
-  if (!productData.price || parseFloat(productData.price) <= 0) {
-    errors.push('El precio debe ser mayor a 0');
-  }
-  
-  if (!productData.categoryId || parseInt(productData.categoryId) <= 0) {
-    errors.push('Debe seleccionar una categoría válida');
-  }
-  
-  // Validaciones opcionales pero importantes
-  if (productData.stockQuantity && parseInt(productData.stockQuantity) < 0) {
-    errors.push('La cantidad de stock no puede ser negativa');
-  }
-  
-  if (productData.minStock && parseInt(productData.minStock) < 0) {
-    errors.push('El stock mínimo no puede ser negativo');
-  }
-  
-  if (productData.weight && parseFloat(productData.weight) < 0) {
-    errors.push('El peso no puede ser negativo');
-  }
-  
-  if (productData.originalPrice && parseFloat(productData.originalPrice) < 0) {
-    errors.push('El precio original no puede ser negativo');
-  }
-  
-  // Validación de descuento lógico
-  if (productData.originalPrice && productData.price) {
-    const original = parseFloat(productData.originalPrice);
-    const current = parseFloat(productData.price);
-    if (original > 0 && current > original) {
-      errors.push('El precio actual no puede ser mayor al precio original');
-    }
-  }
-  
-  // Validación de SKU (si se proporciona)
-  if (productData.sku && productData.sku.trim().length > 100) {
-    errors.push('El SKU no puede exceder 100 caracteres');
-  }
-  
-  // Validación de descripción
-  if (productData.description && productData.description.length > 2000) {
-    errors.push('La descripción no puede exceder 2000 caracteres');
-  }
-  
-  if (errors.length > 0) {
-    console.error('❌ InventoryService: Errores de validación:', errors);
-    throw new Error(errors.join(', '));
-  }
-  
-  console.log('✅ InventoryService: Validación exitosa');
-  return true;
-}
-
-  // ✅ Validar datos de marca
+  // ✅ Validar datos de marca (delegado a sub-servicio)
   validateBrandData(brandData) {
-    const errors = [];
-    
-    if (!brandData.name || brandData.name.trim().length < 2) {
-      errors.push('El nombre de la marca debe tener al menos 2 caracteres');
-    }
-    
-    if (brandData.description && brandData.description.length > 500) {
-      errors.push('La descripción no puede exceder 500 caracteres');
-    }
-    
-    if (brandData.website && brandData.website.trim()) {
-      try {
-        new URL(brandData.website.trim());
-      } catch {
-        errors.push('La URL del sitio web debe ser válida');
-      }
-    }
-    
-    if (errors.length > 0) {
-      throw new Error(errors.join(', '));
-    }
-    
-    return true;
+    return this.subBrands.validateBrandData(brandData);
   }
 
-  // ✅ Validar datos de categoría
+  // ✅ Validar datos de categoría (delegado a sub-servicio)
   validateCategoryData(categoryData) {
-    const errors = [];
-    
-    if (!categoryData.name || categoryData.name.trim().length < 2) {
-      errors.push('El nombre de la categoría debe tener al menos 2 caracteres');
-    }
-    
-    if (categoryData.slug && categoryData.slug.trim()) {
-      // Validar formato de slug
-      if (!/^[a-z0-9-]+$/.test(categoryData.slug.trim())) {
-        errors.push('El slug solo puede contener letras minúsculas, números y guiones');
-      }
-    }
-    
-    if (categoryData.description && categoryData.description.length > 500) {
-      errors.push('La descripción no puede exceder 500 caracteres');
-    }
-    
-    if (categoryData.displayOrder && categoryData.displayOrder < 0) {
-      errors.push('El orden de visualización debe ser un número positivo');
-    }
-    
-    if (errors.length > 0) {
-      throw new Error(errors.join(', '));
-    }
-    
-    return true;
+    return this.subCategories.validateCategoryData(categoryData);
   }
 
   // ✅ Validar archivos de imagen
@@ -1406,13 +379,14 @@ validateProductData(productData) {
 
   // Debug del sistema de inventario
   async debugInventorySystem() {
-    console.log('\n🔍 DEBUGGING INVENTORY SYSTEM');
+    console.log('\n🔍 DEBUGGING INVENTORY SYSTEM (MODULAR)');
     console.log('=' .repeat(50));
     
     const results = {
       endpoints: {},
       auth: false,
       cache: {},
+      subServices: {},
       errors: []
     };
     
@@ -1422,6 +396,18 @@ validateProductData(productData) {
       const token = localStorage.getItem('authToken');
       results.auth = !!token;
       console.log(`   Token present: ${results.auth}`);
+      
+      // Test de sub-servicios
+      console.log('🔧 Testing sub-services...');
+      results.subServices = {
+        products: this.subProducts instanceof SubProductService,
+        brands: this.subBrands instanceof SubBrandService,
+        categories: this.subCategories instanceof SubCategoryService,
+        images: this.subImages instanceof SubImageService,
+        sales: this.subSales instanceof SubSalesService,
+        stats: this.subStats instanceof SubStatsService,
+        publicStore: this.subPublicStore instanceof SubPublicStoreService
+      };
       
       // Test de endpoints principales
       const endpoints = [
@@ -1464,6 +450,7 @@ validateProductData(productData) {
       console.log('\n📊 RESULTS SUMMARY:');
       console.log(`   Authentication: ${results.auth ? '✅' : '❌'}`);
       console.log(`   Working endpoints: ${Object.values(results.endpoints).filter(e => e.status === 'success').length}/${endpoints.length}`);
+      console.log(`   Active sub-services: ${Object.values(results.subServices).filter(s => s).length}/${Object.keys(results.subServices).length}`);
       console.log(`   Cache entries: ${results.cache.size}`);
       console.log(`   Errors: ${results.errors.length}`);
       
@@ -1507,9 +494,19 @@ validateProductData(productData) {
   // Información del servicio
   getServiceInfo() {
     return {
-      name: 'InventoryService',
-      version: '2.1.0', // ✅ Actualizada con createProductWithImage
-      description: 'Servicio especializado para gestión de inventario y tienda con upload de imágenes para productos',
+      name: 'InventoryService (Modular)',
+      version: '2.2.0', // ✅ Actualizada con arquitectura modular
+      description: 'Servicio especializado para gestión de inventario y tienda con arquitectura modular',
+      architecture: 'Modular con sub-servicios especializados',
+      subServices: {
+        SubProductService: 'Gestión completa de productos',
+        SubBrandService: 'Gestión de marcas con upload',
+        SubCategoryService: 'Gestión de categorías',
+        SubImageService: 'Gestión de imágenes de productos',
+        SubSalesService: 'Ventas locales y transferencias',
+        SubStatsService: 'Estadísticas e inventario',
+        SubPublicStoreService: 'Tienda pública sin auth'
+      },
       endpoints: {
         inventory: '/api/inventory/*',
         products: '/api/store/management/products/*',
@@ -1519,39 +516,42 @@ validateProductData(productData) {
         publicStore: '/api/store/*'
       },
       features: [
+        'Arquitectura modular interna',
+        'Mismo API público (compatible)',
         'Gestión completa de productos',
         'Subida de imágenes a Cloudinary',
         'Categorías con iconos mejorados',
         'Marcas con upload de logos',
-        'Productos con imagen al crear', // ✅ Nueva feature
+        'Productos con imagen al crear',
         'Ventas en tienda física',
         'Estadísticas e inventario',
         'Cache inteligente',
         'Validaciones automáticas',
         'Notificaciones toast',
         'Upload con FormData',
-        'Drag & Drop support'
+        'Drag & Drop support',
+        'Sub-servicios especializados'
       ],
       cache: {
         enabled: true,
         timeout: this.cacheTimeout,
         entries: this.cache.size
       },
-      newFeatures: {
-        productWithImage: { // ✅ Nueva feature
+      improvements: {
+        codeOrganization: {
           enabled: true,
-          method: 'createProductWithImage',
-          supportedFormats: ['JPG', 'PNG', 'WebP', 'SVG'],
-          maxSize: '5MB',
-          cloudinaryIntegration: true,
-          description: 'Crear producto con imagen subida automáticamente a Cloudinary'
+          description: 'Código separado en sub-servicios especializados',
+          benefits: ['Mejor mantenibilidad', 'Código más limpio', 'Responsabilidades claras']
         },
-        brandUpload: {
+        samePublicAPI: {
           enabled: true,
-          methods: ['createBrandWithUpload', 'updateBrandWithUpload'],
-          supportedFormats: ['JPG', 'PNG', 'WebP', 'SVG'],
-          maxSize: '3MB',
-          cloudinaryIntegration: true
+          description: 'Mantiene la misma interfaz pública',
+          benefits: ['No requiere cambios en código existente', 'Migración transparente']
+        },
+        modularArchitecture: {
+          enabled: true,
+          description: 'Arquitectura interna modular',
+          benefits: ['Facilita debugging', 'Mejor escalabilidad', 'Testing más específico']
         }
       }
     };
