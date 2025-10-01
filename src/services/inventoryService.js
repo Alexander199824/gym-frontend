@@ -1,6 +1,6 @@
 // src/services/inventoryService.js
 // SERVICIO PRINCIPAL QUE GESTIONA TODOS LOS SUB-SERVICIOS
-// ✅ MANTIENE LA MISMA INTERFAZ PÚBLICA - NO REQUIERE CAMBIOS EN OTROS ARCHIVOS
+// ✅ VERSIÓN CORREGIDA - SIN ERRORES ESLINT
 
 import toast from 'react-hot-toast';
 import { BaseService } from './baseService.js';
@@ -14,6 +14,7 @@ import { SubImageService } from './subImageService.js';
 import { SubSalesService } from './subSalesService.js';
 import { SubStatsService } from './subStatsService.js';
 import { SubPublicStoreService } from './subPublicStoreService.js';
+import { SubOnlineOrdersService } from './subOnlineOrdersService.js';
 
 class InventoryService extends BaseService {
   constructor() {
@@ -42,8 +43,9 @@ class InventoryService extends BaseService {
     this.subSales = new SubSalesService(this);
     this.subStats = new SubStatsService(this);
     this.subPublicStore = new SubPublicStoreService(this);
+    this.subOnlineOrders = new SubOnlineOrdersService(this);
     
-    console.log('✅ InventoryService: All sub-services initialized');
+    console.log('✅ InventoryService: All sub-services initialized (including online orders)');
   }
 
   // ================================
@@ -134,6 +136,7 @@ class InventoryService extends BaseService {
     return this.subImages.updateProductImage(productId, imageId, imageData);
   }
 
+  // ✅ CORREGIDO: Removido el parámetro imageData que causaba el error
   async deleteProductImage(productId, imageId) {
     return this.subImages.deleteProductImage(productId, imageId);
   }
@@ -279,6 +282,54 @@ class InventoryService extends BaseService {
   }
 
   // ================================
+  // 📦 MÉTODOS DE ÓRDENES ONLINE (DELEGADOS)
+  // ================================
+
+  async getOnlineOrders(params = {}) {
+    return this.subOnlineOrders.getOnlineOrders(params);
+  }
+
+  async getOrderById(orderId) {
+    return this.subOnlineOrders.getOrderById(orderId);
+  }
+
+  async updateOrderStatus(orderId, status, notes = '') {
+    return this.subOnlineOrders.updateOrderStatus(orderId, status, notes);
+  }
+
+  async confirmOrderTransfer(orderId, transferData = {}) {
+    return this.subOnlineOrders.confirmOrderTransfer(orderId, transferData);
+  }
+
+  async getOrdersPendingTransfers() {
+    return this.subOnlineOrders.getPendingTransfers();
+  }
+
+  async getOrdersDashboard() {
+    return this.subOnlineOrders.getOrdersDashboard();
+  }
+
+  async searchOrders(searchTerm, searchType = 'number') {
+    return this.subOnlineOrders.searchOrders(searchTerm, searchType);
+  }
+
+  async cancelOrder(orderId, reason = '') {
+    return this.subOnlineOrders.cancelOrder(orderId, reason);
+  }
+
+  async markOrderAsDelivered(orderId, notes = '') {
+    return this.subOnlineOrders.markAsDelivered(orderId, notes);
+  }
+
+  async markOrderAsPickedUp(orderId, notes = '') {
+    return this.subOnlineOrders.markAsPickedUp(orderId, notes);
+  }
+
+  async getOrdersReport(startDate, endDate) {
+    return this.subOnlineOrders.getOrdersReport(startDate, endDate);
+  }
+
+  // ================================
   // 🔧 MÉTODOS AUXILIARES Y VALIDACIONES (LOCALES)
   // ================================
 
@@ -292,17 +343,17 @@ class InventoryService extends BaseService {
     return this.subProducts.formatProductDataForAPI(productData);
   }
 
-  // ✅ Validar datos de marca (delegado a sub-servicio)
+  // Validar datos de marca (delegado a sub-servicio)
   validateBrandData(brandData) {
     return this.subBrands.validateBrandData(brandData);
   }
 
-  // ✅ Validar datos de categoría (delegado a sub-servicio)
+  // Validar datos de categoría (delegado a sub-servicio)
   validateCategoryData(categoryData) {
     return this.subCategories.validateCategoryData(categoryData);
   }
 
-  // ✅ Validar archivos de imagen
+  // Validar archivos de imagen
   validateImageFile(file, maxSize = 3 * 1024 * 1024) {
     const errors = [];
     
@@ -367,10 +418,24 @@ class InventoryService extends BaseService {
     this.cache.delete('pending-transfers');
   }
 
+  // Invalidar cache de órdenes online
+  invalidateOrdersCache() {
+    console.log('🗃️ Invalidating orders cache...');
+    this.cache.delete('online-orders');
+    this.cache.delete('orders-dashboard');
+    this.cache.delete('orders-transfers');
+  }
+
   // Invalidar todo el cache
   invalidateAllCache() {
     console.log('🗃️ Invalidating all cache...');
     this.cache.clear();
+  }
+
+  // ✅ NUEVO: Método genérico para invalidar cache (usado por sub-servicios)
+  invalidateCache() {
+    console.log('🗃️ Invalidating general cache...');
+    this.invalidateAllCache();
   }
 
   // ================================
@@ -379,7 +444,7 @@ class InventoryService extends BaseService {
 
   // Debug del sistema de inventario
   async debugInventorySystem() {
-    console.log('\n🔍 DEBUGGING INVENTORY SYSTEM (MODULAR)');
+    console.log('\n🔍 DEBUGGING INVENTORY SYSTEM (MODULAR + ONLINE ORDERS)');
     console.log('=' .repeat(50));
     
     const results = {
@@ -406,7 +471,8 @@ class InventoryService extends BaseService {
         images: this.subImages instanceof SubImageService,
         sales: this.subSales instanceof SubSalesService,
         stats: this.subStats instanceof SubStatsService,
-        publicStore: this.subPublicStore instanceof SubPublicStoreService
+        publicStore: this.subPublicStore instanceof SubPublicStoreService,
+        onlineOrders: this.subOnlineOrders instanceof SubOnlineOrdersService
       };
       
       // Test de endpoints principales
@@ -415,7 +481,9 @@ class InventoryService extends BaseService {
         { name: 'Products', path: '/api/store/management/products' },
         { name: 'Categories', path: '/api/store/management/categories' },
         { name: 'Brands', path: '/api/store/management/brands' },
-        { name: 'Local Sales', path: '/api/local-sales' }
+        { name: 'Local Sales', path: '/api/local-sales' },
+        { name: 'Online Orders', path: '/api/store/management/orders' },
+        { name: 'Orders Dashboard', path: '/api/order-management/dashboard' }
       ];
       
       for (const endpoint of endpoints) {
@@ -494,9 +562,9 @@ class InventoryService extends BaseService {
   // Información del servicio
   getServiceInfo() {
     return {
-      name: 'InventoryService (Modular)',
-      version: '2.2.0', // ✅ Actualizada con arquitectura modular
-      description: 'Servicio especializado para gestión de inventario y tienda con arquitectura modular',
+      name: 'InventoryService (Modular + Online Orders)',
+      version: '2.3.1', // ✅ Versión corregida
+      description: 'Servicio especializado para gestión de inventario, tienda y órdenes online',
       architecture: 'Modular con sub-servicios especializados',
       subServices: {
         SubProductService: 'Gestión completa de productos',
@@ -505,7 +573,8 @@ class InventoryService extends BaseService {
         SubImageService: 'Gestión de imágenes de productos',
         SubSalesService: 'Ventas locales y transferencias',
         SubStatsService: 'Estadísticas e inventario',
-        SubPublicStoreService: 'Tienda pública sin auth'
+        SubPublicStoreService: 'Tienda pública sin auth',
+        SubOnlineOrdersService: 'Órdenes online y gestión'
       },
       endpoints: {
         inventory: '/api/inventory/*',
@@ -513,7 +582,9 @@ class InventoryService extends BaseService {
         categories: '/api/store/management/categories/*',
         brands: '/api/store/management/brands/*',
         localSales: '/api/local-sales/*',
-        publicStore: '/api/store/*'
+        publicStore: '/api/store/*',
+        onlineOrders: '/api/store/management/orders/*',
+        orderManagement: '/api/order-management/*'
       },
       features: [
         'Arquitectura modular interna',
@@ -524,6 +595,9 @@ class InventoryService extends BaseService {
         'Marcas con upload de logos',
         'Productos con imagen al crear',
         'Ventas en tienda física',
+        'Gestión de órdenes online',
+        'Actualización de estados de órdenes',
+        'Confirmación de transferencias online',
         'Estadísticas e inventario',
         'Cache inteligente',
         'Validaciones automáticas',
@@ -552,6 +626,11 @@ class InventoryService extends BaseService {
           enabled: true,
           description: 'Arquitectura interna modular',
           benefits: ['Facilita debugging', 'Mejor escalabilidad', 'Testing más específico']
+        },
+        onlineOrders: {
+          enabled: true,
+          description: 'Gestión completa de órdenes online',
+          benefits: ['Control centralizado', 'Actualización de estados', 'Confirmación de pagos']
         }
       }
     };
