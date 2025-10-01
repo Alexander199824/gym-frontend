@@ -1,13 +1,13 @@
 // Autor: Alexander Echeverria  
 // Archivo: src/pages/dashboard/inventory/components/SalesManager.js
-// VERSIÓN COMPLETA Y DEFINITIVA - Sistema de Ventas Locales Premium
+// VERSIÓN MEJORADA - Diseño Limpio y Compacto
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ShoppingBag, Plus, Search, X, User, CreditCard, Coins, Clock,
   Eye, TrendingUp, Loader, Package, Calculator, Minus, RotateCcw, 
   FileText, Printer, AlertCircle, CheckCircle, Barcode, DollarSign, 
-  ShoppingCart, Percent, Save
+  ShoppingCart, Percent, Save, Filter, Calendar
 } from 'lucide-react';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useApp } from '../../../../contexts/AppContext';
@@ -466,6 +466,7 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
       }
     } catch (error) {
       console.error('Error saving sale:', error);
+      showError('Error al guardar la venta');
     } finally {
       setIsSavingSale(false);
     }
@@ -483,6 +484,7 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
       }
     } catch (error) {
       console.error('Error confirming transfer:', error);
+      showError('Error al confirmar la transferencia');
     } finally {
       setConfirmingTransfer(null);
     }
@@ -559,21 +561,40 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
     return paymentMethod?.label || method;
   };
 
+  // Loading optimizado
+  if (isLoading && sales.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
+            <ShoppingBag className="w-6 h-6 text-white animate-pulse" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            Cargando Ventas
+          </h3>
+          <p className="text-gray-600 text-sm">Preparando tu contenido...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       
+      {/* HEADER COMPACTO */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
           
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-1">
               <h1 className="text-xl font-bold text-gray-900">Ventas Locales</h1>
             </div>
             
-            <p className="text-sm text-gray-600 mb-2">
-              Registra ventas en efectivo y transferencia
+            <p className="text-gray-600 text-sm mb-2">
+              Gestiona las ventas en efectivo y transferencia
             </p>
             
+            {/* Estadísticas compactas */}
             <div className="flex flex-wrap gap-2">
               <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
                 {salesMetrics.totalSales} ventas
@@ -581,63 +602,65 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
               <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
                 {formatCurrency(salesMetrics.totalAmount)}
               </span>
-              <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-medium">
-                💵 {salesMetrics.cashSales} | 🏦 {salesMetrics.transferSales}
+              <span className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded-full font-medium">
+                💵 {salesMetrics.cashSales}
+              </span>
+              <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full font-medium">
+                🏦 {salesMetrics.transferSales}
               </span>
               {salesMetrics.averageTicket > 0 && (
                 <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium">
                   Promedio: {formatCurrency(salesMetrics.averageTicket)}
                 </span>
               )}
+              {salesMetrics.pendingCount > 0 && (
+                <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium">
+                  ⏳ {salesMetrics.pendingCount} pendientes
+                </span>
+              )}
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center space-x-2">
             <button
               onClick={() => loadSalesData()}
               disabled={isLoading}
-              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm flex items-center transition-colors"
+              className="px-3 py-1 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center"
             >
-              <RotateCcw className={`w-4 h-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+              <RotateCcw className={`w-3 h-3 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Actualizar</span>
             </button>
             
-            {user?.role === 'admin' && salesMetrics.pendingCount > 0 && (
-              <span className="px-3 py-2 bg-orange-100 text-orange-800 rounded-lg text-sm font-medium flex items-center">
-                <AlertCircle className="w-4 h-4 mr-1" />
-                {salesMetrics.pendingCount}
-              </span>
-            )}
-            
             <button
               onClick={handleNewSale}
-              className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium flex items-center transition-colors shadow-sm"
+              className="px-3 py-1 text-xs text-white bg-primary-600 rounded-lg hover:bg-primary-700 flex items-center"
             >
-              <Plus className="w-4 h-4 mr-1" />
+              <Plus className="w-3 h-3 mr-1" />
               Nueva Venta
             </button>
           </div>
         </div>
       </div>
       
+      {/* FILTROS COMPACTOS */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
             <input
               type="text"
               placeholder="Buscar ventas..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+              className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
           
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+            className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             {dateFilters.map(filter => (
               <option key={filter.id} value={filter.id}>
@@ -649,7 +672,7 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
           <select
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+            className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="all">Todos los métodos</option>
             {paymentMethods.map(method => (
@@ -662,7 +685,7 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+            className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             {statusFilters.map(filter => (
               <option key={filter.id} value={filter.id}>
@@ -673,19 +696,15 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
+      {/* LISTA DE VENTAS COMPACTA */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Loader className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
-              <p className="text-gray-600 text-sm">Cargando ventas...</p>
-            </div>
-          </div>
-        ) : filteredSales.length === 0 ? (
+        {filteredSales.length === 0 ? (
           <div className="text-center py-12">
-            <ShoppingBag className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="w-12 h-12 mx-auto bg-gradient-to-r from-primary-100 to-secondary-100 rounded-lg flex items-center justify-center mb-4">
+              <ShoppingBag className="w-6 h-6 text-primary-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
               {searchTerm || dateFilter !== 'today' || paymentFilter !== 'all'
                 ? 'No se encontraron ventas'
                 : 'No hay ventas registradas'
@@ -700,7 +719,7 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
             {!searchTerm && dateFilter === 'today' && paymentFilter === 'all' && (
               <button
                 onClick={handleNewSale}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium inline-flex items-center"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm inline-flex items-center"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Registrar Primera Venta
@@ -708,186 +727,171 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
             )}
           </div>
         ) : (
-          <>
-            <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  Mostrando {filteredSales.length} de {sales.length} ventas
-                </p>
-                <p className="text-sm font-medium text-gray-900">
-                  Total: {formatCurrency(salesMetrics.totalAmount)}
-                </p>
-              </div>
-            </div>
-            
-            <div className="divide-y divide-gray-200">
-              {filteredSales.map((sale) => {
-                const PaymentIcon = getPaymentIcon(sale.paymentMethod);
-                const isTransferPending = sale.paymentMethod === 'transfer' && sale.status === 'pending';
-                
-                return (
-                  <div key={sale.id} className="p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isTransferPending ? 'bg-yellow-100' : 'bg-green-100'
-                        }`}>
-                          <PaymentIcon className={`w-5 h-5 ${
-                            isTransferPending ? 'text-yellow-600' : 'text-green-600'
-                          }`} />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-sm font-medium text-gray-900 truncate">
-                              {sale.saleNumber || `Venta #${sale.id}`}
-                            </h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
-                              sale.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              sale.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {sale.status === 'completed' ? 'Completada' : 
-                               sale.status === 'pending' ? 'Pendiente' : sale.status}
-                            </span>
-                            {isTransferPending && (
-                              <span className="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full flex-shrink-0">
-                                Confirmar
-                              </span>
-                            )}
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                            {sale.customer?.name && (
-                              <span className="flex items-center">
-                                <User className="w-3 h-3 mr-1 flex-shrink-0" />
-                                <span className="truncate">{sale.customer.name}</span>
-                              </span>
-                            )}
-                            
-                            <span className="flex items-center flex-shrink-0">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {formatDate(sale.createdAt || sale.workDate)}
-                            </span>
-                            
-                            <span className="flex items-center flex-shrink-0">
-                              <PaymentIcon className="w-3 h-3 mr-1" />
-                              {getPaymentLabel(sale.paymentMethod)}
-                            </span>
-                          </div>
-                        </div>
+          <div className="divide-y divide-gray-200">
+            {filteredSales.map((sale) => {
+              const PaymentIcon = getPaymentIcon(sale.paymentMethod);
+              const isTransferPending = sale.paymentMethod === 'transfer' && sale.status === 'pending';
+              
+              return (
+                <div key={sale.id} className="p-3 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between gap-3">
+                    
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isTransferPending ? 'bg-yellow-100' : 
+                        sale.paymentMethod === 'cash' ? 'bg-green-100' : 'bg-blue-100'
+                      }`}>
+                        <PaymentIcon className={`w-5 h-5 ${
+                          isTransferPending ? 'text-yellow-600' : 
+                          sale.paymentMethod === 'cash' ? 'text-green-600' : 'text-blue-600'
+                        }`} />
                       </div>
                       
-                      <div className="flex items-center gap-3 ml-4">
-                        <div className="text-right">
-                          <div className="text-base font-bold text-gray-900">
-                            {formatCurrency(sale.totalAmount || 0)}
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            {sale.itemsCount || 0} producto{(sale.itemsCount || 0) !== 1 ? 's' : ''}
-                          </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-sm font-medium text-gray-900 truncate">
+                            {sale.saleNumber || `Venta #${sale.id}`}
+                          </h3>
+                          <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                            sale.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            sale.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {sale.status === 'completed' ? 'Completada' : 
+                             sale.status === 'pending' ? 'Pendiente' : sale.status}
+                          </span>
                         </div>
                         
-                        <div className="flex items-center gap-1">
-                          {isTransferPending && user?.role === 'admin' && (
-                            <button
-                              onClick={() => handleConfirmTransfer(sale.id)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Confirmar transferencia"
-                              disabled={confirmingTransfer === sale.id}
-                            >
-                              {confirmingTransfer === sale.id ? (
-                                <Loader className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <CheckCircle className="w-4 h-4" />
-                              )}
-                            </button>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                          {sale.customer?.name && (
+                            <span className="flex items-center truncate">
+                              <User className="w-3 h-3 mr-1 flex-shrink-0" />
+                              {sale.customer.name}
+                            </span>
                           )}
                           
-                          <button
-                            onClick={() => viewSaleReceipt(sale)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Ver comprobante"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
+                          <span className="flex items-center flex-shrink-0">
+                            <Clock className="w-3 h-3 mr-1" />
+                            {formatDate(sale.createdAt || sale.workDate)}
+                          </span>
                           
-                          <button
-                            onClick={() => {
-                              setCurrentReceipt(sale);
-                              setShowReceiptModal(true);
-                              setTimeout(() => handlePrintReceipt(), 100);
-                            }}
-                            className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title="Imprimir"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
+                          <span className="flex items-center flex-shrink-0">
+                            <Package className="w-3 h-3 mr-1" />
+                            {sale.itemsCount || 0} item{(sale.itemsCount || 0) !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-base font-bold text-gray-900">
+                          {formatCurrency(sale.totalAmount || 0)}
                         </div>
                       </div>
                       
+                      <div className="flex items-center gap-1">
+                        {isTransferPending && user?.role === 'admin' && (
+                          <button
+                            onClick={() => handleConfirmTransfer(sale.id)}
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Confirmar transferencia"
+                            disabled={confirmingTransfer === sale.id}
+                          >
+                            {confirmingTransfer === sale.id ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                        
+                        <button
+                          onClick={() => viewSaleReceipt(sale)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Ver comprobante"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setCurrentReceipt(sale);
+                            setShowReceiptModal(true);
+                            setTimeout(() => handlePrintReceipt(), 100);
+                          }}
+                          className="p-1.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                          title="Imprimir"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
+                    
                   </div>
-                );
-              })}
-            </div>
-          </>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
       
+      {/* MODAL NUEVA VENTA - MEJORADO Y COMPACTO */}
       {showNewSaleModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-7xl h-[95vh] flex flex-col shadow-2xl">
+          <div className="bg-white rounded-xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl">
             
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50 flex-shrink-0">
+            {/* Header compacto */}
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50 flex-shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Nueva Venta</h2>
-                <p className="text-sm text-gray-600 mt-0.5">
-                  Busca productos, completa la información y registra la venta
+                <h2 className="text-lg font-bold text-gray-900">Nueva Venta</h2>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Busca productos y completa la información
                 </p>
               </div>
               <button
                 onClick={() => setShowNewSaleModal(false)}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
+                className="p-1.5 hover:bg-white rounded-lg transition-colors"
                 disabled={isSavingSale}
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 
-                <div className="lg:col-span-2 space-y-4">
+                {/* Productos y Carrito */}
+                <div className="lg:col-span-2 space-y-3">
                   
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border-2 border-purple-200">
-                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                      <Search className="w-5 h-5 mr-2 text-purple-600" />
+                  {/* Búsqueda de productos */}
+                  <div className="bg-primary-50 rounded-lg p-3 border border-primary-200">
+                    <h3 className="font-semibold text-gray-900 mb-2 flex items-center text-sm">
+                      <Search className="w-4 h-4 mr-2 text-primary-600" />
                       Buscar Productos
                     </h3>
                     
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-purple-400" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-primary-400" />
                       <input
                         type="text"
                         placeholder="Buscar por nombre, SKU o código de barras..."
                         value={productSearchTerm}
                         onChange={(e) => setProductSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-base"
+                        className="w-full pl-10 pr-4 py-2 border border-primary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white text-sm"
                         autoFocus
                       />
                     </div>
                     
                     {productSearchTerm && (
-                      <div className="mt-4 max-h-96 overflow-y-auto">
+                      <div className="mt-3 max-h-64 overflow-y-auto">
                         {isSearching ? (
-                          <div className="text-center py-8">
-                            <Loader className="w-8 h-8 animate-spin mx-auto mb-3 text-purple-600" />
-                            <p className="text-sm text-gray-600">Buscando productos...</p>
+                          <div className="text-center py-6">
+                            <Loader className="w-6 h-6 animate-spin mx-auto mb-2 text-primary-600" />
+                            <p className="text-xs text-gray-600">Buscando...</p>
                           </div>
                         ) : searchResults.length > 0 ? (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {searchResults.map(product => {
                               const image = productImages[product.id];
                               const isOutOfStock = (product.stockQuantity || 0) <= 0;
@@ -896,35 +900,29 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                                 <button
                                   key={product.id}
                                   onClick={() => addProductToSale(product)}
-                                  className={`bg-white border-2 rounded-lg p-3 text-left transition-all ${
+                                  className={`bg-white border rounded-lg p-2 text-left transition-all ${
                                     isOutOfStock 
                                       ? 'border-red-200 opacity-50 cursor-not-allowed' 
-                                      : 'border-purple-200 hover:border-purple-400 hover:shadow-lg'
+                                      : 'border-primary-200 hover:border-primary-400 hover:shadow-md'
                                   }`}
                                   disabled={isOutOfStock}
                                 >
                                   <div className="aspect-square bg-gray-100 rounded-lg mb-2 overflow-hidden relative">
                                     {loadingImages[product.id] ? (
                                       <div className="w-full h-full flex items-center justify-center">
-                                        <Loader className="w-6 h-6 animate-spin text-gray-400" />
+                                        <Loader className="w-4 h-4 animate-spin text-gray-400" />
                                       </div>
                                     ) : image?.imageUrl ? (
                                       <img 
                                         src={image.imageUrl} 
                                         alt={product.name}
                                         className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                          e.target.style.display = 'none';
-                                          e.target.nextElementSibling.style.display = 'flex';
-                                        }}
                                       />
-                                    ) : null}
-                                    
-                                    <div className={`w-full h-full flex items-center justify-center ${
-                                      image?.imageUrl ? 'hidden' : ''
-                                    }`}>
-                                      <Package className="w-8 h-8 text-gray-400" />
-                                    </div>
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <Package className="w-6 h-6 text-gray-400" />
+                                      </div>
+                                    )}
                                     
                                     {isOutOfStock && (
                                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -933,25 +931,18 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                                     )}
                                   </div>
                                   
-                                  <h4 className="font-medium text-sm truncate mb-1" title={product.name}>
+                                  <h4 className="font-medium text-xs truncate mb-1" title={product.name}>
                                     {product.name}
                                   </h4>
                                   
-                                  {product.sku && (
-                                    <p className="text-xs text-gray-500 mb-2 truncate flex items-center">
-                                      <Barcode className="w-3 h-3 mr-1" />
-                                      {product.sku}
-                                    </p>
-                                  )}
-                                  
                                   <div className="flex items-center justify-between">
-                                    <span className="text-lg font-bold text-green-600">
+                                    <span className="text-sm font-bold text-green-600">
                                       {formatCurrency(product.price || 0)}
                                     </span>
                                     <span className={`text-xs font-medium ${
                                       isOutOfStock ? 'text-red-600' : 'text-green-600'
                                     }`}>
-                                      Stock: {product.stockQuantity || 0}
+                                      {product.stockQuantity || 0}
                                     </span>
                                   </div>
                                 </button>
@@ -959,110 +950,94 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                             })}
                           </div>
                         ) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Package className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                            <p className="font-medium">No se encontraron productos</p>
-                            <p className="text-sm mt-1">Intenta con otro término de búsqueda</p>
+                          <div className="text-center py-6 text-gray-500">
+                            <Package className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                            <p className="text-xs">No se encontraron productos</p>
                           </div>
                         )}
                       </div>
                     )}
                   </div>
                   
-                  <div className="border-2 border-gray-200 rounded-xl overflow-hidden bg-white shadow-lg">
-                    <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600">
-                      <h3 className="font-bold text-white flex items-center">
-                        <ShoppingCart className="w-5 h-5 mr-2" />
-                        Carrito de Venta ({currentSale.items.length})
+                  {/* Carrito */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                    <div className="px-3 py-2 bg-primary-600">
+                      <h3 className="font-bold text-white flex items-center text-sm">
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Carrito ({currentSale.items.length})
                       </h3>
                     </div>
                     
-                    <div className="max-h-[400px] overflow-y-auto">
+                    <div className="max-h-80 overflow-y-auto">
                       {currentSale.items.length === 0 ? (
-                        <div className="p-12 text-center text-gray-500">
-                          <ShoppingCart className="w-20 h-20 mx-auto mb-4 text-gray-400" />
-                          <p className="font-semibold text-lg">Carrito vacío</p>
-                          <p className="text-sm mt-1">Busca y selecciona productos arriba</p>
+                        <div className="p-8 text-center text-gray-500">
+                          <ShoppingCart className="w-16 h-16 mx-auto mb-3 text-gray-400" />
+                          <p className="font-semibold text-sm">Carrito vacío</p>
+                          <p className="text-xs mt-1">Busca y selecciona productos</p>
                         </div>
                       ) : (
                         <div className="divide-y divide-gray-200">
                           {currentSale.items.map(item => (
-                            <div key={item.productId} className="p-4 hover:bg-gray-50 transition-colors">
-                              <div className="flex items-center gap-4">
+                            <div key={item.productId} className="p-3 hover:bg-gray-50">
+                              <div className="flex items-center gap-3">
                                 
-                                <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border-2 border-gray-200">
+                                <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
                                   {item.productImage ? (
                                     <img 
                                       src={item.productImage} 
                                       alt={item.productName}
                                       className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextElementSibling.style.display = 'flex';
-                                      }}
                                     />
-                                  ) : null}
-                                  
-                                  <div className={`w-full h-full flex items-center justify-center ${
-                                    item.productImage ? 'hidden' : ''
-                                  }`}>
-                                    <Package className="w-8 h-8 text-gray-400" />
-                                  </div>
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <Package className="w-6 h-6 text-gray-400" />
+                                    </div>
+                                  )}
                                 </div>
                                 
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-semibold text-gray-900 truncate" title={item.productName}>
+                                  <div className="font-semibold text-sm text-gray-900 truncate">
                                     {item.productName}
                                   </div>
-                                  <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                                    <span className="font-medium">{formatCurrency(item.price)} c/u</span>
-                                    {item.productSku && (
-                                      <>
-                                        <span>•</span>
-                                        <span className="flex items-center truncate">
-                                          <Barcode className="w-3 h-3 mr-1 flex-shrink-0" />
-                                          {item.productSku}
-                                        </span>
-                                      </>
-                                    )}
+                                  <div className="text-xs text-gray-600">
+                                    {formatCurrency(item.price)} c/u
                                   </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200"
                                   >
-                                    <Minus className="w-4 h-4" />
+                                    <Minus className="w-3 h-3" />
                                   </button>
                                   
-                                  <div className="w-16 text-center">
-                                    <div className="text-2xl font-bold text-gray-900">{item.quantity}</div>
-                                    <div className="text-xs text-gray-500">de {item.maxStock}</div>
+                                  <div className="w-12 text-center">
+                                    <div className="text-lg font-bold text-gray-900">{item.quantity}</div>
+                                    <div className="text-xs text-gray-500">{item.maxStock}</div>
                                   </div>
                                   
                                   <button
                                     onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-100 text-green-600 hover:bg-green-200 disabled:opacity-50"
                                     disabled={item.quantity >= item.maxStock}
                                   >
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-3 h-3" />
                                   </button>
                                 </div>
                                 
-                                <div className="flex items-center gap-3">
-                                  <div className="text-right min-w-[100px]">
-                                    <div className="text-lg font-bold text-gray-900">
+                                <div className="flex items-center gap-2">
+                                  <div className="text-right min-w-[80px]">
+                                    <div className="text-sm font-bold text-gray-900">
                                       {formatCurrency(item.total)}
                                     </div>
                                   </div>
                                   
                                   <button
                                     onClick={() => removeItemFromSale(item.productId)}
-                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Eliminar producto"
+                                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                                   >
-                                    <X className="w-5 h-5" />
+                                    <X className="w-4 h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -1074,78 +1049,64 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 </div>
                 
-                <div className="space-y-4">
+                {/* Información lateral */}
+                <div className="space-y-3">
                   
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border-2 border-blue-200">
-                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                      <User className="w-5 h-5 mr-2 text-blue-600" />
+                  {/* Cliente */}
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                    <h3 className="font-semibold text-gray-900 mb-2 flex items-center text-sm">
+                      <User className="w-4 h-4 mr-2 text-blue-600" />
                       Cliente
                     </h3>
                     
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Nombre (opcional)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Escribe el nombre del cliente..."
-                          value={currentSale.customerInfo.name}
-                          onChange={(e) => setCurrentSale(prev => ({
-                            ...prev,
-                            customerInfo: { 
-                              ...prev.customerInfo, 
-                              type: 'cf',
-                              name: e.target.value 
-                            }
-                          }))}
-                          className="w-full px-3 py-2 border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                        <p className="text-xs text-gray-600 mt-1">
-                          Deja vacío para "Consumidor Final"
-                        </p>
-                      </div>
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Nombre del cliente (opcional)"
+                        value={currentSale.customerInfo.name}
+                        onChange={(e) => setCurrentSale(prev => ({
+                          ...prev,
+                          customerInfo: { 
+                            ...prev.customerInfo, 
+                            type: 'cf',
+                            name: e.target.value 
+                          }
+                        }))}
+                        className="w-full px-3 py-2 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
                       
                       <div className="relative" ref={customerSearchRef}>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          O buscar cliente registrado
-                        </label>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                          <input
-                            type="text"
-                            placeholder="Buscar por nombre o email..."
-                            value={customerSearchTerm}
-                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border-2 border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                          />
-                        </div>
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Buscar cliente registrado..."
+                          value={customerSearchTerm}
+                          onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 text-xs border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
                         
                         {showCustomerDropdown && (
-                          <div className="absolute z-20 w-full mt-1 bg-white border-2 border-blue-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                          <div className="absolute z-20 w-full mt-1 bg-white border border-blue-200 rounded-lg shadow-xl max-h-48 overflow-y-auto">
                             {isSearchingCustomers ? (
-                              <div className="p-4 text-center">
+                              <div className="p-3 text-center">
                                 <Loader className="w-4 h-4 animate-spin mx-auto mb-2 text-blue-600" />
-                                <span className="text-sm text-gray-600">Buscando clientes...</span>
+                                <span className="text-xs text-gray-600">Buscando...</span>
                               </div>
                             ) : customerSearchResults.length > 0 ? (
                               customerSearchResults.map(customer => (
                                 <button
                                   key={customer.id}
                                   onClick={() => selectCustomer(customer)}
-                                  className="w-full p-3 text-left hover:bg-blue-50 border-b border-gray-100 last:border-0 transition-colors"
+                                  className="w-full p-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-0"
                                 >
-                                  <div className="font-medium text-gray-900">
+                                  <div className="font-medium text-sm text-gray-900">
                                     {customer.firstName} {customer.lastName}
                                   </div>
-                                  <div className="text-sm text-gray-600">{customer.email}</div>
-                                  {customer.phone && (
-                                    <div className="text-sm text-gray-500 mt-0.5">Tel: {customer.phone}</div>
-                                  )}
+                                  <div className="text-xs text-gray-600">{customer.email}</div>
                                 </button>
                               ))
                             ) : customerSearchTerm.length >= 2 ? (
-                              <div className="p-4 text-center text-gray-500 text-sm">
+                              <div className="p-3 text-center text-gray-500 text-xs">
                                 No se encontraron clientes
                               </div>
                             ) : null}
@@ -1154,20 +1115,15 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                       </div>
                       
                       {currentSale.customerInfo.userId && (
-                        <div className="bg-white rounded-lg p-3 border-2 border-blue-300">
+                        <div className="bg-white rounded-lg p-2 border border-blue-300">
                           <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm text-gray-900 truncate">
                                 {currentSale.customerInfo.name}
                               </div>
                               {currentSale.customerInfo.email && (
-                                <div className="text-sm text-gray-600">
+                                <div className="text-xs text-gray-600 truncate">
                                   {currentSale.customerInfo.email}
-                                </div>
-                              )}
-                              {currentSale.customerInfo.phone && (
-                                <div className="text-sm text-gray-500">
-                                  {currentSale.customerInfo.phone}
                                 </div>
                               )}
                             </div>
@@ -1181,7 +1137,7 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                               }}
                               className="text-red-600 hover:text-red-800 ml-2"
                             >
-                              <X className="w-5 h-5" />
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -1189,41 +1145,42 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
                   </div>
                   
-                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border-2 border-green-200">
-                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center">
-                      <CreditCard className="w-5 h-5 mr-2 text-green-600" />
+                  {/* Método de pago */}
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <h3 className="font-semibold text-gray-900 mb-2 flex items-center text-sm">
+                      <CreditCard className="w-4 h-4 mr-2 text-green-600" />
                       Método de Pago
                     </h3>
                     
-                    <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
                       {paymentMethods.map(method => {
                         const IconComponent = method.icon;
                         return (
                           <button
                             key={method.id}
                             onClick={() => setCurrentSale(prev => ({ ...prev, paymentMethod: method.id }))}
-                            className={`p-3 border-2 rounded-lg transition-all ${
+                            className={`p-2 border rounded-lg transition-all ${
                               currentSale.paymentMethod === method.id
-                                ? 'border-green-600 bg-white shadow-lg scale-105'
+                                ? 'border-green-600 bg-white shadow-md'
                                 : 'border-green-300 bg-white hover:border-green-400'
                             }`}
                           >
-                            <IconComponent className={`w-6 h-6 mx-auto mb-2 ${
+                            <IconComponent className={`w-5 h-5 mx-auto mb-1 ${
                               method.color === 'green' ? 'text-green-600' : 'text-blue-600'
                             }`} />
-                            <div className="text-sm font-medium">{method.label}</div>
+                            <div className="text-xs font-medium">{method.label}</div>
                           </button>
                         );
                       })}
                     </div>
                     
                     {currentSale.paymentMethod === 'cash' && (
-                      <div className="bg-white rounded-lg p-3 border-2 border-green-200">
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <div className="bg-white rounded-lg p-2 border border-green-200">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">
                           Efectivo Recibido *
                         </label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <DollarSign className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                           <input
                             type="number"
                             step="0.01"
@@ -1231,16 +1188,16 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                             placeholder="0.00"
                             value={currentSale.cashReceived}
                             onChange={(e) => setCurrentSale(prev => ({ ...prev, cashReceived: e.target.value }))}
-                            className="w-full pl-10 pr-4 py-2 border-2 border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-lg font-semibold"
+                            className="w-full pl-8 pr-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 text-base font-semibold"
                             required
                           />
                         </div>
                         
                         {currentSale.cashReceived && currentSale.total > 0 && (
-                          <div className="mt-3 p-3 bg-green-100 rounded-lg">
+                          <div className="mt-2 p-2 bg-green-100 rounded-lg">
                             <div className="flex justify-between items-center">
-                              <span className="text-sm font-semibold text-gray-700">Cambio:</span>
-                              <span className="text-xl font-bold text-green-700">
+                              <span className="text-xs font-semibold text-gray-700">Cambio:</span>
+                              <span className="text-base font-bold text-green-700">
                                 {formatCurrency(Math.max(0, parseFloat(currentSale.cashReceived) - currentSale.total))}
                               </span>
                             </div>
@@ -1250,41 +1207,37 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                     )}
                     
                     {currentSale.paymentMethod === 'transfer' && (
-                      <div className="space-y-3 bg-white rounded-lg p-3 border-2 border-green-200">
+                      <div className="space-y-2 bg-white rounded-lg p-2 border border-green-200">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Comprobante de Transferencia *
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Comprobante *
                           </label>
                           <textarea
-                            placeholder="Ej: Transferencia desde BAC, cuenta 1234567890, referencia ABC123..."
+                            placeholder="Detalles de la transferencia..."
                             value={currentSale.transferVoucher}
                             onChange={(e) => setCurrentSale(prev => ({ ...prev, transferVoucher: e.target.value }))}
-                            rows={3}
-                            className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            rows={2}
+                            className="w-full px-2 py-1.5 text-xs border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
                             required
                           />
                         </div>
                         
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Referencia Bancaria (opcional)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Número de referencia..."
-                            value={currentSale.bankReference}
-                            onChange={(e) => setCurrentSale(prev => ({ ...prev, bankReference: e.target.value }))}
-                            className="w-full px-3 py-2 border-2 border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                          />
-                        </div>
+                        <input
+                          type="text"
+                          placeholder="Referencia bancaria (opcional)"
+                          value={currentSale.bankReference}
+                          onChange={(e) => setCurrentSale(prev => ({ ...prev, bankReference: e.target.value }))}
+                          className="w-full px-2 py-1.5 text-xs border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                        />
                       </div>
                     )}
                   </div>
                   
-                  <div className="space-y-3">
+                  {/* Descuento y notas */}
+                  <div className="space-y-2">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <Percent className="w-4 h-4 mr-1" />
+                      <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center">
+                        <Percent className="w-3 h-3 mr-1" />
                         Descuento
                       </label>
                       <input
@@ -1297,47 +1250,48 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                           setCurrentSale(prev => ({ ...prev, discount: e.target.value }));
                           calculateSaleTotal();
                         }}
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
                         Notas (opcional)
                       </label>
                       <textarea
-                        placeholder="Notas adicionales sobre la venta..."
+                        placeholder="Notas adicionales..."
                         value={currentSale.notes}
                         onChange={(e) => setCurrentSale(prev => ({ ...prev, notes: e.target.value }))}
                         rows={2}
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                   </div>
                   
-                  <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl p-4 text-white shadow-2xl">
-                    <h3 className="font-bold text-lg mb-3 flex items-center">
-                      <Calculator className="w-5 h-5 mr-2" />
-                      Resumen de Venta
+                  {/* Resumen */}
+                  <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg p-3 text-white shadow-lg">
+                    <h3 className="font-bold mb-2 flex items-center text-sm">
+                      <Calculator className="w-4 h-4 mr-2" />
+                      Resumen
                     </h3>
                     
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-purple-100">
-                        <span className="text-sm">Subtotal:</span>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-primary-100 text-sm">
+                        <span>Subtotal:</span>
                         <span className="font-semibold">{formatCurrency(currentSale.subtotal)}</span>
                       </div>
                       
                       {currentSale.discount > 0 && (
-                        <div className="flex justify-between items-center text-yellow-200">
-                          <span className="text-sm">Descuento:</span>
+                        <div className="flex justify-between items-center text-yellow-200 text-sm">
+                          <span>Descuento:</span>
                           <span className="font-semibold">-{formatCurrency(currentSale.discount)}</span>
                         </div>
                       )}
                       
-                      <div className="border-t-2 border-white/30 pt-2 mt-2">
+                      <div className="border-t border-white/30 pt-1.5 mt-1.5">
                         <div className="flex justify-between items-center">
-                          <span className="text-xl font-bold">Total:</span>
-                          <span className="text-3xl font-bold">
+                          <span className="text-base font-bold">Total:</span>
+                          <span className="text-2xl font-bold">
                             {formatCurrency(currentSale.total)}
                           </span>
                         </div>
@@ -1345,10 +1299,11 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
                   </div>
                   
-                  <div className="flex gap-3">
+                  {/* Botones */}
+                  <div className="flex gap-2">
                     <button
                       onClick={() => setShowNewSaleModal(false)}
-                      className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-semibold"
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-semibold"
                       disabled={isSavingSale}
                     >
                       Cancelar
@@ -1356,18 +1311,18 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
                     
                     <button
                       onClick={handleSaveSale}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-bold shadow-lg disabled:opacity-50"
                       disabled={isSavingSale || currentSale.items.length === 0}
                     >
                       {isSavingSale ? (
                         <span className="flex items-center justify-center">
-                          <Loader className="w-5 h-5 animate-spin mr-2" />
+                          <Loader className="w-4 h-4 animate-spin mr-2" />
                           Guardando...
                         </span>
                       ) : (
                         <span className="flex items-center justify-center">
-                          <Save className="w-5 h-5 mr-2" />
-                          Registrar Venta
+                          <Save className="w-4 h-4 mr-2" />
+                          Registrar
                         </span>
                       )}
                     </button>
@@ -1380,17 +1335,18 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
+      {/* MODAL RECIBO - SIMPLIFICADO */}
       {showReceiptModal && currentReceipt && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl">
             
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Comprobante de Venta</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Comprobante de Venta</h3>
               <button
                 onClick={() => setShowReceiptModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg"
               >
-                <X className="w-6 h-6 text-gray-500" />
+                <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             
@@ -1486,17 +1442,17 @@ const SalesManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-4">
               <button
                 onClick={() => setShowReceiptModal(false)}
-                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
               >
                 Cerrar
               </button>
               
               <button
                 onClick={handlePrintReceipt}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center justify-center"
                 disabled={isPrinting}
               >
                 {isPrinting ? (
