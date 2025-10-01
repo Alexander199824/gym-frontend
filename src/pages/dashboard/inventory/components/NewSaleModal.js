@@ -1,16 +1,13 @@
 // Autor: Alexander Echeverria  
 // Archivo: src/pages/dashboard/inventory/components/NewSaleModal.js
-// Modal para crear nueva venta - REDISEÑO TIPO COMPROBANTE
-// ✅ Z-index alto para sobreponerse a todo, sin datos falsos, total visible siempre
+// Modal para crear nueva venta - VERSIÓN CORREGIDA
+// ✅ Z-index correcto, tamaño compacto, colores del sistema
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus, Search, X, User, CreditCard, Coins, Loader, Package, 
-  Calculator, Minus, FileText, DollarSign, ShoppingCart, 
-  Percent, Save, Store, Mail, Phone, MapPin, Calendar,
-  Hash, Barcode, TrendingUp, Receipt, CheckCircle, AlertCircle,
-  Eye, Tag, Archive, Clock, Building, ChevronRight, ChevronLeft,
-  Users, Home
+  Calculator, Minus, FileText, ShoppingCart, 
+  Receipt, CheckCircle, Trash2, Archive, Phone, Edit2
 } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
 import inventoryService from '../../../../services/inventoryService';
@@ -37,7 +34,6 @@ const NewSaleModal = ({
     bankReference: ''
   });
   const [isSavingSale, setIsSavingSale] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1); // 1: Cliente, 2: Productos, 3: Pago
   
   // Estados de búsqueda de productos
   const [productSearchTerm, setProductSearchTerm] = useState('');
@@ -46,15 +42,12 @@ const NewSaleModal = ({
   const [productImages, setProductImages] = useState({});
   const [loadingImages, setLoadingImages] = useState({});
   
-  // Estados para listado de clientes
+  // Estados para clientes
   const [allCustomers, setAllCustomers] = useState([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
-  
-  const paymentMethods = [
-    { id: 'cash', label: 'Efectivo', icon: Coins, color: 'green', description: 'Pago en efectivo' },
-    { id: 'transfer', label: 'Transferencia', icon: FileText, color: 'blue', description: 'Transferencia bancaria' }
-  ];
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [showCustomerPanel, setShowCustomerPanel] = useState(false);
   
   // Cargar clientes al abrir el modal
   useEffect(() => {
@@ -77,11 +70,12 @@ const NewSaleModal = ({
       transferVoucher: '',
       bankReference: ''
     });
-    setCurrentStep(1);
     setProductSearchTerm('');
     setSearchResults([]);
     setProductImages({});
     setSelectedCustomerId(null);
+    setCustomerSearchTerm('');
+    setShowCustomerPanel(false);
   };
   
   // Cargar todos los clientes activos
@@ -102,10 +96,23 @@ const NewSaleModal = ({
     }
   };
   
-  // Seleccionar cliente del listado
+  // Filtrar clientes por búsqueda
+  const filteredCustomers = allCustomers.filter(customer => {
+    if (!customerSearchTerm) return true;
+    
+    const searchLower = customerSearchTerm.toLowerCase();
+    const fullName = `${customer.firstName} ${customer.lastName}`.toLowerCase();
+    const email = (customer.email || '').toLowerCase();
+    const phone = (customer.phone || '').toLowerCase();
+    
+    return fullName.includes(searchLower) || 
+           email.includes(searchLower) || 
+           phone.includes(searchLower);
+  });
+  
+  // Seleccionar cliente
   const selectCustomerFromList = (customer) => {
     if (!customer) {
-      // Cliente CF o sin nombre
       setSelectedCustomerId(null);
       setCurrentSale(prev => ({
         ...prev,
@@ -124,6 +131,8 @@ const NewSaleModal = ({
         }
       }));
     }
+    setShowCustomerPanel(false);
+    setCustomerSearchTerm('');
   };
   
   // Búsqueda de productos
@@ -157,9 +166,7 @@ const NewSaleModal = ({
   };
   
   const loadProductImage = async (productId) => {
-    if (productImages[productId] || loadingImages[productId]) {
-      return;
-    }
+    if (productImages[productId] || loadingImages[productId]) return;
     
     setLoadingImages(prev => ({ ...prev, [productId]: true }));
     
@@ -373,287 +380,259 @@ const NewSaleModal = ({
   
   if (!isOpen) return null;
   
-  // Determinar si puede avanzar de paso
-  const canAdvanceFromStep1 = true; // Cliente es opcional
-  const canAdvanceFromStep2 = currentSale.items.length > 0;
-  const canSave = currentSale.items.length > 0 && 
-    (currentSale.paymentMethod === 'cash' 
-      ? parseFloat(currentSale.cashReceived) >= currentSale.total
-      : currentSale.transferVoucher.trim() !== '');
-  
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-0 md:p-4">
-      <div className={`bg-white w-full h-full md:h-auto md:max-h-[95vh] md:rounded-2xl shadow-2xl flex flex-col ${
-        isMobile ? '' : 'md:max-w-6xl'
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-2 md:p-4">
+      <div className={`bg-white w-full h-full md:h-auto md:max-h-[92vh] md:rounded-xl shadow-2xl flex flex-col ${
+        isMobile ? '' : 'md:max-w-4xl'
       }`}>
         
-        {/* HEADER - Comprobante de Venta */}
-        <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 px-4 md:px-6 py-4 flex-shrink-0">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <Receipt className="w-6 h-6 text-white" />
-                <h1 className="text-xl md:text-2xl font-bold text-white">
-                  Nuevo Comprobante de Venta
-                </h1>
+        {/* HEADER */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 text-white" />
               </div>
-              <p className="text-sm text-white/90">
-                Completa la información para registrar la venta
-              </p>
+              <div>
+                <h1 className="text-lg md:text-xl font-bold text-white">
+                  Nueva Venta
+                </h1>
+                <p className="text-xs text-purple-100">
+                  Registra un nuevo comprobante
+                </p>
+              </div>
             </div>
             
             <button
               onClick={onClose}
               disabled={isSavingSale}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors ml-4"
+              className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-white" />
             </button>
           </div>
-          
-          {/* Indicador de Pasos */}
-          <div className="flex items-center justify-center gap-2 md:gap-4 mt-4">
-            {[
-              { num: 1, label: 'Cliente', icon: User },
-              { num: 2, label: 'Productos', icon: ShoppingCart },
-              { num: 3, label: 'Pago', icon: CreditCard }
-            ].map((step, idx) => {
-              const StepIcon = step.icon;
-              const isActive = currentStep === step.num;
-              const isCompleted = currentStep > step.num;
-              
-              return (
-                <React.Fragment key={step.num}>
-                  <button
-                    onClick={() => {
-                      if (step.num < currentStep || 
-                          (step.num === 2 && canAdvanceFromStep1) ||
-                          (step.num === 3 && canAdvanceFromStep2)) {
-                        setCurrentStep(step.num);
-                      }
-                    }}
-                    disabled={isSavingSale}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
-                      isActive 
-                        ? 'bg-white text-primary-600 shadow-lg scale-105' 
-                        : isCompleted
-                        ? 'bg-white/20 text-white hover:bg-white/30'
-                        : 'bg-white/10 text-white/60'
-                    }`}
-                  >
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      isActive ? 'bg-primary-600 text-white' : isCompleted ? 'bg-green-500 text-white' : 'bg-white/20'
-                    }`}>
-                      {isCompleted ? (
-                        <CheckCircle className="w-4 h-4" />
-                      ) : (
-                        <StepIcon className="w-3.5 h-3.5" />
-                      )}
-                    </div>
-                    <span className="text-sm font-semibold hidden sm:inline">
-                      {step.label}
-                    </span>
-                  </button>
-                  
-                  {idx < 2 && (
-                    <div className={`hidden md:block w-8 h-0.5 ${
-                      currentStep > step.num ? 'bg-green-400' : 'bg-white/20'
-                    }`} />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
         </div>
         
-        {/* CONTENIDO PRINCIPAL */}
-        <div className="flex-1 overflow-y-auto">
-          
-          {/* PASO 1: CLIENTE */}
-          {currentStep === 1 && (
-            <div className="p-4 md:p-6 space-y-4">
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 md:p-6 border-2 border-blue-200">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                    <Users className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-gray-900">Seleccionar Cliente</h2>
-                    <p className="text-sm text-gray-600">Elige un cliente o continúa como consumidor final</p>
-                  </div>
-                </div>
+        {/* CONTENIDO */}
+        <div className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="p-3 md:p-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              
+              {/* COLUMNA IZQUIERDA */}
+              <div className="lg:col-span-2 space-y-4">
                 
-                {/* Botón CF destacado */}
-                <button
-                  onClick={() => selectCustomerFromList(null)}
-                  className={`w-full mb-4 p-4 rounded-xl border-2 transition-all ${
-                    selectedCustomerId === null
-                      ? 'border-green-500 bg-green-50 shadow-lg'
-                      : 'border-gray-300 bg-white hover:border-blue-400'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      selectedCustomerId === null ? 'bg-green-500' : 'bg-gray-200'
-                    }`}>
-                      <User className={`w-6 h-6 ${selectedCustomerId === null ? 'text-white' : 'text-gray-500'}`} />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <div className="font-bold text-gray-900">Consumidor Final (CF)</div>
-                      <div className="text-sm text-gray-600">Sin nombre o cliente no registrado</div>
-                    </div>
-                    {selectedCustomerId === null && (
-                      <CheckCircle className="w-6 h-6 text-green-500" />
-                    )}
-                  </div>
-                </button>
-                
-                {/* Lista de clientes */}
-                {isLoadingCustomers ? (
-                  <div className="text-center py-8">
-                    <Loader className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-600" />
-                    <p className="text-sm text-gray-600">Cargando clientes...</p>
-                  </div>
-                ) : allCustomers.length > 0 ? (
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-gray-700 text-sm mb-2">Clientes Registrados:</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto">
-                      {allCustomers.map(customer => (
-                        <button
-                          key={customer.id}
-                          onClick={() => selectCustomerFromList(customer)}
-                          className={`p-3 rounded-xl border-2 text-left transition-all ${
-                            selectedCustomerId === customer.id
-                              ? 'border-green-500 bg-green-50 shadow-lg'
-                              : 'border-gray-300 bg-white hover:border-blue-400 hover:shadow-md'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              selectedCustomerId === customer.id ? 'bg-green-500' : 'bg-blue-100'
-                            }`}>
-                              <User className={`w-5 h-5 ${
-                                selectedCustomerId === customer.id ? 'text-white' : 'text-blue-600'
-                              }`} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-gray-900 truncate">
-                                {customer.firstName} {customer.lastName}
-                              </div>
-                              <div className="text-xs text-gray-600 truncate">
-                                {customer.email || customer.phone || 'Sin contacto'}
-                              </div>
-                            </div>
-                            {selectedCustomerId === customer.id && (
-                              <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                {/* CLIENTE */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <div className="border-b border-gray-200 px-3 py-2 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-600" />
+                        <h3 className="font-semibold text-gray-800 text-sm">Cliente</h3>
+                      </div>
+                      <button
+                        onClick={() => setShowCustomerPanel(!showCustomerPanel)}
+                        className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                        {showCustomerPanel ? 'Cerrar' : 'Cambiar'}
+                      </button>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-6 text-gray-500">
-                    <Users className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm">No hay clientes registrados</p>
-                  </div>
-                )}
-                
-                {/* Campos adicionales para cliente no registrado (solo si es CF) */}
-                {selectedCustomerId === null && (
-                  <div className="mt-4 p-4 bg-white rounded-xl border-2 border-gray-200">
-                    <h3 className="font-semibold text-gray-700 text-sm mb-3">
-                      Información Adicional (Opcional)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Teléfono
-                        </label>
-                        <input
-                          type="tel"
-                          placeholder="Ej: 5555-5555"
-                          value={currentSale.customerInfo.phone}
-                          onChange={(e) => setCurrentSale(prev => ({
-                            ...prev,
-                            customerInfo: { ...prev.customerInfo, phone: e.target.value }
-                          }))}
-                          className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
+                  
+                  {showCustomerPanel ? (
+                    <div className="p-3">
+                      {/* BUSCADOR DE CLIENTES */}
+                      <div className="mb-2">
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Buscar cliente o escribir 'Consumidor Final'..."
+                            value={customerSearchTerm}
+                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                          />
+                        </div>
                       </div>
                       
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Dirección
-                        </label>
+                      {/* CONSUMIDOR FINAL - Siempre visible o en resultados de búsqueda */}
+                      {(!customerSearchTerm || 'consumidor final'.includes(customerSearchTerm.toLowerCase())) && (
+                        <>
+                          <button
+                            onClick={() => selectCustomerFromList(null)}
+                            className={`w-full mb-2 p-2 rounded-lg border-2 transition-all text-left ${
+                              selectedCustomerId === null
+                                ? 'border-primary-500 bg-primary-50'
+                                : 'border-gray-200 hover:border-primary-300 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                                selectedCustomerId === null ? 'bg-primary-500' : 'bg-gray-200'
+                              }`}>
+                                <User className={`w-3.5 h-3.5 ${selectedCustomerId === null ? 'text-white' : 'text-gray-600'}`} />
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-gray-800 text-sm">Consumidor Final</div>
+                                <div className="text-xs text-gray-600">Sin cliente registrado</div>
+                              </div>
+                              {selectedCustomerId === null && (
+                                <CheckCircle className="w-4 h-4 text-primary-500" />
+                              )}
+                            </div>
+                          </button>
+                          
+                          {/* CAMPOS COMPACTOS PARA CONSUMIDOR FINAL */}
+                          {selectedCustomerId === null && (
+                            <div className="mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-1.5">
+                                <input
+                                  type="text"
+                                  placeholder="Nombre (opcional)"
+                                  value={currentSale.customerInfo.name}
+                                  onChange={(e) => setCurrentSale(prev => ({
+                                    ...prev,
+                                    customerInfo: { ...prev.customerInfo, name: e.target.value }
+                                  }))}
+                                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-primary-500"
+                                />
+                                <input
+                                  type="tel"
+                                  placeholder="Teléfono (opcional)"
+                                  value={currentSale.customerInfo.phone}
+                                  onChange={(e) => setCurrentSale(prev => ({
+                                    ...prev,
+                                    customerInfo: { ...prev.customerInfo, phone: e.target.value }
+                                  }))}
+                                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-primary-500"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Dirección (opcional)"
+                                  value={currentSale.customerInfo.address}
+                                  onChange={(e) => setCurrentSale(prev => ({
+                                    ...prev,
+                                    customerInfo: { ...prev.customerInfo, address: e.target.value }
+                                  }))}
+                                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-primary-500"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* LISTA DE CLIENTES */}
+                      {isLoadingCustomers ? (
+                        <div className="text-center py-6">
+                          <Loader className="w-6 h-6 animate-spin mx-auto mb-2 text-gray-600" />
+                          <p className="text-xs text-gray-600">Cargando clientes...</p>
+                        </div>
+                      ) : filteredCustomers.length > 0 ? (
+                        <div>
+                          <div className="text-xs font-medium text-gray-500 mb-1.5 px-0.5">
+                            {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''} {customerSearchTerm && 'encontrado(s)'}
+                          </div>
+                          <div className="max-h-32 overflow-y-auto space-y-1.5">
+                            {filteredCustomers.map(customer => (
+                              <button
+                                key={customer.id}
+                                onClick={() => selectCustomerFromList(customer)}
+                                className={`w-full p-2.5 rounded-lg border-2 transition-all text-left ${
+                                  selectedCustomerId === customer.id
+                                    ? 'border-primary-500 bg-primary-50'
+                                    : 'border-gray-200 hover:border-primary-300 bg-white'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    selectedCustomerId === customer.id ? 'bg-primary-500' : 'bg-gray-200'
+                                  }`}>
+                                    <User className={`w-4 h-4 ${
+                                      selectedCustomerId === customer.id ? 'text-white' : 'text-gray-600'
+                                    }`} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-semibold text-gray-800 truncate text-sm">
+                                      {customer.firstName} {customer.lastName}
+                                    </div>
+                                    <div className="text-xs text-gray-600 truncate">
+                                      {customer.email || customer.phone || 'Sin contacto'}
+                                    </div>
+                                  </div>
+                                  {selectedCustomerId === customer.id && (
+                                    <CheckCircle className="w-4 h-4 text-primary-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-gray-500">
+                          <User className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                          <p className="text-xs">
+                            {customerSearchTerm ? 'No se encontraron clientes' : 'No hay clientes registrados'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <User className="w-5 h-5 text-gray-600" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-800 text-sm">
+                            {currentSale.customerInfo.name || 'Consumidor Final'}
+                          </div>
+                          {currentSale.customerInfo.phone && (
+                            <div className="text-xs text-gray-600 flex items-center gap-1 mt-0.5">
+                              <Phone className="w-3 h-3" />
+                              {currentSale.customerInfo.phone}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* PRODUCTOS */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <div className="border-b border-gray-200 px-3 py-2 bg-gray-50">
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart className="w-4 h-4 text-gray-600" />
+                      <h3 className="font-semibold text-gray-800 text-sm">Productos</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3">
+                    {/* BÚSQUEDA DE PRODUCTOS */}
+                    <div className="mb-3">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="text"
-                          placeholder="Ej: Zona 10"
-                          value={currentSale.customerInfo.address}
-                          onChange={(e) => setCurrentSale(prev => ({
-                            ...prev,
-                            customerInfo: { ...prev.customerInfo, address: e.target.value }
-                          }))}
-                          className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Buscar productos por nombre o SKU..."
+                          value={productSearchTerm}
+                          onChange={(e) => setProductSearchTerm(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                         />
                       </div>
                     </div>
-                  </div>
-                )}
-                
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-semibold flex items-center gap-2"
-                  >
-                    Continuar a Productos
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* PASO 2: PRODUCTOS */}
-          {currentStep === 2 && (
-            <div className="p-4 md:p-6 space-y-4">
-              
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2 space-y-4">
-                  
-                  {/* Búsqueda de productos */}
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center">
-                        <Search className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">Buscar Productos</h3>
-                        <p className="text-sm text-gray-600">Busca por nombre, SKU o código de barras</p>
-                      </div>
-                    </div>
                     
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-purple-400" />
-                      <input
-                        type="text"
-                        placeholder="Buscar productos..."
-                        value={productSearchTerm}
-                        onChange={(e) => setProductSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-4 border-2 border-purple-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-base font-medium"
-                        autoFocus
-                      />
-                    </div>
-                    
+                    {/* RESULTADOS DE BÚSQUEDA */}
                     {productSearchTerm && (
-                      <div className="mt-4 max-h-80 overflow-y-auto">
+                      <div className="mb-3 max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
                         {isSearching ? (
-                          <div className="text-center py-12">
-                            <Loader className="w-8 h-8 animate-spin mx-auto mb-3 text-purple-600" />
-                            <p className="text-sm text-gray-600 font-medium">Buscando productos...</p>
+                          <div className="text-center py-6">
+                            <Loader className="w-6 h-6 animate-spin mx-auto mb-2 text-gray-600" />
+                            <p className="text-xs text-gray-600">Buscando...</p>
                           </div>
                         ) : searchResults.length > 0 ? (
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          <div className="divide-y divide-gray-200">
                             {searchResults.map(product => {
                               const image = productImages[product.id];
                               const isOutOfStock = (product.stockQuantity || 0) <= 0;
@@ -664,59 +643,48 @@ const NewSaleModal = ({
                                   key={product.id}
                                   onClick={() => addProductToSale(product)}
                                   disabled={isOutOfStock}
-                                  className={`bg-white border-2 rounded-xl p-3 text-left transition-all ${
+                                  className={`w-full p-2.5 text-left transition-colors ${
                                     isOutOfStock 
-                                      ? 'border-red-300 opacity-50 cursor-not-allowed' 
-                                      : 'border-purple-200 hover:border-purple-400 hover:shadow-lg hover:scale-105'
+                                      ? 'opacity-50 cursor-not-allowed bg-gray-50' 
+                                      : 'hover:bg-gray-50'
                                   }`}
                                 >
-                                  <div className="aspect-square bg-gray-100 rounded-lg mb-3 overflow-hidden relative">
-                                    {loadingImages[product.id] ? (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <Loader className="w-6 h-6 animate-spin text-gray-400" />
-                                      </div>
-                                    ) : image?.imageUrl ? (
-                                      <img 
-                                        src={image.imageUrl} 
-                                        alt={product.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <Package className="w-8 h-8 text-gray-400" />
-                                      </div>
-                                    )}
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                      {loadingImages[product.id] ? (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <Loader className="w-5 h-5 animate-spin text-gray-400" />
+                                        </div>
+                                      ) : image?.imageUrl ? (
+                                        <img 
+                                          src={image.imageUrl} 
+                                          alt={product.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <Package className="w-6 h-6 text-gray-400" />
+                                        </div>
+                                      )}
+                                    </div>
                                     
-                                    {isOutOfStock && (
-                                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                        <span className="text-white text-xs font-bold">SIN STOCK</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-semibold text-gray-800 truncate text-sm">
+                                        {product.name}
                                       </div>
-                                    )}
-                                    
-                                    {isLowStock && !isOutOfStock && (
-                                      <div className="absolute top-2 right-2">
-                                        <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                                          ¡Bajo!
+                                      <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
+                                        <span className="font-semibold text-green-700">
+                                          Q{(product.price || 0).toFixed(2)}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                          <Archive className="w-3 h-3" />
+                                          <span className={`font-medium ${
+                                            isOutOfStock ? 'text-red-600' : isLowStock ? 'text-orange-600' : 'text-gray-600'
+                                          }`}>
+                                            {product.stockQuantity || 0}
+                                          </span>
                                         </span>
                                       </div>
-                                    )}
-                                  </div>
-                                  
-                                  <h4 className="font-semibold text-sm truncate mb-2" title={product.name}>
-                                    {product.name}
-                                  </h4>
-                                  
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-base font-bold text-green-600">
-                                      Q{(product.price || 0).toFixed(2)}
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                      <Archive className="w-3 h-3 text-gray-400" />
-                                      <span className={`text-xs font-semibold ${
-                                        isOutOfStock ? 'text-red-600' : isLowStock ? 'text-orange-600' : 'text-green-600'
-                                      }`}>
-                                        {product.stockQuantity || 0}
-                                      </span>
                                     </div>
                                   </div>
                                 </button>
@@ -724,250 +692,236 @@ const NewSaleModal = ({
                             })}
                           </div>
                         ) : (
-                          <div className="text-center py-12 text-gray-500">
-                            <Package className="w-16 h-16 mx-auto mb-3 text-gray-400" />
-                            <p className="font-semibold">No se encontraron productos</p>
-                            <p className="text-sm mt-1">Intenta con otro término de búsqueda</p>
+                          <div className="text-center py-6 text-gray-500">
+                            <Package className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                            <p className="text-xs">No se encontraron productos</p>
                           </div>
                         )}
                       </div>
                     )}
-                  </div>
-                  
-                  {/* Carrito de productos */}
-                  <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-4 py-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <ShoppingCart className="w-5 h-5 text-white" />
-                          <h3 className="font-bold text-white">
-                            Productos Agregados
-                          </h3>
-                        </div>
-                        <span className="bg-white/20 text-white px-3 py-1 rounded-full text-sm font-bold">
-                          {currentSale.items.length}
-                        </span>
-                      </div>
-                    </div>
                     
-                    <div className="max-h-96 overflow-y-auto">
-                      {currentSale.items.length === 0 ? (
-                        <div className="p-12 text-center text-gray-500">
-                          <ShoppingCart className="w-20 h-20 mx-auto mb-4 text-gray-400" />
-                          <p className="font-semibold text-lg mb-2">Carrito vacío</p>
-                          <p className="text-sm">Busca y selecciona productos para agregar</p>
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-gray-200">
-                          {currentSale.items.map((item, idx) => (
-                            <div key={item.productId} className="p-4 hover:bg-gray-50 transition-colors">
-                              <div className="flex items-center gap-4">
-                                <div className="w-8 h-8 bg-primary-100 text-primary-700 rounded-lg flex items-center justify-center font-bold text-sm flex-shrink-0">
-                                  {idx + 1}
+                    {/* CARRITO */}
+                    {currentSale.items.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                        <ShoppingCart className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                        <p className="font-medium text-sm">Carrito vacío</p>
+                        <p className="text-xs mt-1">Busca y agrega productos</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {currentSale.items.map((item) => (
+                          <div key={item.productId} className="border border-gray-200 rounded-lg p-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                                {item.productImage ? (
+                                  <img 
+                                    src={item.productImage} 
+                                    alt={item.productName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="w-5 h-5 text-gray-400" />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-gray-800 truncate text-sm">
+                                  {item.productName}
+                                </div>
+                                <div className="text-xs text-gray-600 mt-0.5">
+                                  Q{item.price.toFixed(2)} × {item.quantity} = <span className="font-semibold text-gray-800">Q{item.total.toFixed(2)}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button
+                                  onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                                >
+                                  <Minus className="w-3.5 h-3.5" />
+                                </button>
+                                
+                                <div className="w-8 text-center font-bold text-gray-800 text-sm">
+                                  {item.quantity}
                                 </div>
                                 
-                                <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border-2 border-gray-200">
-                                  {item.productImage ? (
-                                    <img 
-                                      src={item.productImage} 
-                                      alt={item.productName}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                      <Package className="w-8 h-8 text-gray-400" />
-                                    </div>
-                                  )}
-                                </div>
+                                <button
+                                  onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
+                                  disabled={item.quantity >= item.maxStock}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
                                 
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-bold text-gray-900 mb-1 truncate">
-                                    {item.productName}
-                                  </div>
-                                  <div className="flex items-center gap-3 text-sm text-gray-600">
-                                    <span className="font-semibold text-green-600">
-                                      Q{item.price.toFixed(2)}
-                                    </span>
-                                    <span className="text-gray-400">×</span>
-                                    <span>{item.quantity}</span>
-                                    <span className="text-gray-400">=</span>
-                                    <span className="font-bold text-gray-900">
-                                      Q{item.total.toFixed(2)}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  <button
-                                    onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
-                                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                                  >
-                                    <Minus className="w-4 h-4" />
-                                  </button>
-                                  
-                                  <div className="w-14 text-center">
-                                    <div className="text-xl font-bold text-gray-900">{item.quantity}</div>
-                                    <div className="text-xs text-gray-500">de {item.maxStock}</div>
-                                  </div>
-                                  
-                                  <button
-                                    onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
-                                    disabled={item.quantity >= item.maxStock}
-                                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    <Plus className="w-4 h-4" />
-                                  </button>
-                                  
-                                  <button
-                                    onClick={() => removeItemFromSale(item.productId)}
-                                    className="w-9 h-9 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition-colors ml-2"
-                                  >
-                                    <X className="w-5 h-5" />
-                                  </button>
-                                </div>
+                                <button
+                                  onClick={() => removeItemFromSale(item.productId)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-red-600 hover:bg-red-50 ml-0.5"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 
-                {/* PANEL DE TOTALES VISIBLE EN PASO 2 */}
-                <div className="space-y-4">
-                  <div className="bg-gradient-to-br from-primary-600 to-secondary-600 rounded-xl p-4 text-white shadow-xl sticky top-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Calculator className="w-5 h-5" />
-                      <h4 className="font-bold text-lg">Resumen</h4>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center text-white/90">
-                        <span>Productos:</span>
-                        <span className="font-semibold">
-                          {currentSale.items.length}
-                        </span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center text-white/90">
-                        <span>Subtotal:</span>
-                        <span className="font-semibold text-lg">
-                          Q{currentSale.subtotal.toFixed(2)}
-                        </span>
-                      </div>
-                      
-                      <div className="border-t border-white/30 pt-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xl font-bold">TOTAL:</span>
-                          <span className="text-3xl font-bold">
-                            Q{currentSale.total.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
+                {/* DESCUENTO Y NOTAS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                      Descuento (Opcional)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold text-sm">
+                        Q
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        value={currentSale.discount}
+                        onChange={(e) => {
+                          setCurrentSale(prev => ({ ...prev, discount: e.target.value }));
+                          calculateSaleTotal();
+                        }}
+                        className="w-full pl-7 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-right text-sm"
+                      />
                     </div>
                   </div>
-                </div>
-              </div>
-              
-              {/* Navegación */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setCurrentStep(1)}
-                  className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold flex items-center gap-2"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                  Atrás
-                </button>
-                <button
-                  onClick={() => setCurrentStep(3)}
-                  disabled={!canAdvanceFromStep2}
-                  className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Continuar al Pago
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {/* PASO 3: PAGO */}
-          {currentStep === 3 && (
-            <div className="p-4 md:p-6 space-y-4">
-              
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                
-                <div className="lg:col-span-2 space-y-4">
                   
-                  {/* Método de pago */}
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center">
-                        <CreditCard className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">Método de Pago</h3>
-                        <p className="text-sm text-gray-600">Selecciona cómo realizará el pago</p>
-                      </div>
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                      Notas (Opcional)
+                    </label>
+                    <textarea
+                      placeholder="Notas adicionales..."
+                      value={currentSale.notes}
+                      onChange={(e) => setCurrentSale(prev => ({ ...prev, notes: e.target.value }))}
+                      rows={1}
+                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* COLUMNA DERECHA - RESUMEN Y PAGO */}
+              <div className="space-y-4">
+                
+                {/* RESUMEN */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 sticky top-2">
+                  <div className="border-b border-gray-200 px-3 py-2 bg-gray-50">
+                    <div className="flex items-center gap-2">
+                      <Calculator className="w-4 h-4 text-gray-600" />
+                      <h3 className="font-semibold text-gray-800 text-sm">Resumen</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 space-y-2">
+                    <div className="flex justify-between text-gray-700 text-sm">
+                      <span>Productos:</span>
+                      <span className="font-semibold">{currentSale.items.length}</span>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                      {paymentMethods.map(method => {
-                        const IconComponent = method.icon;
-                        const isSelected = currentSale.paymentMethod === method.id;
-                        
-                        return (
-                          <button
-                            key={method.id}
-                            onClick={() => setCurrentSale(prev => ({ ...prev, paymentMethod: method.id }))}
-                            className={`p-4 border-2 rounded-xl transition-all ${
-                              isSelected
-                                ? 'border-green-600 bg-white shadow-lg scale-105'
-                                : 'border-green-300 bg-white hover:border-green-400 hover:shadow-md'
-                            }`}
-                          >
-                            <IconComponent className={`w-8 h-8 mx-auto mb-2 ${
-                              method.color === 'green' ? 'text-green-600' : 'text-blue-600'
-                            }`} />
-                            <div className="font-bold text-gray-900 mb-1">{method.label}</div>
-                            <div className="text-xs text-gray-600">{method.description}</div>
-                            {isSelected && (
-                              <div className="mt-2">
-                                <CheckCircle className="w-5 h-5 text-green-600 mx-auto" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
+                    <div className="flex justify-between text-gray-700 text-sm">
+                      <span>Subtotal:</span>
+                      <span className="font-semibold">Q{currentSale.subtotal.toFixed(2)}</span>
                     </div>
                     
-                    {/* Campos específicos del método de pago */}
+                    {currentSale.discount > 0 && (
+                      <div className="flex justify-between text-orange-600 text-sm">
+                        <span>Descuento:</span>
+                        <span className="font-semibold">-Q{parseFloat(currentSale.discount).toFixed(2)}</span>
+                      </div>
+                    )}
+                    
+                    <div className="border-t border-gray-200 pt-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-base font-bold text-gray-800">TOTAL:</span>
+                        <span className="text-xl font-bold text-gray-900">
+                          Q{currentSale.total.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* MÉTODO DE PAGO */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <div className="border-b border-gray-200 px-3 py-2 bg-gray-50">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-gray-600" />
+                      <h3 className="font-semibold text-gray-800 text-sm">Método de Pago</h3>
+                    </div>
+                  </div>
+                  
+                  <div className="p-3 space-y-3">
+                    {/* SELECTOR */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setCurrentSale(prev => ({ ...prev, paymentMethod: 'cash' }))}
+                        className={`p-2.5 border-2 rounded-lg transition-all ${
+                          currentSale.paymentMethod === 'cash'
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-primary-300'
+                        }`}
+                      >
+                        <Coins className="w-5 h-5 mx-auto mb-1 text-green-600" />
+                        <div className="text-xs font-semibold text-gray-800">Efectivo</div>
+                        {currentSale.paymentMethod === 'cash' && (
+                          <CheckCircle className="w-3.5 h-3.5 text-primary-500 mx-auto mt-0.5" />
+                        )}
+                      </button>
+                      
+                      <button
+                        onClick={() => setCurrentSale(prev => ({ ...prev, paymentMethod: 'transfer' }))}
+                        className={`p-2.5 border-2 rounded-lg transition-all ${
+                          currentSale.paymentMethod === 'transfer'
+                            ? 'border-primary-500 bg-primary-50'
+                            : 'border-gray-200 hover:border-primary-300'
+                        }`}
+                      >
+                        <FileText className="w-5 h-5 mx-auto mb-1 text-blue-600" />
+                        <div className="text-xs font-semibold text-gray-800">Transferencia</div>
+                        {currentSale.paymentMethod === 'transfer' && (
+                          <CheckCircle className="w-3.5 h-3.5 text-primary-500 mx-auto mt-0.5" />
+                        )}
+                      </button>
+                    </div>
+                    
+                    {/* CAMPOS DE PAGO */}
                     {currentSale.paymentMethod === 'cash' && (
-                      <div className="bg-white rounded-xl p-4 border-2 border-green-300">
-                        <label className="block text-sm font-bold text-gray-900 mb-3">
-                          Efectivo Recibido *
-                        </label>
-                        <div className="relative mb-4">
-                          <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-lg">
-                            Q
-                          </span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            value={currentSale.cashReceived}
-                            onChange={(e) => setCurrentSale(prev => ({ ...prev, cashReceived: e.target.value }))}
-                            className="w-full pl-10 pr-4 py-4 border-2 border-green-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xl font-bold text-right"
-                            required
-                          />
+                      <div className="space-y-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Efectivo Recibido *
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold text-sm">
+                              Q
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={currentSale.cashReceived}
+                              onChange={(e) => setCurrentSale(prev => ({ ...prev, cashReceived: e.target.value }))}
+                              className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-right font-semibold"
+                            />
+                          </div>
                         </div>
                         
                         {currentSale.cashReceived && currentSale.total > 0 && (
-                          <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl p-4 border-2 border-green-300">
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-2.5">
                             <div className="flex justify-between items-center">
-                              <span className="text-sm font-bold text-gray-700">Cambio a Entregar:</span>
-                              <span className="text-2xl font-bold text-green-700">
+                              <span className="text-xs font-semibold text-gray-700">Cambio:</span>
+                              <span className="text-lg font-bold text-green-700">
                                 Q{Math.max(0, parseFloat(currentSale.cashReceived) - currentSale.total).toFixed(2)}
                               </span>
                             </div>
@@ -977,234 +931,64 @@ const NewSaleModal = ({
                     )}
                     
                     {currentSale.paymentMethod === 'transfer' && (
-                      <div className="space-y-3 bg-white rounded-xl p-4 border-2 border-green-300">
+                      <div className="space-y-2">
                         <div>
-                          <label className="block text-sm font-bold text-gray-900 mb-2">
-                            Comprobante de Transferencia *
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Comprobante *
                           </label>
                           <textarea
-                            placeholder="Ingresa los detalles del comprobante de transferencia..."
+                            placeholder="Detalles del comprobante..."
                             value={currentSale.transferVoucher}
                             onChange={(e) => setCurrentSale(prev => ({ ...prev, transferVoucher: e.target.value }))}
-                            rows={3}
-                            className="w-full px-4 py-3 border-2 border-green-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            required
+                            rows={2}
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none"
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-bold text-gray-900 mb-2">
-                            Referencia Bancaria (Opcional)
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Referencia Bancaria
                           </label>
                           <input
                             type="text"
-                            placeholder="Ej: REF123456789"
+                            placeholder="Ej: REF123456"
                             value={currentSale.bankReference}
                             onChange={(e) => setCurrentSale(prev => ({ ...prev, bankReference: e.target.value }))}
-                            className="w-full px-4 py-3 border-2 border-green-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                           />
                         </div>
                       </div>
                     )}
                   </div>
-                  
-                  {/* Descuento y notas */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white rounded-xl p-4 border-2 border-gray-200">
-                      <label className="block text-sm font-bold text-gray-900 mb-2">
-                        <Percent className="w-4 h-4 inline mr-1" />
-                        Descuento (Opcional)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">
-                          Q
-                        </span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={currentSale.discount}
-                          onChange={(e) => {
-                            setCurrentSale(prev => ({ ...prev, discount: e.target.value }));
-                            calculateSaleTotal();
-                          }}
-                          className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-semibold text-right"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-xl p-4 border-2 border-gray-200">
-                      <label className="block text-sm font-bold text-gray-900 mb-2">
-                        <FileText className="w-4 h-4 inline mr-1" />
-                        Notas (Opcional)
-                      </label>
-                      <textarea
-                        placeholder="Notas adicionales..."
-                        value={currentSale.notes}
-                        onChange={(e) => setCurrentSale(prev => ({ ...prev, notes: e.target.value }))}
-                        rows={3}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-                      />
-                    </div>
-                  </div>
                 </div>
                 
-                {/* Panel de resumen */}
-                <div className="space-y-4">
-                  
-                  {/* Resumen del cliente */}
-                  <div className="bg-white rounded-xl p-4 border-2 border-blue-200">
-                    <div className="flex items-center gap-2 mb-3">
-                      <User className="w-5 h-5 text-blue-600" />
-                      <h4 className="font-bold text-gray-900">Cliente</h4>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="font-semibold text-gray-900">
-                        {currentSale.customerInfo.name || 'Consumidor Final'}
-                      </div>
-                      {currentSale.customerInfo.phone && (
-                        <div className="text-gray-600 flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {currentSale.customerInfo.phone}
-                        </div>
-                      )}
-                      {currentSale.customerInfo.address && (
-                        <div className="text-gray-600 flex items-center gap-1">
-                          <Home className="w-3 h-3" />
-                          {currentSale.customerInfo.address}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Resumen de productos */}
-                  <div className="bg-white rounded-xl p-4 border-2 border-purple-200">
-                    <div className="flex items-center gap-2 mb-3">
-                      <ShoppingCart className="w-5 h-5 text-purple-600" />
-                      <h4 className="font-bold text-gray-900">Productos</h4>
-                    </div>
-                    <div className="space-y-2">
-                      {currentSale.items.map(item => (
-                        <div key={item.productId} className="flex items-center justify-between text-sm">
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 truncate">
-                              {item.productName}
-                            </div>
-                            <div className="text-gray-600 text-xs">
-                              {item.quantity} × Q{item.price.toFixed(2)}
-                            </div>
-                          </div>
-                          <div className="font-bold text-gray-900 ml-2">
-                            Q{item.total.toFixed(2)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Resumen financiero */}
-                  <div className="bg-gradient-to-br from-primary-600 to-secondary-600 rounded-xl p-4 text-white shadow-xl">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Calculator className="w-5 h-5" />
-                      <h4 className="font-bold text-lg">Total a Pagar</h4>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center text-white/90">
-                        <span>Subtotal:</span>
-                        <span className="font-semibold text-lg">
-                          Q{currentSale.subtotal.toFixed(2)}
-                        </span>
-                      </div>
-                      
-                      {currentSale.discount > 0 && (
-                        <div className="flex justify-between items-center text-yellow-200">
-                          <span>Descuento:</span>
-                          <span className="font-semibold text-lg">
-                            -Q{currentSale.discount}
-                          </span>
-                        </div>
-                      )}
-                      
-                      <div className="border-t border-white/30 pt-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xl font-bold">TOTAL:</span>
-                          <span className="text-3xl font-bold">
-                            Q{currentSale.total.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Navegación y acción */}
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => setCurrentStep(2)}
-                      className="w-full px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-semibold flex items-center justify-center gap-2"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                      Volver a Productos
-                    </button>
-                    
-                    <button
-                      onClick={handleSaveSale}
-                      disabled={isSavingSale || !canSave}
-                      className="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all font-bold text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {isSavingSale ? (
-                        <>
-                          <Loader className="w-6 h-6 animate-spin" />
-                          Procesando...
-                        </>
-                      ) : (
-                        <>
-                          <Receipt className="w-6 h-6" />
-                          Registrar Venta
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
+                {/* BOTÓN GUARDAR */}
+                <button
+                  onClick={handleSaveSale}
+                  disabled={isSavingSale || currentSale.items.length === 0 || 
+                    (currentSale.paymentMethod === 'cash' && parseFloat(currentSale.cashReceived) < currentSale.total) ||
+                    (currentSale.paymentMethod === 'transfer' && !currentSale.transferVoucher.trim())}
+                  className="w-full px-5 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+                >
+                  {isSavingSale ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Registrar Venta
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-          )}
-          
+          </div>
         </div>
-        
       </div>
     </div>
   );
 };
 
 export default NewSaleModal;
-
-/**
- * 🎯 MEJORAS IMPLEMENTADAS
- * 
- * ✅ 1. Z-INDEX CORREGIDO:
- *    - z-[9999] para sobreponerse a todos los paneles laterales
- * 
- * ✅ 2. SIN DATOS FALSOS:
- *    - Eliminados NIT, dirección, teléfono y email de la empresa
- *    - Header simplificado solo con título del comprobante
- * 
- * ✅ 3. TERMINOLOGÍA:
- *    - Cambiado "factura" por "comprobante" en todo el código
- * 
- * ✅ 4. TOTAL VISIBLE EN PASO 2:
- *    - Panel de resumen sticky en la columna derecha
- *    - Muestra productos, subtotal y total mientras agregan items
- * 
- * ✅ 5. SELECCIÓN DE CLIENTE MEJORADA:
- *    - Listado visual con todos los clientes registrados
- *    - Botón destacado para CF (Consumidor Final)
- *    - Campos opcionales para teléfono y dirección de cliente no registrado
- *    - Sin búsqueda de clientes, solo listado completo
- * 
- * ✅ 6. SOLO QUETZALES:
- *    - Todos los precios con "Q" en lugar de símbolos de dólar
- *    - Formato consistente: Q150.00
- *    - Sin DollarSign en los iconos de moneda
- */
