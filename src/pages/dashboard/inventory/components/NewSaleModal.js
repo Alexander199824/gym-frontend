@@ -1,16 +1,16 @@
 // Autor: Alexander Echeverria  
 // Archivo: src/pages/dashboard/inventory/components/NewSaleModal.js
-// Modal para crear nueva venta - VERSIÓN FINAL CORREGIDA
-// ✅ Z-index 99999, sin símbolos de dólar, título "Nueva Venta" con mancuerna
+// Modal para crear nueva venta - REDISEÑO TIPO COMPROBANTE
+// ✅ Z-index alto para sobreponerse a todo, sin datos falsos, total visible siempre
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Plus, Search, X, User, CreditCard, Coins, Loader, Package, 
-  Calculator, Minus, FileText, ShoppingCart, 
-  Percent, Save, Store, Mail, Phone, MapPin,
-  TrendingUp, Receipt, CheckCircle, AlertCircle,
-  Tag, Archive, ChevronRight, ChevronLeft,
-  Users, Home, Dumbbell
+  Calculator, Minus, FileText, DollarSign, ShoppingCart, 
+  Percent, Save, Store, Mail, Phone, MapPin, Calendar,
+  Hash, Barcode, TrendingUp, Receipt, CheckCircle, AlertCircle,
+  Eye, Tag, Archive, Clock, Building, ChevronRight, ChevronLeft,
+  Users, Home
 } from 'lucide-react';
 import { useApp } from '../../../../contexts/AppContext';
 import inventoryService from '../../../../services/inventoryService';
@@ -382,19 +382,19 @@ const NewSaleModal = ({
       : currentSale.transferVoucher.trim() !== '');
   
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[99999] flex items-center justify-center p-0 md:p-4">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-0 md:p-4">
       <div className={`bg-white w-full h-full md:h-auto md:max-h-[95vh] md:rounded-2xl shadow-2xl flex flex-col ${
         isMobile ? '' : 'md:max-w-6xl'
       }`}>
         
-        {/* HEADER - Nueva Venta con icono de mancuerna */}
+        {/* HEADER - Comprobante de Venta */}
         <div className="bg-gradient-to-r from-primary-600 via-primary-700 to-secondary-600 px-4 md:px-6 py-4 flex-shrink-0">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <Dumbbell className="w-6 h-6 text-white" />
+                <Receipt className="w-6 h-6 text-white" />
                 <h1 className="text-xl md:text-2xl font-bold text-white">
-                  Nueva Venta
+                  Nuevo Comprobante de Venta
                 </h1>
               </div>
               <p className="text-sm text-white/90">
@@ -945,7 +945,6 @@ const NewSaleModal = ({
                     {currentSale.paymentMethod === 'cash' && (
                       <div className="bg-white rounded-xl p-4 border-2 border-green-300">
                         <label className="block text-sm font-bold text-gray-900 mb-3">
-                          <Coins className="w-4 h-4 inline mr-1" />
                           Efectivo Recibido *
                         </label>
                         <div className="relative mb-4">
@@ -981,7 +980,6 @@ const NewSaleModal = ({
                       <div className="space-y-3 bg-white rounded-xl p-4 border-2 border-green-300">
                         <div>
                           <label className="block text-sm font-bold text-gray-900 mb-2">
-                            <FileText className="w-4 h-4 inline mr-1" />
                             Comprobante de Transferencia *
                           </label>
                           <textarea
@@ -1124,7 +1122,7 @@ const NewSaleModal = ({
                         <div className="flex justify-between items-center text-yellow-200">
                           <span>Descuento:</span>
                           <span className="font-semibold text-lg">
-                            -Q{parseFloat(currentSale.discount).toFixed(2)}
+                            -Q{currentSale.discount}
                           </span>
                         </div>
                       )}
@@ -1183,27 +1181,30 @@ const NewSaleModal = ({
 export default NewSaleModal;
 
 /**
- * 🎯 CORRECCIONES FINALES APLICADAS
+ * 🎯 MEJORAS IMPLEMENTADAS
  * 
- * ✅ 1. Z-INDEX MÁXIMO:
- *    - z-[99999] para estar por encima de TODO (igual que modal de planes)
+ * ✅ 1. Z-INDEX CORREGIDO:
+ *    - z-[9999] para sobreponerse a todos los paneles laterales
  * 
- * ✅ 2. TÍTULO CORRECTO:
- *    - "Nueva Venta" con icono de Dumbbell (mancuerna) 🏋️
- *    - Sin mencionar "comprobante" o "factura"
+ * ✅ 2. SIN DATOS FALSOS:
+ *    - Eliminados NIT, dirección, teléfono y email de la empresa
+ *    - Header simplificado solo con título del comprobante
  * 
- * ✅ 3. ELIMINADOS TODOS LOS SÍMBOLOS DE DÓLAR:
- *    - Removido DollarSign de imports
- *    - Icono de Coins en lugar de DollarSign para efectivo
- *    - Formato "Q" en todos los precios
+ * ✅ 3. TERMINOLOGÍA:
+ *    - Cambiado "factura" por "comprobante" en todo el código
  * 
- * ✅ 4. BOTÓN DE REGISTRAR:
- *    - Usa icono de Receipt (comprobante)
- *    - Texto: "Registrar Venta"
- *    - Sin símbolos de dólar
+ * ✅ 4. TOTAL VISIBLE EN PASO 2:
+ *    - Panel de resumen sticky en la columna derecha
+ *    - Muestra productos, subtotal y total mientras agregan items
  * 
- * ✅ 5. FORMATO QUETZALES CONSISTENTE:
- *    - Q150.00 en todos lados
- *    - Q en inputs con span absoluto
- *    - toFixed(2) en todos los números
+ * ✅ 5. SELECCIÓN DE CLIENTE MEJORADA:
+ *    - Listado visual con todos los clientes registrados
+ *    - Botón destacado para CF (Consumidor Final)
+ *    - Campos opcionales para teléfono y dirección de cliente no registrado
+ *    - Sin búsqueda de clientes, solo listado completo
+ * 
+ * ✅ 6. SOLO QUETZALES:
+ *    - Todos los precios con "Q" en lugar de símbolos de dólar
+ *    - Formato consistente: Q150.00
+ *    - Sin DollarSign en los iconos de moneda
  */
