@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPage.js
-// Sistema de checkout con envío local limitado a Baja Verapaz
+// VERSIÓN FINAL: Sin IVA, Sin envío gratis, Sin validación de imágenes
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -42,6 +42,36 @@ import { PaymentStep } from './CheckoutPayment';
 import { ConfirmationStep, OrderSummary } from './CheckoutConfirmation';
 
 // ============================================================================
+// VALIDACIÓN DE PRODUCTOS - SOLO PRECIO Y CANTIDAD OBLIGATORIOS
+// ============================================================================
+const validateCartItems = (items) => {
+  const invalidItems = [];
+  const validItems = [];
+
+  items.forEach(item => {
+    const hasValidPrice = item.price && !isNaN(item.price) && item.price > 0;
+    const hasValidQuantity = item.quantity && !isNaN(item.quantity) && item.quantity > 0;
+    const hasValidId = item.id;
+
+    // SOLO VALIDAR: Precio, Cantidad e ID
+    if (!hasValidPrice || !hasValidQuantity || !hasValidId) {
+      invalidItems.push({
+        ...item,
+        issues: {
+          noPrice: !hasValidPrice,
+          noQuantity: !hasValidQuantity,
+          noId: !hasValidId
+        }
+      });
+    } else {
+      validItems.push(item);
+    }
+  });
+
+  return { validItems, invalidItems };
+};
+
+// ============================================================================
 // CONFIGURACIÓN DE ENVÍO LOCAL LIMITADO
 // ============================================================================
 const LOCAL_DELIVERY_CONFIG = {
@@ -80,7 +110,8 @@ const CheckoutPage = () => {
     isEmpty, 
     formatCurrency, 
     clearCart,
-    sessionInfo 
+    sessionInfo,
+    removeItem 
   } = useCart();
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo, isMobile } = useApp();
@@ -89,12 +120,15 @@ const CheckoutPage = () => {
   const stripeInitializing = useRef(false);
   const isInitialMount = useRef(true);
   const gymConfigLoaded = useRef(false);
+  const cartValidated = useRef(false);
 
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderCreated, setOrderCreated] = useState(null);
   const [stripePromise, setStripePromise] = useState(null);
   const [stripeAvailable, setStripeAvailable] = useState(false);
+  const [cartHasInvalidItems, setCartHasInvalidItems] = useState(false);
+  const [invalidItemsList, setInvalidItemsList] = useState([]);
 
   const [gymConfig, setGymConfig] = useState({
     name: '',
@@ -140,24 +174,53 @@ const CheckoutPage = () => {
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
 
   // ============================================================================
+  // VALIDACIÓN DEL CARRITO AL MONTAR - SIN VALIDAR IMÁGENES
+  // ============================================================================
+  useEffect(() => {
+    if (!cartValidated.current && items.length > 0) {
+      console.log('🔍 Validando productos del carrito (precio y cantidad)...');
+      const { validItems, invalidItems } = validateCartItems(items);
+      
+      if (invalidItems.length > 0) {
+        console.warn('⚠️ Productos inválidos detectados:', invalidItems);
+        setCartHasInvalidItems(true);
+        setInvalidItemsList(invalidItems);
+        
+        const issuesList = invalidItems.map(item => {
+          const issues = [];
+          if (item.issues.noPrice) issues.push('sin precio válido');
+          if (item.issues.noQuantity) issues.push('cantidad inválida');
+          if (item.issues.noId) issues.push('sin ID');
+          return `${item.name || 'Producto desconocido'} (${issues.join(', ')})`;
+        }).join('; ');
+        
+        showError(`Productos inválidos en el carrito: ${issuesList}. Elimínalos antes de continuar.`);
+      } else {
+        console.log('✅ Todos los productos son válidos');
+        setCartHasInvalidItems(false);
+        setInvalidItemsList([]);
+      }
+      
+      cartValidated.current = true;
+    }
+  }, [items, showError]);
+
+  // ============================================================================
   // EFECTO: Configurar departamento y municipios según método de entrega
   // ============================================================================
   useEffect(() => {
     if (deliveryMethod === 'local_delivery') {
       console.log('🚚 Envío local activado - configurando Baja Verapaz...');
       
-      // Establecer Baja Verapaz automáticamente
       setShippingAddress(prev => ({
         ...prev,
         state: LOCAL_DELIVERY_CONFIG.department,
-        municipality: '', // Limpiar municipio para que el usuario seleccione
+        municipality: '',
         city: ''
       }));
       
-      // Establecer municipios limitados
       setAvailableMunicipalities(LOCAL_DELIVERY_CONFIG.municipalities);
       
-      // Obtener código postal de Baja Verapaz
       const postalCode = getPostalCode(LOCAL_DELIVERY_CONFIG.department);
       setShippingAddress(prev => ({
         ...prev,
@@ -170,7 +233,6 @@ const CheckoutPage = () => {
       });
       
     } else if (deliveryMethod === 'national_delivery') {
-      // Para envío nacional, permitir todos los departamentos y municipios
       if (shippingAddress.state) {
         const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
         setAvailableMunicipalities(municipalities);
@@ -178,7 +240,6 @@ const CheckoutPage = () => {
         setAvailableMunicipalities([]);
       }
     } else if (deliveryMethod === 'pickup_store') {
-      // Limpiar dirección para pickup en tienda
       setAvailableMunicipalities([]);
     }
   }, [deliveryMethod]);
@@ -253,7 +314,7 @@ const CheckoutPage = () => {
         }
 
         gymConfigLoaded.current = true;
-        console.log('Configuración del gym completada solo con datos del backend');
+        console.log('Configuración del gym completada');
         
       } catch (error) {
         console.error('Error cargando configuración del gym:', error);
@@ -308,7 +369,7 @@ const CheckoutPage = () => {
       };
 
       setDeliveryOptions(options);
-      console.log('Opciones de entrega configuradas con datos reales del backend');
+      console.log('Opciones de entrega configuradas');
     };
 
     if (!isLoadingConfig) {
@@ -330,7 +391,7 @@ const CheckoutPage = () => {
 
   useEffect(() => {
     if (isEmpty && step !== 3) {
-      console.log('Carrito está vacío, redirigiendo...');
+      console.log('Carrito vacío, redirigiendo...');
       setTimeout(() => {
         memoizedShowInfo('Tu carrito está vacío');
       }, 100);
@@ -347,7 +408,7 @@ const CheckoutPage = () => {
       const stripeEnabled = process.env.REACT_APP_STRIPE_ENABLED === 'true';
       
       if (!stripeEnabled) {
-        console.log('Stripe deshabilitado por variable de entorno');
+        console.log('Stripe deshabilitado');
         setStripeAvailable(false);
         stripeInitialized.current = true;
         return;
@@ -355,18 +416,18 @@ const CheckoutPage = () => {
 
       try {
         stripeInitializing.current = true;
-        console.log('Inicializando configuración de Stripe...');
+        console.log('Inicializando Stripe...');
         
         const stripeConfig = await apiService.getStripeConfig();
         
         if (stripeConfig?.data?.stripe?.enabled) {
           const publishableKey = stripeConfig.data.stripe.publishableKey;
-          console.log('Cargando Stripe con clave pública...');
+          console.log('Cargando Stripe...');
           
           const stripe = await loadStripe(publishableKey);
           setStripePromise(Promise.resolve(stripe));
           setStripeAvailable(true);
-          console.log('Stripe cargado exitosamente');
+          console.log('✅ Stripe cargado');
           
           setTimeout(() => {
             memoizedShowInfo('Pagos con tarjeta disponibles');
@@ -385,7 +446,7 @@ const CheckoutPage = () => {
         console.error('Error cargando Stripe:', error);
         setStripeAvailable(false);
         setTimeout(() => {
-          memoizedShowError('Error cargando sistema de pagos con tarjeta');
+          memoizedShowError('Error cargando sistema de pagos');
         }, 100);
       } finally {
         stripeInitializing.current = false;
@@ -396,12 +457,11 @@ const CheckoutPage = () => {
   }, []);
 
   // ============================================================================
-  // ACTUALIZACIÓN DE MUNICIPIOS - Solo para envío nacional
+  // ACTUALIZACIÓN DE MUNICIPIOS
   // ============================================================================
   const updateMunicipalities = useCallback((departmentName) => {
-    // Si es envío local, los municipios ya están fijados
     if (deliveryMethod === 'local_delivery') {
-      console.log('📍 Envío local - municipios fijos de Baja Verapaz');
+      console.log('📍 Envío local - municipios fijos');
       return;
     }
     
@@ -413,7 +473,7 @@ const CheckoutPage = () => {
       setAvailableMunicipalities(municipalities);
       
       const postalCode = getPostalCode(departmentName);
-      console.log('Código postal asignado:', postalCode);
+      console.log('Código postal:', postalCode);
       
       setShippingAddress(prev => {
         if (prev.zipCode !== postalCode) {
@@ -422,24 +482,22 @@ const CheckoutPage = () => {
         return prev;
       });
     } else {
-      console.log('Limpiando municipios - no hay departamento válido');
+      console.log('Limpiando municipios');
       setAvailableMunicipalities([]);
     }
   }, [deliveryMethod]);
 
   useEffect(() => {
-    // Solo actualizar municipios si no es envío local
     if (deliveryMethod !== 'local_delivery') {
       updateMunicipalities(shippingAddress.state);
     }
   }, [shippingAddress.state, updateMunicipalities, deliveryMethod]);
 
   useEffect(() => {
-    // Solo validar cambios si no es envío local
     if (deliveryMethod !== 'local_delivery' && shippingAddress.state && shippingAddress.municipality) {
       const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
       if (!municipalities.includes(shippingAddress.municipality)) {
-        console.log('Reseteando municipio porque no pertenece al nuevo departamento');
+        console.log('Reseteando municipio inválido');
         setShippingAddress(prev => ({
           ...prev,
           municipality: '',
@@ -499,12 +557,11 @@ const CheckoutPage = () => {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un municipio';
           } else if (deliveryMethod === 'local_delivery') {
-            // Validar contra municipios limitados
             if (!LOCAL_DELIVERY_CONFIG.municipalities.includes(value)) {
               fieldErrors[name] = 'Municipio no disponible para envío local';
             }
           } else if (!isValidMunicipality(value, shippingAddress.state)) {
-            fieldErrors[name] = 'Municipio no válido para este departamento';
+            fieldErrors[name] = 'Municipio no válido';
           }
         }
         break;
@@ -529,7 +586,7 @@ const CheckoutPage = () => {
   };
 
   const handleInputChange = useCallback((section, field, value) => {
-    console.log(`Cambiando ${section}.${field} a:`, value);
+    console.log(`Cambiando ${section}.${field}`);
     
     if (section === 'customerInfo') {
       setCustomerInfo(prev => ({ ...prev, [field]: value }));
@@ -538,11 +595,9 @@ const CheckoutPage = () => {
         const newAddress = { ...prev, [field]: value };
         
         if (field === 'municipality' && value) {
-          console.log('Cambiando municipio a:', value);
+          console.log('Cambiando municipio:', value);
           newAddress.city = value;
           
-          // Actualizar código postal por municipio si es necesario
-          // Para Guatemala, usamos el código postal del departamento
           if (prev.state) {
             const postalCode = getPostalCode(prev.state);
             newAddress.zipCode = postalCode;
@@ -613,9 +668,9 @@ const CheckoutPage = () => {
     const isValid = Object.keys(newErrors).filter(key => newErrors[key]).length === 0;
     
     if (!isValid) {
-      console.log('Validación de formulario falló:', newErrors);
+      console.log('Validación falló:', newErrors);
     } else {
-      console.log('Validación de formulario exitosa');
+      console.log('✅ Validación exitosa');
     }
 
     return isValid;
@@ -625,30 +680,26 @@ const CheckoutPage = () => {
     const selectedOption = deliveryOptions[deliveryMethod];
     if (!selectedOption) return 0;
     
-    // Retornar el costo fijo sin promociones de envío gratis
+    // SIEMPRE retornar el costo fijo - SIN envío gratis automático
     return selectedOption.cost;
   };
 
   const handleContinue = () => {
+    // Validar productos inválidos
+    if (cartHasInvalidItems) {
+      memoizedShowError('Elimina los productos inválidos antes de continuar');
+      return;
+    }
+
     if (validateForm()) {
       setStep(2);
-      console.log('Moviéndose al paso de pago con datos:', {
-        customerInfo,
-        deliveryMethod,
-        shippingAddress: deliveryMethod !== 'pickup_store' ? {
-          ...shippingAddress,
-          fullLocation: `${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
-        } : null
-      });
+      console.log('✅ Avanzando al pago');
     } else {
-      memoizedShowError('Por favor corrige los errores en el formulario');
+      memoizedShowError('Corrige los errores del formulario');
       
       const errorList = Object.values(errors).filter(Boolean);
       if (errorList.length > 0) {
-        console.log('Errores específicos:', errorList);
-        setTimeout(() => {
-          memoizedShowInfo(`Errores encontrados: ${errorList.join(', ')}`);
-        }, 1000);
+        console.log('Errores:', errorList);
       }
     }
   };
@@ -661,13 +712,24 @@ const CheckoutPage = () => {
     }
   };
 
+  const handleRemoveInvalidItem = (itemId) => {
+    removeItem(itemId);
+    const { validItems, invalidItems } = validateCartItems(items.filter(i => i.id !== itemId));
+    setInvalidItemsList(invalidItems);
+    setCartHasInvalidItems(invalidItems.length > 0);
+    
+    if (invalidItems.length === 0) {
+      memoizedShowSuccess('Productos inválidos eliminados');
+    }
+  };
+
   if (isEmpty && step !== 3) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Tu carrito está vacío</h2>
-          <p className="text-gray-600 mb-6">Agrega algunos productos para continuar con la compra</p>
+          <p className="text-gray-600 mb-6">Agrega productos para continuar</p>
           <button
             onClick={() => navigate('/store')}
             className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors"
@@ -738,10 +800,49 @@ const CheckoutPage = () => {
         </div>
       </div>
 
+      {/* ALERTA DE PRODUCTOS INVÁLIDOS */}
+      {cartHasInvalidItems && step === 1 && (
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
+            <div className="flex items-start">
+              <AlertCircle className="w-6 h-6 text-red-600 mr-3 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-red-900 font-semibold mb-2">
+                  ⚠️ Productos inválidos detectados
+                </h3>
+                <p className="text-red-800 text-sm mb-3">
+                  Los siguientes productos tienen problemas. Elimínalos para continuar:
+                </p>
+                <ul className="space-y-2">
+                  {invalidItemsList.map((item, index) => (
+                    <li key={index} className="bg-white rounded-lg p-3 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">{item.name || 'Producto desconocido'}</p>
+                        <p className="text-sm text-red-600">
+                          Problemas: 
+                          {item.issues.noPrice && ' Precio inválido o Q0'}
+                          {item.issues.noQuantity && ' Cantidad inválida'}
+                          {item.issues.noId && ' Sin ID'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveInvalidItem(item.cartId || item.id)}
+                        className="ml-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                      >
+                        Eliminar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {step === 3 ? (
           <div className="max-w-4xl mx-auto">
-            {console.log('Renderizando ConfirmationStep con orden:', orderCreated)}
             <ConfirmationStep
               order={orderCreated}
               customerInfo={customerInfo}
@@ -790,23 +891,21 @@ const CheckoutPage = () => {
                     sessionInfo={sessionInfo}
                     stripeAvailable={stripeAvailable}
                     onSuccess={(order) => {
-                      console.log('onSuccess llamado con orden:', order);
+                      console.log('✅ Compra exitosa');
                       setOrderCreated(order);
                       setStep(3);
                       
-                      console.log('Estado actualizado - Step:', 3, 'Orden guardada:', order.id);
-                      
                       setTimeout(() => {
-                        memoizedShowSuccess('¡Compra realizada exitosamente! Recibirás un email de confirmación.');
+                        memoizedShowSuccess('¡Compra realizada exitosamente!');
                       }, 100);
                       
                       setTimeout(() => {
-                        console.log('Limpiando carrito después de mostrar confirmación...');
+                        console.log('Limpiando carrito...');
                         clearCart();
                       }, 10000);
                     }}
                     onError={(error) => {
-                      console.error('onError llamado:', error);
+                      console.error('❌ Error en compra:', error);
                       memoizedShowError(error);
                     }}
                     isProcessing={isProcessing}
@@ -826,7 +925,7 @@ const CheckoutPage = () => {
                 formatCurrency={formatCurrency}
                 step={step}
                 onContinue={handleContinue}
-                canContinue={step === 1}
+                canContinue={step === 1 && !cartHasInvalidItems}
                 isProcessing={isProcessing}
                 errors={errors}
                 deliveryMethod={deliveryMethod}
@@ -860,7 +959,6 @@ const CustomerInfoStep = ({
   gymConfig,
   isLoadingConfig
 }) => {
-  // Determinar si el departamento debe estar bloqueado
   const isDepartmentLocked = deliveryMethod === 'local_delivery';
   
   return (
@@ -966,20 +1064,17 @@ const CustomerInfoStep = ({
         {isLoadingConfig ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-primary-600 mr-2" />
-            <span className="text-gray-600">Cargando opciones de entrega...</span>
+            <span className="text-gray-600">Cargando opciones...</span>
           </div>
         ) : Object.keys(deliveryOptions).length === 0 ? (
           <div className="text-center py-8">
             <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-            <p className="text-gray-600 font-medium">Opciones de entrega no disponibles</p>
-            <p className="text-sm text-gray-500 mt-1">
-              No se pudo cargar la configuración desde el servidor
-            </p>
+            <p className="text-gray-600 font-medium">Opciones no disponibles</p>
             <button 
               onClick={() => window.location.reload()}
               className="mt-3 text-primary-600 hover:text-primary-700 text-sm underline"
             >
-              Intentar recargar
+              Reintentar
             </button>
           </div>
         ) : (
@@ -987,7 +1082,6 @@ const CustomerInfoStep = ({
             {Object.values(deliveryOptions).map((option) => {
               const Icon = option.icon;
               const isSelected = deliveryMethod === option.id;
-              const cost = calculateShippingCost();
               
               return (
                 <button
@@ -1056,7 +1150,7 @@ const CustomerInfoStep = ({
                   <p className="font-medium mb-1">Instrucciones de recogida:</p>
                   <ul className="space-y-1 text-xs">
                     <li>Recibirás un SMS cuando tu pedido esté listo</li>
-                    <li>Presenta tu número de pedido o documento de identidad</li>
+                    <li>Presenta tu número de pedido o documento</li>
                     {gymConfig.hours.full && <li>Horario: {gymConfig.hours.full}</li>}
                     {gymConfig.contact.address && <li>Ubicación: {gymConfig.contact.address}</li>}
                   </ul>
@@ -1067,10 +1161,10 @@ const CustomerInfoStep = ({
                 <>
                   <p className="font-medium mb-1">Entrega local - Baja Verapaz:</p>
                   <ul className="space-y-1 text-xs">
-                    <li>✅ Cobertura limitada a 5 municipios: Cubulco, Rabinal, Salamá, San Jerónimo, San Miguel Chicaj</li>
+                    <li>✅ Cubulco, Rabinal, Salamá, San Jerónimo, San Miguel Chicaj</li>
                     <li>⏱️ Entrega en 1-2 días hábiles</li>
-                    <li>💵 Costo de envío: Q25.00</li>
-                    <li>📱 Te contactaremos para coordinar la entrega</li>
+                    <li>💵 Costo: Q25.00</li>
+                    <li>📱 Te contactaremos para coordinar</li>
                   </ul>
                 </>
               )}
@@ -1079,10 +1173,10 @@ const CustomerInfoStep = ({
                 <>
                   <p className="font-medium mb-1">Entrega nacional:</p>
                   <ul className="space-y-1 text-xs">
-                    <li>Entrega a todos los departamentos de Guatemala</li>
-                    <li>Tiempo de entrega: 3-5 días hábiles</li>
-                    <li>Costo de envío: Q45.00</li>
-                    <li>Seguimiento por WhatsApp disponible</li>
+                    <li>Todos los departamentos de Guatemala</li>
+                    <li>3-5 días hábiles</li>
+                    <li>Costo: Q45.00</li>
+                    <li>Seguimiento por WhatsApp</li>
                   </ul>
                 </>
               )}
@@ -1100,7 +1194,6 @@ const CustomerInfoStep = ({
             </h2>
           </div>
 
-          {/* Alerta especial para envío local */}
           {deliveryMethod === 'local_delivery' && (
             <div className="mb-4 p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
               <div className="flex items-start">
@@ -1110,8 +1203,7 @@ const CustomerInfoStep = ({
                     📍 Envío Local - Solo Baja Verapaz
                   </p>
                   <p className="text-blue-800">
-                    El envío local está limitado al departamento de <strong>Baja Verapaz</strong> en los siguientes municipios: 
-                    <strong> Cubulco, Rabinal, Salamá, San Jerónimo y San Miguel Chicaj</strong>.
+                    Limitado a: <strong>Cubulco, Rabinal, Salamá, San Jerónimo, San Miguel Chicaj</strong>
                   </p>
                 </div>
               </div>
@@ -1130,7 +1222,7 @@ const CustomerInfoStep = ({
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                   errors.street && touched.street ? 'border-red-500 bg-red-50' : 'border-gray-300'
                 }`}
-                placeholder="5ta Avenida 12-34, Zona 10, Colonia Roosevelt"
+                placeholder="5ta Avenida 12-34, Zona 10"
               />
               {errors.street && touched.street && (
                 <div className="flex items-center mt-1 text-red-600 text-sm">
@@ -1138,9 +1230,6 @@ const CustomerInfoStep = ({
                   {errors.street}
                 </div>
               )}
-              <p className="text-xs text-gray-500 mt-1">
-                Incluye zona, colonia, barrio o cualquier referencia importante
-              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1163,19 +1252,14 @@ const CustomerInfoStep = ({
                 ) : (
                   <select
                     value={shippingAddress.state}
-                    onChange={(e) => {
-                      console.log('Seleccionando departamento:', e.target.value);
-                      onInputChange('shippingAddress', 'state', e.target.value);
-                    }}
+                    onChange={(e) => onInputChange('shippingAddress', 'state', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                       errors.state && touched.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
                     }`}
                   >
-                    <option value="">Seleccionar departamento</option>
-                    {DEPARTMENTS && DEPARTMENTS.map(department => (
-                      <option key={department} value={department}>
-                        {department}
-                      </option>
+                    <option value="">Seleccionar</option>
+                    {DEPARTMENTS && DEPARTMENTS.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
                     ))}
                   </select>
                 )}
@@ -1190,33 +1274,18 @@ const CustomerInfoStep = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Municipio *
-                  <span className="text-xs text-gray-500 ml-1">
-                    ({availableMunicipalities?.length || 0} disponibles)
-                  </span>
                 </label>
                 <select
                   value={shippingAddress.municipality}
-                  onChange={(e) => {
-                    console.log('Seleccionando municipio:', e.target.value);
-                    onInputChange('shippingAddress', 'municipality', e.target.value);
-                  }}
+                  onChange={(e) => onInputChange('shippingAddress', 'municipality', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                     errors.municipality && touched.municipality ? 'border-red-500 bg-red-50' : 'border-gray-300'
                   }`}
                   disabled={!shippingAddress.state && deliveryMethod !== 'local_delivery'}
                 >
-                  <option value="">
-                    {deliveryMethod === 'local_delivery' 
-                      ? 'Seleccionar municipio de Baja Verapaz'
-                      : shippingAddress.state 
-                        ? 'Seleccionar municipio' 
-                        : 'Primero selecciona departamento'
-                    }
-                  </option>
-                  {availableMunicipalities && availableMunicipalities.map(municipality => (
-                    <option key={municipality} value={municipality}>
-                      {municipality}
-                    </option>
+                  <option value="">Seleccionar</option>
+                  {availableMunicipalities && availableMunicipalities.map(mun => (
+                    <option key={mun} value={mun}>{mun}</option>
                   ))}
                 </select>
                 {errors.municipality && touched.municipality && (
@@ -1232,21 +1301,14 @@ const CustomerInfoStep = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Código postal
-                  <span className="text-gray-500 text-xs ml-1">(automático)</span>
                 </label>
                 <input
                   type="text"
                   value={shippingAddress.zipCode}
-                  onChange={(e) => onInputChange('shippingAddress', 'zipCode', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Se llena automáticamente"
+                  className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg"
+                  placeholder="Automático"
                   readOnly
                 />
-                {shippingAddress.state && shippingAddress.zipCode && (
-                  <p className="text-xs text-green-600 mt-1">
-                    Código asignado para {shippingAddress.state}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -1258,22 +1320,10 @@ const CustomerInfoStep = ({
                   value={shippingAddress.reference}
                   onChange={(e) => onInputChange('shippingAddress', 'reference', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Casa blanca con portón negro, edificio 3er nivel"
+                  placeholder="Casa blanca, portón negro"
                 />
               </div>
             </div>
-
-            {shippingAddress.state && shippingAddress.municipality && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="text-sm">
-                  <p className="font-medium text-green-800 mb-1">Dirección seleccionada:</p>
-                  <p className="text-green-700">
-                    {shippingAddress.municipality}, {shippingAddress.state}, Guatemala
-                    {shippingAddress.zipCode && ` (${shippingAddress.zipCode})`}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1293,16 +1343,10 @@ const CustomerInfoStep = ({
           rows="3"
           placeholder={
             deliveryMethod === 'pickup_store' 
-              ? "Instrucciones especiales para la preparación de tu pedido..."
-              : "Instrucciones especiales para la entrega, horario preferido, etc..."
+              ? "Instrucciones para preparar tu pedido..."
+              : "Instrucciones para la entrega, horario preferido..."
           }
         />
-        <p className="text-xs text-gray-500 mt-1">
-          {deliveryMethod === 'pickup_store' 
-            ? "Incluye cualquier información especial sobre tu pedido"
-            : "Incluye cualquier información que ayude al repartidor a encontrar tu dirección"
-          }
-        </p>
       </div>
     </div>
   );
