@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPage.js
-// VERSIÓN FINAL: Sin IVA, Sin envío gratis, Sin validación de imágenes
+// VERSIÓN ACTUALIZADA: Sin datos hardcodeados, usando gymConfig
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -53,7 +53,6 @@ const validateCartItems = (items) => {
     const hasValidQuantity = item.quantity && !isNaN(item.quantity) && item.quantity > 0;
     const hasValidId = item.id;
 
-    // SOLO VALIDAR: Precio, Cantidad e ID
     if (!hasValidPrice || !hasValidQuantity || !hasValidId) {
       invalidItems.push({
         ...item,
@@ -69,20 +68,6 @@ const validateCartItems = (items) => {
   });
 
   return { validItems, invalidItems };
-};
-
-// ============================================================================
-// CONFIGURACIÓN DE ENVÍO LOCAL LIMITADO
-// ============================================================================
-const LOCAL_DELIVERY_CONFIG = {
-  department: 'Baja Verapaz',
-  municipalities: [
-    'Cubulco',
-    'Rabinal',
-    'Salamá',
-    'San Jerónimo',
-    'San Miguel Chicaj'
-  ]
 };
 
 const VALIDATION_PATTERNS = {
@@ -139,6 +124,14 @@ const CheckoutPage = () => {
       email: '',
       whatsapp: ''
     },
+    location: {
+      address: '',
+      addressFull: '',
+      city: '',
+      state: '',
+      country: '',
+      zipCode: ''
+    },
     hours: {
       full: '',
       weekdays: '',
@@ -148,6 +141,14 @@ const CheckoutPage = () => {
 
   const [deliveryOptions, setDeliveryOptions] = useState({});
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+
+  // ============================================================================
+  // CONFIGURACIÓN DE ENVÍO LOCAL DINÁMICO (basado en gymConfig)
+  // ============================================================================
+  const [localDeliveryConfig, setLocalDeliveryConfig] = useState({
+    department: '',
+    municipalities: []
+  });
 
   const [customerInfo, setCustomerInfo] = useState({
     name: user ? `${user.firstName} ${user.lastName}` : '',
@@ -174,7 +175,7 @@ const CheckoutPage = () => {
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
 
   // ============================================================================
-  // VALIDACIÓN DEL CARRITO AL MONTAR - SIN VALIDAR IMÁGENES
+  // VALIDACIÓN DEL CARRITO AL MONTAR
   // ============================================================================
   useEffect(() => {
     if (!cartValidated.current && items.length > 0) {
@@ -206,44 +207,8 @@ const CheckoutPage = () => {
   }, [items, showError]);
 
   // ============================================================================
-  // EFECTO: Configurar departamento y municipios según método de entrega
+  // CARGAR CONFIGURACIÓN DEL GYM
   // ============================================================================
-  useEffect(() => {
-    if (deliveryMethod === 'local_delivery') {
-      console.log('🚚 Envío local activado - configurando Baja Verapaz...');
-      
-      setShippingAddress(prev => ({
-        ...prev,
-        state: LOCAL_DELIVERY_CONFIG.department,
-        municipality: '',
-        city: ''
-      }));
-      
-      setAvailableMunicipalities(LOCAL_DELIVERY_CONFIG.municipalities);
-      
-      const postalCode = getPostalCode(LOCAL_DELIVERY_CONFIG.department);
-      setShippingAddress(prev => ({
-        ...prev,
-        zipCode: postalCode
-      }));
-      
-      console.log('✅ Configuración de envío local aplicada:', {
-        department: LOCAL_DELIVERY_CONFIG.department,
-        municipalities: LOCAL_DELIVERY_CONFIG.municipalities
-      });
-      
-    } else if (deliveryMethod === 'national_delivery') {
-      if (shippingAddress.state) {
-        const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
-        setAvailableMunicipalities(municipalities);
-      } else {
-        setAvailableMunicipalities([]);
-      }
-    } else if (deliveryMethod === 'pickup_store') {
-      setAvailableMunicipalities([]);
-    }
-  }, [deliveryMethod]);
-
   useEffect(() => {
     const loadGymConfig = async () => {
       if (gymConfigLoaded.current) return;
@@ -267,54 +232,79 @@ const CheckoutPage = () => {
           })
         ]);
 
+        let finalConfig = {
+          name: '',
+          description: '',
+          contact: { address: '', phone: '', email: '', whatsapp: '' },
+          location: { address: '', addressFull: '', city: '', state: '', country: '', zipCode: '' },
+          hours: { full: '', weekdays: '', weekends: '' }
+        };
+
         if (configResponse?.success && configResponse.data) {
           const config = configResponse.data;
           console.log('Configuración del gym cargada desde DB:', config);
           
-          setGymConfig({
+          finalConfig = {
             name: config.name || config.gymName || '',
             description: config.description || config.gymDescription || '',
             contact: {
-              address: config.contact?.address || '',
+              address: config.contact?.address || config.location?.address || '',
               phone: config.contact?.phone || '',
               email: config.contact?.email || '',
               whatsapp: config.contact?.whatsapp || config.contact?.phone || ''
+            },
+            location: {
+              address: config.location?.address || config.contact?.address || '',
+              addressFull: config.location?.addressFull || config.location?.address || '',
+              city: config.location?.city || '',
+              state: config.location?.state || '',
+              country: config.location?.country || '',
+              zipCode: config.location?.zipCode || getPostalCode(config.location?.state) || ''
             },
             hours: {
               full: config.hours?.full || '',
               weekdays: config.hours?.weekdays || '',
               weekends: config.hours?.weekends || ''
             }
-          });
+          };
         }
 
         if (contactResponse?.success && contactResponse.data) {
           const contact = contactResponse.data;
-          setGymConfig(prev => ({
-            ...prev,
-            contact: {
-              address: contact.address || prev.contact.address,
-              phone: contact.phone || prev.contact.phone,
-              email: contact.email || prev.contact.email,
-              whatsapp: contact.whatsapp || contact.phone || prev.contact.whatsapp
-            }
-          }));
+          finalConfig.contact = {
+            address: contact.address || finalConfig.contact.address,
+            phone: contact.phone || finalConfig.contact.phone,
+            email: contact.email || finalConfig.contact.email,
+            whatsapp: contact.whatsapp || contact.phone || finalConfig.contact.whatsapp
+          };
         }
 
         if (hoursResponse?.success && hoursResponse.data) {
           const hours = hoursResponse.data;
-          setGymConfig(prev => ({
-            ...prev,
-            hours: {
-              full: hours.summary?.full || prev.hours.full,
-              weekdays: hours.summary?.weekday || prev.hours.weekdays,
-              weekends: hours.summary?.weekend || prev.hours.weekends
-            }
-          }));
+          finalConfig.hours = {
+            full: hours.summary?.full || finalConfig.hours.full,
+            weekdays: hours.summary?.weekday || finalConfig.hours.weekdays,
+            weekends: hours.summary?.weekend || finalConfig.hours.weekends
+          };
+        }
+
+        setGymConfig(finalConfig);
+
+        // Configurar envío local basado en la ubicación del gym
+        if (finalConfig.location.state) {
+          const municipalities = getMunicipalitiesByDepartment(finalConfig.location.state);
+          setLocalDeliveryConfig({
+            department: finalConfig.location.state,
+            municipalities: municipalities || []
+          });
+          console.log('✅ Configuración de envío local:', {
+            department: finalConfig.location.state,
+            municipalities: municipalities?.length || 0
+          });
         }
 
         gymConfigLoaded.current = true;
-        console.log('Configuración del gym completada');
+        console.log('✅ Configuración del gym completada');
         
       } catch (error) {
         console.error('Error cargando configuración del gym:', error);
@@ -326,9 +316,46 @@ const CheckoutPage = () => {
     loadGymConfig();
   }, []);
 
+  // ============================================================================
+  // EFECTO: Configurar departamento y municipios según método de entrega
+  // ============================================================================
+  useEffect(() => {
+    if (deliveryMethod === 'local_delivery' && localDeliveryConfig.department) {
+      console.log('🚚 Envío local activado - configurando', localDeliveryConfig.department);
+      
+      setShippingAddress(prev => ({
+        ...prev,
+        state: localDeliveryConfig.department,
+        municipality: '',
+        city: ''
+      }));
+      
+      setAvailableMunicipalities(localDeliveryConfig.municipalities);
+      
+      const postalCode = getPostalCode(localDeliveryConfig.department);
+      setShippingAddress(prev => ({
+        ...prev,
+        zipCode: postalCode
+      }));
+      
+    } else if (deliveryMethod === 'national_delivery') {
+      if (shippingAddress.state) {
+        const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
+        setAvailableMunicipalities(municipalities);
+      } else {
+        setAvailableMunicipalities([]);
+      }
+    } else if (deliveryMethod === 'pickup_store') {
+      setAvailableMunicipalities([]);
+    }
+  }, [deliveryMethod, localDeliveryConfig]);
+
+  // ============================================================================
+  // CONFIGURAR OPCIONES DE ENTREGA (usa gymConfig)
+  // ============================================================================
   useEffect(() => {
     const updateDeliveryOptions = () => {
-      if (!gymConfig.name || !gymConfig.contact.address) {
+      if (!gymConfig.name || !gymConfig.location.address) {
         console.log('Esperando datos del backend para configurar opciones de entrega...');
         setDeliveryOptions({});
         return;
@@ -342,40 +369,48 @@ const CheckoutPage = () => {
           icon: Store,
           cost: 0,
           timeframe: 'Listo en 2-4 horas',
-          address: gymConfig.contact.address,
+          address: gymConfig.location.address,
           hours: gymConfig.hours.full || 'Consultar horarios',
           color: 'green'
         },
         local_delivery: {
           id: 'local_delivery',
           name: 'Envío local',
-          description: 'Entrega en Baja Verapaz (Cubulco, Rabinal, Salamá, San Jerónimo, San Miguel Chicaj)',
+          description: localDeliveryConfig.department 
+            ? `Entrega en ${localDeliveryConfig.department}` 
+            : 'Entrega local',
           icon: Truck,
           cost: 25,
           timeframe: '1-2 días hábiles',
-          coverage: 'Baja Verapaz únicamente',
+          coverage: localDeliveryConfig.department 
+            ? `${localDeliveryConfig.department} únicamente` 
+            : 'Área local',
           color: 'blue'
         },
         national_delivery: {
           id: 'national_delivery',
           name: 'Envío departamental',
-          description: 'Entrega a todo el territorio nacional',
+          description: gymConfig.location.country 
+            ? `Entrega a todo ${gymConfig.location.country}` 
+            : 'Entrega nacional',
           icon: Map,
           cost: 45,
           timeframe: '3-5 días hábiles',
-          coverage: 'Todos los departamentos de Guatemala',
+          coverage: gymConfig.location.country 
+            ? `Todos los departamentos de ${gymConfig.location.country}` 
+            : 'Cobertura nacional',
           color: 'purple'
         }
       };
 
       setDeliveryOptions(options);
-      console.log('Opciones de entrega configuradas');
+      console.log('✅ Opciones de entrega configuradas');
     };
 
-    if (!isLoadingConfig) {
+    if (!isLoadingConfig && gymConfig.name) {
       updateDeliveryOptions();
     }
-  }, [isLoadingConfig, gymConfig.name, gymConfig.contact.address, gymConfig.hours.full]);
+  }, [isLoadingConfig, gymConfig, localDeliveryConfig]);
 
   const memoizedShowInfo = useCallback((message) => {
     if (showInfo) showInfo(message);
@@ -557,7 +592,7 @@ const CheckoutPage = () => {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un municipio';
           } else if (deliveryMethod === 'local_delivery') {
-            if (!LOCAL_DELIVERY_CONFIG.municipalities.includes(value)) {
+            if (!localDeliveryConfig.municipalities.includes(value)) {
               fieldErrors[name] = 'Municipio no disponible para envío local';
             }
           } else if (!isValidMunicipality(value, shippingAddress.state)) {
@@ -570,8 +605,8 @@ const CheckoutPage = () => {
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un departamento';
-          } else if (deliveryMethod === 'local_delivery' && value !== LOCAL_DELIVERY_CONFIG.department) {
-            fieldErrors[name] = 'Solo disponible en Baja Verapaz';
+          } else if (deliveryMethod === 'local_delivery' && value !== localDeliveryConfig.department) {
+            fieldErrors[name] = `Solo disponible en ${localDeliveryConfig.department}`;
           } else if (!DEPARTMENTS.includes(value)) {
             fieldErrors[name] = 'Departamento no válido';
           }
@@ -616,7 +651,7 @@ const CheckoutPage = () => {
       ...fieldErrors,
       ...(Object.keys(fieldErrors).length === 0 && { [field]: undefined })
     }));
-  }, [deliveryMethod, shippingAddress.state]);
+  }, [deliveryMethod, shippingAddress.state, localDeliveryConfig]);
 
   const handleKeyPress = (e, type) => {
     const char = e.key;
@@ -679,13 +714,10 @@ const CheckoutPage = () => {
   const calculateShippingCost = () => {
     const selectedOption = deliveryOptions[deliveryMethod];
     if (!selectedOption) return 0;
-    
-    // SIEMPRE retornar el costo fijo - SIN envío gratis automático
     return selectedOption.cost;
   };
 
   const handleContinue = () => {
-    // Validar productos inválidos
     if (cartHasInvalidItems) {
       memoizedShowError('Elimina los productos inválidos antes de continuar');
       return;
@@ -800,7 +832,6 @@ const CheckoutPage = () => {
         </div>
       </div>
 
-      {/* ALERTA DE PRODUCTOS INVÁLIDOS */}
       {cartHasInvalidItems && step === 1 && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
@@ -873,6 +904,7 @@ const CheckoutPage = () => {
                   deliveryOptions={deliveryOptions}
                   gymConfig={gymConfig}
                   isLoadingConfig={isLoadingConfig}
+                  localDeliveryConfig={localDeliveryConfig}
                 />
               )}
 
@@ -957,7 +989,8 @@ const CustomerInfoStep = ({
   calculateShippingCost,
   deliveryOptions,
   gymConfig,
-  isLoadingConfig
+  isLoadingConfig,
+  localDeliveryConfig
 }) => {
   const isDepartmentLocked = deliveryMethod === 'local_delivery';
   
@@ -1152,16 +1185,16 @@ const CustomerInfoStep = ({
                     <li>Recibirás un SMS cuando tu pedido esté listo</li>
                     <li>Presenta tu número de pedido o documento</li>
                     {gymConfig.hours.full && <li>Horario: {gymConfig.hours.full}</li>}
-                    {gymConfig.contact.address && <li>Ubicación: {gymConfig.contact.address}</li>}
+                    {gymConfig.location.address && <li>Ubicación: {gymConfig.location.address}</li>}
                   </ul>
                 </>
               )}
               
-              {deliveryMethod === 'local_delivery' && (
+              {deliveryMethod === 'local_delivery' && localDeliveryConfig.department && (
                 <>
-                  <p className="font-medium mb-1">Entrega local - Baja Verapaz:</p>
+                  <p className="font-medium mb-1">Entrega local - {localDeliveryConfig.department}:</p>
                   <ul className="space-y-1 text-xs">
-                    <li>✅ Cubulco, Rabinal, Salamá, San Jerónimo, San Miguel Chicaj</li>
+                    <li>✅ {localDeliveryConfig.municipalities.join(', ')}</li>
                     <li>⏱️ Entrega en 1-2 días hábiles</li>
                     <li>💵 Costo: Q25.00</li>
                     <li>📱 Te contactaremos para coordinar</li>
@@ -1173,7 +1206,7 @@ const CustomerInfoStep = ({
                 <>
                   <p className="font-medium mb-1">Entrega nacional:</p>
                   <ul className="space-y-1 text-xs">
-                    <li>Todos los departamentos de Guatemala</li>
+                    <li>{gymConfig.location.country ? `Todos los departamentos de ${gymConfig.location.country}` : 'Cobertura nacional'}</li>
                     <li>3-5 días hábiles</li>
                     <li>Costo: Q45.00</li>
                     <li>Seguimiento por WhatsApp</li>
@@ -1190,20 +1223,20 @@ const CustomerInfoStep = ({
           <div className="flex items-center mb-4">
             <MapPin className="w-5 h-5 text-primary-600 mr-2" />
             <h2 className="text-lg font-semibold text-gray-900">
-              Dirección de entrega - Guatemala
+              Dirección de entrega
             </h2>
           </div>
 
-          {deliveryMethod === 'local_delivery' && (
+          {deliveryMethod === 'local_delivery' && localDeliveryConfig.department && (
             <div className="mb-4 p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
               <div className="flex items-start">
                 <Info className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
                   <p className="font-semibold text-blue-900 mb-1">
-                    📍 Envío Local - Solo Baja Verapaz
+                    📍 Envío Local - Solo {localDeliveryConfig.department}
                   </p>
                   <p className="text-blue-800">
-                    Limitado a: <strong>Cubulco, Rabinal, Salamá, San Jerónimo, San Miguel Chicaj</strong>
+                    Limitado a: <strong>{localDeliveryConfig.municipalities.join(', ')}</strong>
                   </p>
                 </div>
               </div>
@@ -1236,7 +1269,7 @@ const CustomerInfoStep = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
                 <div className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-gray-600">
-                  Guatemala
+                  {gymConfig.location.country || 'No especificado'}
                 </div>
               </div>
 
@@ -1247,7 +1280,7 @@ const CustomerInfoStep = ({
                 {isDepartmentLocked ? (
                   <div className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-blue-900 font-medium flex items-center">
                     <Lock className="w-4 h-4 mr-2" />
-                    {LOCAL_DELIVERY_CONFIG.department}
+                    {localDeliveryConfig.department}
                   </div>
                 ) : (
                   <select

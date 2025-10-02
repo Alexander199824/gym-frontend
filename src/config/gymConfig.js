@@ -39,10 +39,10 @@ const gymConfig = {
 
   // Horarios
   hours: {
-    weekday: process.env.REACT_APP_GYM_HOURS_WEEKDAY || 'Lunes a Viernes: 5:00 AM - 11:00 PM',
-    weekend: process.env.REACT_APP_GYM_HOURS_WEEKEND || 'Sábados y Domingos: 6:00 AM - 10:00 PM',
-    full: process.env.REACT_APP_GYM_HOURS_FULL || 'Lun-Vie: 5:00 AM - 11:00 PM | Sáb-Dom: 6:00 AM - 10:00 PM',
-    businessHours: process.env.REACT_APP_GYM_HOURS_FULL || 'Lun-Vie: 5:00 AM - 11:00 PM | Sáb-Dom: 6:00 AM - 10:00 PM',
+    weekday: process.env.REACT_APP_GYM_HOURS_WEEKDAY || 'Lunes a Viernes',
+    weekend: process.env.REACT_APP_GYM_HOURS_WEEKEND || 'Sábados ',
+    full: process.env.REACT_APP_GYM_HOURS_FULL || 'Lun-Vie',
+    businessHours: process.env.REACT_APP_GYM_HOURS_FULL || 'Lun-Vie',
   },
 
   // Redes sociales

@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPayment.js
-// Componente de pago con control de Stripe por variable de entorno
+// VERSIÓN ACTUALIZADA: Sin datos hardcodeados, usando gymConfig
 
 import React, { useState } from 'react';
 import {
@@ -72,21 +72,21 @@ const PaymentStep = ({
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || ''}`
         };
       } else {
-        if (!gymConfig.contact.address) {
+        if (!gymConfig.location.address) {
           throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
         }
         
         orderData.shippingAddress = {
-          street: gymConfig.contact.address,
-          city: 'Guatemala',
-          state: 'Guatemala',
-          municipality: 'Guatemala',
-          zipCode: '01001',
+          street: gymConfig.location.address,
+          city: gymConfig.location.city || '',
+          state: gymConfig.location.state || '',
+          municipality: gymConfig.location.city || '',
+          zipCode: gymConfig.location.zipCode || '00000',
           reference: `${gymConfig.name || 'Tienda'} - Recoger en tienda`,
-          fullAddress: `${gymConfig.contact.address}, Guatemala, Guatemala`
+          fullAddress: `${gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
         };
       }
 
@@ -120,12 +120,12 @@ const PaymentStep = ({
         city: shippingAddress.municipality,
         state: shippingAddress.state,
         postal_code: shippingAddress.zipCode,
-        country: 'GT'
+        country: 'GT' // Código ISO de Guatemala - puedes parametrizarlo si es necesario
       } : {
-        line1: gymConfig.contact.address,
-        city: 'Guatemala',
-        state: 'Guatemala',
-        postal_code: '01001',
+        line1: gymConfig.location.address,
+        city: gymConfig.location.city || '',
+        state: gymConfig.location.state || '',
+        postal_code: gymConfig.location.zipCode || '00000',
         country: 'GT'
       };
 
@@ -220,21 +220,21 @@ const PaymentStep = ({
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, Guatemala`
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || ''}`
         };
       } else {
-        if (!gymConfig.contact.address) {
+        if (!gymConfig.location.address) {
           throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
         }
         
         orderData.shippingAddress = {
-          street: gymConfig.contact.address,
-          city: 'Guatemala',
-          state: 'Guatemala',
-          municipality: 'Guatemala',
-          zipCode: '01001',
+          street: gymConfig.location.address,
+          city: gymConfig.location.city || '',
+          state: gymConfig.location.state || '',
+          municipality: gymConfig.location.city || '',
+          zipCode: gymConfig.location.zipCode || '00000',
           reference: `${gymConfig.name || 'Tienda'} - Recoger en tienda`,
-          fullAddress: `${gymConfig.contact.address}, Guatemala, Guatemala`
+          fullAddress: `${gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
         };
       }
 
@@ -435,8 +435,8 @@ const PaymentStep = ({
                       <li>Vienes a {gymConfig.name || 'nuestra tienda'} y pagas en ese momento</li>
                       <li>Aceptamos efectivo y tarjetas</li>
                       <li>Sin costos adicionales de envío</li>
-                      {gymConfig.contact.address && (
-                        <li>Ubicación: {gymConfig.contact.address}</li>
+                      {gymConfig.location.address && (
+                        <li>Ubicación: {gymConfig.location.address}</li>
                       )}
                     </>
                   ) : (
