@@ -1,6 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipCheckoutSteps.js
 // Componentes de los pasos 1, 2, resumen y confirmacion
+// ✅ SIN CAMBIOS - Ya recibe datos correctamente desde el componente padre
 
 import React, { useState } from 'react';
 import {

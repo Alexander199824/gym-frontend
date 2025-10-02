@@ -1,6 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipCheckout.js
 // Archivo principal de checkout de membresias
+// ✅ ACTUALIZADO - Ahora usa .env como fallback
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -30,6 +31,15 @@ import {
 
 import { MembershipPaymentStep } from './MembershipPaymentForm';
 
+// 🆕 NUEVO: Importar configuración centralizada
+import gymConfigDefault, { 
+  getContactInfo, 
+  getBankInfo, 
+  getPaymentConfig, 
+  getGymConfig,
+  getTranslations 
+} from '../../config/gymConfig';
+
 const traducirDia = (dia, translations = {}) => {
   if (!dia) return dia;
   
@@ -37,16 +47,8 @@ const traducirDia = (dia, translations = {}) => {
     return translations.days[dia];
   }
   
-  const fallbackTranslations = {
-    'monday': 'Lunes',
-    'tuesday': 'Martes', 
-    'wednesday': 'Miércoles',
-    'thursday': 'Jueves',
-    'friday': 'Viernes',
-    'saturday': 'Sábado',
-    'sunday': 'Domingo'
-  };
-  
+  // Usar traducciones del config centralizado como fallback
+  const fallbackTranslations = gymConfigDefault.translations.days;
   return fallbackTranslations[dia] || dia;
 };
 
@@ -57,16 +59,6 @@ const formatPrice = (price) => {
 
 const formatPriceWithSymbol = (price, currency = 'Q') => {
   return `${currency}${formatPrice(price)}`;
-};
-
-const getTranslationsFromBackend = async () => {
-  try {
-    const response = await membershipService.getGymContactInfo();
-    return response.data?.translations || {};
-  } catch (error) {
-    console.error('Error obteniendo traducciones:', error);
-    return {};
-  }
 };
 
 const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
@@ -85,11 +77,12 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
   
   const [paymentMethod, setPaymentMethod] = useState('card');
   
-  const [gymConfig, setGymConfig] = useState(null);
-  const [contactInfo, setContactInfo] = useState(null);
-  const [bankInfo, setBankInfo] = useState(null);
-  const [paymentConfig, setPaymentConfig] = useState(null);
-  const [translations, setTranslations] = useState({});
+  // 🔄 ACTUALIZADO: Estados inicializados con valores del .env
+  const [gymConfig, setGymConfig] = useState(getGymConfig(null));
+  const [contactInfo, setContactInfo] = useState(getContactInfo(null));
+  const [bankInfo, setBankInfo] = useState(getBankInfo(null));
+  const [paymentConfig, setPaymentConfig] = useState(getPaymentConfig(null));
+  const [translations, setTranslations] = useState(getTranslations(null));
   const [loadingConfig, setLoadingConfig] = useState(true);
   
   const [stripeAvailable, setStripeAvailable] = useState(false);
@@ -149,53 +142,71 @@ const MembershipCheckout = ({ selectedPlan, onBack, onSuccess }) => {
     }
   }, [step, selectedPlan, availableSchedules]);
 
+  // 🔄 ACTUALIZADO: Función que usa .env como fallback
   const loadDynamicConfiguration = async () => {
     try {
       setLoadingConfig(true);
       
-      console.log('Cargando configuración dinámica del backend...');
+      console.log('🔍 Cargando configuración desde backend (con fallback a .env)...');
       
+      // Intentar cargar del backend, pero usar .env si falla
       const [
         gymConfigResponse,
         contactResponse, 
         bankResponse,
         paymentResponse
       ] = await Promise.all([
-        membershipService.getGymConfig?.() || Promise.resolve({ success: false }),
-        membershipService.getGymContactInfo(),
-        membershipService.getBankTransferInfo(),
-        membershipService.getPaymentMethodsConfig()
+        membershipService.getGymConfig?.().catch(err => {
+          console.log('⚠️ Backend gym config no disponible, usando .env');
+          return { success: false };
+        }),
+        membershipService.getGymContactInfo().catch(err => {
+          console.log('⚠️ Backend contact info no disponible, usando .env');
+          return { success: false };
+        }),
+        membershipService.getBankTransferInfo().catch(err => {
+          console.log('⚠️ Backend bank info no disponible, usando .env');
+          return { success: false };
+        }),
+        membershipService.getPaymentMethodsConfig().catch(err => {
+          console.log('⚠️ Backend payment config no disponible, usando .env');
+          return { success: false };
+        })
       ]);
       
-      console.log('Respuestas de configuración:', {
-        gymConfig: gymConfigResponse?.success,
-        contact: contactResponse?.success,
-        bank: bankResponse?.success,
-        payment: paymentResponse?.success
+      // Combinar datos del backend con defaults del .env
+      // Si el backend responde, sus datos tienen prioridad
+      // Si el backend falla, se usan los valores del .env
+      setGymConfig(getGymConfig(gymConfigResponse?.data));
+      setContactInfo(getContactInfo(contactResponse?.data));
+      setBankInfo(getBankInfo(bankResponse?.data));
+      setPaymentConfig(getPaymentConfig(paymentResponse?.data));
+      
+      // Traducciones
+      try {
+        const translationsData = contactResponse?.data?.translations;
+        setTranslations(getTranslations(translationsData));
+      } catch (error) {
+        console.log('⚠️ Usando traducciones por defecto del .env');
+        setTranslations(getTranslations(null));
+      }
+      
+      console.log('✅ Configuración cargada correctamente');
+      console.log('📊 Fuente de datos:', {
+        gymConfig: gymConfigResponse?.success ? 'Backend' : '.env fallback',
+        contactInfo: contactResponse?.success ? 'Backend' : '.env fallback',
+        bankInfo: bankResponse?.success ? 'Backend' : '.env fallback',
+        paymentConfig: paymentResponse?.success ? 'Backend' : '.env fallback'
       });
       
-      if (gymConfigResponse?.success) {
-        setGymConfig(gymConfigResponse.data);
-      }
-      
-      if (contactResponse?.success) {
-        setContactInfo(contactResponse.data);
-      }
-      
-      if (bankResponse?.success) {
-        setBankInfo(bankResponse.data);
-      }
-      
-      if (paymentResponse?.success) {
-        setPaymentConfig(paymentResponse.data);
-      }
-      
-      const translationsData = await getTranslationsFromBackend();
-      setTranslations(translationsData);
-      
     } catch (error) {
-      console.error('Error cargando configuración dinámica:', error);
-      showError('Error cargando información del gimnasio');
+      console.error('❌ Error cargando configuración, usando solo .env:', error);
+      // En caso de error total, asegurar que tengamos los valores del .env
+      setGymConfig(getGymConfig(null));
+      setContactInfo(getContactInfo(null));
+      setBankInfo(getBankInfo(null));
+      setPaymentConfig(getPaymentConfig(null));
+      setTranslations(getTranslations(null));
     } finally {
       setLoadingConfig(false);
     }

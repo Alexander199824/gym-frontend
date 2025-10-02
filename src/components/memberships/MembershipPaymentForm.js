@@ -1,6 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/memberships/MembershipPaymentForm.js
-// Componente del paso 3 con control de pagos con tarjeta via variable de entorno
+// Componente del paso 3 con control de pagos
+// ✅ SIN CAMBIOS - Ya recibe datos correctamente desde el componente padre
 
 import React, { useState } from 'react';
 import {
