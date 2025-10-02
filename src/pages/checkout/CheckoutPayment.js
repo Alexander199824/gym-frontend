@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPayment.js
-// VERSIÓN ACTUALIZADA: Sin datos hardcodeados, usando gymConfig
+// VERSIÓN CORREGIDA: Usando gymConfig correctamente sin datos hardcodeados
 
 import React, { useState } from 'react';
 import {
@@ -72,21 +72,22 @@ const PaymentStep = ({
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || ''}`
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || 'Guatemala'}`
         };
       } else {
+        // Usar datos del gymConfig para pickup_store
         if (!gymConfig.location.address) {
           throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
         }
         
         orderData.shippingAddress = {
-          street: gymConfig.location.address,
+          street: gymConfig.location.addressFull || gymConfig.location.address,
           city: gymConfig.location.city || '',
           state: gymConfig.location.state || '',
           municipality: gymConfig.location.city || '',
           zipCode: gymConfig.location.zipCode || '00000',
-          reference: `${gymConfig.name || 'Tienda'} - Recoger en tienda`,
-          fullAddress: `${gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
+          reference: `${gymConfig.name} - Recoger en tienda`,
+          fullAddress: `${gymConfig.location.addressFull || gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
         };
       }
 
@@ -120,9 +121,9 @@ const PaymentStep = ({
         city: shippingAddress.municipality,
         state: shippingAddress.state,
         postal_code: shippingAddress.zipCode,
-        country: 'GT' // Código ISO de Guatemala - puedes parametrizarlo si es necesario
+        country: 'GT'
       } : {
-        line1: gymConfig.location.address,
+        line1: gymConfig.location.addressFull || gymConfig.location.address,
         city: gymConfig.location.city || '',
         state: gymConfig.location.state || '',
         postal_code: gymConfig.location.zipCode || '00000',
@@ -220,21 +221,22 @@ const PaymentStep = ({
       if (deliveryMethod !== 'pickup_store') {
         orderData.shippingAddress = {
           ...shippingAddress,
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || ''}`
+          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || 'Guatemala'}`
         };
       } else {
+        // Usar datos del gymConfig para pickup_store
         if (!gymConfig.location.address) {
           throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
         }
         
         orderData.shippingAddress = {
-          street: gymConfig.location.address,
+          street: gymConfig.location.addressFull || gymConfig.location.address,
           city: gymConfig.location.city || '',
           state: gymConfig.location.state || '',
           municipality: gymConfig.location.city || '',
           zipCode: gymConfig.location.zipCode || '00000',
-          reference: `${gymConfig.name || 'Tienda'} - Recoger en tienda`,
-          fullAddress: `${gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
+          reference: `${gymConfig.name} - Recoger en tienda`,
+          fullAddress: `${gymConfig.location.addressFull || gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
         };
       }
 
@@ -430,22 +432,25 @@ const PaymentStep = ({
                 <ul className="space-y-1">
                   {deliveryMethod === 'pickup_store' ? (
                     <>
-                      <li>Prepararemos tu pedido en 2-4 horas</li>
-                      <li>Te notificaremos cuando esté listo</li>
-                      <li>Vienes a {gymConfig.name || 'nuestra tienda'} y pagas en ese momento</li>
-                      <li>Aceptamos efectivo y tarjetas</li>
-                      <li>Sin costos adicionales de envío</li>
-                      {gymConfig.location.address && (
-                        <li>Ubicación: {gymConfig.location.address}</li>
+                      <li>✅ Prepararemos tu pedido en 2-4 horas</li>
+                      <li>📱 Te notificaremos cuando esté listo</li>
+                      <li>🏪 Vienes a {gymConfig.name || 'nuestra tienda'} y pagas en ese momento</li>
+                      <li>💳 Aceptamos efectivo y tarjetas</li>
+                      <li>🚫 Sin costos adicionales de envío</li>
+                      {gymConfig.location.addressFull && (
+                        <li>📍 Ubicación: {gymConfig.location.addressFull}</li>
+                      )}
+                      {gymConfig.hours.full && (
+                        <li>🕐 Horario: {gymConfig.hours.full}</li>
                       )}
                     </>
                   ) : (
                     <>
-                      <li>Recibirás tu pedido en la dirección indicada</li>
-                      <li>Pagas el monto exacto al repartidor</li>
-                      <li>Aceptamos efectivo y tarjetas</li>
-                      <li>Sin costos adicionales</li>
-                      <li>Entrega según el método seleccionado</li>
+                      <li>📦 Recibirás tu pedido en la dirección indicada</li>
+                      <li>💰 Pagas el monto exacto al repartidor</li>
+                      <li>💳 Aceptamos efectivo y tarjetas</li>
+                      <li>🚫 Sin costos adicionales</li>
+                      <li>🚚 Entrega según el método seleccionado</li>
                     </>
                   )}
                 </ul>

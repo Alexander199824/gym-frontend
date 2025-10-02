@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutConfirmation.js
-// Componentes de confirmación y resumen de pedido
+// VERSIÓN CORREGIDA: Usando gymConfig correctamente sin datos hardcodeados
 
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -26,6 +26,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
 
   console.log('ConfirmationStep renderizado con orden:', order);
   console.log('Customer info:', customerInfo);
+  console.log('Gym config:', gymConfig);
 
   useEffect(() => {
     console.log('ConfirmationStep montado - paso completado exitosamente');
@@ -121,14 +122,14 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
               <span>Actualizaciones por WhatsApp</span>
             </div>
             
-            {gymConfig.name && (
+            {gymConfig?.name && (
               <div className="flex items-center text-sm">
                 <Store className="w-4 h-4 text-blue-500 mr-2" />
                 <span>Procesado por <strong>{gymConfig.name}</strong></span>
               </div>
             )}
             
-            {gymConfig.contact.phone && (
+            {gymConfig?.contact?.phone && (
               <div className="flex items-center text-sm">
                 <Phone className="w-4 h-4 text-blue-500 mr-2" />
                 <span>Soporte: <strong>{gymConfig.contact.phone}</strong></span>
@@ -184,7 +185,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </button>
       </div>
 
-      {(gymConfig.contact.email || gymConfig.contact.phone) && (
+      {(gymConfig?.contact?.email || gymConfig?.contact?.phone) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
           <p className="text-blue-800 font-medium mb-2">
             ¿Necesitas ayuda con tu pedido?
@@ -192,12 +193,12 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
           <div className="flex justify-center space-x-4 text-sm">
             {gymConfig.contact.email && (
               <span className="text-blue-600">
-                {gymConfig.contact.email}
+                📧 {gymConfig.contact.email}
               </span>
             )}
             {gymConfig.contact.phone && (
               <span className="text-blue-600">
-                {gymConfig.contact.phone}
+                📱 {gymConfig.contact.phone}
               </span>
             )}
           </div>
