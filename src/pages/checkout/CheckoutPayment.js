@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPayment.js
-// VERSIÓN CORREGIDA: Usando gymConfig correctamente sin datos hardcodeados
+// VERSIÓN CORREGIDA: Envío y totales calculados correctamente
 
 import React, { useState } from 'react';
 import {
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { useCart } from '../../contexts/CartContext';
 import apiService from '../../services/apiService';
 
 const PaymentStep = ({ 
@@ -42,6 +43,7 @@ const PaymentStep = ({
   const stripe = useStripe();
   const elements = useElements();
   const [cardError, setCardError] = useState('');
+  const { calculateCartSummary } = useCart();
 
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
@@ -53,7 +55,17 @@ const PaymentStep = ({
       setIsProcessing(true);
       setCardError('');
 
-      console.log('Iniciando flujo de pago con tarjeta...');
+      console.log('💳 Iniciando pago con tarjeta...');
+
+      // ✅ CALCULAR TOTALES CORRECTAMENTE
+      const cartSummary = calculateCartSummary(items, shippingCost);
+      
+      console.log('📊 Resumen calculado para backend:', {
+        subtotal: cartSummary.subtotal,
+        taxAmount: cartSummary.taxAmount,
+        shippingAmount: cartSummary.shippingAmount,
+        totalAmount: cartSummary.totalAmount
+      });
 
       const orderData = {
         items: items.map(item => ({
@@ -62,6 +74,13 @@ const PaymentStep = ({
           price: item.price,
           selectedVariants: item.options || {}
         })),
+        
+        // ✅ VALORES CALCULADOS CORRECTAMENTE
+        subtotal: cartSummary.subtotal,
+        taxAmount: cartSummary.taxAmount,
+        shippingAmount: cartSummary.shippingAmount,
+        totalAmount: cartSummary.totalAmount,
+        
         customerInfo,
         paymentMethod: 'online_card',
         notes,
@@ -75,9 +94,8 @@ const PaymentStep = ({
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || 'Guatemala'}`
         };
       } else {
-        // Usar datos del gymConfig para pickup_store
         if (!gymConfig.location.address) {
-          throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
+          throw new Error('Configuración de la tienda incompleta.');
         }
         
         orderData.shippingAddress = {
@@ -91,7 +109,7 @@ const PaymentStep = ({
         };
       }
 
-      console.log('Creando orden...', orderData);
+      console.log('📤 Creando orden con datos correctos...');
       const orderResponse = await apiService.createOrder(orderData);
       
       if (!orderResponse.success) {
@@ -99,9 +117,9 @@ const PaymentStep = ({
       }
 
       const order = orderResponse.data.order;
-      console.log('Orden creada:', order);
+      console.log('✅ Orden creada:', order.orderNumber);
 
-      console.log('Creando payment intent...');
+      console.log('💳 Creando payment intent...');
       const paymentIntentResponse = await apiService.createStorePaymentIntent({
         orderId: order.id
       });
@@ -111,9 +129,8 @@ const PaymentStep = ({
       }
 
       const { clientSecret } = paymentIntentResponse.data;
-      console.log('Payment intent creado');
 
-      console.log('Confirmando pago con Stripe...');
+      console.log('💳 Confirmando pago con Stripe...');
       const cardElement = elements.getElement(CardElement);
 
       const billingAddress = deliveryMethod !== 'pickup_store' ? {
@@ -149,21 +166,18 @@ const PaymentStep = ({
       }
 
       if (paymentIntent.status === 'succeeded') {
-        console.log('Pago confirmado con Stripe');
+        console.log('✅ Pago confirmado con Stripe');
         
         try {
-          console.log('Confirmando pago en backend...');
-          
           const confirmResponse = await apiService.confirmStripePayment({
             paymentIntentId: paymentIntent.id
           });
 
           if (!confirmResponse.success) {
-            console.error('Error crítico confirmando pago en backend:', confirmResponse.message);
-            throw new Error(`Error al registrar el pago: ${confirmResponse.message || 'Error del servidor'}`);
+            throw new Error(`Error al registrar el pago: ${confirmResponse.message}`);
           }
 
-          console.log('Pago confirmado exitosamente en backend');
+          console.log('✅ Pago confirmado en backend');
           
           const successOrder = {
             ...order,
@@ -174,15 +188,10 @@ const PaymentStep = ({
             backendConfirmed: true
           };
 
-          console.log('Llamando onSuccess con orden completamente exitosa...');
           onSuccess(successOrder);
 
         } catch (confirmError) {
-          console.error('Error crítico al confirmar pago en backend:', confirmError.message);
-          
-          onError(`El pago se procesó correctamente, pero hubo un error al registrarlo en nuestro sistema. 
-                   Contacta a soporte con este ID: ${paymentIntent.id}. 
-                   Error: ${confirmError.message}`);
+          onError(`El pago se procesó, pero hubo un error al registrarlo. ID: ${paymentIntent.id}. Error: ${confirmError.message}`);
           return;
         }
 
@@ -191,7 +200,7 @@ const PaymentStep = ({
       }
 
     } catch (error) {
-      console.error('Payment process failed:', error);
+      console.error('❌ Payment failed:', error);
       onError(error.message || 'Error al procesar el pago');
     } finally {
       setIsProcessing(false);
@@ -202,7 +211,17 @@ const PaymentStep = ({
     try {
       setIsProcessing(true);
 
-      console.log('Iniciando flujo de pago contra entrega...');
+      console.log('💵 Iniciando pago contra entrega...');
+
+      // ✅ CALCULAR TOTALES CORRECTAMENTE
+      const cartSummary = calculateCartSummary(items, shippingCost);
+      
+      console.log('📊 Resumen calculado para backend:', {
+        subtotal: cartSummary.subtotal,
+        taxAmount: cartSummary.taxAmount,
+        shippingAmount: cartSummary.shippingAmount,
+        totalAmount: cartSummary.totalAmount
+      });
 
       const orderData = {
         items: items.map(item => ({
@@ -211,6 +230,13 @@ const PaymentStep = ({
           price: item.price,
           selectedVariants: item.options || {}
         })),
+        
+        // ✅ VALORES CALCULADOS CORRECTAMENTE
+        subtotal: cartSummary.subtotal,
+        taxAmount: cartSummary.taxAmount,
+        shippingAmount: cartSummary.shippingAmount,
+        totalAmount: cartSummary.totalAmount,
+        
         customerInfo,
         paymentMethod: 'cash_on_delivery',
         notes,
@@ -224,9 +250,8 @@ const PaymentStep = ({
           fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || 'Guatemala'}`
         };
       } else {
-        // Usar datos del gymConfig para pickup_store
         if (!gymConfig.location.address) {
-          throw new Error('Configuración de la tienda incompleta. Contacta al administrador.');
+          throw new Error('Configuración de la tienda incompleta.');
         }
         
         orderData.shippingAddress = {
@@ -240,7 +265,7 @@ const PaymentStep = ({
         };
       }
 
-      console.log('Creando orden...', orderData);
+      console.log('📤 Creando orden contra entrega...');
       const orderResponse = await apiService.createOrder(orderData);
 
       if (!orderResponse.success) {
@@ -248,7 +273,7 @@ const PaymentStep = ({
       }
 
       const order = orderResponse.data.order;
-      console.log('Orden creada exitosamente:', order);
+      console.log('✅ Orden creada:', order.orderNumber);
 
       const successOrder = {
         ...order,
@@ -256,11 +281,10 @@ const PaymentStep = ({
         paymentMethod: 'cash_on_delivery'
       };
 
-      console.log('Llamando onSuccess con orden contra entrega...');
       onSuccess(successOrder);
 
     } catch (error) {
-      console.error('Cash on delivery process failed:', error);
+      console.error('❌ Cash on delivery failed:', error);
       onError(error.message || 'Error al crear la orden');
     } finally {
       setIsProcessing(false);
@@ -405,7 +429,7 @@ const PaymentStep = ({
                 <div className="text-sm">
                   <p className="text-blue-800 font-medium mb-1">Modo de pruebas activo</p>
                   <p className="text-blue-700">
-                    Usa la tarjeta <code className="bg-white px-1 rounded">4242 4242 4242 4242</code> con cualquier CVC y fecha futura para probar.
+                    Usa la tarjeta <code className="bg-white px-1 rounded">4242 4242 4242 4242</code> con cualquier CVC y fecha futura.
                   </p>
                 </div>
               </div>
@@ -434,23 +458,16 @@ const PaymentStep = ({
                     <>
                       <li>✅ Prepararemos tu pedido en 2-4 horas</li>
                       <li>📱 Te notificaremos cuando esté listo</li>
-                      <li>🏪 Vienes a {gymConfig.name || 'nuestra tienda'} y pagas en ese momento</li>
+                      <li>🏪 Vienes a {gymConfig.name || 'nuestra tienda'} y pagas</li>
                       <li>💳 Aceptamos efectivo y tarjetas</li>
-                      <li>🚫 Sin costos adicionales de envío</li>
-                      {gymConfig.location.addressFull && (
-                        <li>📍 Ubicación: {gymConfig.location.addressFull}</li>
-                      )}
-                      {gymConfig.hours.full && (
-                        <li>🕐 Horario: {gymConfig.hours.full}</li>
-                      )}
+                      <li>🚫 Sin costos de envío</li>
                     </>
                   ) : (
                     <>
                       <li>📦 Recibirás tu pedido en la dirección indicada</li>
                       <li>💰 Pagas el monto exacto al repartidor</li>
                       <li>💳 Aceptamos efectivo y tarjetas</li>
-                      <li>🚫 Sin costos adicionales</li>
-                      <li>🚚 Entrega según el método seleccionado</li>
+                      <li>🚚 Incluye costo de envío: Q{shippingCost.toFixed(2)}</li>
                     </>
                   )}
                 </ul>
@@ -466,8 +483,7 @@ const PaymentStep = ({
           <div className="text-sm">
             <p className="text-green-800 font-medium mb-1">Confirmación automática</p>
             <p className="text-green-700">
-              Recibirás un email con los detalles de tu pedido a <strong>{customerInfo.email}</strong> 
-              inmediatamente después de completar la compra.
+              Recibirás un email a <strong>{customerInfo.email}</strong> con los detalles de tu pedido.
             </p>
           </div>
         </div>
@@ -489,7 +505,7 @@ const PaymentStep = ({
               <Lock className="w-5 h-5" />
               <span>
                 {paymentMethod === 'online_card' 
-                  ? `Pagar Q${((summary?.subtotal || 0) + shippingCost)?.toFixed(2)}`
+                  ? `Pagar Q${(summary?.totalProductsWithTax || 0) + shippingCost}`
                   : 'Confirmar pedido'
                 }
               </span>
@@ -499,7 +515,7 @@ const PaymentStep = ({
 
         <div className="flex items-center justify-center mt-4 text-sm text-gray-500">
           <Shield className="w-4 h-4 mr-1" />
-          <span>Tus datos están protegidos con encriptación SSL</span>
+          <span>Tus datos están protegidos</span>
         </div>
       </div>
     </div>

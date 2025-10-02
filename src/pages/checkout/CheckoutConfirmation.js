@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutConfirmation.js
-// VERSIÓN CORREGIDA: Usando gymConfig correctamente sin datos hardcodeados
+// VERSIÓN ACTUALIZADA: OrderSummary con IVA incluido y envío correcto
 
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -11,38 +11,39 @@ import {
   Phone,
   Store,
   Home,
-  Crown,
-  Shield,
   AlertCircle,
   Truck,
-  Map
+  Map,
+  Shield
 } from 'lucide-react';
 
 import { useCart } from '../../contexts/CartContext';
 
+// ============================================================================
+// COMPONENTE: ConfirmationStep - Pantalla de confirmación exitosa
+// ============================================================================
 const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   const navigate = useNavigate();
   const { clearCart } = useCart();
 
-  console.log('ConfirmationStep renderizado con orden:', order);
-  console.log('Customer info:', customerInfo);
-  console.log('Gym config:', gymConfig);
+  console.log('✅ ConfirmationStep renderizado:', {
+    orderNumber: order?.orderNumber,
+    orderId: order?.id,
+    customerEmail: customerInfo?.email
+  });
 
   useEffect(() => {
-    console.log('ConfirmationStep montado - paso completado exitosamente');
-    setTimeout(() => {
-      console.log('ConfirmationStep completamente montado y funcional');
-    }, 500);
-  }, [order]);
+    console.log('✅ ConfirmationStep montado - orden completada exitosamente');
+  }, []);
 
   const handleContinueShopping = () => {
-    console.log('Usuario eligió continuar comprando - limpiando carrito...');
+    console.log('🛍️ Usuario continúa comprando - limpiando carrito...');
     clearCart();
     navigate('/store');
   };
 
   const handleGoHome = () => {
-    console.log('Usuario eligió ir al inicio - limpiando carrito...');
+    console.log('🏠 Usuario va al inicio - limpiando carrito...');
     clearCart();
     navigate('/');
   };
@@ -50,27 +51,31 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   return (
     <div className="space-y-8">
       
+      {/* BANNER DE ÉXITO */}
       <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl p-8 text-center shadow-xl">
         <div className="flex flex-col items-center">
           <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="w-12 h-12 text-white" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold mb-3">
-            COMPRA EXITOSA
+            ¡COMPRA EXITOSA!
           </h1>
           <p className="text-green-100 text-lg md:text-xl mb-4">
             Tu pedido ha sido confirmado y procesado correctamente
           </p>
-          <div className="bg-white bg-opacity-20 rounded-lg px-4 py-2">
-            <p className="text-green-100">
-              Pedido: <span className="font-bold text-white">{order?.orderNumber || order?.id}</span>
+          <div className="bg-white bg-opacity-20 rounded-lg px-6 py-3">
+            <p className="text-green-100 text-sm mb-1">Número de pedido:</p>
+            <p className="text-2xl font-bold text-white">
+              #{order?.orderNumber || order?.id}
             </p>
           </div>
         </div>
       </div>
 
+      {/* TARJETAS DE INFORMACIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
+        {/* DETALLES DEL PEDIDO */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
             <Package className="w-6 h-6 text-primary-600 mr-2" />
@@ -80,12 +85,14 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-600">Número:</span>
-              <span className="font-semibold">{order?.orderNumber || order?.id}</span>
+              <span className="font-semibold">#{order?.orderNumber || order?.id}</span>
             </div>
             
             <div className="flex justify-between">
               <span className="text-gray-600">Total:</span>
-              <span className="font-bold text-xl text-green-600">Q{order?.totalAmount || '0.00'}</span>
+              <span className="font-bold text-xl text-green-600">
+                Q{parseFloat(order?.totalAmount || 0).toFixed(2)}
+              </span>
             </div>
             
             <div className="flex justify-between">
@@ -99,12 +106,32 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
             <div className="flex justify-between">
               <span className="text-gray-600">Pago:</span>
               <span className="font-medium">
-                {order?.paymentMethod === 'online_card' ? 'Tarjeta' : 'Contra entrega'}
+                {order?.paymentMethod === 'online_card' 
+                  ? '💳 Tarjeta' 
+                  : order?.paymentMethod === 'cash_on_delivery'
+                  ? '💵 Contra entrega'
+                  : '💰 Efectivo'
+                }
               </span>
             </div>
+
+            {order?.deliveryMethod && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Entrega:</span>
+                <span className="font-medium">
+                  {order.deliveryMethod === 'pickup_store'
+                    ? '🏪 Recoger en tienda'
+                    : order.deliveryMethod === 'local_delivery'
+                    ? '🚚 Envío local'
+                    : '🌍 Envío nacional'
+                  }
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
+        {/* CONFIRMACIÓN ENVIADA */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
             <Mail className="w-6 h-6 text-blue-600 mr-2" />
@@ -113,25 +140,27 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
           
           <div className="space-y-3">
             <div className="flex items-center text-sm">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-              <span>Email enviado a <strong>{customerInfo.email}</strong></span>
+              <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
+              <span>
+                Email enviado a <strong>{customerInfo?.email}</strong>
+              </span>
             </div>
             
             <div className="flex items-center text-sm">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+              <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
               <span>Actualizaciones por WhatsApp</span>
             </div>
             
             {gymConfig?.name && (
               <div className="flex items-center text-sm">
-                <Store className="w-4 h-4 text-blue-500 mr-2" />
+                <Store className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0" />
                 <span>Procesado por <strong>{gymConfig.name}</strong></span>
               </div>
             )}
             
             {gymConfig?.contact?.phone && (
               <div className="flex items-center text-sm">
-                <Phone className="w-4 h-4 text-blue-500 mr-2" />
+                <Phone className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0" />
                 <span>Soporte: <strong>{gymConfig.contact.phone}</strong></span>
               </div>
             )}
@@ -139,6 +168,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
+      {/* PROGRESO DEL PEDIDO */}
       <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
           <div className="flex flex-col items-center">
@@ -167,6 +197,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
+      {/* BOTONES DE ACCIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
           onClick={handleContinueShopping}
@@ -185,6 +216,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </button>
       </div>
 
+      {/* SOPORTE */}
       {(gymConfig?.contact?.email || gymConfig?.contact?.phone) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
           <p className="text-blue-800 font-medium mb-2">
@@ -208,6 +240,9 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   );
 };
 
+// ============================================================================
+// COMPONENTE: OrderSummary - Resumen lateral del pedido
+// ============================================================================
 const OrderSummary = ({ 
   items, 
   summary, 
@@ -226,12 +261,26 @@ const OrderSummary = ({
 
   const selectedDeliveryOption = deliveryOptions[deliveryMethod];
 
+  // ✅ CALCULAR TOTALES CORRECTOS
+  // Lo que ve el usuario: productos (con IVA) + envío = total
+  const productsTotal = summary?.totalProductsWithTax || 0;
+  const shipping = shippingCost || 0;
+  const finalTotal = productsTotal + shipping;
+
+  console.log('📊 OrderSummary - Cálculos:', {
+    productosConIVA: productsTotal,
+    envio: shipping,
+    totalFinal: finalTotal,
+    deliveryMethod
+  });
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         Resumen del pedido
       </h3>
 
+      {/* LISTA DE PRODUCTOS */}
       <div className="space-y-3 mb-6">
         {items.map((item) => (
           <div key={item.cartId || item.id} className="flex items-center space-x-3">
@@ -239,6 +288,9 @@ const OrderSummary = ({
               src={item.image || '/api/placeholder/60/60'}
               alt={item.name}
               className="w-12 h-12 object-cover rounded-lg"
+              onError={(e) => {
+                e.target.src = '/api/placeholder/60/60';
+              }}
             />
             <div className="flex-1 min-w-0">
               <h4 className="text-sm font-medium text-gray-900 truncate">
@@ -255,19 +307,18 @@ const OrderSummary = ({
         ))}
       </div>
 
+      {/* DESGLOSE DE PRECIOS */}
       <div className="border-t pt-4 space-y-2">
+        {/* PRODUCTOS (CON IVA INCLUIDO) */}
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Subtotal:</span>
-          <span>{formatCurrency(summary?.subtotal || 0)}</span>
+          <span className="text-gray-600">
+            Productos:
+            <span className="text-xs text-gray-500 ml-1">(IVA incluido)</span>
+          </span>
+          <span className="font-medium">{formatCurrency(productsTotal)}</span>
         </div>
         
-        {summary?.taxAmount > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">IVA (12%):</span>
-            <span>{formatCurrency(summary.taxAmount)}</span>
-          </div>
-        )}
-        
+        {/* ENVÍO */}
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">
             {selectedDeliveryOption ? (
@@ -281,19 +332,48 @@ const OrderSummary = ({
               'Entrega:'
             )}
           </span>
-          <span>
-            {shippingCost === 0 ? 'Gratis' : formatCurrency(shippingCost)}
+          <span className="font-medium">
+            {shipping === 0 ? (
+              <span className="text-green-600 font-semibold">Gratis</span>
+            ) : (
+              formatCurrency(shipping)
+            )}
           </span>
         </div>
         
+        {/* TOTAL FINAL */}
         <div className="flex justify-between font-bold text-lg pt-2 border-t">
           <span>Total:</span>
           <span className="text-primary-600">
-            {formatCurrency((summary?.subtotal || 0) + shippingCost)}
+            {formatCurrency(finalTotal)}
           </span>
         </div>
       </div>
 
+      {/* INFORMACIÓN ADICIONAL DEL ENVÍO */}
+      {selectedDeliveryOption && (
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-start text-sm">
+            {deliveryMethod === 'pickup_store' ? (
+              <Store className="w-4 h-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
+            ) : deliveryMethod === 'local_delivery' ? (
+              <Truck className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+            ) : (
+              <Map className="w-4 h-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+            )}
+            <div className="text-gray-700">
+              <p className="font-medium">{selectedDeliveryOption.description}</p>
+              {selectedDeliveryOption.coverage && (
+                <p className="text-xs text-gray-600 mt-1">
+                  {selectedDeliveryOption.coverage}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BOTÓN DE CONTINUAR (solo en paso 1) */}
       {canContinue && (
         <>
           {hasErrors && (
@@ -319,53 +399,43 @@ const OrderSummary = ({
                 : 'bg-primary-600 text-white hover:bg-primary-700'
             }`}
           >
-            {hasErrors ? `Corregir ${errorCount === 1 ? 'error' : 'errores'}` : 'Continuar al pago'}
+            {hasErrors 
+              ? `Corregir ${errorCount === 1 ? 'error' : 'errores'}` 
+              : 'Continuar al pago'
+            }
           </button>
         </>
       )}
 
+      {/* BADGES DE INFORMACIÓN */}
       <div className="mt-6 space-y-2 text-sm text-gray-600">
         <div className="flex items-center">
           <Shield className="w-4 h-4 mr-2 text-green-500" />
           <span>Compra 100% segura</span>
         </div>
         
-        {selectedDeliveryOption && (
-          <>
-            <div className="flex items-center">
-              {deliveryMethod === 'pickup_store' ? (
-                <Store className="w-4 h-4 mr-2 text-green-500" />
-              ) : deliveryMethod === 'local_delivery' ? (
-                <Truck className="w-4 h-4 mr-2 text-blue-500" />
-              ) : (
-                <Map className="w-4 h-4 mr-2 text-purple-500" />
-              )}
-              <span>
-                {selectedDeliveryOption.description}
-              </span>
-            </div>
-            
-            {selectedDeliveryOption.cost > 0 && shippingCost === 0 && (
-              <div className="flex items-center">
-                <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                <span>¡Envío gratis aplicado!</span>
-              </div>
-            )}
-          </>
+        <div className="flex items-center">
+          <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+          <span>Precios con IVA incluido</span>
+        </div>
+        
+        {deliveryMethod === 'pickup_store' && (
+          <div className="flex items-center">
+            <Store className="w-4 h-4 mr-2 text-blue-500" />
+            <span>Sin costo de envío</span>
+          </div>
         )}
         
         <div className="flex items-center">
-          <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-          <span>Garantía de satisfacción</span>
-        </div>
-        
-        <div className="flex items-center">
           <Mail className="w-4 h-4 mr-2 text-blue-500" />
-          <span>Email de confirmación automático</span>
+          <span>Confirmación por email</span>
         </div>
       </div>
     </div>
   );
 };
 
+// ============================================================================
+// EXPORTACIONES
+// ============================================================================
 export { ConfirmationStep, OrderSummary };

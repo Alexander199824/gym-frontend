@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/contexts/CartContext.js
-// VERSIÓN FINAL: Sin IVA, Sin envío gratis, Validación solo precio obligatorio
+// VERSIÓN COMPLETA: IVA incluido en precios, desglosado automáticamente para backend
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
@@ -12,54 +12,87 @@ const CART_STORAGE_KEY = 'elite_fitness_cart';
 const SESSION_STORAGE_KEY = 'elite_fitness_session_id';
 const CART_EXPIRY_DAYS = 30;
 
+// ✅ CONFIGURACIÓN DE IVA GUATEMALA
+const TAX_RATE = 0.12; // 12% IVA
+const TAX_MULTIPLIER = 1 + TAX_RATE; // 1.12
+
 // ============================================================================
-// VALIDACIÓN DE PRODUCTOS - SOLO PRECIO OBLIGATORIO
+// FUNCIONES DE CÁLCULO CON IVA INCLUIDO
+// ============================================================================
+
+/**
+ * Calcula el subtotal SIN IVA a partir del precio CON IVA
+ * Fórmula: precioConIVA ÷ 1.12 = precioSinIVA
+ */
+const calculateSubtotalWithoutTax = (priceWithTax, quantity) => {
+  const priceWithoutTax = priceWithTax / TAX_MULTIPLIER;
+  return priceWithoutTax * quantity;
+};
+
+/**
+ * Calcula el IVA desglosado del precio
+ * Fórmula: precioConIVA - (precioConIVA ÷ 1.12) = IVA
+ */
+const calculateTaxAmount = (priceWithTax, quantity) => {
+  const priceWithoutTax = priceWithTax / TAX_MULTIPLIER;
+  const taxAmount = (priceWithTax - priceWithoutTax) * quantity;
+  return taxAmount;
+};
+
+/**
+ * Calcula el resumen completo del carrito
+ * - totalWithTax: Lo que ve el usuario (precios con IVA)
+ * - subtotal: Sin IVA (para backend)
+ * - taxAmount: IVA desglosado (para backend)
+ */
+const calculateCartSummary = (items, shippingCost = 0) => {
+  // 1. Calcular total CON IVA (lo que ve el usuario)
+  const totalProductsWithTax = items.reduce((sum, item) => {
+    const price = parseFloat(item.price) || 0;
+    const quantity = parseInt(item.quantity) || 0;
+    return sum + (price * quantity);
+  }, 0);
+
+  // 2. Desglosar: calcular subtotal SIN IVA
+  const subtotal = items.reduce((sum, item) => {
+    const price = parseFloat(item.price) || 0;
+    const quantity = parseInt(item.quantity) || 0;
+    return sum + calculateSubtotalWithoutTax(price, quantity);
+  }, 0);
+
+  // 3. Calcular IVA (diferencia entre total con IVA y subtotal sin IVA)
+  const taxAmount = totalProductsWithTax - subtotal;
+
+  // 4. Total final
+  const totalAmount = totalProductsWithTax + shippingCost;
+
+  return {
+    totalProductsWithTax: Math.round(totalProductsWithTax * 100) / 100,
+    subtotal: Math.round(subtotal * 100) / 100,
+    taxAmount: Math.round(taxAmount * 100) / 100,
+    shippingAmount: Math.round(shippingCost * 100) / 100,
+    totalAmount: Math.round(totalAmount * 100) / 100
+  };
+};
+
+// ============================================================================
+// VALIDACIÓN DE PRODUCTOS
 // ============================================================================
 const validateProduct = (item) => {
   const issues = [];
   
-  // ✅ CRÍTICO: Precio válido (previene compras con Q0)
   const price = parseFloat(item.price);
   if (!item.price || isNaN(price) || price <= 0) {
     issues.push('precio_invalido');
-    console.error('❌ Producto con precio inválido:', {
-      id: item.id,
-      name: item.name,
-      price: item.price
-    });
   }
   
-  // ✅ CRÍTICO: Cantidad válida
   const quantity = parseInt(item.quantity);
   if (!item.quantity || isNaN(quantity) || quantity <= 0) {
     issues.push('cantidad_invalida');
-    console.error('❌ Producto con cantidad inválida:', {
-      id: item.id,
-      quantity: item.quantity
-    });
   }
   
-  // ✅ CRÍTICO: ID del producto
   if (!item.id) {
     issues.push('sin_id');
-    console.error('❌ Producto sin ID');
-  }
-  
-  // ⚠️ ADVERTENCIA: Imagen faltante (permitido pero se registra)
-  if (!item.image || item.image.trim() === '') {
-    console.warn('⚠️ Producto sin imagen:', {
-      id: item.id,
-      name: item.name || 'Sin nombre'
-    });
-    // NO se agrega a issues - se permite sin imagen
-  }
-  
-  // ⚠️ ADVERTENCIA: Nombre faltante (permitido pero se registra)
-  if (!item.name || item.name.trim() === '') {
-    console.warn('⚠️ Producto sin nombre:', {
-      id: item.id
-    });
-    // NO se agrega a issues - se permite sin nombre
   }
   
   return {
@@ -82,11 +115,6 @@ const validateCartItems = (items) => {
       invalidItems.push({
         ...item,
         validationIssues: validation.issues
-      });
-      console.warn('❌ Producto RECHAZADO por validación:', {
-        name: item.name || 'Desconocido',
-        id: item.id,
-        issues: validation.issues
       });
     }
   });
@@ -116,7 +144,9 @@ const initialState = {
   items: [],
   isLoading: false,
   summary: {
+    totalProductsWithTax: 0,
     subtotal: 0,
+    taxAmount: 0,
     shippingAmount: 0,
     totalAmount: 0
   },
@@ -147,11 +177,9 @@ function cartReducer(state, action) {
       };
       
     case CART_ACTIONS.ADD_ITEM: {
-      // Validar antes de agregar
       const validation = validateProduct(action.payload);
       
       if (!validation.isValid) {
-        console.error('❌ Intento de agregar producto inválido bloqueado:', validation.issues);
         return state;
       }
       
@@ -207,7 +235,13 @@ function cartReducer(state, action) {
         ...state, 
         items: [],
         invalidItems: [],
-        summary: { subtotal: 0, shippingAmount: 0, totalAmount: 0 }
+        summary: {
+          totalProductsWithTax: 0,
+          subtotal: 0,
+          taxAmount: 0,
+          shippingAmount: 0,
+          totalAmount: 0
+        }
       };
       
     case CART_ACTIONS.SET_SUMMARY:
@@ -274,18 +308,17 @@ export const CartProvider = ({ children }) => {
     lastSaveTimeRef.current = now;
     
     try {
-      // Validar y limpiar items antes de guardar
       const { validItems, invalidItems } = validateCartItems(items);
       
       if (invalidItems.length > 0) {
-        console.warn(`⚠️ ${invalidItems.length} producto(s) inválido(s) NO guardados en localStorage`);
+        console.warn(`⚠️ ${invalidItems.length} producto(s) inválido(s) NO guardados`);
       }
       
       const cartData = {
         items: validItems,
         timestamp: new Date().toISOString(),
         expiresAt: new Date(Date.now() + (CART_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString(),
-        version: '1.3',
+        version: '2.0',
         sessionId: sessionId
       };
       
@@ -341,7 +374,7 @@ export const CartProvider = ({ children }) => {
           items: validItems,
           timestamp: new Date().toISOString(),
           expiresAt: cartData.expiresAt,
-          version: '1.3',
+          version: '2.0',
           sessionId: finalSessionId
         };
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cleanCartData));
@@ -447,30 +480,20 @@ export const CartProvider = ({ children }) => {
     };
   }, [state.items, isAuthenticated, authLoading, getOrCreateSessionId, saveToLocalStorage]);
   
-  // CALCULAR RESUMEN - SIN IVA, SIN ENVÍO GRATIS
+  // ============================================================================
+  // CALCULAR RESUMEN CON IVA INCLUIDO
+  // ============================================================================
   useEffect(() => {
-    const calculateSummary = () => {
-      const subtotal = state.items.reduce((sum, item) => {
-        const price = parseFloat(item.price) || 0;
-        const quantity = parseInt(item.quantity) || 0;
-        return sum + (price * quantity);
-      }, 0);
-      
-      // SIN IVA - Eliminado completamente
-      // SIN ENVÍO GRATIS - Se calcula en checkout según método de entrega
-      const shippingAmount = 0;
-      const totalAmount = subtotal + shippingAmount;
-      
-      const summary = {
-        subtotal: Math.round(subtotal * 100) / 100,
-        shippingAmount: Math.round(shippingAmount * 100) / 100,
-        totalAmount: Math.round(totalAmount * 100) / 100
-      };
-      
-      dispatch({ type: CART_ACTIONS.SET_SUMMARY, payload: summary });
-    };
+    const summary = calculateCartSummary(state.items, 0);
+    dispatch({ type: CART_ACTIONS.SET_SUMMARY, payload: summary });
     
-    calculateSummary();
+    console.log('💰 Resumen del carrito actualizado:', {
+      totalConIVA: summary.totalProductsWithTax,
+      subtotalSinIVA: summary.subtotal,
+      iva: summary.taxAmount,
+      envio: summary.shippingAmount,
+      totalFinal: summary.totalAmount
+    });
   }, [state.items]);
   
   // FUNCIÓN: Agregar item con validación
@@ -609,7 +632,7 @@ export const CartProvider = ({ children }) => {
           items: [],
           timestamp: new Date().toISOString(),
           expiresAt: new Date(Date.now() + (CART_EXPIRY_DAYS * 24 * 60 * 60 * 1000)).toISOString(),
-          version: '1.3',
+          version: '2.0',
           sessionId: state.sessionInfo?.sessionId || getOrCreateSessionId()
         }));
       }
@@ -668,8 +691,10 @@ export const CartProvider = ({ children }) => {
     };
   }, [state.items, showWarning]);
   
-  // FUNCIÓN: Proceder al checkout con validación
-  const proceedToCheckout = useCallback(async (guestData = null) => {
+  // ============================================================================
+  // FUNCIÓN: Proceder al checkout - CON CÁLCULOS CORRECTOS PARA BACKEND
+  // ============================================================================
+  const proceedToCheckout = useCallback(async (checkoutData) => {
     // VALIDAR CARRITO ANTES
     const validation = validateCart();
     
@@ -686,34 +711,55 @@ export const CartProvider = ({ children }) => {
       throw new Error('El carrito está vacío');
     }
     
-    if (!isAuthenticated && !guestData) {
-      window.location.href = '/checkout';
-      return {
-        success: false,
-        requiresCheckout: true,
-        message: 'Redirigiendo al checkout...'
-      };
-    }
-    
     try {
+      // ✅ CALCULAR EL RESUMEN CORRECTO CON IVA DESGLOSADO
+      const shippingCost = checkoutData.shippingCost || 0;
+      const summary = calculateCartSummary(state.items, shippingCost);
+      
+      console.log('📊 Resumen calculado para checkout:', {
+        totalProductosConIVA: summary.totalProductsWithTax,
+        subtotalSinIVA: summary.subtotal,
+        ivaDesglosado: summary.taxAmount,
+        envio: summary.shippingAmount,
+        totalFinal: summary.totalAmount
+      });
+      
+      // Preparar datos para el backend
       const orderData = {
         items: state.items.map(item => ({
           productId: item.id,
           quantity: item.quantity,
-          price: item.price,
+          price: item.price, // Precio CON IVA (como está en la BD)
           selectedVariants: item.options || {},
           variant: item.variant || {}
         })),
-        summary: state.summary
+        
+        // ✅ VALORES CRÍTICOS CALCULADOS CORRECTAMENTE
+        subtotal: summary.subtotal,           // Sin IVA
+        taxAmount: summary.taxAmount,         // IVA desglosado
+        shippingAmount: summary.shippingAmount, // Envío
+        totalAmount: summary.totalAmount,     // Total final
+        
+        // Información del cliente y entrega
+        customerInfo: checkoutData.customerInfo,
+        shippingAddress: checkoutData.shippingAddress,
+        paymentMethod: checkoutData.paymentMethod || 'cash_on_delivery',
+        deliveryMethod: checkoutData.deliveryMethod,
+        notes: checkoutData.notes || ''
       };
       
-      if (!isAuthenticated && guestData) {
+      // Si es invitado, agregar sessionId
+      if (!isAuthenticated) {
         orderData.sessionId = state.sessionInfo?.sessionId || getOrCreateSessionId();
-        orderData.customerInfo = guestData.customerInfo;
-        orderData.shippingAddress = guestData.shippingAddress;
-        orderData.paymentMethod = guestData.paymentMethod || 'cash_on_delivery';
-        orderData.notes = guestData.notes || '';
       }
+      
+      console.log('📤 Datos enviados al backend:', {
+        subtotal: orderData.subtotal,
+        taxAmount: orderData.taxAmount,
+        shippingAmount: orderData.shippingAmount,
+        totalAmount: orderData.totalAmount,
+        itemsCount: orderData.items.length
+      });
       
       const response = await apiService.post('/store/orders', orderData);
       
@@ -734,12 +780,7 @@ export const CartProvider = ({ children }) => {
       console.error('❌ Error en checkout:', error);
       throw error;
     }
-  }, [state.items, state.summary, state.sessionInfo, isAuthenticated, clearCart, getOrCreateSessionId, validateCart, showError]);
-  
-  // FUNCIÓN: Checkout para invitados
-  const proceedToGuestCheckout = useCallback(async (guestData) => {
-    return await proceedToCheckout(guestData);
-  }, [proceedToCheckout]);
+  }, [state.items, state.sessionInfo, isAuthenticated, clearCart, getOrCreateSessionId, validateCart, showError]);
   
   // FUNCIONES DE UI
   const toggleCart = useCallback(() => {
@@ -771,7 +812,8 @@ export const CartProvider = ({ children }) => {
     console.log('Items válidos:', state.items.length);
     console.log('Items inválidos detectados:', state.invalidItems.length);
     console.log('Session ID:', state.sessionInfo?.sessionId);
-    console.log('Subtotal:', state.summary.subtotal);
+    console.log('Subtotal (sin IVA):', state.summary.subtotal);
+    console.log('IVA:', state.summary.taxAmount);
     console.log('Total:', state.summary.totalAmount);
     console.log('En localStorage:', !!localStorage.getItem(CART_STORAGE_KEY));
     
@@ -781,11 +823,6 @@ export const CartProvider = ({ children }) => {
     
     console.groupEnd();
   }, [state]);
-  
-  // FUNCIÓN: Retry sync
-  const retrySync = useCallback(async () => {
-    console.log('🔄 Reintentando sincronización...');
-  }, []);
   
   // VALORES CALCULADOS
   const itemCount = state.items.reduce((count, item) => count + (parseInt(item.quantity) || 0), 0);
@@ -823,14 +860,15 @@ export const CartProvider = ({ children }) => {
     
     // Funciones de checkout
     proceedToCheckout,
-    proceedToGuestCheckout,
     getOrCreateSessionId,
     
     // Utilidades
     formatCurrency,
     validateCart,
     debugCart,
-    retrySync
+    
+    // ✅ EXPONER LA FUNCIÓN DE CÁLCULO PARA CHECKOUT
+    calculateCartSummary
   };
   
   return (
@@ -850,7 +888,6 @@ export const useCart = () => {
 };
 
 export default CartContext;
-
 /*
 DOCUMENTACIÓN DEL CONTEXTO CartContext
 
