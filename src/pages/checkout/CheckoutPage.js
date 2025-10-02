@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPage.js
-// Archivo principal de checkout con control de Stripe por variable de entorno
+// Sistema de checkout con envío local limitado a Baja Verapaz
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -40,6 +40,20 @@ import { Elements } from '@stripe/react-stripe-js';
 
 import { PaymentStep } from './CheckoutPayment';
 import { ConfirmationStep, OrderSummary } from './CheckoutConfirmation';
+
+// ============================================================================
+// CONFIGURACIÓN DE ENVÍO LOCAL LIMITADO
+// ============================================================================
+const LOCAL_DELIVERY_CONFIG = {
+  department: 'Baja Verapaz',
+  municipalities: [
+    'Cubulco',
+    'Rabinal',
+    'Salamá',
+    'San Jerónimo',
+    'San Miguel Chicaj'
+  ]
+};
 
 const VALIDATION_PATTERNS = {
   name: /^[A-Za-zÀ-ÿ\u00f1\u00d1\s\-'\.]+$/, 
@@ -124,6 +138,50 @@ const CheckoutPage = () => {
   const [touched, setTouched] = useState({});
   
   const [availableMunicipalities, setAvailableMunicipalities] = useState([]);
+
+  // ============================================================================
+  // EFECTO: Configurar departamento y municipios según método de entrega
+  // ============================================================================
+  useEffect(() => {
+    if (deliveryMethod === 'local_delivery') {
+      console.log('🚚 Envío local activado - configurando Baja Verapaz...');
+      
+      // Establecer Baja Verapaz automáticamente
+      setShippingAddress(prev => ({
+        ...prev,
+        state: LOCAL_DELIVERY_CONFIG.department,
+        municipality: '', // Limpiar municipio para que el usuario seleccione
+        city: ''
+      }));
+      
+      // Establecer municipios limitados
+      setAvailableMunicipalities(LOCAL_DELIVERY_CONFIG.municipalities);
+      
+      // Obtener código postal de Baja Verapaz
+      const postalCode = getPostalCode(LOCAL_DELIVERY_CONFIG.department);
+      setShippingAddress(prev => ({
+        ...prev,
+        zipCode: postalCode
+      }));
+      
+      console.log('✅ Configuración de envío local aplicada:', {
+        department: LOCAL_DELIVERY_CONFIG.department,
+        municipalities: LOCAL_DELIVERY_CONFIG.municipalities
+      });
+      
+    } else if (deliveryMethod === 'national_delivery') {
+      // Para envío nacional, permitir todos los departamentos y municipios
+      if (shippingAddress.state) {
+        const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
+        setAvailableMunicipalities(municipalities);
+      } else {
+        setAvailableMunicipalities([]);
+      }
+    } else if (deliveryMethod === 'pickup_store') {
+      // Limpiar dirección para pickup en tienda
+      setAvailableMunicipalities([]);
+    }
+  }, [deliveryMethod]);
 
   useEffect(() => {
     const loadGymConfig = async () => {
@@ -230,11 +288,11 @@ const CheckoutPage = () => {
         local_delivery: {
           id: 'local_delivery',
           name: 'Envío local',
-          description: 'Entrega en Guatemala y municipios cercanos',
+          description: 'Entrega en Baja Verapaz (Cubulco, Rabinal, Salamá, San Jerónimo, San Miguel Chicaj)',
           icon: Truck,
           cost: 25,
           timeframe: '1-2 días hábiles',
-          coverage: 'Ciudad de Guatemala y alrededores',
+          coverage: 'Baja Verapaz únicamente',
           color: 'blue'
         },
         national_delivery: {
@@ -337,7 +395,16 @@ const CheckoutPage = () => {
     initializeStripe();
   }, []);
 
+  // ============================================================================
+  // ACTUALIZACIÓN DE MUNICIPIOS - Solo para envío nacional
+  // ============================================================================
   const updateMunicipalities = useCallback((departmentName) => {
+    // Si es envío local, los municipios ya están fijados
+    if (deliveryMethod === 'local_delivery') {
+      console.log('📍 Envío local - municipios fijos de Baja Verapaz');
+      return;
+    }
+    
     console.log('Actualizando municipios para:', departmentName);
     
     if (departmentName && DEPARTMENTS.includes(departmentName)) {
@@ -358,14 +425,18 @@ const CheckoutPage = () => {
       console.log('Limpiando municipios - no hay departamento válido');
       setAvailableMunicipalities([]);
     }
-  }, []);
+  }, [deliveryMethod]);
 
   useEffect(() => {
-    updateMunicipalities(shippingAddress.state);
-  }, [shippingAddress.state, updateMunicipalities]);
+    // Solo actualizar municipios si no es envío local
+    if (deliveryMethod !== 'local_delivery') {
+      updateMunicipalities(shippingAddress.state);
+    }
+  }, [shippingAddress.state, updateMunicipalities, deliveryMethod]);
 
   useEffect(() => {
-    if (shippingAddress.state && shippingAddress.municipality) {
+    // Solo validar cambios si no es envío local
+    if (deliveryMethod !== 'local_delivery' && shippingAddress.state && shippingAddress.municipality) {
       const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
       if (!municipalities.includes(shippingAddress.municipality)) {
         console.log('Reseteando municipio porque no pertenece al nuevo departamento');
@@ -376,7 +447,7 @@ const CheckoutPage = () => {
         }));
       }
     }
-  }, [shippingAddress.state]);
+  }, [shippingAddress.state, deliveryMethod]);
 
   const validateField = (name, value) => {
     const fieldErrors = {};
@@ -427,6 +498,11 @@ const CheckoutPage = () => {
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un municipio';
+          } else if (deliveryMethod === 'local_delivery') {
+            // Validar contra municipios limitados
+            if (!LOCAL_DELIVERY_CONFIG.municipalities.includes(value)) {
+              fieldErrors[name] = 'Municipio no disponible para envío local';
+            }
           } else if (!isValidMunicipality(value, shippingAddress.state)) {
             fieldErrors[name] = 'Municipio no válido para este departamento';
           }
@@ -437,6 +513,8 @@ const CheckoutPage = () => {
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un departamento';
+          } else if (deliveryMethod === 'local_delivery' && value !== LOCAL_DELIVERY_CONFIG.department) {
+            fieldErrors[name] = 'Solo disponible en Baja Verapaz';
           } else if (!DEPARTMENTS.includes(value)) {
             fieldErrors[name] = 'Departamento no válido';
           }
@@ -462,6 +540,13 @@ const CheckoutPage = () => {
         if (field === 'municipality' && value) {
           console.log('Cambiando municipio a:', value);
           newAddress.city = value;
+          
+          // Actualizar código postal por municipio si es necesario
+          // Para Guatemala, usamos el código postal del departamento
+          if (prev.state) {
+            const postalCode = getPostalCode(prev.state);
+            newAddress.zipCode = postalCode;
+          }
         }
         
         return newAddress;
@@ -540,15 +625,7 @@ const CheckoutPage = () => {
     const selectedOption = deliveryOptions[deliveryMethod];
     if (!selectedOption) return 0;
     
-    const minForFreeShipping = deliveryMethod === 'local_delivery' ? 200 : 
-                              deliveryMethod === 'national_delivery' ? 300 : 0;
-    
-    const subtotal = summary?.subtotal || 0;
-    
-    if (selectedOption.cost > 0 && subtotal >= minForFreeShipping) {
-      return 0;
-    }
-    
+    // Retornar el costo fijo sin promociones de envío gratis
     return selectedOption.cost;
   };
 
@@ -604,7 +681,6 @@ const CheckoutPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -674,7 +750,6 @@ const CheckoutPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
             <div className="lg:col-span-2">
               {step === 1 && (
                 <CustomerInfoStep
@@ -785,10 +860,11 @@ const CustomerInfoStep = ({
   gymConfig,
   isLoadingConfig
 }) => {
+  // Determinar si el departamento debe estar bloqueado
+  const isDepartmentLocked = deliveryMethod === 'local_delivery';
   
   return (
     <div className="space-y-8">
-      
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <User className="w-5 h-5 text-primary-600 mr-2" />
@@ -911,7 +987,7 @@ const CustomerInfoStep = ({
             {Object.values(deliveryOptions).map((option) => {
               const Icon = option.icon;
               const isSelected = deliveryMethod === option.id;
-              const cost = option.id === deliveryMethod ? calculateShippingCost() : option.cost;
+              const cost = calculateShippingCost();
               
               return (
                 <button
@@ -962,13 +1038,8 @@ const CustomerInfoStep = ({
                     
                     <div className="text-right">
                       <div className="font-bold text-lg">
-                        {cost === 0 ? 'Gratis' : `Q${cost.toFixed(2)}`}
+                        {option.cost === 0 ? 'Gratis' : `Q${option.cost.toFixed(2)}`}
                       </div>
-                      {option.cost > 0 && cost === 0 && (
-                        <div className="text-xs text-green-600 font-medium">
-                          ¡Envío gratis!
-                        </div>
-                      )}
                     </div>
                   </div>
                 </button>
@@ -994,12 +1065,12 @@ const CustomerInfoStep = ({
               
               {deliveryMethod === 'local_delivery' && (
                 <>
-                  <p className="font-medium mb-1">Entrega local:</p>
+                  <p className="font-medium mb-1">Entrega local - Baja Verapaz:</p>
                   <ul className="space-y-1 text-xs">
-                    <li>Cobertura en Ciudad de Guatemala y municipios cercanos</li>
-                    <li>Entrega en 1-2 días hábiles</li>
-                    <li>Envío gratis en compras superiores a Q200</li>
-                    <li>Te contactaremos para coordinar la entrega</li>
+                    <li>✅ Cobertura limitada a 5 municipios: Cubulco, Rabinal, Salamá, San Jerónimo, San Miguel Chicaj</li>
+                    <li>⏱️ Entrega en 1-2 días hábiles</li>
+                    <li>💵 Costo de envío: Q25.00</li>
+                    <li>📱 Te contactaremos para coordinar la entrega</li>
                   </ul>
                 </>
               )}
@@ -1010,7 +1081,7 @@ const CustomerInfoStep = ({
                   <ul className="space-y-1 text-xs">
                     <li>Entrega a todos los departamentos de Guatemala</li>
                     <li>Tiempo de entrega: 3-5 días hábiles</li>
-                    <li>Envío gratis en compras superiores a Q300</li>
+                    <li>Costo de envío: Q45.00</li>
                     <li>Seguimiento por WhatsApp disponible</li>
                   </ul>
                 </>
@@ -1028,6 +1099,24 @@ const CustomerInfoStep = ({
               Dirección de entrega - Guatemala
             </h2>
           </div>
+
+          {/* Alerta especial para envío local */}
+          {deliveryMethod === 'local_delivery' && (
+            <div className="mb-4 p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
+              <div className="flex items-start">
+                <Info className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-semibold text-blue-900 mb-1">
+                    📍 Envío Local - Solo Baja Verapaz
+                  </p>
+                  <p className="text-blue-800">
+                    El envío local está limitado al departamento de <strong>Baja Verapaz</strong> en los siguientes municipios: 
+                    <strong> Cubulco, Rabinal, Salamá, San Jerónimo y San Miguel Chicaj</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4">
             <div>
@@ -1065,27 +1154,31 @@ const CustomerInfoStep = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Departamento *
-                  <span className="text-xs text-gray-500 ml-1">
-                    ({DEPARTMENTS?.length || 0} disponibles)
-                  </span>
                 </label>
-                <select
-                  value={shippingAddress.state}
-                  onChange={(e) => {
-                    console.log('Seleccionando departamento:', e.target.value);
-                    onInputChange('shippingAddress', 'state', e.target.value);
-                  }}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
-                    errors.state && touched.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Seleccionar departamento</option>
-                  {DEPARTMENTS && DEPARTMENTS.map(department => (
-                    <option key={department} value={department}>
-                      {department}
-                    </option>
-                  ))}
-                </select>
+                {isDepartmentLocked ? (
+                  <div className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-blue-900 font-medium flex items-center">
+                    <Lock className="w-4 h-4 mr-2" />
+                    {LOCAL_DELIVERY_CONFIG.department}
+                  </div>
+                ) : (
+                  <select
+                    value={shippingAddress.state}
+                    onChange={(e) => {
+                      console.log('Seleccionando departamento:', e.target.value);
+                      onInputChange('shippingAddress', 'state', e.target.value);
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                      errors.state && touched.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Seleccionar departamento</option>
+                    {DEPARTMENTS && DEPARTMENTS.map(department => (
+                      <option key={department} value={department}>
+                        {department}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {errors.state && touched.state && (
                   <div className="flex items-center mt-1 text-red-600 text-sm">
                     <X className="w-4 h-4 mr-1" />
@@ -1110,10 +1203,15 @@ const CustomerInfoStep = ({
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
                     errors.municipality && touched.municipality ? 'border-red-500 bg-red-50' : 'border-gray-300'
                   }`}
-                  disabled={!shippingAddress.state}
+                  disabled={!shippingAddress.state && deliveryMethod !== 'local_delivery'}
                 >
                   <option value="">
-                    {shippingAddress.state ? 'Seleccionar municipio' : 'Primero selecciona departamento'}
+                    {deliveryMethod === 'local_delivery' 
+                      ? 'Seleccionar municipio de Baja Verapaz'
+                      : shippingAddress.state 
+                        ? 'Seleccionar municipio' 
+                        : 'Primero selecciona departamento'
+                    }
                   </option>
                   {availableMunicipalities && availableMunicipalities.map(municipality => (
                     <option key={municipality} value={municipality}>
