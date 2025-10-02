@@ -1,57 +1,34 @@
-// Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutConfirmation.js
-// VERSIÓN ACTUALIZADA: OrderSummary con IVA incluido y envío correcto
+// VERSIÓN CORREGIDA: Muestra el total que el cliente realmente pagó
 
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  CheckCircle,
-  Package,
-  Mail,
-  Phone,
-  Store,
-  Home,
-  AlertCircle,
-  Truck,
-  Map,
-  Shield
+  CheckCircle, Package, Mail, Phone, Store, Home, AlertCircle,
+  Truck, Map, Shield
 } from 'lucide-react';
-
 import { useCart } from '../../contexts/CartContext';
 
-// ============================================================================
-// COMPONENTE: ConfirmationStep - Pantalla de confirmación exitosa
-// ============================================================================
 const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   const navigate = useNavigate();
   const { clearCart } = useCart();
 
-  console.log('✅ ConfirmationStep renderizado:', {
-    orderNumber: order?.orderNumber,
-    orderId: order?.id,
-    customerEmail: customerInfo?.email
-  });
-
   useEffect(() => {
-    console.log('✅ ConfirmationStep montado - orden completada exitosamente');
+    console.log('✅ Orden completada exitosamente');
   }, []);
 
   const handleContinueShopping = () => {
-    console.log('🛍️ Usuario continúa comprando - limpiando carrito...');
     clearCart();
     navigate('/store');
   };
 
   const handleGoHome = () => {
-    console.log('🏠 Usuario va al inicio - limpiando carrito...');
     clearCart();
     navigate('/');
   };
 
   return (
     <div className="space-y-8">
-      
-      {/* BANNER DE ÉXITO */}
       <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl p-8 text-center shadow-xl">
         <div className="flex flex-col items-center">
           <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -72,10 +49,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
-      {/* TARJETAS DE INFORMACIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* DETALLES DEL PEDIDO */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
             <Package className="w-6 h-6 text-primary-600 mr-2" />
@@ -89,7 +63,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
             </div>
             
             <div className="flex justify-between">
-              <span className="text-gray-600">Total:</span>
+              <span className="text-gray-600">Total pagado:</span>
               <span className="font-bold text-xl text-green-600">
                 Q{parseFloat(order?.totalAmount || 0).toFixed(2)}
               </span>
@@ -131,7 +105,6 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
           </div>
         </div>
 
-        {/* CONFIRMACIÓN ENVIADA */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
             <Mail className="w-6 h-6 text-blue-600 mr-2" />
@@ -168,7 +141,6 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
-      {/* PROGRESO DEL PEDIDO */}
       <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
           <div className="flex flex-col items-center">
@@ -197,7 +169,6 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
-      {/* BOTONES DE ACCIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
           onClick={handleContinueShopping}
@@ -216,7 +187,6 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </button>
       </div>
 
-      {/* SOPORTE */}
       {(gymConfig?.contact?.email || gymConfig?.contact?.phone) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
           <p className="text-blue-800 font-medium mb-2">
@@ -241,7 +211,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
 };
 
 // ============================================================================
-// COMPONENTE: OrderSummary - Resumen lateral del pedido
+// OrderSummary - CORREGIDO: Total que ve el cliente = Productos + Envío
 // ============================================================================
 const OrderSummary = ({ 
   items, 
@@ -258,21 +228,22 @@ const OrderSummary = ({
 }) => {
   const hasErrors = Object.keys(errors).filter(key => errors[key]).length > 0;
   const errorCount = Object.keys(errors).filter(key => errors[key]).length;
-
   const selectedDeliveryOption = deliveryOptions[deliveryMethod];
 
-  // ✅ CALCULAR TOTALES CORRECTOS
-  // Lo que ve el usuario: productos (con IVA) + envío = total
+  // ✅ CÁLCULO CORRECTO:
+  // Total de productos (CON IVA ya incluido en los precios)
   const productsTotal = summary?.totalProductsWithTax || 0;
+  
+  // Envío (el que escogió el cliente)
   const shipping = shippingCost || 0;
+  
+  // TOTAL que ve el cliente = Productos + Envío
   const finalTotal = productsTotal + shipping;
 
-  console.log('📊 OrderSummary - Cálculos:', {
-    productosConIVA: productsTotal,
-    envio: shipping,
-    totalFinal: finalTotal,
-    deliveryMethod
-  });
+  console.log('📊 OrderSummary - Lo que ve el cliente:');
+  console.log(`   Productos (con IVA): Q${productsTotal.toFixed(2)}`);
+  console.log(`   + Envío: Q${shipping.toFixed(2)}`);
+  console.log(`   = TOTAL: Q${finalTotal.toFixed(2)}`);
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
@@ -288,9 +259,7 @@ const OrderSummary = ({
               src={item.image || '/api/placeholder/60/60'}
               alt={item.name}
               className="w-12 h-12 object-cover rounded-lg"
-              onError={(e) => {
-                e.target.src = '/api/placeholder/60/60';
-              }}
+              onError={(e) => e.target.src = '/api/placeholder/60/60'}
             />
             <div className="flex-1 min-w-0">
               <h4 className="text-sm font-medium text-gray-900 truncate">
@@ -309,7 +278,7 @@ const OrderSummary = ({
 
       {/* DESGLOSE DE PRECIOS */}
       <div className="border-t pt-4 space-y-2">
-        {/* PRODUCTOS (CON IVA INCLUIDO) */}
+        {/* PRODUCTOS (con IVA incluido) */}
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">
             Productos:
@@ -341,9 +310,9 @@ const OrderSummary = ({
           </span>
         </div>
         
-        {/* TOTAL FINAL */}
+        {/* TOTAL FINAL - LO QUE EL CLIENTE PAGA */}
         <div className="flex justify-between font-bold text-lg pt-2 border-t">
-          <span>Total:</span>
+          <span>Total a pagar:</span>
           <span className="text-primary-600">
             {formatCurrency(finalTotal)}
           </span>
@@ -373,7 +342,7 @@ const OrderSummary = ({
         </div>
       )}
 
-      {/* BOTÓN DE CONTINUAR (solo en paso 1) */}
+      {/* BOTÓN DE CONTINUAR */}
       {canContinue && (
         <>
           {hasErrors && (
@@ -435,7 +404,4 @@ const OrderSummary = ({
   );
 };
 
-// ============================================================================
-// EXPORTACIONES
-// ============================================================================
 export { ConfirmationStep, OrderSummary };

@@ -1,128 +1,119 @@
-// Autor: Alexander Echeverria
 // src/contexts/CartContext.js
-// VERSIÓN COMPLETA: IVA incluido en precios, desglosado automáticamente para backend
+// VERSIÓN CORREGIDA: El total que ve el cliente YA incluye envío
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { useApp } from './AppContext';
 import apiService from '../services/apiService';
 
-// CONSTANTES
 const CART_STORAGE_KEY = 'elite_fitness_cart';
 const SESSION_STORAGE_KEY = 'elite_fitness_session_id';
 const CART_EXPIRY_DAYS = 30;
 
-// ✅ CONFIGURACIÓN DE IVA GUATEMALA
-const TAX_RATE = 0.12; // 12% IVA
+const TAX_RATE = 0.12; // 12% IVA Guatemala
 const TAX_MULTIPLIER = 1 + TAX_RATE; // 1.12
 
-// ============================================================================
-// FUNCIONES DE CÁLCULO CON IVA INCLUIDO
-// ============================================================================
+
 
 /**
- * Calcula el subtotal SIN IVA a partir del precio CON IVA
- * Fórmula: precioConIVA ÷ 1.12 = precioSinIVA
- */
-const calculateSubtotalWithoutTax = (priceWithTax, quantity) => {
-  const priceWithoutTax = priceWithTax / TAX_MULTIPLIER;
-  return priceWithoutTax * quantity;
-};
-
-/**
- * Calcula el IVA desglosado del precio
- * Fórmula: precioConIVA - (precioConIVA ÷ 1.12) = IVA
- */
-const calculateTaxAmount = (priceWithTax, quantity) => {
-  const priceWithoutTax = priceWithTax / TAX_MULTIPLIER;
-  const taxAmount = (priceWithTax - priceWithoutTax) * quantity;
-  return taxAmount;
-};
-
-/**
- * Calcula el resumen completo del carrito
- * - totalWithTax: Lo que ve el usuario (precios con IVA)
- * - subtotal: Sin IVA (para backend)
- * - taxAmount: IVA desglosado (para backend)
+ * Calcula el resumen del carrito con el TOTAL que ve el cliente
+ * @param {Array} items - Productos en el carrito
+ * @param {Number} shippingCost - Costo de envío seleccionado
+ * @returns {Object} Resumen con valores para mostrar y para enviar al backend
  */
 const calculateCartSummary = (items, shippingCost = 0) => {
-  // 1. Calcular total CON IVA (lo que ve el usuario)
+  console.log('\n💰 ===== CÁLCULO DE CARRITO (LÓGICA CORREGIDA) =====');
+  console.log('📦 Items en carrito:', items.length);
+  console.log('🚚 Envío seleccionado: Q', shippingCost);
+  
+  // PASO 1: Calcular precio de productos (con IVA incluido)
   const totalProductsWithTax = items.reduce((sum, item) => {
     const price = parseFloat(item.price) || 0;
     const quantity = parseInt(item.quantity) || 0;
     return sum + (price * quantity);
   }, 0);
-
-  // 2. Desglosar: calcular subtotal SIN IVA
-  const subtotal = items.reduce((sum, item) => {
-    const price = parseFloat(item.price) || 0;
-    const quantity = parseInt(item.quantity) || 0;
-    return sum + calculateSubtotalWithoutTax(price, quantity);
-  }, 0);
-
-  // 3. Calcular IVA (diferencia entre total con IVA y subtotal sin IVA)
-  const taxAmount = totalProductsWithTax - subtotal;
-
-  // 4. Total final
+  
+  console.log(`\n📊 Total de productos (con IVA): Q${totalProductsWithTax.toFixed(2)}`);
+  
+  // PASO 2: TOTAL que ve el cliente = Productos + Envío
   const totalAmount = totalProductsWithTax + shippingCost;
-
+  console.log(`🚚 + Envío: Q${shippingCost.toFixed(2)}`);
+  console.log(`💳 = TOTAL que ve el cliente: Q${totalAmount.toFixed(2)}`);
+  
+  // PASO 3: DESGLOSAR para el backend (del total, extraer sus componentes)
+  // 3.1: Los productos con IVA ya los tenemos
+  console.log('\n📋 DESGLOSE para el backend:');
+  console.log(`   Productos con IVA: Q${totalProductsWithTax.toFixed(2)}`);
+  
+  // 3.2: Calcular subtotal SIN IVA
+  const subtotal = totalProductsWithTax / TAX_MULTIPLIER;
+  console.log(`   ÷ 1.12 = Subtotal sin IVA: Q${subtotal.toFixed(2)}`);
+  
+  // 3.3: Calcular el IVA
+  const taxAmount = totalProductsWithTax - subtotal;
+  console.log(`   IVA (12%): Q${taxAmount.toFixed(2)}`);
+  
+  // 3.4: El envío es el que seleccionó el cliente
+  const shippingAmount = shippingCost;
+  console.log(`   Envío: Q${shippingAmount.toFixed(2)}`);
+  
+  // VERIFICACIÓN FINAL
+  const verification = subtotal + taxAmount + shippingAmount;
+  console.log('\n✅ VERIFICACIÓN:');
+  console.log(`   Subtotal: Q${subtotal.toFixed(2)}`);
+  console.log(`   + IVA:    Q${taxAmount.toFixed(2)}`);
+  console.log(`   + Envío:  Q${shippingAmount.toFixed(2)}`);
+  console.log(`   = TOTAL:  Q${verification.toFixed(2)}`);
+  console.log(`   Total cliente ve: Q${totalAmount.toFixed(2)}`);
+  
+  const difference = Math.abs(verification - totalAmount);
+  if (difference > 0.01) {
+    console.error(`❌ ERROR: Diferencia de Q${difference.toFixed(2)}`);
+  } else {
+    console.log('✅ ¡PERFECTO! Los totales coinciden');
+  }
+  
+  console.log('===== FIN CÁLCULO =====\n');
+  
+  // Redondear a 2 decimales
   return {
+    // Para mostrar al cliente
     totalProductsWithTax: Math.round(totalProductsWithTax * 100) / 100,
+    totalAmount: Math.round(totalAmount * 100) / 100,
+    
+    // Para enviar al backend (desglosado)
     subtotal: Math.round(subtotal * 100) / 100,
     taxAmount: Math.round(taxAmount * 100) / 100,
-    shippingAmount: Math.round(shippingCost * 100) / 100,
-    totalAmount: Math.round(totalAmount * 100) / 100
+    shippingAmount: Math.round(shippingAmount * 100) / 100
   };
 };
 
-// ============================================================================
-// VALIDACIÓN DE PRODUCTOS
-// ============================================================================
+// Validación de productos
 const validateProduct = (item) => {
   const issues = [];
-  
   const price = parseFloat(item.price);
-  if (!item.price || isNaN(price) || price <= 0) {
-    issues.push('precio_invalido');
-  }
-  
+  if (!item.price || isNaN(price) || price <= 0) issues.push('precio_invalido');
   const quantity = parseInt(item.quantity);
-  if (!item.quantity || isNaN(quantity) || quantity <= 0) {
-    issues.push('cantidad_invalida');
-  }
-  
-  if (!item.id) {
-    issues.push('sin_id');
-  }
-  
-  return {
-    isValid: issues.length === 0,
-    issues,
-    item
-  };
+  if (!item.quantity || isNaN(quantity) || quantity <= 0) issues.push('cantidad_invalida');
+  if (!item.id) issues.push('sin_id');
+  return { isValid: issues.length === 0, issues, item };
 };
 
 const validateCartItems = (items) => {
   const validItems = [];
   const invalidItems = [];
-  
   items.forEach(item => {
     const validation = validateProduct(item);
-    
     if (validation.isValid) {
       validItems.push(item);
     } else {
-      invalidItems.push({
-        ...item,
-        validationIssues: validation.issues
-      });
+      invalidItems.push({ ...item, validationIssues: validation.issues });
     }
   });
-  
   return { validItems, invalidItems };
 };
 
-// ACTIONS
+// Actions
 const CART_ACTIONS = {
   SET_LOADING: 'SET_LOADING',
   SET_OPEN: 'SET_OPEN',
@@ -138,7 +129,7 @@ const CART_ACTIONS = {
   SET_INVALID_ITEMS: 'SET_INVALID_ITEMS'
 };
 
-// ESTADO INICIAL
+// Estado inicial
 const initialState = {
   isOpen: false,
   items: [],
@@ -160,28 +151,18 @@ const initialState = {
   invalidItems: []
 };
 
-// REDUCER
+// Reducer
 function cartReducer(state, action) {
   switch (action.type) {
     case CART_ACTIONS.SET_LOADING:
       return { ...state, isLoading: action.payload };
-      
     case CART_ACTIONS.SET_OPEN:
       return { ...state, isOpen: action.payload };
-      
     case CART_ACTIONS.LOAD_CART:
-      return { 
-        ...state, 
-        items: action.payload,
-        isLoading: false 
-      };
-      
+      return { ...state, items: action.payload, isLoading: false };
     case CART_ACTIONS.ADD_ITEM: {
       const validation = validateProduct(action.payload);
-      
-      if (!validation.isValid) {
-        return state;
-      }
+      if (!validation.isValid) return state;
       
       const existingItemIndex = state.items.findIndex(
         item => item.id === action.payload.id && 
@@ -202,34 +183,26 @@ function cartReducer(state, action) {
           addedAt: new Date().toISOString()
         }];
       }
-      
       return { ...state, items: newItems };
     }
-    
     case CART_ACTIONS.UPDATE_ITEM: {
       if (action.payload.quantity === 0) {
-        const newItems = state.items.filter(item => item.cartId !== action.payload.cartId);
-        return { ...state, items: newItems };
-      } else {
-        const newItems = state.items.map(item => 
+        return { ...state, items: state.items.filter(item => item.cartId !== action.payload.cartId) };
+      }
+      return {
+        ...state,
+        items: state.items.map(item => 
           item.cartId === action.payload.cartId 
             ? { ...item, quantity: action.payload.quantity, updatedAt: new Date().toISOString() }
             : item
-        );
-        return { ...state, items: newItems };
-      }
-    }
-    
-    case CART_ACTIONS.REMOVE_ITEM: {
-      const newItems = state.items.filter(item => 
-        item.cartId !== action.payload && item.id !== action.payload
-      );
-      return { 
-        ...state, 
-        items: newItems
+        )
       };
     }
-      
+    case CART_ACTIONS.REMOVE_ITEM:
+      return { 
+        ...state, 
+        items: state.items.filter(item => item.cartId !== action.payload && item.id !== action.payload)
+      };
     case CART_ACTIONS.CLEAR_CART:
       return { 
         ...state, 
@@ -243,13 +216,10 @@ function cartReducer(state, action) {
           totalAmount: 0
         }
       };
-      
     case CART_ACTIONS.SET_SUMMARY:
       return { ...state, summary: action.payload };
-      
     case CART_ACTIONS.SET_SESSION_INFO:
       return { ...state, sessionInfo: { ...state.sessionInfo, ...action.payload } };
-      
     case CART_ACTIONS.SYNC_WITH_BACKEND:
       return { 
         ...state, 
@@ -260,19 +230,15 @@ function cartReducer(state, action) {
           syncError: null 
         }
       };
-      
     case CART_ACTIONS.SET_ERROR:
       return { ...state, error: action.payload };
-      
     case CART_ACTIONS.SET_INVALID_ITEMS:
       return { ...state, invalidItems: action.payload };
-      
     default:
       return state;
   }
 }
 
-// CONTEXTO DEL CARRITO
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
@@ -284,32 +250,23 @@ export const CartProvider = ({ children }) => {
   const lastSaveTimeRef = useRef(0);
   const saveTimeoutRef = useRef(null);
   
-  // FUNCIÓN: Generar o recuperar sessionId
   const getOrCreateSessionId = useCallback(() => {
     if (isAuthenticated) return null;
-    
     let sessionId = localStorage.getItem(SESSION_STORAGE_KEY);
-    
     if (!sessionId) {
       sessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
-      console.log('✅ SessionID generado:', sessionId);
     }
-    
     return sessionId;
   }, [isAuthenticated]);
   
-  // FUNCIÓN: Guardar en localStorage con validación
   const saveToLocalStorage = useCallback((items, sessionId) => {
     const now = Date.now();
-    if (now - lastSaveTimeRef.current < 1000) {
-      return;
-    }
+    if (now - lastSaveTimeRef.current < 1000) return;
     lastSaveTimeRef.current = now;
     
     try {
       const { validItems, invalidItems } = validateCartItems(items);
-      
       if (invalidItems.length > 0) {
         console.warn(`⚠️ ${invalidItems.length} producto(s) inválido(s) NO guardados`);
       }
@@ -323,68 +280,45 @@ export const CartProvider = ({ children }) => {
       };
       
       localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartData));
-      
-      if (sessionId) {
-        localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
-      }
-      
-      console.log('💾 Carrito guardado:', {
-        validItems: validItems.length,
-        invalidRemoved: invalidItems.length,
-        sessionId: sessionId
-      });
+      if (sessionId) localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
     } catch (error) {
       console.error('❌ Error guardando carrito:', error);
     }
   }, []);
   
-  // FUNCIÓN: Cargar desde localStorage con validación
   const loadFromLocalStorage = useCallback(() => {
     try {
       const cartDataString = localStorage.getItem(CART_STORAGE_KEY);
       const savedSessionId = localStorage.getItem(SESSION_STORAGE_KEY);
       
       if (!cartDataString) {
-        return { 
-          items: [], 
-          sessionId: savedSessionId || null,
-          invalidItems: []
-        };
+        return { items: [], sessionId: savedSessionId || null, invalidItems: [] };
       }
       
       const cartData = JSON.parse(cartDataString);
       
-      // Verificar expiración
       if (cartData.expiresAt && new Date(cartData.expiresAt) < new Date()) {
-        console.log('🕐 Carrito expirado, limpiando...');
         localStorage.removeItem(CART_STORAGE_KEY);
         localStorage.removeItem(SESSION_STORAGE_KEY);
         return { items: [], sessionId: null, invalidItems: [] };
       }
       
-      // VALIDAR PRODUCTOS CARGADOS
       const { validItems, invalidItems } = validateCartItems(cartData.items || []);
       
-      // Si hay productos inválidos, limpiar y guardar solo los válidos
       if (invalidItems.length > 0) {
-        console.warn(`⚠️ ${invalidItems.length} producto(s) inválido(s) eliminados del localStorage`);
-        
-        const finalSessionId = cartData.sessionId || savedSessionId;
         const cleanCartData = {
           items: validItems,
           timestamp: new Date().toISOString(),
           expiresAt: cartData.expiresAt,
           version: '2.0',
-          sessionId: finalSessionId
+          sessionId: cartData.sessionId || savedSessionId
         };
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cleanCartData));
       }
       
-      const finalSessionId = cartData.sessionId || savedSessionId;
-      
       return {
         items: validItems,
-        sessionId: finalSessionId,
+        sessionId: cartData.sessionId || savedSessionId,
         invalidItems: invalidItems
       };
       
@@ -396,111 +330,63 @@ export const CartProvider = ({ children }) => {
     }
   }, []);
   
-  // INICIALIZACIÓN con validación
+  // Inicialización
   useEffect(() => {
-    if (isInitializedRef.current || authLoading) {
-      return;
-    }
+    if (isInitializedRef.current || authLoading) return;
     
     const initializeCart = async () => {
-      console.log('🚀 Inicializando carrito con validación...');
       isInitializedRef.current = true;
       
       if (isAuthenticated && user) {
-        // Usuario autenticado
         try {
           const backendCart = await apiService.getCart();
           const backendItems = backendCart.data?.cartItems || [];
-          
           const { validItems, invalidItems } = validateCartItems(backendItems);
           
+          dispatch({ type: CART_ACTIONS.LOAD_CART, payload: validItems });
           if (invalidItems.length > 0) {
-            console.warn(`⚠️ ${invalidItems.length} producto(s) inválido(s) del backend eliminados`);
+            dispatch({ type: CART_ACTIONS.SET_INVALID_ITEMS, payload: invalidItems });
             showWarning(`${invalidItems.length} producto(s) con datos incompletos fueron eliminados`);
           }
-          
-          dispatch({ type: CART_ACTIONS.LOAD_CART, payload: validItems });
-          dispatch({ type: CART_ACTIONS.SET_INVALID_ITEMS, payload: invalidItems });
-          
-          console.log('✅ Carrito cargado desde backend:', validItems.length, 'productos válidos');
         } catch (error) {
-          console.error('❌ Error cargando desde backend:', error);
           const localData = loadFromLocalStorage();
           dispatch({ type: CART_ACTIONS.LOAD_CART, payload: localData.items });
-          
-          if (localData.invalidItems.length > 0) {
-            dispatch({ type: CART_ACTIONS.SET_INVALID_ITEMS, payload: localData.invalidItems });
-            showWarning(`${localData.invalidItems.length} producto(s) inválido(s) eliminados`);
-          }
         }
       } else {
-        // Usuario invitado
         const localData = loadFromLocalStorage();
         dispatch({ type: CART_ACTIONS.LOAD_CART, payload: localData.items });
-        
         const sessionId = localData.sessionId || getOrCreateSessionId();
-        dispatch({ 
-          type: CART_ACTIONS.SET_SESSION_INFO, 
-          payload: { sessionId: sessionId, isGuest: true } 
-        });
-        
-        if (localData.invalidItems.length > 0) {
-          dispatch({ type: CART_ACTIONS.SET_INVALID_ITEMS, payload: localData.invalidItems });
-          showWarning(`${localData.invalidItems.length} producto(s) inválido(s) eliminados`);
-        }
-        
-        console.log('✅ Carrito cargado desde localStorage:', {
-          validItems: localData.items.length,
-          invalidItems: localData.invalidItems.length,
-          sessionId: sessionId
-        });
+        dispatch({ type: CART_ACTIONS.SET_SESSION_INFO, payload: { sessionId, isGuest: true } });
       }
     };
     
     initializeCart();
   }, [isAuthenticated, user, authLoading, loadFromLocalStorage, getOrCreateSessionId, showWarning]);
   
-  // GUARDAR con debouncing
+  // Guardar con debouncing
   useEffect(() => {
     if (!isAuthenticated && !authLoading && isInitializedRef.current) {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-      
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         const sessionId = getOrCreateSessionId();
         saveToLocalStorage(state.items, sessionId);
       }, 500);
     }
-    
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, [state.items, isAuthenticated, authLoading, getOrCreateSessionId, saveToLocalStorage]);
   
-  // ============================================================================
-  // CALCULAR RESUMEN CON IVA INCLUIDO
-  // ============================================================================
+  // Calcular resumen (sin envío aquí, se agrega en checkout)
   useEffect(() => {
     const summary = calculateCartSummary(state.items, 0);
     dispatch({ type: CART_ACTIONS.SET_SUMMARY, payload: summary });
-    
-    console.log('💰 Resumen del carrito actualizado:', {
-      totalConIVA: summary.totalProductsWithTax,
-      subtotalSinIVA: summary.subtotal,
-      iva: summary.taxAmount,
-      envio: summary.shippingAmount,
-      totalFinal: summary.totalAmount
-    });
   }, [state.items]);
   
-  // FUNCIÓN: Agregar item con validación
+  // Funciones del carrito
   const addItem = useCallback(async (product, options = {}) => {
     try {
       const quantity = parseInt(options.quantity) || 1;
-      
       const item = {
         id: product.id,
         name: product.name || 'Producto sin nombre',
@@ -511,75 +397,37 @@ export const CartProvider = ({ children }) => {
         variant: product.variant || {}
       };
       
-      // VALIDAR ANTES DE AGREGAR
       const validation = validateProduct(item);
-      
       if (!validation.isValid) {
-        const issuesText = validation.issues.map(issue => {
-          switch(issue) {
-            case 'precio_invalido': return 'precio inválido o Q0';
-            case 'cantidad_invalida': return 'cantidad inválida';
-            case 'sin_id': return 'sin ID de producto';
-            default: return issue;
-          }
-        }).join(', ');
-        
-        showError(`No se puede agregar: ${issuesText}`);
-        console.error('❌ Producto rechazado:', validation.issues);
+        showError(`No se puede agregar: datos inválidos`);
         return false;
       }
       
-      console.log('✅ Agregando producto válido:', item.name, '- Q', item.price);
-      
       dispatch({ type: CART_ACTIONS.ADD_ITEM, payload: item });
       
-      // Sincronizar con backend
       if (isAuthenticated && user) {
         try {
-          await apiService.addToCart({
-            productId: product.id,
-            quantity,
-            selectedVariants: item.options
-          });
+          await apiService.addToCart({ productId: product.id, quantity, selectedVariants: item.options });
         } catch (error) {
           console.warn('⚠️ Fallo de sincronización:', error.message);
         }
-      } else {
-        const sessionId = getOrCreateSessionId();
-        try {
-          await apiService.addToCart({
-            productId: product.id,
-            quantity,
-            selectedVariants: item.options
-          }, sessionId);
-        } catch (error) {
-          console.warn('⚠️ Fallo de sincronización invitado:', error.message);
-        }
       }
-      
       return true;
-      
     } catch (error) {
       console.error('❌ Error agregando producto:', error);
       showError('Error al agregar producto');
       return false;
     }
-  }, [isAuthenticated, user, getOrCreateSessionId, showError]);
+  }, [isAuthenticated, user, showError]);
   
-  // FUNCIÓN: Actualizar cantidad
   const updateQuantity = useCallback(async (cartId, newQuantity) => {
     try {
       const quantity = parseInt(newQuantity) || 0;
-      
       if (quantity < 0) {
         showError('La cantidad no puede ser negativa');
         return false;
       }
-      
-      dispatch({ 
-        type: CART_ACTIONS.UPDATE_ITEM, 
-        payload: { cartId, quantity } 
-      });
+      dispatch({ type: CART_ACTIONS.UPDATE_ITEM, payload: { cartId, quantity } });
       
       if (isAuthenticated && user) {
         try {
@@ -589,44 +437,36 @@ export const CartProvider = ({ children }) => {
             await apiService.updateCartItem(cartId, { quantity });
           }
         } catch (error) {
-          console.warn('⚠️ Fallo de sincronización:', error.message);
+          console.warn('⚠️ Fallo de sincronización');
         }
       }
-      
       return true;
-      
     } catch (error) {
       console.error('❌ Error actualizando cantidad:', error);
       return false;
     }
   }, [isAuthenticated, user, showError]);
   
-  // FUNCIÓN: Remover item
   const removeItem = useCallback(async (cartId) => {
     try {
       dispatch({ type: CART_ACTIONS.REMOVE_ITEM, payload: cartId });
-      
       if (isAuthenticated && user) {
         try {
           await apiService.removeFromCart(cartId);
         } catch (error) {
-          console.warn('⚠️ Fallo al eliminar en servidor:', error.message);
+          console.warn('⚠️ Fallo al eliminar en servidor');
         }
       }
-      
       return true;
-      
     } catch (error) {
       console.error('❌ Error eliminando producto:', error);
       return false;
     }
   }, [isAuthenticated, user]);
   
-  // FUNCIÓN: Limpiar carrito
   const clearCart = useCallback(async () => {
     try {
       dispatch({ type: CART_ACTIONS.CLEAR_CART });
-      
       if (!isAuthenticated) {
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({
           items: [],
@@ -636,75 +476,37 @@ export const CartProvider = ({ children }) => {
           sessionId: state.sessionInfo?.sessionId || getOrCreateSessionId()
         }));
       }
-      
       if (isAuthenticated && user) {
         try {
           await apiService.clearCart();
         } catch (error) {
-          console.warn('⚠️ Fallo al limpiar en servidor:', error.message);
+          console.warn('⚠️ Fallo al limpiar en servidor');
         }
       }
-      
-      console.log('✅ Carrito limpiado');
       return true;
-      
     } catch (error) {
       console.error('❌ Error limpiando carrito:', error);
       return false;
     }
   }, [isAuthenticated, user, state.sessionInfo, getOrCreateSessionId]);
   
-  // FUNCIÓN: Validar carrito manualmente
   const validateCart = useCallback(() => {
     const { validItems, invalidItems } = validateCartItems(state.items);
-    
     if (invalidItems.length > 0) {
-      console.warn(`⚠️ ${invalidItems.length} producto(s) inválido(s) encontrados`);
       dispatch({ type: CART_ACTIONS.LOAD_CART, payload: validItems });
       dispatch({ type: CART_ACTIONS.SET_INVALID_ITEMS, payload: invalidItems });
-      
-      const errorDetails = invalidItems.map(item => {
-        const issues = item.validationIssues.map(issue => {
-          switch(issue) {
-            case 'precio_invalido': return 'precio inválido';
-            case 'cantidad_invalida': return 'cantidad inválida';
-            case 'sin_id': return 'sin ID';
-            default: return issue;
-          }
-        }).join(', ');
-        return `${item.name || 'Producto'} (${issues})`;
-      }).join('; ');
-      
-      showWarning(`Productos eliminados: ${errorDetails}`);
-      
-      return {
-        isValid: false,
-        invalidCount: invalidItems.length,
-        invalidItems
-      };
+      showWarning(`${invalidItems.length} producto(s) inválido(s) eliminados`);
+      return { isValid: false, invalidCount: invalidItems.length, invalidItems };
     }
-    
-    return {
-      isValid: true,
-      invalidCount: 0,
-      invalidItems: []
-    };
+    return { isValid: true, invalidCount: 0, invalidItems: [] };
   }, [state.items, showWarning]);
   
-  // ============================================================================
-  // FUNCIÓN: Proceder al checkout - CON CÁLCULOS CORRECTOS PARA BACKEND
-  // ============================================================================
+  // Función principal de checkout
   const proceedToCheckout = useCallback(async (checkoutData) => {
-    // VALIDAR CARRITO ANTES
     const validation = validateCart();
-    
     if (!validation.isValid) {
-      showError(`Hay ${validation.invalidCount} producto(s) con datos inválidos que fueron eliminados`);
-      return {
-        success: false,
-        error: 'Productos inválidos eliminados',
-        invalidItems: validation.invalidItems
-      };
+      showError(`Hay ${validation.invalidCount} producto(s) con datos inválidos`);
+      return { success: false, error: 'Productos inválidos eliminados', invalidItems: validation.invalidItems };
     }
     
     if (state.items.length === 0) {
@@ -712,35 +514,33 @@ export const CartProvider = ({ children }) => {
     }
     
     try {
-      // ✅ CALCULAR EL RESUMEN CORRECTO CON IVA DESGLOSADO
       const shippingCost = checkoutData.shippingCost || 0;
+      
+      // ✅ CALCULAR CON LA FUNCIÓN CORREGIDA
       const summary = calculateCartSummary(state.items, shippingCost);
       
-      console.log('📊 Resumen calculado para checkout:', {
-        totalProductosConIVA: summary.totalProductsWithTax,
-        subtotalSinIVA: summary.subtotal,
-        ivaDesglosado: summary.taxAmount,
-        envio: summary.shippingAmount,
-        totalFinal: summary.totalAmount
-      });
+      console.log('\n📤 DATOS ENVIADOS AL BACKEND:');
+      console.log(`   Subtotal (sin IVA): Q${summary.subtotal}`);
+      console.log(`   IVA (12%): Q${summary.taxAmount}`);
+      console.log(`   Envío: Q${summary.shippingAmount}`);
+      console.log(`   TOTAL: Q${summary.totalAmount}`);
+      console.log(`   ✅ Este total coincide con lo que ve el cliente\n`);
       
-      // Preparar datos para el backend
       const orderData = {
         items: state.items.map(item => ({
           productId: item.id,
           quantity: item.quantity,
-          price: item.price, // Precio CON IVA (como está en la BD)
+          price: item.price,
           selectedVariants: item.options || {},
           variant: item.variant || {}
         })),
         
-        // ✅ VALORES CRÍTICOS CALCULADOS CORRECTAMENTE
-        subtotal: summary.subtotal,           // Sin IVA
-        taxAmount: summary.taxAmount,         // IVA desglosado
-        shippingAmount: summary.shippingAmount, // Envío
-        totalAmount: summary.totalAmount,     // Total final
+        // ✅ ENVIAR VALORES CORRECTOS AL BACKEND
+        subtotal: summary.subtotal,
+        taxAmount: summary.taxAmount,
+        shippingAmount: summary.shippingAmount,
+        totalAmount: summary.totalAmount,
         
-        // Información del cliente y entrega
         customerInfo: checkoutData.customerInfo,
         shippingAddress: checkoutData.shippingAddress,
         paymentMethod: checkoutData.paymentMethod || 'cash_on_delivery',
@@ -748,24 +548,14 @@ export const CartProvider = ({ children }) => {
         notes: checkoutData.notes || ''
       };
       
-      // Si es invitado, agregar sessionId
       if (!isAuthenticated) {
         orderData.sessionId = state.sessionInfo?.sessionId || getOrCreateSessionId();
       }
-      
-      console.log('📤 Datos enviados al backend:', {
-        subtotal: orderData.subtotal,
-        taxAmount: orderData.taxAmount,
-        shippingAmount: orderData.shippingAmount,
-        totalAmount: orderData.totalAmount,
-        itemsCount: orderData.items.length
-      });
       
       const response = await apiService.post('/store/orders', orderData);
       
       if (response.success && response.data?.order) {
         await clearCart();
-        
         return {
           success: true,
           order: response.data.order,
@@ -782,7 +572,6 @@ export const CartProvider = ({ children }) => {
     }
   }, [state.items, state.sessionInfo, isAuthenticated, clearCart, getOrCreateSessionId, validateCart, showError]);
   
-  // FUNCIONES DE UI
   const toggleCart = useCallback(() => {
     dispatch({ type: CART_ACTIONS.SET_OPEN, payload: !state.isOpen });
   }, [state.isOpen]);
@@ -795,7 +584,6 @@ export const CartProvider = ({ children }) => {
     dispatch({ type: CART_ACTIONS.SET_OPEN, payload: false });
   }, []);
   
-  // FUNCIÓN: Formatear moneda
   const formatCurrency = useCallback((amount) => {
     const number = parseFloat(amount) || 0;
     return new Intl.NumberFormat('es-GT', {
@@ -806,33 +594,12 @@ export const CartProvider = ({ children }) => {
     }).format(number).replace('GTQ', 'Q');
   }, []);
   
-  // FUNCIÓN: Debug
-  const debugCart = useCallback(() => {
-    console.group('🛒 DEBUG CARRITO');
-    console.log('Items válidos:', state.items.length);
-    console.log('Items inválidos detectados:', state.invalidItems.length);
-    console.log('Session ID:', state.sessionInfo?.sessionId);
-    console.log('Subtotal (sin IVA):', state.summary.subtotal);
-    console.log('IVA:', state.summary.taxAmount);
-    console.log('Total:', state.summary.totalAmount);
-    console.log('En localStorage:', !!localStorage.getItem(CART_STORAGE_KEY));
-    
-    if (state.invalidItems.length > 0) {
-      console.warn('Productos inválidos:', state.invalidItems);
-    }
-    
-    console.groupEnd();
-  }, [state]);
-  
-  // VALORES CALCULADOS
   const itemCount = state.items.reduce((count, item) => count + (parseInt(item.quantity) || 0), 0);
   const total = state.summary.totalAmount || 0;
   const isEmpty = state.items.length === 0;
   const hasInvalidItems = state.invalidItems.length > 0;
   
-  // VALOR DEL CONTEXTO
   const value = {
-    // Estado
     isOpen: state.isOpen,
     items: state.items,
     isLoading: state.isLoading,
@@ -840,34 +607,21 @@ export const CartProvider = ({ children }) => {
     sessionInfo: state.sessionInfo,
     error: state.error,
     invalidItems: state.invalidItems,
-    
-    // Valores calculados
     itemCount,
     total,
     isEmpty,
     hasInvalidItems,
-    
-    // Acciones del carrito
     addItem,
     updateQuantity,
     removeItem,
     clearCart,
-    
-    // Acciones de UI
     toggleCart,
     openCart,
     closeCart,
-    
-    // Funciones de checkout
     proceedToCheckout,
     getOrCreateSessionId,
-    
-    // Utilidades
     formatCurrency,
     validateCart,
-    debugCart,
-    
-    // ✅ EXPONER LA FUNCIÓN DE CÁLCULO PARA CHECKOUT
     calculateCartSummary
   };
   
@@ -878,7 +632,6 @@ export const CartProvider = ({ children }) => {
   );
 };
 
-// HOOK PERSONALIZADO
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) {

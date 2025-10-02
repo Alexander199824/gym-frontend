@@ -1,21 +1,10 @@
-// Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPayment.js
-// VERSIÓN CORREGIDA: Envío y totales calculados correctamente
+// VERSIÓN CORREGIDA: Envía al backend el desglose correcto del total
 
 import React, { useState } from 'react';
 import {
-  CreditCard,
-  Home,
-  Shield,
-  Truck,
-  Store,
-  AlertCircle,
-  Lock,
-  Loader2,
-  Mail,
-  Info
+  CreditCard, Home, Shield, Truck, Store, AlertCircle, Lock, Loader2, Mail, Info
 } from 'lucide-react';
-
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { useCart } from '../../contexts/CartContext';
 import apiService from '../../services/apiService';
@@ -45,6 +34,84 @@ const PaymentStep = ({
   const [cardError, setCardError] = useState('');
   const { calculateCartSummary } = useCart();
 
+  // ============================================================================
+  // 🎯 FUNCIÓN PARA PREPARAR DATOS DE LA ORDEN CON CÁLCULOS CORRECTOS
+  // ============================================================================
+  const prepareOrderData = () => {
+    console.log('\n💳 ===== PREPARANDO DATOS DE LA ORDEN =====');
+    
+    // ✅ CALCULAR CORRECTAMENTE usando la función del contexto
+    const cartSummary = calculateCartSummary(items, shippingCost);
+    
+    console.log('📊 Resumen calculado:');
+    console.log(`   Total productos (con IVA): Q${cartSummary.totalProductsWithTax}`);
+    console.log(`   Envío: Q${cartSummary.shippingAmount}`);
+    console.log(`   TOTAL que ve el cliente: Q${cartSummary.totalAmount}`);
+    
+    console.log('\n📋 Desglose para el backend:');
+    console.log(`   Subtotal (sin IVA): Q${cartSummary.subtotal}`);
+    console.log(`   IVA (12%): Q${cartSummary.taxAmount}`);
+    console.log(`   Envío: Q${cartSummary.shippingAmount}`);
+    console.log(`   = TOTAL: Q${cartSummary.totalAmount}`);
+    
+    // ✅ PREPARAR DATOS DE LA ORDEN
+    const orderData = {
+      items: items.map(item => ({
+        productId: item.id,
+        quantity: item.quantity,
+        price: item.price, // Precio CON IVA (como está en BD)
+        selectedVariants: item.options || {}
+      })),
+      
+      // ✅ VALORES DESGLOSADOS CORRECTAMENTE
+      subtotal: cartSummary.subtotal,       // Sin IVA
+      taxAmount: cartSummary.taxAmount,     // IVA desglosado
+      shippingAmount: cartSummary.shippingAmount, // Envío
+      totalAmount: cartSummary.totalAmount, // Total final
+      
+      customerInfo,
+      paymentMethod: paymentMethod,
+      notes,
+      deliveryMethod,
+      sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
+    };
+
+    // Agregar dirección de envío
+    if (deliveryMethod !== 'pickup_store') {
+      orderData.shippingAddress = {
+        ...shippingAddress,
+        fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || 'Guatemala'}`
+      };
+    } else {
+      if (!gymConfig.location.address) {
+        throw new Error('Configuración de la tienda incompleta.');
+      }
+      
+      orderData.shippingAddress = {
+        street: gymConfig.location.addressFull || gymConfig.location.address,
+        city: gymConfig.location.city || '',
+        state: gymConfig.location.state || '',
+        municipality: gymConfig.location.city || '',
+        zipCode: gymConfig.location.zipCode || '00000',
+        reference: `${gymConfig.name} - Recoger en tienda`,
+        fullAddress: `${gymConfig.location.addressFull || gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
+      };
+    }
+
+    console.log('\n✅ Datos de la orden preparados:');
+    console.log(`   Items: ${orderData.items.length}`);
+    console.log(`   Subtotal: Q${orderData.subtotal}`);
+    console.log(`   IVA: Q${orderData.taxAmount}`);
+    console.log(`   Envío: Q${orderData.shippingAmount}`);
+    console.log(`   TOTAL: Q${orderData.totalAmount}`);
+    console.log('===== FIN PREPARACIÓN =====\n');
+
+    return orderData;
+  };
+
+  // ============================================================================
+  // PAGO CON TARJETA (STRIPE)
+  // ============================================================================
   const handleStripePayment = async () => {
     if (!stripe || !elements) {
       onError('Stripe no está disponible');
@@ -55,61 +122,12 @@ const PaymentStep = ({
       setIsProcessing(true);
       setCardError('');
 
-      console.log('💳 Iniciando pago con tarjeta...');
+      console.log('💳 Iniciando pago con tarjeta Stripe...');
 
-      // ✅ CALCULAR TOTALES CORRECTAMENTE
-      const cartSummary = calculateCartSummary(items, shippingCost);
-      
-      console.log('📊 Resumen calculado para backend:', {
-        subtotal: cartSummary.subtotal,
-        taxAmount: cartSummary.taxAmount,
-        shippingAmount: cartSummary.shippingAmount,
-        totalAmount: cartSummary.totalAmount
-      });
+      // ✅ PREPARAR DATOS CON CÁLCULOS CORRECTOS
+      const orderData = prepareOrderData();
 
-      const orderData = {
-        items: items.map(item => ({
-          productId: item.id,
-          quantity: item.quantity,
-          price: item.price,
-          selectedVariants: item.options || {}
-        })),
-        
-        // ✅ VALORES CALCULADOS CORRECTAMENTE
-        subtotal: cartSummary.subtotal,
-        taxAmount: cartSummary.taxAmount,
-        shippingAmount: cartSummary.shippingAmount,
-        totalAmount: cartSummary.totalAmount,
-        
-        customerInfo,
-        paymentMethod: 'online_card',
-        notes,
-        deliveryMethod,
-        sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
-      };
-
-      if (deliveryMethod !== 'pickup_store') {
-        orderData.shippingAddress = {
-          ...shippingAddress,
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || 'Guatemala'}`
-        };
-      } else {
-        if (!gymConfig.location.address) {
-          throw new Error('Configuración de la tienda incompleta.');
-        }
-        
-        orderData.shippingAddress = {
-          street: gymConfig.location.addressFull || gymConfig.location.address,
-          city: gymConfig.location.city || '',
-          state: gymConfig.location.state || '',
-          municipality: gymConfig.location.city || '',
-          zipCode: gymConfig.location.zipCode || '00000',
-          reference: `${gymConfig.name} - Recoger en tienda`,
-          fullAddress: `${gymConfig.location.addressFull || gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
-        };
-      }
-
-      console.log('📤 Creando orden con datos correctos...');
+      console.log('📤 Creando orden en el backend...');
       const orderResponse = await apiService.createOrder(orderData);
       
       if (!orderResponse.success) {
@@ -117,7 +135,8 @@ const PaymentStep = ({
       }
 
       const order = orderResponse.data.order;
-      console.log('✅ Orden creada:', order.orderNumber);
+      console.log(`✅ Orden creada: ${order.orderNumber}`);
+      console.log(`   Total de la orden: Q${order.totalAmount}`);
 
       console.log('💳 Creando payment intent...');
       const paymentIntentResponse = await apiService.createStorePaymentIntent({
@@ -200,72 +219,26 @@ const PaymentStep = ({
       }
 
     } catch (error) {
-      console.error('❌ Payment failed:', error);
+      console.error('❌ Error en pago con tarjeta:', error);
       onError(error.message || 'Error al procesar el pago');
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // ============================================================================
+  // PAGO CONTRA ENTREGA
+  // ============================================================================
   const handleCashOnDelivery = async () => {
     try {
       setIsProcessing(true);
 
       console.log('💵 Iniciando pago contra entrega...');
 
-      // ✅ CALCULAR TOTALES CORRECTAMENTE
-      const cartSummary = calculateCartSummary(items, shippingCost);
-      
-      console.log('📊 Resumen calculado para backend:', {
-        subtotal: cartSummary.subtotal,
-        taxAmount: cartSummary.taxAmount,
-        shippingAmount: cartSummary.shippingAmount,
-        totalAmount: cartSummary.totalAmount
-      });
+      // ✅ PREPARAR DATOS CON CÁLCULOS CORRECTOS
+      const orderData = prepareOrderData();
 
-      const orderData = {
-        items: items.map(item => ({
-          productId: item.id,
-          quantity: item.quantity,
-          price: item.price,
-          selectedVariants: item.options || {}
-        })),
-        
-        // ✅ VALORES CALCULADOS CORRECTAMENTE
-        subtotal: cartSummary.subtotal,
-        taxAmount: cartSummary.taxAmount,
-        shippingAmount: cartSummary.shippingAmount,
-        totalAmount: cartSummary.totalAmount,
-        
-        customerInfo,
-        paymentMethod: 'cash_on_delivery',
-        notes,
-        deliveryMethod,
-        sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
-      };
-
-      if (deliveryMethod !== 'pickup_store') {
-        orderData.shippingAddress = {
-          ...shippingAddress,
-          fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || 'Guatemala'}`
-        };
-      } else {
-        if (!gymConfig.location.address) {
-          throw new Error('Configuración de la tienda incompleta.');
-        }
-        
-        orderData.shippingAddress = {
-          street: gymConfig.location.addressFull || gymConfig.location.address,
-          city: gymConfig.location.city || '',
-          state: gymConfig.location.state || '',
-          municipality: gymConfig.location.city || '',
-          zipCode: gymConfig.location.zipCode || '00000',
-          reference: `${gymConfig.name} - Recoger en tienda`,
-          fullAddress: `${gymConfig.location.addressFull || gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
-        };
-      }
-
-      console.log('📤 Creando orden contra entrega...');
+      console.log('📤 Creando orden contra entrega en el backend...');
       const orderResponse = await apiService.createOrder(orderData);
 
       if (!orderResponse.success) {
@@ -273,7 +246,8 @@ const PaymentStep = ({
       }
 
       const order = orderResponse.data.order;
-      console.log('✅ Orden creada:', order.orderNumber);
+      console.log(`✅ Orden creada: ${order.orderNumber}`);
+      console.log(`   Total de la orden: Q${order.totalAmount}`);
 
       const successOrder = {
         ...order,
@@ -284,13 +258,16 @@ const PaymentStep = ({
       onSuccess(successOrder);
 
     } catch (error) {
-      console.error('❌ Cash on delivery failed:', error);
+      console.error('❌ Error en pago contra entrega:', error);
       onError(error.message || 'Error al crear la orden');
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // ============================================================================
+  // MANEJADOR PRINCIPAL DE PAGO
+  // ============================================================================
   const handlePayment = () => {
     if (paymentMethod === 'online_card') {
       handleStripePayment();
@@ -299,9 +276,16 @@ const PaymentStep = ({
     }
   };
 
+  // ============================================================================
+  // CALCULAR TOTAL QUE VE EL CLIENTE
+  // ============================================================================
+  const totalProductsWithTax = summary?.totalProductsWithTax || 0;
+  const totalToShow = totalProductsWithTax + shippingCost;
+
   return (
     <div className="space-y-6">
       
+      {/* MÉTODOS DE PAGO */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <CreditCard className="w-5 h-5 text-primary-600 mr-2" />
@@ -310,6 +294,7 @@ const PaymentStep = ({
 
         <div className="space-y-4">
           
+          {/* TARJETA */}
           {stripeAvailable ? (
             <button
               onClick={() => setPaymentMethod('online_card')}
@@ -353,6 +338,7 @@ const PaymentStep = ({
             </div>
           )}
 
+          {/* EFECTIVO */}
           <button
             onClick={() => setPaymentMethod('cash_on_delivery')}
             className={`w-full p-4 border rounded-lg text-left transition-colors ${
@@ -389,6 +375,7 @@ const PaymentStep = ({
         </div>
       </div>
 
+      {/* FORMULARIO DE TARJETA */}
       {paymentMethod === 'online_card' && stripeAvailable && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4">
@@ -407,9 +394,7 @@ const PaymentStep = ({
                       base: {
                         fontSize: '16px',
                         color: '#424770',
-                        '::placeholder': {
-                          color: '#aab7c4',
-                        },
+                        '::placeholder': { color: '#aab7c4' },
                       },
                     },
                   }}
@@ -438,6 +423,7 @@ const PaymentStep = ({
         </div>
       )}
 
+      {/* INSTRUCCIONES DE PAGO CONTRA ENTREGA */}
       {paymentMethod === 'cash_on_delivery' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-md font-semibold text-gray-900 mb-4">
@@ -477,6 +463,7 @@ const PaymentStep = ({
         </div>
       )}
 
+      {/* CONFIRMACIÓN DE EMAIL */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <div className="flex items-start">
           <Mail className="w-5 h-5 text-green-500 mr-2 mt-0.5" />
@@ -489,6 +476,7 @@ const PaymentStep = ({
         </div>
       </div>
 
+      {/* BOTÓN DE PAGO */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <button
           onClick={handlePayment}
@@ -505,7 +493,7 @@ const PaymentStep = ({
               <Lock className="w-5 h-5" />
               <span>
                 {paymentMethod === 'online_card' 
-                  ? `Pagar Q${(summary?.totalProductsWithTax || 0) + shippingCost}`
+                  ? `Pagar Q${totalToShow.toFixed(2)}`
                   : 'Confirmar pedido'
                 }
               </span>
