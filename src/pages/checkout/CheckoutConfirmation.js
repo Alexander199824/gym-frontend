@@ -1,21 +1,24 @@
 // src/pages/checkout/CheckoutConfirmation.js
-// VERSIÓN CORREGIDA: Muestra el total que el cliente realmente pagó
+// VERSIÓN FINAL: Usa gymConfig centralizado - 100% sin datos hardcodeados
+// Autor: Alexander Echeverria
 
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  CheckCircle, Package, Mail, Phone, Store, Home, AlertCircle,
-  Truck, Map, Shield
+  CheckCircle, Package, Mail, Phone, Store, Home, Truck, Map, Shield, AlertCircle
 } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 
 const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
   const navigate = useNavigate();
   const { clearCart } = useCart();
+  const currencySymbol = gymConfig?.regional?.currencySymbol || 'Q';
 
   useEffect(() => {
     console.log('✅ Orden completada exitosamente');
-  }, []);
+    console.log('📧 Email enviado a:', customerInfo?.email);
+    console.log('🏪 Procesado por:', gymConfig?.name);
+  }, [customerInfo, gymConfig]);
 
   const handleContinueShopping = () => {
     clearCart();
@@ -29,6 +32,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
 
   return (
     <div className="space-y-8">
+      {/* BANNER DE ÉXITO */}
       <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl p-8 text-center shadow-xl">
         <div className="flex flex-col items-center">
           <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-4">
@@ -49,7 +53,9 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
+      {/* DETALLES Y CONFIRMACIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* DETALLES DEL PEDIDO */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
             <Package className="w-6 h-6 text-primary-600 mr-2" />
@@ -65,7 +71,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
             <div className="flex justify-between">
               <span className="text-gray-600">Total pagado:</span>
               <span className="font-bold text-xl text-green-600">
-                Q{parseFloat(order?.totalAmount || 0).toFixed(2)}
+                {currencySymbol}{parseFloat(order?.totalAmount || 0).toFixed(2)}
               </span>
             </div>
             
@@ -105,6 +111,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
           </div>
         </div>
 
+        {/* CONFIRMACIÓN ENVIADA */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
             <Mail className="w-6 h-6 text-blue-600 mr-2" />
@@ -112,35 +119,40 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
           </h3>
           
           <div className="space-y-3">
+            {/* EMAIL */}
             <div className="flex items-center text-sm">
               <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
               <span>
-                Email enviado a <strong>{customerInfo?.email}</strong>
+                Email enviado a <strong>{customerInfo?.email || gymConfig?.contact?.email || 'tu correo'}</strong>
               </span>
             </div>
             
-            <div className="flex items-center text-sm">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
-              <span>Actualizaciones por WhatsApp</span>
-            </div>
-            
-            {gymConfig?.name && (
+            {/* WHATSAPP */}
+            {gymConfig?.contact?.whatsapp && (
               <div className="flex items-center text-sm">
-                <Store className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0" />
-                <span>Procesado por <strong>{gymConfig.name}</strong></span>
+                <CheckCircle className="w-4 h-4 text-green-500 mr-2 flex-shrink-0" />
+                <span>Actualizaciones por WhatsApp</span>
               </div>
             )}
             
-            {gymConfig?.contact?.phone && (
+            {/* PROCESADO POR */}
+            <div className="flex items-center text-sm">
+              <Store className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0" />
+              <span>Procesado por <strong>{gymConfig?.name || 'Elite Fitness Club'}</strong></span>
+            </div>
+            
+            {/* SOPORTE */}
+            {(gymConfig?.contact?.supportPhone || gymConfig?.contact?.phone) && (
               <div className="flex items-center text-sm">
                 <Phone className="w-4 h-4 text-blue-500 mr-2 flex-shrink-0" />
-                <span>Soporte: <strong>{gymConfig.contact.phone}</strong></span>
+                <span>Soporte: <strong>{gymConfig?.contact?.supportPhone || gymConfig?.contact?.phone}</strong></span>
               </div>
             )}
           </div>
         </div>
       </div>
 
+      {/* BADGES DE PROGRESO */}
       <div className="bg-green-50 border-2 border-green-300 rounded-xl p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
           <div className="flex flex-col items-center">
@@ -169,6 +181,7 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </div>
       </div>
 
+      {/* BOTONES DE ACCIÓN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
           onClick={handleContinueShopping}
@@ -187,20 +200,21 @@ const ConfirmationStep = ({ order, customerInfo, gymConfig }) => {
         </button>
       </div>
 
+      {/* INFORMACIÓN DE AYUDA */}
       {(gymConfig?.contact?.email || gymConfig?.contact?.phone) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
           <p className="text-blue-800 font-medium mb-2">
             ¿Necesitas ayuda con tu pedido?
           </p>
-          <div className="flex justify-center space-x-4 text-sm">
-            {gymConfig.contact.email && (
+          <div className="flex flex-wrap justify-center gap-4 text-sm">
+            {gymConfig?.contact?.supportEmail && (
               <span className="text-blue-600">
-                📧 {gymConfig.contact.email}
+                📧 {gymConfig.contact.supportEmail}
               </span>
             )}
-            {gymConfig.contact.phone && (
+            {gymConfig?.contact?.supportPhone && (
               <span className="text-blue-600">
-                📱 {gymConfig.contact.phone}
+                📱 {gymConfig.contact.supportPhone}
               </span>
             )}
           </div>

@@ -1,23 +1,12 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPage.js
-// VERSIÓN FINAL CORREGIDA: Envío local hardcodeado para Baja Verapaz
+// VERSIÓN ACTUALIZADA: Usa gymConfig centralizado sin datos hardcodeados
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, 
-  Lock, 
-  CheckCircle,
-  Loader2,
-  Package,
-  User,
-  MapPin,
-  Truck,
-  Store,
-  Map,
-  X,
-  AlertCircle,
-  Info
+  ArrowLeft, Lock, CheckCircle, Loader2, Package, User, MapPin, 
+  Truck, Store, Map, X, AlertCircle, Info
 } from 'lucide-react';
 
 import { useCart } from '../../contexts/CartContext';
@@ -25,8 +14,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
-// IMPORTAR LA CONFIGURACIÓN DEL GYM COMO FALLBACK
-import gymConfigDefault from '../../config/gymConfig';
+// IMPORTAR CONFIGURACIÓN CENTRALIZADA
+import gymConfigDefault, { 
+  getContactInfo, 
+  getGymConfig,
+  mergeWithDefaults 
+} from '../../config/gymConfig';
 
 import { 
   GUATEMALA_LOCATIONS,
@@ -34,8 +27,6 @@ import {
   getMunicipalitiesByDepartment,
   getPostalCode,
   isValidMunicipality,
-  getFastShippingDepartments,
-  getMetropolitanDepartments
 } from '../../data/guatemalaLocations';
 
 import { loadStripe } from '@stripe/stripe-js';
@@ -45,12 +36,14 @@ import { PaymentStep } from './CheckoutPayment';
 import { ConfirmationStep, OrderSummary } from './CheckoutConfirmation';
 
 // ============================================================================
-// CONFIGURACIÓN DE ENVÍO LOCAL HARDCODEADA - BAJA VERAPAZ
+// CONFIGURACIÓN DE ENVÍO LOCAL - Desde gymConfig
 // ============================================================================
-const LOCAL_DELIVERY_CONFIG = {
-  department: 'Baja Verapaz',
-  municipalities: ['Rabinal', 'Cubulco', 'San Miguel', 'Salamá', 'San Jerónimo']
-};
+const getLocalDeliveryConfig = (gymConfig) => ({
+  department: gymConfig.location.state || 'Baja Verapaz',
+  municipalities: gymConfig.location.nearbyMunicipalities || [
+    'Rabinal', 'Cubulco', 'San Miguel', 'Salamá', 'San Jerónimo'
+  ]
+});
 
 // ============================================================================
 // VALIDACIÓN DE PRODUCTOS
@@ -101,20 +94,14 @@ const ERROR_MESSAGES = {
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const { 
-    items, 
-    summary, 
-    isEmpty, 
-    formatCurrency, 
-    clearCart,
-    sessionInfo,
-    removeItem 
+    items, summary, isEmpty, formatCurrency, clearCart,
+    sessionInfo, removeItem 
   } = useCart();
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo, isMobile } = useApp();
 
   const stripeInitialized = useRef(false);
   const stripeInitializing = useRef(false);
-  const isInitialMount = useRef(true);
   const gymConfigLoaded = useRef(false);
   const cartValidated = useRef(false);
 
@@ -126,13 +113,13 @@ const CheckoutPage = () => {
   const [cartHasInvalidItems, setCartHasInvalidItems] = useState(false);
   const [invalidItemsList, setInvalidItemsList] = useState([]);
 
-  // USAR CONFIGURACIÓN POR DEFECTO DESDE gymConfig.js
+  // CONFIGURACIÓN DEL GYM - Inicia con defaults
   const [gymConfig, setGymConfig] = useState(gymConfigDefault);
-
   const [deliveryOptions, setDeliveryOptions] = useState({});
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-
-  const [localDeliveryConfig, setLocalDeliveryConfig] = useState(LOCAL_DELIVERY_CONFIG);
+  const [localDeliveryConfig, setLocalDeliveryConfig] = useState(
+    getLocalDeliveryConfig(gymConfigDefault)
+  );
 
   const [customerInfo, setCustomerInfo] = useState({
     name: user ? `${user.firstName} ${user.lastName}` : '',
@@ -191,7 +178,7 @@ const CheckoutPage = () => {
   }, [items, showError]);
 
   // ============================================================================
-  // CARGAR CONFIGURACIÓN DEL GYM
+  // CARGAR CONFIGURACIÓN DEL GYM DESDE BACKEND (con fallback a gymConfig)
   // ============================================================================
   useEffect(() => {
     const loadGymConfig = async () => {
@@ -199,84 +186,51 @@ const CheckoutPage = () => {
       
       try {
         setIsLoadingConfig(true);
-        console.log('📡 Cargando configuración del gym...');
+        console.log('📡 Cargando configuración del gym desde backend...');
         
-        const [configResponse, contactResponse, hoursResponse] = await Promise.all([
+        const [configResponse, contactResponse] = await Promise.all([
           apiService.getGymConfig().catch(err => {
-            console.warn('⚠️ Error config:', err.message);
+            console.warn('⚠️ Backend no disponible, usando gymConfig.js');
             return null;
           }),
           apiService.get('/gym/contact').catch(err => {
-            console.warn('⚠️ Error contacto:', err.message);
-            return null;
-          }),
-          apiService.get('/gym/hours').catch(err => {
-            console.warn('⚠️ Error horarios:', err.message);
+            console.warn('⚠️ Contacto no disponible, usando gymConfig.js');
             return null;
           })
         ]);
 
         let finalConfig = { ...gymConfigDefault };
 
+        // Combinar con datos del backend si existen
         if (configResponse?.success && configResponse.data) {
-          const config = configResponse.data;
-          finalConfig = {
-            ...finalConfig,
-            name: config.name || config.gymName || finalConfig.name,
-            description: config.description || finalConfig.description,
-            logo: config.logo || finalConfig.logo,
-            contact: {
-              ...finalConfig.contact,
-              address: config.contact?.address || finalConfig.contact.address,
-              phone: config.contact?.phone || finalConfig.contact.phone,
-              email: config.contact?.email || finalConfig.contact.email,
-              whatsapp: config.contact?.whatsapp || finalConfig.contact.whatsapp
-            },
-            location: {
-              ...finalConfig.location,
-              address: config.location?.address || finalConfig.location.address,
-              addressFull: config.location?.addressFull || finalConfig.location.addressFull,
-              city: config.location?.city || finalConfig.location.city,
-              state: config.location?.state || finalConfig.location.state,
-              country: config.location?.country || finalConfig.location.country,
-              zipCode: config.location?.zipCode || finalConfig.location.zipCode
-            },
-            hours: {
-              ...finalConfig.hours,
-              full: config.hours?.full || finalConfig.hours.full,
-              weekdays: config.hours?.weekdays || finalConfig.hours.weekdays,
-              weekends: config.hours?.weekends || finalConfig.hours.weekends
-            }
-          };
+          finalConfig = getGymConfig(configResponse.data);
         }
 
         if (contactResponse?.success && contactResponse.data) {
-          const contact = contactResponse.data;
+          const contactInfo = getContactInfo(contactResponse.data);
           finalConfig.contact = {
             ...finalConfig.contact,
-            address: contact.address || finalConfig.contact.address,
-            phone: contact.phone || finalConfig.contact.phone,
-            email: contact.email || finalConfig.contact.email,
-            whatsapp: contact.whatsapp || finalConfig.contact.whatsapp
+            ...contactInfo
           };
         }
 
-        if (hoursResponse?.success && hoursResponse.data) {
-          const hours = hoursResponse.data;
-          finalConfig.hours = {
-            ...finalConfig.hours,
-            full: hours.summary?.full || finalConfig.hours.full,
-            weekdays: hours.summary?.weekday || finalConfig.hours.weekdays,
-            weekends: hours.summary?.weekend || finalConfig.hours.weekends
-          };
-        }
-
-        console.log('✅ Configuración cargada');
+        console.log('✅ Configuración cargada:', {
+          nombre: finalConfig.name,
+          email: finalConfig.contact.email,
+          telefono: finalConfig.contact.phone,
+          direccion: finalConfig.location.address
+        });
+        
         setGymConfig(finalConfig);
+        
+        // Actualizar config de envío local
+        setLocalDeliveryConfig(getLocalDeliveryConfig(finalConfig));
+        
         gymConfigLoaded.current = true;
         
       } catch (error) {
         console.error('❌ Error cargando configuración:', error);
+        console.log('✅ Usando configuración por defecto de gymConfig.js');
       } finally {
         setIsLoadingConfig(false);
       }
@@ -290,17 +244,17 @@ const CheckoutPage = () => {
   // ============================================================================
   useEffect(() => {
     if (deliveryMethod === 'local_delivery') {
-      console.log('🚚 Envío local - municipios HARDCODEADOS');
+      console.log('🚚 Envío local - configuración desde gymConfig');
       setShippingAddress(prev => ({
         ...prev,
-        state: LOCAL_DELIVERY_CONFIG.department,
+        state: localDeliveryConfig.department,
         municipality: '',
         city: ''
       }));
       
-      setAvailableMunicipalities(LOCAL_DELIVERY_CONFIG.municipalities);
+      setAvailableMunicipalities(localDeliveryConfig.municipalities);
       
-      const postalCode = getPostalCode(LOCAL_DELIVERY_CONFIG.department);
+      const postalCode = getPostalCode(localDeliveryConfig.department);
       setShippingAddress(prev => ({
         ...prev,
         zipCode: postalCode
@@ -316,10 +270,10 @@ const CheckoutPage = () => {
     } else {
       setAvailableMunicipalities([]);
     }
-  }, [deliveryMethod]);
+  }, [deliveryMethod, localDeliveryConfig]);
 
   // ============================================================================
-  // CONFIGURAR OPCIONES DE ENTREGA
+  // CONFIGURAR OPCIONES DE ENTREGA desde gymConfig
   // ============================================================================
   useEffect(() => {
     const updateDeliveryOptions = () => {
@@ -332,43 +286,39 @@ const CheckoutPage = () => {
           cost: 0,
           timeframe: 'Listo en 2-4 horas',
           address: gymConfig.location.addressFull || gymConfig.location.address,
-          hours: gymConfig.hours.full || 'Consultar horarios',
+          hours: gymConfig.hours.full || gymConfig.hours.businessHours,
           color: 'green'
         },
         local_delivery: {
           id: 'local_delivery',
           name: 'Envío local',
-          description: `Entrega en ${LOCAL_DELIVERY_CONFIG.department}`,
+          description: `Entrega en ${localDeliveryConfig.department}`,
           icon: Truck,
           cost: 25,
           timeframe: 'Días específicos',
-          coverage: `${LOCAL_DELIVERY_CONFIG.department}: ${LOCAL_DELIVERY_CONFIG.municipalities.join(', ')}`,
+          coverage: `${localDeliveryConfig.department}: ${localDeliveryConfig.municipalities.join(', ')}`,
           color: 'blue'
         },
         national_delivery: {
           id: 'national_delivery',
           name: 'Envío departamental',
-          description: gymConfig.location.country 
-            ? `Entrega a todo ${gymConfig.location.country}` 
-            : 'Entrega nacional',
+          description: `Entrega a todo ${gymConfig.location.country}`,
           icon: Map,
           cost: 45,
           timeframe: '3-5 días hábiles',
-          coverage: gymConfig.location.country 
-            ? `Todos los departamentos de ${gymConfig.location.country}` 
-            : 'Cobertura nacional',
+          coverage: `Todos los departamentos de ${gymConfig.location.country}`,
           color: 'purple'
         }
       };
 
       setDeliveryOptions(options);
-      console.log('✅ Opciones de entrega configuradas');
+      console.log('✅ Opciones de entrega configuradas desde gymConfig');
     };
 
     if (!isLoadingConfig) {
       updateDeliveryOptions();
     }
-  }, [isLoadingConfig, gymConfig]);
+  }, [isLoadingConfig, gymConfig, localDeliveryConfig]);
 
   const memoizedShowInfo = useCallback((message) => {
     if (showInfo) showInfo(message);
@@ -401,7 +351,7 @@ const CheckoutPage = () => {
       const stripeEnabled = process.env.REACT_APP_STRIPE_ENABLED === 'true';
       
       if (!stripeEnabled) {
-        console.log('Stripe deshabilitado');
+        console.log('Stripe deshabilitado en configuración');
         setStripeAvailable(false);
         stripeInitialized.current = true;
         return;
@@ -424,7 +374,7 @@ const CheckoutPage = () => {
             memoizedShowInfo('Pagos con tarjeta disponibles');
           }, 100);
         } else {
-          console.warn('Stripe no habilitado');
+          console.warn('Stripe no habilitado en backend');
           setStripeAvailable(false);
         }
         
@@ -439,7 +389,7 @@ const CheckoutPage = () => {
     };
 
     initializeStripe();
-  }, []);
+  }, [memoizedShowInfo]);
 
   const updateMunicipalities = useCallback((departmentName) => {
     if (deliveryMethod === 'local_delivery') {
@@ -531,7 +481,7 @@ const CheckoutPage = () => {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un municipio';
           } else if (deliveryMethod === 'local_delivery') {
-            if (!LOCAL_DELIVERY_CONFIG.municipalities.includes(value)) {
+            if (!localDeliveryConfig.municipalities.includes(value)) {
               fieldErrors[name] = 'Municipio no disponible';
             }
           } else if (!isValidMunicipality(value, shippingAddress.state)) {
@@ -544,8 +494,8 @@ const CheckoutPage = () => {
         if (deliveryMethod !== 'pickup_store') {
           if (!value.trim()) {
             fieldErrors[name] = 'Selecciona un departamento';
-          } else if (deliveryMethod === 'local_delivery' && value !== LOCAL_DELIVERY_CONFIG.department) {
-            fieldErrors[name] = `Solo disponible en ${LOCAL_DELIVERY_CONFIG.department}`;
+          } else if (deliveryMethod === 'local_delivery' && value !== localDeliveryConfig.department) {
+            fieldErrors[name] = `Solo disponible en ${localDeliveryConfig.department}`;
           } else if (!DEPARTMENTS.includes(value)) {
             fieldErrors[name] = 'Departamento no válido';
           }
@@ -587,7 +537,7 @@ const CheckoutPage = () => {
       ...fieldErrors,
       ...(Object.keys(fieldErrors).length === 0 && { [field]: undefined })
     }));
-  }, [deliveryMethod, shippingAddress.state]);
+  }, [deliveryMethod, shippingAddress.state, localDeliveryConfig]);
 
   const handleKeyPress = (e, type) => {
     const char = e.key;
@@ -645,9 +595,6 @@ const CheckoutPage = () => {
     return isValid;
   };
 
-  // ============================================================================
-  // 🎯 CALCULAR COSTO DE ENVÍO SEGÚN MÉTODO SELECCIONADO
-  // ============================================================================
   const calculateShippingCost = () => {
     const selectedOption = deliveryOptions[deliveryMethod];
     if (!selectedOption) return 0;
@@ -1066,7 +1013,7 @@ const CustomerInfoStep = ({
                   
                   <div className="text-right">
                     <div className="font-bold text-lg">
-                      {option.cost === 0 ? 'Gratis' : `Q${option.cost.toFixed(2)}`}
+                      {option.cost === 0 ? 'Gratis' : `${gymConfig.regional.currencySymbol}${option.cost.toFixed(2)}`}
                     </div>
                   </div>
                 </div>
@@ -1128,7 +1075,7 @@ const CustomerInfoStep = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
                 <div className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg text-gray-600">
-                  {gymConfig.location.country || 'Guatemala'}
+                  {gymConfig.location.country}
                 </div>
               </div>
 

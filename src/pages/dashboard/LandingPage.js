@@ -1,5 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/LandingPage.js
+// VERSIÓN ACTUALIZADA: Usa gymConfig centralizado sin datos hardcodeados
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -30,22 +31,31 @@ import useMembershipPlans from '../../hooks/useMembershipPlans';
 import GymLogo from '../../components/common/GymLogo';
 import ConnectionIndicator from '../../components/common/ConnectionIndicator';
 
+// IMPORTAR CONFIGURACIÓN CENTRALIZADA
+import gymConfigDefault from '../../config/gymConfig';
+
 // Función auxiliar para formatear en Quetzales
 const formatQuetzales = (amount) => {
-  if (!amount || isNaN(amount)) return 'Q 0.00';
-  return `Q ${parseFloat(amount).toLocaleString('es-GT', {
+  if (!amount || isNaN(amount)) return `${gymConfigDefault.regional.currencySymbol} 0.00`;
+  return `${gymConfigDefault.regional.currencySymbol} ${parseFloat(amount).toLocaleString('es-GT', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`;
 };
 
-// Datos por defecto mínimos
+// Datos por defecto mínimos usando gymConfig
 const MINIMAL_FALLBACK = {
-  name: "Elite Fitness Club",
-  description: "Tu transformación comienza aquí.",
-  contact: { address: "Guatemala", phone: "Pronto disponible" },
-  hours: { full: "Consultar horarios" },
-  social: {}
+  name: gymConfigDefault.name,
+  description: gymConfigDefault.description,
+  contact: { 
+    address: gymConfigDefault.location.address, 
+    phone: gymConfigDefault.contact.phone,
+    email: gymConfigDefault.contact.email
+  },
+  hours: { 
+    full: gymConfigDefault.hours.full 
+  },
+  social: gymConfigDefault.social
 };
 
 const LandingPage = () => {
@@ -311,7 +321,7 @@ const LandingPage = () => {
     }
   }, []);
   
-  // Usar datos reales del backend
+  // Usar datos reales del backend con fallback a gymConfig
   const gymConfig = config || MINIMAL_FALLBACK;
   
   // Extraer datos de video del config
@@ -860,18 +870,22 @@ const LandingPage = () => {
                 Descubre nuestra selección de productos de alta calidad
               </p>
               
-              {/* Beneficios */}
+              {/* Beneficios usando datos de gymConfig */}
               <div className={`flex justify-center gap-3 mb-8 ${
                 isMobile ? 'flex-wrap' : 'gap-6'
               }`}>
-                <div className={`flex items-center bg-white rounded-full shadow-sm ${
-                  isMobile ? 'px-3 py-1' : 'px-4 py-2'
-                }`}>
-                  <Truck className="w-4 h-4 text-green-500 mr-2" />
-                  <span className={`font-medium text-gray-700 ${
-                    isMobile ? 'text-xs' : 'text-sm'
-                  }`}>Envío gratis +Q200</span>
-                </div>
+                {gymConfigDefault.shipping.freeShippingThreshold > 0 && (
+                  <div className={`flex items-center bg-white rounded-full shadow-sm ${
+                    isMobile ? 'px-3 py-1' : 'px-4 py-2'
+                  }`}>
+                    <Truck className="w-4 h-4 text-green-500 mr-2" />
+                    <span className={`font-medium text-gray-700 ${
+                      isMobile ? 'text-xs' : 'text-sm'
+                    }`}>
+                      Envío gratis +{gymConfigDefault.regional.currencySymbol}{gymConfigDefault.shipping.freeShippingThreshold}
+                    </span>
+                  </div>
+                )}
                 <div className={`flex items-center bg-white rounded-full shadow-sm ${
                   isMobile ? 'px-3 py-1' : 'px-4 py-2'
                 }`}>
@@ -896,6 +910,7 @@ const LandingPage = () => {
                         <MobileProductCard 
                           product={product} 
                           onAddToCart={handleAddToCart}
+                          currencySymbol={gymConfigDefault.regional.currencySymbol}
                         />
                       </div>
                     ))}
@@ -948,6 +963,7 @@ const LandingPage = () => {
                     key={product.id} 
                     product={product} 
                     onAddToCart={handleAddToCart}
+                    currencySymbol={gymConfigDefault.regional.currencySymbol}
                   />
                 ))}
               </div>
@@ -1092,12 +1108,17 @@ const LandingPage = () => {
               <div className="overflow-x-auto pb-4">
                 <div className="flex space-x-4" style={{ width: `${plans.length * 280}px` }}>
                   {plans.map((plan) => (
-                    <MobilePlanCard key={plan.id} plan={plan} />
+                    <MobilePlanCard 
+                      key={plan.id} 
+                      plan={plan}
+                      currencySymbol={gymConfigDefault.regional.currencySymbol}
+                    />
                   ))}
                 </div>
               </div>
             ) : (
               /* Desktop: Grid normal */
+
               <div className={`grid gap-8 max-w-6xl mx-auto ${
                 plans.length === 1 ? 'grid-cols-1 max-w-md' :
                 plans.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
@@ -1136,7 +1157,7 @@ const LandingPage = () => {
                         <div className="mb-8">
                           <div className="flex items-baseline justify-center mb-2">
                             <span className="text-5xl font-bold text-gray-900">
-                              Q{plan.price}
+                              {gymConfigDefault.regional.currencySymbol}{plan.price}
                             </span>
                             <span className="text-gray-600 ml-2">
                               /{plan.duration}
@@ -1144,9 +1165,9 @@ const LandingPage = () => {
                           </div>
                           {plan.originalPrice && plan.originalPrice > plan.price && (
                             <div className="text-sm text-gray-500">
-                              <span className="line-through">Q{plan.originalPrice}</span>
+                              <span className="line-through">{gymConfigDefault.regional.currencySymbol}{plan.originalPrice}</span>
                               <span className="ml-2 text-green-600 font-semibold">
-                                Ahorra Q{plan.originalPrice - plan.price}
+                                Ahorra {gymConfigDefault.regional.currencySymbol}{plan.originalPrice - plan.price}
                               </span>
                             </div>
                           )}
@@ -1286,7 +1307,7 @@ const LandingPage = () => {
               
               {/* Información de contacto */}
               <div className={`space-y-4 ${isMobile ? 'grid grid-cols-1 gap-4' : 'space-y-6'}`}>
-                {gymConfig.contact?.address && gymConfig.contact.address !== "Guatemala" && (
+                {gymConfig.contact?.address && (
                   <div className="flex items-center">
                     <div className={`bg-white bg-opacity-10 rounded-xl flex items-center justify-center mr-4 ${
                       isMobile ? 'w-10 h-10' : 'w-12 h-12'
@@ -1302,7 +1323,7 @@ const LandingPage = () => {
                   </div>
                 )}
                 
-                {gymConfig.contact?.phone && gymConfig.contact.phone !== "Pronto disponible" && (
+                {gymConfig.contact?.phone && (
                   <div className="flex items-center">
                     <div className={`bg-white bg-opacity-10 rounded-xl flex items-center justify-center mr-4 ${
                       isMobile ? 'w-10 h-10' : 'w-12 h-12'
@@ -1339,7 +1360,7 @@ const LandingPage = () => {
               {gymConfig.social && Object.keys(gymConfig.social).length > 0 && (
                 <div className={`flex space-x-3 ${isMobile ? 'justify-center' : ''}`}>
                   {Object.entries(gymConfig.social).map(([platform, data]) => {
-                    if (!data || !data.url || !data.active) return null;
+                    if (!data || !data.url) return null;
                     const IconComponent = getSocialIcon(platform);
                     
                     return (
@@ -1466,7 +1487,7 @@ const LandingPage = () => {
                 <div>
                   <h3 className="font-semibold mb-4 text-lg">Contáctanos</h3>
                   <ul className="space-y-2">
-                    {gymConfig.contact?.phone && gymConfig.contact.phone !== "Pronto disponible" && (
+                    {gymConfig.contact?.phone && (
                       <li className="text-gray-400 text-sm">
                         {gymConfig.contact.phone}
                       </li>
@@ -1476,7 +1497,7 @@ const LandingPage = () => {
                         {gymConfig.contact.email}
                       </li>
                     )}
-                    {gymConfig.contact?.address && gymConfig.contact.address !== "Guatemala" && (
+                    {gymConfig.contact?.address && (
                       <li className="text-gray-400 text-sm">
                         {gymConfig.contact.address}
                       </li>
@@ -1486,7 +1507,7 @@ const LandingPage = () => {
                   {gymConfig.social && Object.keys(gymConfig.social).length > 0 && (
                     <div className="flex space-x-3 mt-4">
                       {Object.entries(gymConfig.social).map(([platform, data]) => {
-                        if (!data || !data.url || !data.active) return null;
+                        if (!data || !data.url) return null;
                         const IconComponent = getSocialIcon(platform);
                         
                         return (
@@ -1520,7 +1541,7 @@ const LandingPage = () => {
             {isMobile && gymConfig.social && Object.keys(gymConfig.social).length > 0 && (
               <div className="flex justify-center space-x-4">
                 {Object.entries(gymConfig.social).map(([platform, data]) => {
-                  if (!data || !data.url || !data.active) return null;
+                  if (!data || !data.url) return null;
                   const IconComponent = getSocialIcon(platform);
                   
                   return (
@@ -1546,7 +1567,7 @@ const LandingPage = () => {
 };
 
 // Componente: Tarjeta de producto para móvil
-const MobileProductCard = ({ product, onAddToCart }) => {
+const MobileProductCard = ({ product, onAddToCart, currencySymbol = 'Q' }) => {
   const [isAdding, setIsAdding] = useState(false);
   
   const handleAdd = async () => {
@@ -1580,7 +1601,7 @@ const MobileProductCard = ({ product, onAddToCart }) => {
         </p>
         <div className="flex items-center justify-between">
           <span className="text-xl font-bold text-primary-600">
-            Q{product.price}
+            {currencySymbol}{product.price}
           </span>
           <button
             onClick={handleAdd}
@@ -1632,7 +1653,7 @@ const MobileServiceCard = ({ service }) => {
 };
 
 // Componente: Tarjeta de plan para móvil
-const MobilePlanCard = ({ plan }) => {
+const MobilePlanCard = ({ plan, currencySymbol = 'Q' }) => {
   const IconComponent = plan.iconName === 'crown' ? Crown : 
                       plan.iconName === 'calendar-days' ? Calendar : 
                       plan.iconName === 'calendar' ? Calendar :
@@ -1665,7 +1686,7 @@ const MobilePlanCard = ({ plan }) => {
         <div className="mb-6">
           <div className="flex items-baseline justify-center mb-1">
             <span className="text-3xl font-bold text-gray-900">
-              Q{plan.price}
+              {currencySymbol}{plan.price}
             </span>
             <span className="text-gray-600 ml-1 text-sm">
               /{plan.duration}
@@ -1673,9 +1694,9 @@ const MobilePlanCard = ({ plan }) => {
           </div>
           {plan.originalPrice && plan.originalPrice > plan.price && (
             <div className="text-xs text-gray-500">
-              <span className="line-through">Q{plan.originalPrice}</span>
+              <span className="line-through">{currencySymbol}{plan.originalPrice}</span>
               <span className="ml-1 text-green-600 font-semibold">
-                -Q{plan.originalPrice - plan.price}
+                -{currencySymbol}{plan.originalPrice - plan.price}
               </span>
             </div>
           )}
@@ -1707,7 +1728,7 @@ const MobilePlanCard = ({ plan }) => {
 };
 
 // Componente: Tarjeta de producto estándar (desktop)
-const ProductPreviewCard = ({ product, onAddToCart }) => {
+const ProductPreviewCard = ({ product, onAddToCart, currencySymbol = 'Q' }) => {
   const [isAdding, setIsAdding] = useState(false);
   
   const handleAdd = async () => {
@@ -1741,7 +1762,7 @@ const ProductPreviewCard = ({ product, onAddToCart }) => {
         </p>
         <div className="flex items-center justify-between">
           <span className="text-2xl font-bold text-primary-600">
-            Q{product.price}
+            {currencySymbol}{product.price}
           </span>
           <button
             onClick={handleAdd}

@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/ClientDashboard.js
-// ACTUALIZADO: Con gestión completa de membresías y horarios del cliente
+// ACTUALIZADO: Con integración completa de gymConfig.js y optimizaciones
 
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -8,7 +8,6 @@ import { useQuery } from '@tanstack/react-query';
 
 import { 
   CreditCard, 
-  Coins, 
   Calendar, 
   Clock, 
   Trophy,
@@ -40,6 +39,7 @@ import {
   BarChart3,
   Settings
 } from 'lucide-react';
+
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
@@ -47,6 +47,14 @@ import membershipService from '../../services/membershipService';
 
 // Hook de traducción
 import { useTranslation } from '../../hooks/useTranslation';
+
+// ✅ IMPORTAR CONFIG DEL GIMNASIO
+import gymConfig, { 
+  getContactInfo, 
+  getBankInfo, 
+  getPaymentConfig,
+  getGymConfig 
+} from '../../config/gymConfig';
 
 // Componentes existentes
 import DashboardCard from '../../components/common/DashboardCard';
@@ -63,10 +71,10 @@ import TestimonialManager from './components/TestimonialManager';
 import MembershipManager from './client/MembershipManager';
 import ScheduleManager from './client/ScheduleManager';
 
-// Función auxiliar para formatear en Quetzales
+// ✅ Función auxiliar mejorada para formatear en Quetzales usando config
 const formatQuetzales = (amount) => {
-  if (!amount || isNaN(amount)) return 'Q 0.00';
-  return `Q ${parseFloat(amount).toLocaleString('es-GT', {
+  if (!amount || isNaN(amount)) return `${gymConfig.regional.currencySymbol} 0.00`;
+  return `${gymConfig.regional.currencySymbol} ${parseFloat(amount).toLocaleString('es-GT', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`;
@@ -84,43 +92,60 @@ const ClientDashboard = () => {
   const section = searchParams.get('section') || 'dashboard';
   const [selectedPlan, setSelectedPlan] = useState(null);
   
+  // ✅ OBTENER CONFIGURACIÓN DEL GIMNASIO DESDE EL BACKEND O .ENV
+  const { data: backendConfig } = useQuery({
+    queryKey: ['gymConfig'],
+    queryFn: () => apiService.getGymConfig(),
+    staleTime: 30 * 60 * 1000, // 30 minutos
+    retry: 1,
+    onError: (error) => {
+      console.log('ℹ️ Usando configuración del .env (backend no disponible)');
+    }
+  });
+
+  // ✅ COMBINAR DATOS DEL BACKEND CON DEFAULTS DEL .ENV
+  const contactInfo = getContactInfo(backendConfig?.contact);
+  const bankInfo = getBankInfo(backendConfig?.banking);
+  const paymentConfig = getPaymentConfig(backendConfig?.payment);
+  const appConfig = getGymConfig(backendConfig?.gym);
+  
   // QUERIES PARA DATOS DEL CLIENTE
   
   // Membresía actual del cliente
   const { data: currentMembership, isLoading: membershipLoading, refetch: refetchMembership } = useQuery({
-  queryKey: ['currentMembership', user?.id],
-  queryFn: async () => {
-    console.log('🔄 ClientDashboard: Obteniendo membresía actual...');
-    try {
-      const membership = await membershipService.getCurrentMembership();
-      
-      if (membership) {
-        console.log('✅ ClientDashboard: Membresía encontrada:', {
-          id: membership.id,
-          status: membership.status,
-          isPending: membership.isPending,
-          paymentMethod: membership.payment?.paymentMethod
-        });
-      } else {
-        console.log('ℹ️ ClientDashboard: No hay membresía activa');
+    queryKey: ['currentMembership', user?.id],
+    queryFn: async () => {
+      console.log('🔄 ClientDashboard: Obteniendo membresía actual...');
+      try {
+        const membership = await membershipService.getCurrentMembership();
+        
+        if (membership) {
+          console.log('✅ ClientDashboard: Membresía encontrada:', {
+            id: membership.id,
+            status: membership.status,
+            isPending: membership.isPending,
+            paymentMethod: membership.payment?.paymentMethod
+          });
+        } else {
+          console.log('ℹ️ ClientDashboard: No hay membresía activa');
+        }
+        
+        return membership;
+      } catch (error) {
+        console.error('❌ ClientDashboard: Error obteniendo membresía:', error);
+        // Solo mostrar error si no es 404 (sin membresía) o 401 (sin autenticación)
+        if (error.response?.status !== 404 && error.response?.status !== 401) {
+          throw error;
+        }
+        return null;
       }
-      
-      return membership;
-    } catch (error) {
-      console.error('❌ ClientDashboard: Error obteniendo membresía:', error);
-      // Solo mostrar error si no es 404 (sin membresía) o 401 (sin autenticación)
-      if (error.response?.status !== 404 && error.response?.status !== 401) {
-        throw error; // Re-throw para que React Query maneje el error
-      }
-      return null; // Sin membresía, no es un error
-    }
-  },
-  staleTime: 2 * 60 * 1000, // 2 minutos 
-  retry: 2,
-  enabled: !!user?.id, // Solo ejecutar si hay usuario autenticado
-  refetchOnWindowFocus: true, // Actualizar cuando el usuario vuelve a la ventana
-  refetchInterval: 5 * 60 * 1000, // Actualizar cada 5 minutos automáticamente
-});
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutos 
+    retry: 2,
+    enabled: !!user?.id, // Solo ejecutar si hay usuario autenticado
+    refetchOnWindowFocus: true, // Actualizar cuando el usuario vuelve a la ventana
+    refetchInterval: 5 * 60 * 1000, // Actualizar cada 5 minutos automáticamente
+  });
   
   // Horarios actuales del cliente
   const { data: currentSchedule, isLoading: scheduleLoading, refetch: refetchSchedule } = useQuery({
@@ -142,14 +167,6 @@ const ClientDashboard = () => {
     queryFn: () => membershipService.getUserMemberships(),
     staleTime: 5 * 60 * 1000,
     onError: (error) => showError('Error al cargar tu historial de membresías')
-  });
-  
-  // Historial de pagos
-  const { data: payments, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['userPayments', user?.id],
-    queryFn: () => apiService.getPayments({ userId: user?.id, limit: 10 }),
-    staleTime: 5 * 60 * 1000,
-    onError: (error) => showError('Error al cargar tu historial de pagos')
   });
   
   // Planes de membresía disponibles
@@ -175,16 +192,13 @@ const ClientDashboard = () => {
   });
 
   // Procesar datos
-  const recentPayments = payments?.data?.payments || [];
-  const totalPaid = recentPayments.reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
-  
   const testimonialData = testimonials?.data || {};
   const userTestimonials = testimonialData.testimonials || [];
   const canSubmitTestimonial = testimonialData.canSubmitNew !== false;
   const publishedCount = testimonialData.publishedCount || 0;
   const pendingCount = testimonialData.pendingCount || 0;
   
-  // Procesar datos de horarios - CORREGIDO
+  // Procesar datos de horarios
   const scheduleData = currentSchedule?.currentSchedule || {};
   const totalScheduledSlots = Object.values(scheduleData).reduce((sum, day) => 
     sum + (day.hasSlots ? day.slots.length : 0), 0
@@ -193,92 +207,104 @@ const ClientDashboard = () => {
   
   // Calcular días hasta vencimiento
   const getDaysUntilExpiry = (endDate, membershipStatus) => {
-  // ✅ Las membresías canceladas NO tienen días activos
-  if (membershipStatus === 'cancelled') {
-    return null;
-  }
+    // ✅ Las membresías canceladas NO tienen días activos
+    if (membershipStatus === 'cancelled') {
+      return null;
+    }
+    
+    if (!endDate) return null;
+    const today = new Date();
+    const expiry = new Date(endDate);
+    const diffTime = expiry - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
   
-  if (!endDate) return null;
-  const today = new Date();
-  const expiry = new Date(endDate);
-  const diffTime = expiry - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays;
-};
-  
-const daysUntilExpiry = currentMembership ? 
-  getDaysUntilExpiry(currentMembership.endDate, currentMembership.status) : null;
+  const daysUntilExpiry = currentMembership ? 
+    getDaysUntilExpiry(currentMembership.endDate, currentMembership.status) : null;
   
   // Estado de la membresía
- const getMembershipStatus = () => {
-  if (!currentMembership) {
-    return { status: 'none', message: 'Sin membresía', color: 'red' };
-  }
-  
-  console.log('🔍 Evaluando estado de membresía:', {
-    id: currentMembership.id,
-    status: currentMembership.status,
-    isPending: currentMembership.isPending,
-    requiresValidation: currentMembership.requiresValidation,
-    paymentMethod: currentMembership.payment?.paymentMethod,
-    daysUntilExpiry: daysUntilExpiry
-  });
-  
-  // ✅ PRIORIDAD 1: Estados pendientes
-  if (currentMembership.status === 'pending' || currentMembership.isPending || currentMembership.requiresValidation) {
-    console.log('⏳ Membresía en estado PENDIENTE');
-    return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
-  }
-  
-  // ✅ PRIORIDAD 2: Estado cancelado (sin días)
-  if (currentMembership.status === 'cancelled') {
-    console.log('🚫 Estado: CANCELADA');
-    return { status: 'cancelled', message: 'Cancelada', color: 'gray' };
-  }
-  
-  // ✅ PRIORIDAD 3: Estados por vencimiento (solo para membresías activas)
-  if (currentMembership.status === 'active') {
-    if (daysUntilExpiry === null || daysUntilExpiry === undefined) {
-      console.log('✅ Membresía ACTIVA sin límite de tiempo');
+  const getMembershipStatus = () => {
+    if (!currentMembership) {
+      return { status: 'none', message: 'Sin membresía', color: 'red' };
+    }
+    
+    console.log('🔍 Evaluando estado de membresía:', {
+      id: currentMembership.id,
+      status: currentMembership.status,
+      isPending: currentMembership.isPending,
+      requiresValidation: currentMembership.requiresValidation,
+      paymentMethod: currentMembership.payment?.paymentMethod,
+      daysUntilExpiry: daysUntilExpiry
+    });
+    
+    // ✅ PRIORIDAD 1: Estados pendientes
+    if (currentMembership.status === 'pending' || currentMembership.isPending || currentMembership.requiresValidation) {
+      console.log('⏳ Membresía en estado PENDIENTE');
+      return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
+    }
+    
+    // ✅ PRIORIDAD 2: Estado cancelado (sin días)
+    if (currentMembership.status === 'cancelled') {
+      console.log('🚫 Estado: CANCELADA');
+      return { status: 'cancelled', message: 'Cancelada', color: 'gray' };
+    }
+    
+    // ✅ PRIORIDAD 3: Estados por vencimiento (solo para membresías activas)
+    if (currentMembership.status === 'active') {
+      if (daysUntilExpiry === null || daysUntilExpiry === undefined) {
+        console.log('✅ Membresía ACTIVA sin límite de tiempo');
+        return { status: 'active', message: 'Activa', color: 'green' };
+      }
+      
+      if (daysUntilExpiry < 0) {
+        console.log('❌ Membresía VENCIDA');
+        return { status: 'expired', message: 'Vencida', color: 'red' };
+      }
+      
+      if (daysUntilExpiry <= 3) {
+        console.log('⚠️ Membresía POR VENCER (≤3 días)');
+        return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
+      }
+      
+      if (daysUntilExpiry <= 7) {
+        console.log('⚠️ Membresía VENCE PRONTO (≤7 días)');
+        return { status: 'warning', message: 'Vence pronto', color: 'orange' };
+      }
+      
+      console.log('✅ Membresía ACTIVA');
       return { status: 'active', message: 'Activa', color: 'green' };
     }
     
-    if (daysUntilExpiry < 0) {
-      console.log('❌ Membresía VENCIDA');
+    // ✅ PRIORIDAD 4: Otros estados específicos
+    if (currentMembership.status === 'expired') {
+      console.log('❌ Estado explícito: VENCIDA');
       return { status: 'expired', message: 'Vencida', color: 'red' };
     }
     
-    if (daysUntilExpiry <= 3) {
-      console.log('⚠️ Membresía POR VENCER (≤3 días)');
-      return { status: 'expiring', message: 'Por vencer', color: 'yellow' };
-    }
-    
-    if (daysUntilExpiry <= 7) {
-      console.log('⚠️ Membresía VENCE PRONTO (≤7 días)');
-      return { status: 'warning', message: 'Vence pronto', color: 'orange' };
-    }
-    
-    console.log('✅ Membresía ACTIVA');
-    return { status: 'active', message: 'Activa', color: 'green' };
-  }
-  
-  // ✅ PRIORIDAD 4: Otros estados específicos
-  if (currentMembership.status === 'expired') {
-    console.log('❌ Estado explícito: VENCIDA');
-    return { status: 'expired', message: 'Vencida', color: 'red' };
-  }
-  
-  // ✅ FALLBACK: Estado desconocido
-  console.log('⚠️ Estado de membresía desconocido:', currentMembership.status);
-  return { 
-    status: 'unknown', 
-    message: currentMembership.status || 'Estado desconocido', 
-    color: 'gray' 
+    // ✅ FALLBACK: Estado desconocido
+    console.log('⚠️ Estado de membresía desconocido:', currentMembership.status);
+    return { 
+      status: 'unknown', 
+      message: currentMembership.status || 'Estado desconocido', 
+      color: 'gray' 
+    };
   };
-};
-
   
   const membershipStatus = getMembershipStatus();
+
+  // ✅ Función para obtener el nombre del método de pago desde config
+  const getPaymentMethodName = (method) => {
+    if (method === 'transfer') return 'Transferencia bancaria';
+    if (method === 'cash') return 'Efectivo en gimnasio';
+    if (method === 'card') return 'Tarjeta de crédito/débito';
+    return method;
+  };
+
+  // ✅ Función para obtener la URL del gimnasio en mapas desde config
+  const getGymMapUrl = () => {
+    return gymConfig.location.mapsUrl || 'https://maps.google.com';
+  };
 
   // Función para cambiar sección
   const navigateToSection = (newSection) => {
@@ -340,10 +366,10 @@ const daysUntilExpiry = currentMembership ?
   if (section === 'testimonials') {
     return (
       <div className="space-y-6">
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
           <button
             onClick={handleBackToDashboard}
-           
+            className="btn-outline btn-sm"
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Volver al Panel
@@ -393,7 +419,7 @@ const daysUntilExpiry = currentMembership ?
               ¡Hola, {user?.firstName}!
             </h1>
             <p className="text-primary-100 mt-1">
-              Bienvenido a tu espacio personal del gimnasio
+              Bienvenido a {appConfig.name}
             </p>
           </div>
           <div className="text-right">
@@ -407,10 +433,10 @@ const daysUntilExpiry = currentMembership ?
         </div>
       </div>
       
-      {/* MÉTRICAS PERSONALES ACTUALIZADAS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* MÉTRICAS PERSONALES - 3 COLUMNAS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
-        {/* Estado de membresía - MÉTRICA MEJORADA */}
+        {/* Estado de membresía */}
         <div 
           className={`cursor-pointer transition-transform hover:scale-105 ${
             !currentMembership || membershipStatus.status === 'pending' ? 'ring-2 ring-opacity-50' : ''
@@ -430,7 +456,7 @@ const daysUntilExpiry = currentMembership ?
               membershipLoading ? 'Verificando estado...' :
               currentMembership ? 
                 (membershipStatus.status === 'pending' ? 
-                  `${currentMembership.payment?.paymentMethod === 'transfer' ? 'Transferencia' : 'Efectivo'} pendiente` :
+                  `${getPaymentMethodName(currentMembership.payment?.paymentMethod)} pendiente` :
                   getTranslatedMembershipType() || 'Membresía activa'
                 ) :
                 'Haz clic para obtener una'
@@ -488,19 +514,9 @@ const daysUntilExpiry = currentMembership ?
           alert={daysUntilExpiry !== null && daysUntilExpiry <= 3}
         />
         
-        {/* Total pagado */}
-        <DashboardCard
-          title="Total pagado"
-          value={formatQuetzales(totalPaid)}
-          icon={Coins}
-          color="green"
-          isLoading={paymentsLoading}
-          subtitle={`${recentPayments.length} pagos`}
-        />
-        
       </div>
       
-      {/* ALERTAS IMPORTANTES - CONDICIÓN MEJORADA */}
+      {/* ALERTAS IMPORTANTES */}
       {!currentMembership && !membershipLoading && (
         <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 shadow-lg">
           <div className="flex items-center">
@@ -511,7 +527,10 @@ const daysUntilExpiry = currentMembership ?
               </h3>
               <p className="text-red-700 mt-2">
                 Para disfrutar de todas nuestras instalaciones y servicios exclusivos, 
-                necesitas obtener una membresía. Elige entre pago con tarjeta, transferencia o efectivo.
+                necesitas obtener una membresía. 
+                {paymentConfig.cardEnabled && ' Pago con tarjeta para activación inmediata.'}
+                {paymentConfig.transferEnabled && ' Transferencia bancaria con validación 1-2 días.'}
+                {paymentConfig.cashEnabled && ' Pago en efectivo en nuestra sucursal.'}
               </p>
             </div>
             <div className="ml-6">
@@ -528,57 +547,57 @@ const daysUntilExpiry = currentMembership ?
       )}
 
       {/* Alerta para membresía pendiente */}
-{membershipStatus.status === 'pending' && currentMembership && (
-  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center">
-        <Clock className="w-5 h-5 text-yellow-500 mr-3" />
-        <div>
-          <h3 className="text-sm font-medium text-yellow-800">
-            Tu membresía está siendo validada
-          </h3>
-          <p className="text-sm text-yellow-700 mt-1">
-            {currentMembership.payment?.paymentMethod === 'transfer' && 
-              'Validando transferencia bancaria - Te notificaremos cuando esté lista'
-            }
-            {currentMembership.payment?.paymentMethod === 'cash' && 
-              'Visita el gimnasio para completar tu pago en efectivo'
-            }
-            {(!currentMembership.payment?.paymentMethod || 
-              (currentMembership.payment?.paymentMethod !== 'transfer' && 
-               currentMembership.payment?.paymentMethod !== 'cash')) && 
-              'Procesando tu membresía - Te notificaremos pronto'
-            }
-          </p>
-          {/* Información adicional de la membresía */}
-          <div className="text-xs text-yellow-600 mt-2">
-            Plan: {currentMembership.plan?.name || currentMembership.type || 'Membresía'} • 
-            Precio: Q{currentMembership.price} • 
-            ID: {currentMembership.id}
+      {membershipStatus.status === 'pending' && currentMembership && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Clock className="w-5 h-5 text-yellow-500 mr-3" />
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Tu membresía está siendo validada
+                </h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  {currentMembership.payment?.paymentMethod === 'transfer' && 
+                    `Validando transferencia bancaria - ${paymentConfig.transferProcessingNote || 'Validación en proceso'}`
+                  }
+                  {currentMembership.payment?.paymentMethod === 'cash' && 
+                    `Visita ${appConfig.name} en ${contactInfo.address || gymConfig.location.address} para completar tu pago`
+                  }
+                  {(!currentMembership.payment?.paymentMethod || 
+                    (currentMembership.payment?.paymentMethod !== 'transfer' && 
+                     currentMembership.payment?.paymentMethod !== 'cash')) && 
+                    'Procesando tu membresía - Te notificaremos pronto'
+                  }
+                </p>
+                {/* Información adicional de la membresía */}
+                <div className="text-xs text-yellow-600 mt-2">
+                  Plan: {currentMembership.plan?.name || currentMembership.type || 'Membresía'} • 
+                  Precio: {formatQuetzales(currentMembership.price)} • 
+                  ID: {currentMembership.id}
+                </div>
+              </div>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleRefreshPaymentStatus}
+                className="btn-warning btn-sm"
+              >
+                <RefreshCw className="w-4 h-4 mr-1" />
+                Actualizar
+              </button>
+              {currentMembership.payment?.paymentMethod === 'cash' && (
+                <button
+                  onClick={() => window.open(getGymMapUrl(), '_blank')}
+                  className="btn-outline btn-sm"
+                >
+                  <MapPin className="w-4 h-4 mr-1" />
+                  Ver ubicación
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-      <div className="flex space-x-2">
-        <button
-          onClick={handleRefreshPaymentStatus}
-          className="btn-warning btn-sm"
-        >
-          <RefreshCw className="w-4 h-4 mr-1" />
-          Actualizar
-        </button>
-        {currentMembership.payment?.paymentMethod === 'cash' && (
-          <button
-            onClick={() => window.open('https://maps.google.com/?q=Elite+Fitness+Club', '_blank')}
-            className="btn-outline btn-sm"
-          >
-            <MapPin className="w-4 h-4 mr-1" />
-            Ver ubicación
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {/* Alertas de vencimiento */}
       {membershipStatus.status === 'expired' && (
@@ -719,26 +738,27 @@ const daysUntilExpiry = currentMembership ?
               />
               
               {/* Información adicional para membresías pendientes */}
-            {membershipStatus.status === 'pending' && currentMembership.payment && (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <h4 className="font-medium text-yellow-800 mb-2">Estado del pago</h4>
-                <div className="text-sm text-yellow-700 space-y-1">
-                  <div>Método: {
-                    currentMembership.payment.paymentMethod === 'transfer' ? 'Transferencia bancaria' :
-                    currentMembership.payment.paymentMethod === 'cash' ? 'Efectivo en gimnasio' :
-                    currentMembership.payment.paymentMethod
-                  }</div>
-                  <div>Estado: Pendiente de validación</div>
-                  {currentMembership.payment.paymentMethod === 'cash' && (
-                    <div className="flex items-center mt-2">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      <span>Visita el gimnasio para completar tu pago</span>
-                    </div>
-                  )}
+              {membershipStatus.status === 'pending' && currentMembership.payment && (
+                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h4 className="font-medium text-yellow-800 mb-2">Estado del pago</h4>
+                  <div className="text-sm text-yellow-700 space-y-1">
+                    <div>Método: {getPaymentMethodName(currentMembership.payment.paymentMethod)}</div>
+                    <div>Estado: Pendiente de validación</div>
+                    {currentMembership.payment.paymentMethod === 'cash' && (
+                      <div className="flex items-center mt-2">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        <span>Visita {appConfig.name} en {contactInfo.address}</span>
+                      </div>
+                    )}
+                    {currentMembership.payment.paymentMethod === 'transfer' && (
+                      <div className="mt-2 text-xs">
+                        <div>Tiempo estimado: {paymentConfig.transferValidationTime || '1-2 días'}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-                          
+              )}
+              
               {/* Botón para ver detalles completos */}
               <button
                 onClick={() => navigateToSection('membership')}
@@ -767,9 +787,15 @@ const daysUntilExpiry = currentMembership ?
                   Obtener Membresía Ahora
                 </button>
                 <div className="text-xs text-gray-500 space-y-1">
-                  <div>💳 Pago con tarjeta - Activación inmediata</div>
-                  <div>🏦 Transferencia bancaria - Validación 1-2 días</div>
-                  <div>💵 Efectivo en gimnasio - Pago en sucursal</div>
+                  {paymentConfig.cardEnabled && (
+                    <div>💳 {paymentConfig.cardProcessingNote}</div>
+                  )}
+                  {paymentConfig.transferEnabled && (
+                    <div>🏦 {paymentConfig.transferProcessingNote}</div>
+                  )}
+                  {paymentConfig.cashEnabled && (
+                    <div>💵 {paymentConfig.cashProcessingNote}</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -995,7 +1021,7 @@ const daysUntilExpiry = currentMembership ?
               Comparte tu experiencia
             </h4>
             <p className="text-gray-600 mb-4">
-              Tu testimonio ayuda a otros miembros a conocer los beneficios del gimnasio
+              Tu testimonio ayuda a otros miembros a conocer los beneficios de {appConfig.name}
             </p>
             <button
               onClick={() => navigateToSection('testimonials')}
@@ -1016,6 +1042,7 @@ const daysUntilExpiry = currentMembership ?
 };
 
 export default ClientDashboard;
+
 /*
 === ACTUALIZACIONES PARA SISTEMA DE PRODUCCIÓN ===
 

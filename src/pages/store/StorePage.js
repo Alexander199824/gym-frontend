@@ -1,6 +1,6 @@
 // src/pages/store/StorePage.js
 // Autor: Alexander Echeverria
-// Archivo: src/pages/store/StorePage.js
+// VERSIÓN ACTUALIZADA: Usa gymConfig centralizado sin datos hardcodeados
 
 // FUNCION: Página de tienda MEJORADA - Integración robusta con carrito persistente para invitados
 // MEJORAS: Persistencia garantizada, Feedback mejorado, Recovery automático, Debug integrado
@@ -8,38 +8,28 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { 
-  Filter, 
-  Search, 
-  Grid, 
-  List,
-  Star,
-  Heart,
-  Eye,
-  Plus,
-  Minus,
-  Package,
-  Truck,
-  Shield,
-  Award,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-  X,
-  ArrowLeft,
-  CheckCircle,
-  Wifi,
-  WifiOff
+  Filter, Search, Grid, List, Star, Heart, Eye, Plus, Minus,
+  Package, Truck, Shield, Award, Loader2, AlertCircle, RefreshCw,
+  X, ArrowLeft, CheckCircle, Wifi, WifiOff
 } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
 
+// IMPORTAR CONFIGURACIÓN CENTRALIZADA
+import gymConfigDefault from '../../config/gymConfig';
+
 const StorePage = () => {
   const { addItem, isLoading: cartLoading, sessionInfo, debugGuestCart } = useCart();
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Obtener configuración centralizada
+  const currencySymbol = gymConfigDefault.regional.currencySymbol;
+  const freeShippingThreshold = gymConfigDefault.shipping.freeShippingThreshold;
+  const gymName = gymConfigDefault.name;
   
   // Estados para datos del backend - MANTIENE TODA LA FUNCIONALIDAD
   const [products, setProducts] = useState([]);
@@ -402,7 +392,7 @@ const StorePage = () => {
               <div className="h-6 w-px bg-gray-300"></div>
               
               <h1 className="text-2xl font-bold text-gray-900">
-                Tienda Elite Fitness
+                Tienda {gymName}
               </h1>
               
               {isAuthenticated && user && (
@@ -449,10 +439,12 @@ const StorePage = () => {
             
             {/* Info adicional en desktop */}
             <div className="hidden md:flex items-center space-x-4 text-sm text-gray-600">
-              <div className="flex items-center">
-                <Truck className="w-4 h-4 mr-1" />
-                <span>Envío gratis +Q200</span>
-              </div>
+              {freeShippingThreshold > 0 && (
+                <div className="flex items-center">
+                  <Truck className="w-4 h-4 mr-1" />
+                  <span>Envío gratis +{currencySymbol}{freeShippingThreshold}</span>
+                </div>
+              )}
               <div className="flex items-center">
                 <Shield className="w-4 h-4 mr-1" />
                 <span>Garantía incluida</span>
@@ -622,7 +614,7 @@ const StorePage = () => {
                     />
                   </div>
                   <div className="text-xs text-gray-500">
-                    Q{priceRange[0]} - Q{priceRange[1]}
+                    {currencySymbol}{priceRange[0]} - {currencySymbol}{priceRange[1]}
                   </div>
                 </div>
               </div>
@@ -701,6 +693,7 @@ const StorePage = () => {
                         onAddToCart={handleAddToCart}  // Función mejorada
                         isAuthenticated={isAuthenticated}
                         persistenceStatus={persistenceStatus} // NUEVO: Estado de persistencia
+                        currencySymbol={currencySymbol} // NUEVO: Símbolo de moneda
                       />
                     ))}
                   </div>
@@ -774,7 +767,7 @@ const StorePage = () => {
 };
 
 // COMPONENTE MEJORADO: Tarjeta de producto - CON INDICADOR DE PERSISTENCIA
-const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persistenceStatus }) => {
+const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persistenceStatus, currencySymbol = 'Q' }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -866,11 +859,11 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
         <div className="text-right">
           <div className="mb-2">
             <span className="text-2xl font-bold text-gray-900">
-              Q{product.price}
+              {currencySymbol}{product.price}
             </span>
             {product.originalPrice && product.originalPrice > product.price && (
               <span className="text-sm text-gray-500 line-through ml-2">
-                Q{product.originalPrice}
+                {currencySymbol}{product.originalPrice}
               </span>
             )}
           </div>
@@ -1034,10 +1027,10 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
         {/* Precio */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <span className="text-2xl font-bold text-gray-900">Q{product.price}</span>
+            <span className="text-2xl font-bold text-gray-900">{currencySymbol}{product.price}</span>
             {product.originalPrice && product.originalPrice > product.price && (
               <span className="text-gray-500 text-sm line-through ml-2">
-                Q{product.originalPrice}
+                {currencySymbol}{product.originalPrice}
               </span>
             )}
           </div>

@@ -1,5 +1,5 @@
 // src/pages/checkout/CheckoutPayment.js
-// VERSIÓN CORREGIDA: Envía al backend el desglose correcto del total
+// VERSIÓN ACTUALIZADA: Usa gymConfig centralizado sin datos hardcodeados
 
 import React, { useState } from 'react';
 import {
@@ -44,15 +44,15 @@ const PaymentStep = ({
     const cartSummary = calculateCartSummary(items, shippingCost);
     
     console.log('📊 Resumen calculado:');
-    console.log(`   Total productos (con IVA): Q${cartSummary.totalProductsWithTax}`);
-    console.log(`   Envío: Q${cartSummary.shippingAmount}`);
-    console.log(`   TOTAL que ve el cliente: Q${cartSummary.totalAmount}`);
+    console.log(`   Total productos (con IVA): ${gymConfig.regional.currencySymbol}${cartSummary.totalProductsWithTax}`);
+    console.log(`   Envío: ${gymConfig.regional.currencySymbol}${cartSummary.shippingAmount}`);
+    console.log(`   TOTAL que ve el cliente: ${gymConfig.regional.currencySymbol}${cartSummary.totalAmount}`);
     
     console.log('\n📋 Desglose para el backend:');
-    console.log(`   Subtotal (sin IVA): Q${cartSummary.subtotal}`);
-    console.log(`   IVA (12%): Q${cartSummary.taxAmount}`);
-    console.log(`   Envío: Q${cartSummary.shippingAmount}`);
-    console.log(`   = TOTAL: Q${cartSummary.totalAmount}`);
+    console.log(`   Subtotal (sin IVA): ${gymConfig.regional.currencySymbol}${cartSummary.subtotal}`);
+    console.log(`   IVA (12%): ${gymConfig.regional.currencySymbol}${cartSummary.taxAmount}`);
+    console.log(`   Envío: ${gymConfig.regional.currencySymbol}${cartSummary.shippingAmount}`);
+    console.log(`   = TOTAL: ${gymConfig.regional.currencySymbol}${cartSummary.totalAmount}`);
     
     // ✅ PREPARAR DATOS DE LA ORDEN
     const orderData = {
@@ -76,34 +76,35 @@ const PaymentStep = ({
       sessionId: !isAuthenticated ? (sessionInfo?.sessionId || `guest_${Date.now()}`) : undefined
     };
 
-    // Agregar dirección de envío
+    // Agregar dirección de envío usando datos de gymConfig
     if (deliveryMethod !== 'pickup_store') {
       orderData.shippingAddress = {
         ...shippingAddress,
-        fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country || 'Guatemala'}`
+        fullAddress: `${shippingAddress.street}, ${shippingAddress.municipality}, ${shippingAddress.state}, ${gymConfig.location.country}`
       };
     } else {
+      // Usar dirección del gymConfig para pickup
       if (!gymConfig.location.address) {
         throw new Error('Configuración de la tienda incompleta.');
       }
       
       orderData.shippingAddress = {
         street: gymConfig.location.addressFull || gymConfig.location.address,
-        city: gymConfig.location.city || '',
-        state: gymConfig.location.state || '',
-        municipality: gymConfig.location.city || '',
-        zipCode: gymConfig.location.zipCode || '00000',
+        city: gymConfig.location.city,
+        state: gymConfig.location.state || shippingAddress.state,
+        municipality: gymConfig.location.city,
+        zipCode: gymConfig.location.coordinates?.lat ? '00000' : shippingAddress.zipCode,
         reference: `${gymConfig.name} - Recoger en tienda`,
-        fullAddress: `${gymConfig.location.addressFull || gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.state}`
+        fullAddress: `${gymConfig.location.addressFull || gymConfig.location.address}, ${gymConfig.location.city}, ${gymConfig.location.country}`
       };
     }
 
     console.log('\n✅ Datos de la orden preparados:');
     console.log(`   Items: ${orderData.items.length}`);
-    console.log(`   Subtotal: Q${orderData.subtotal}`);
-    console.log(`   IVA: Q${orderData.taxAmount}`);
-    console.log(`   Envío: Q${orderData.shippingAmount}`);
-    console.log(`   TOTAL: Q${orderData.totalAmount}`);
+    console.log(`   Subtotal: ${gymConfig.regional.currencySymbol}${orderData.subtotal}`);
+    console.log(`   IVA: ${gymConfig.regional.currencySymbol}${orderData.taxAmount}`);
+    console.log(`   Envío: ${gymConfig.regional.currencySymbol}${orderData.shippingAmount}`);
+    console.log(`   TOTAL: ${gymConfig.regional.currencySymbol}${orderData.totalAmount}`);
     console.log('===== FIN PREPARACIÓN =====\n');
 
     return orderData;
@@ -136,7 +137,7 @@ const PaymentStep = ({
 
       const order = orderResponse.data.order;
       console.log(`✅ Orden creada: ${order.orderNumber}`);
-      console.log(`   Total de la orden: Q${order.totalAmount}`);
+      console.log(`   Total de la orden: ${gymConfig.regional.currencySymbol}${order.totalAmount}`);
 
       console.log('💳 Creando payment intent...');
       const paymentIntentResponse = await apiService.createStorePaymentIntent({
@@ -152,6 +153,7 @@ const PaymentStep = ({
       console.log('💳 Confirmando pago con Stripe...');
       const cardElement = elements.getElement(CardElement);
 
+      // Usar datos de gymConfig para billing address
       const billingAddress = deliveryMethod !== 'pickup_store' ? {
         line1: shippingAddress.street,
         city: shippingAddress.municipality,
@@ -162,7 +164,7 @@ const PaymentStep = ({
         line1: gymConfig.location.addressFull || gymConfig.location.address,
         city: gymConfig.location.city || '',
         state: gymConfig.location.state || '',
-        postal_code: gymConfig.location.zipCode || '00000',
+        postal_code: '00000',
         country: 'GT'
       };
 
@@ -247,7 +249,7 @@ const PaymentStep = ({
 
       const order = orderResponse.data.order;
       console.log(`✅ Orden creada: ${order.orderNumber}`);
-      console.log(`   Total de la orden: Q${order.totalAmount}`);
+      console.log(`   Total de la orden: ${gymConfig.regional.currencySymbol}${order.totalAmount}`);
 
       const successOrder = {
         ...order,
@@ -277,10 +279,11 @@ const PaymentStep = ({
   };
 
   // ============================================================================
-  // CALCULAR TOTAL QUE VE EL CLIENTE
+  // CALCULAR TOTAL QUE VE EL CLIENTE (usando símbolos de gymConfig)
   // ============================================================================
   const totalProductsWithTax = summary?.totalProductsWithTax || 0;
   const totalToShow = totalProductsWithTax + shippingCost;
+  const currencySymbol = gymConfig.regional.currencySymbol;
 
   return (
     <div className="space-y-6">
@@ -444,7 +447,7 @@ const PaymentStep = ({
                     <>
                       <li>✅ Prepararemos tu pedido en 2-4 horas</li>
                       <li>📱 Te notificaremos cuando esté listo</li>
-                      <li>🏪 Vienes a {gymConfig.name || 'nuestra tienda'} y pagas</li>
+                      <li>🏪 Vienes a {gymConfig.name} y pagas</li>
                       <li>💳 Aceptamos efectivo y tarjetas</li>
                       <li>🚫 Sin costos de envío</li>
                     </>
@@ -453,7 +456,7 @@ const PaymentStep = ({
                       <li>📦 Recibirás tu pedido en la dirección indicada</li>
                       <li>💰 Pagas el monto exacto al repartidor</li>
                       <li>💳 Aceptamos efectivo y tarjetas</li>
-                      <li>🚚 Incluye costo de envío: Q{shippingCost.toFixed(2)}</li>
+                      <li>🚚 Incluye costo de envío: {currencySymbol}{shippingCost.toFixed(2)}</li>
                     </>
                   )}
                 </ul>
@@ -493,7 +496,7 @@ const PaymentStep = ({
               <Lock className="w-5 h-5" />
               <span>
                 {paymentMethod === 'online_card' 
-                  ? `Pagar Q${totalToShow.toFixed(2)}`
+                  ? `Pagar ${currencySymbol}${totalToShow.toFixed(2)}`
                   : 'Confirmar pedido'
                 }
               </span>
