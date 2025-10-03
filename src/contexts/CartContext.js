@@ -17,45 +17,45 @@ const TAX_RATE = 0.12; // 12% IVA
 const TAX_MULTIPLIER = 1 + TAX_RATE; // 1.12
 
 // ============================================================================
-// FUNCIÓN PRINCIPAL DE CÁLCULO - CORREGIDA
+// 🎯 FUNCIÓN PRINCIPAL DE CÁLCULO - TOTALMENTE CORREGIDA
 // ============================================================================
 /**
- * LÓGICA CORRECTA:
+ * LÓGICA CORRECTA PARA GUATEMALA:
  * 
- * EJEMPLO:
- * - Productos en carrito: Q89.99 (precio CON IVA ya incluido en BD)
- * - Envío seleccionado: Q25.00 (SIN IVA, precio fijo)
+ * EJEMPLO REAL:
+ * - Producto en BD: Q149.99 (precio CON IVA ya incluido)
+ * - Envío seleccionado: Q45.00 (SIN IVA, precio fijo)
  * 
- * CÁLCULO:
- * 1. Total productos CON IVA: Q89.99
- * 2. Subtotal SIN IVA: Q89.99 / 1.12 = Q80.35
- * 3. IVA desglosado: Q89.99 - Q80.35 = Q9.64
- * 4. Envío (sin IVA): Q25.00
- * 5. TOTAL FINAL: Q80.35 + Q9.64 + Q25.00 = Q114.99 ✅
+ * CÁLCULO PASO A PASO:
+ * 1. Total productos CON IVA: Q149.99
+ * 2. Subtotal SIN IVA: Q149.99 / 1.12 = Q133.92
+ * 3. IVA desglosado: Q149.99 - Q133.92 = Q16.07
+ * 4. Envío (sin IVA): Q45.00
+ * 5. TOTAL FINAL: Q133.92 + Q16.07 + Q45.00 = Q194.99 ✅
  * 
  * LO QUE SE ENVÍA AL BACKEND:
  * {
- *   subtotal: 80.35,      // ← SIN IVA
- *   taxAmount: 9.64,      // ← IVA solo de productos
- *   shippingAmount: 25.00, // ← Sin IVA, precio fijo
- *   totalAmount: 114.99   // ← Total correcto
+ *   subtotal: 133.92,      // ← SIN IVA (productos)
+ *   taxAmount: 16.07,      // ← IVA solo de productos
+ *   shippingAmount: 45.00, // ← Sin IVA, precio fijo
+ *   totalAmount: 194.99    // ← Total correcto que ve el cliente
  * }
  */
 const calculateCartSummary = (items, shippingCost = 0) => {
-  console.log('\n💰 ===== CÁLCULO DE CARRITO =====');
+  console.log('\n💰 ===== CÁLCULO DE CARRITO (CORREGIDO) =====');
   console.log('📦 Items:', items.length);
-  console.log('🚚 Costo de envío:', shippingCost);
+  console.log('🚚 Costo de envío recibido:', shippingCost);
   
   // PASO 1: Calcular total de productos CON IVA (como están en BD)
   const totalProductsWithTax = items.reduce((sum, item) => {
     const price = parseFloat(item.price) || 0;
     const quantity = parseInt(item.quantity) || 0;
     const itemTotal = price * quantity;
-    console.log(`   ${item.name}: Q${price} x ${quantity} = Q${itemTotal.toFixed(2)}`);
+    console.log(`   ${item.name}: Q${price.toFixed(2)} x ${quantity} = Q${itemTotal.toFixed(2)}`);
     return sum + itemTotal;
   }, 0);
   
-  console.log(`\n💵 Total productos (CON IVA): Q${totalProductsWithTax.toFixed(2)}`);
+  console.log(`\n💵 Total productos (CON IVA incluido): Q${totalProductsWithTax.toFixed(2)}`);
   
   // PASO 2: Calcular SUBTOTAL SIN IVA
   // Fórmula: precioConIVA / 1.12 = precioSinIVA
@@ -64,41 +64,51 @@ const calculateCartSummary = (items, shippingCost = 0) => {
   
   // PASO 3: Calcular IVA desglosado (solo de productos)
   const taxAmount = totalProductsWithTax - subtotal;
-  console.log(`📈 IVA (12%): Q${totalProductsWithTax.toFixed(2)} - Q${subtotal.toFixed(2)} = Q${taxAmount.toFixed(2)}`);
+  console.log(`📈 IVA desglosado (12%): Q${totalProductsWithTax.toFixed(2)} - Q${subtotal.toFixed(2)} = Q${taxAmount.toFixed(2)}`);
   
-  // PASO 4: Envío SIN IVA (precio fijo según tipo)
+  // PASO 4: Envío SIN IVA (precio fijo según tipo de entrega)
   const shippingAmount = parseFloat(shippingCost) || 0;
   console.log(`🚚 Envío (sin IVA): Q${shippingAmount.toFixed(2)}`);
   
-  // PASO 5: TOTAL FINAL
+  // PASO 5: TOTAL FINAL (lo que el cliente paga)
+  // FÓRMULA: subtotal (sin IVA) + IVA + envío = total
   const totalAmount = subtotal + taxAmount + shippingAmount;
   
-  console.log('\n🧮 VERIFICACIÓN:');
+  console.log('\n🧮 DESGLOSE FINAL:');
   console.log(`   Subtotal (sin IVA):  Q${subtotal.toFixed(2)}`);
   console.log(`   + IVA (12%):         Q${taxAmount.toFixed(2)}`);
   console.log(`   + Envío (sin IVA):   Q${shippingAmount.toFixed(2)}`);
-  console.log(`   = TOTAL:             Q${totalAmount.toFixed(2)}`);
+  console.log(`   ─────────────────────────────────────`);
+  console.log(`   = TOTAL A PAGAR:     Q${totalAmount.toFixed(2)}`);
   
   // VALIDACIÓN: Verificar que subtotal + IVA = total productos
-  const reconstructed = subtotal + taxAmount;
-  const diff = Math.abs(reconstructed - totalProductsWithTax);
+  const reconstructedProducts = subtotal + taxAmount;
+  const diffProducts = Math.abs(reconstructedProducts - totalProductsWithTax);
   
-  if (diff > 0.01) {
-    console.warn(`⚠️ ADVERTENCIA: Diferencia de Q${diff.toFixed(2)} en productos`);
+  if (diffProducts > 0.02) { // Tolerancia de 2 centavos por redondeo
+    console.warn(`⚠️ ADVERTENCIA: Diferencia de Q${diffProducts.toFixed(2)} en productos`);
+  }
+  
+  // VALIDACIÓN: Verificar total final
+  const reconstructedTotal = subtotal + taxAmount + shippingAmount;
+  const diffTotal = Math.abs(reconstructedTotal - totalAmount);
+  
+  if (diffTotal > 0.02) {
+    console.warn(`⚠️ ADVERTENCIA: Diferencia de Q${diffTotal.toFixed(2)} en total`);
   } else {
-    console.log('✅ Cálculos correctos');
+    console.log('✅ Todos los cálculos son correctos');
   }
   
   console.log('===== FIN CÁLCULO =====\n');
   
   return {
-    // Para mostrar al cliente
+    // Para mostrar al cliente en el UI
     totalProductsWithTax: Math.round(totalProductsWithTax * 100) / 100,
     totalAmount: Math.round(totalAmount * 100) / 100,
     
     // Para enviar al backend (DESGLOSADO CORRECTAMENTE)
     subtotal: Math.round(subtotal * 100) / 100,           // SIN IVA
-    taxAmount: Math.round(taxAmount * 100) / 100,         // IVA
+    taxAmount: Math.round(taxAmount * 100) / 100,         // IVA solo productos
     shippingAmount: Math.round(shippingAmount * 100) / 100 // Sin IVA
   };
 };

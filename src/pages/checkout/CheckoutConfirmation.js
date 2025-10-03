@@ -230,20 +230,18 @@ const OrderSummary = ({
   const errorCount = Object.keys(errors).filter(key => errors[key]).length;
   const selectedDeliveryOption = deliveryOptions[deliveryMethod];
 
-  // ✅ CÁLCULO CORRECTO:
-  // Total de productos (CON IVA ya incluido en los precios)
+  // ✅ CÁLCULO CORRECTO PARA MOSTRAR AL CLIENTE:
+  // El summary ya contiene el desglose correcto:
+  // - totalProductsWithTax: precio de productos CON IVA
+  // - Sumamos el envío que el cliente seleccionó
   const productsTotal = summary?.totalProductsWithTax || 0;
-  
-  // Envío (el que escogió el cliente)
-  const shipping = shippingCost || 0;
-  
-  // TOTAL que ve el cliente = Productos + Envío
+  const shipping = parseFloat(shippingCost) || 0;
   const finalTotal = productsTotal + shipping;
 
   console.log('📊 OrderSummary - Lo que ve el cliente:');
-  console.log(`   Productos (con IVA): Q${productsTotal.toFixed(2)}`);
+  console.log(`   Productos (con IVA incluido): Q${productsTotal.toFixed(2)}`);
   console.log(`   + Envío: Q${shipping.toFixed(2)}`);
-  console.log(`   = TOTAL: Q${finalTotal.toFixed(2)}`);
+  console.log(`   = TOTAL A PAGAR: Q${finalTotal.toFixed(2)}`);
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">

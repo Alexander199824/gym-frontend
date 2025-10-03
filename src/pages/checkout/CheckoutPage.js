@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // src/pages/checkout/CheckoutPage.js
-// VERSIÓN FINAL: Envío local hardcodeado para Baja Verapaz con 5 municipios
+// VERSIÓN FINAL CORREGIDA: Envío local hardcodeado para Baja Verapaz
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -53,7 +53,7 @@ const LOCAL_DELIVERY_CONFIG = {
 };
 
 // ============================================================================
-// VALIDACIÓN DE PRODUCTOS - SOLO PRECIO Y CANTIDAD OBLIGATORIOS
+// VALIDACIÓN DE PRODUCTOS
 // ============================================================================
 const validateCartItems = (items) => {
   const invalidItems = [];
@@ -132,9 +132,6 @@ const CheckoutPage = () => {
   const [deliveryOptions, setDeliveryOptions] = useState({});
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
 
-  // ============================================================================
-  // CONFIGURACIÓN DE ENVÍO LOCAL FIJA (HARDCODEADA)
-  // ============================================================================
   const [localDeliveryConfig, setLocalDeliveryConfig] = useState(LOCAL_DELIVERY_CONFIG);
 
   const [customerInfo, setCustomerInfo] = useState({
@@ -166,7 +163,7 @@ const CheckoutPage = () => {
   // ============================================================================
   useEffect(() => {
     if (!cartValidated.current && items.length > 0) {
-      console.log('🔍 Validando productos del carrito (precio y cantidad)...');
+      console.log('🔍 Validando productos del carrito...');
       const { validItems, invalidItems } = validateCartItems(items);
       
       if (invalidItems.length > 0) {
@@ -182,7 +179,7 @@ const CheckoutPage = () => {
           return `${item.name || 'Producto desconocido'} (${issues.join(', ')})`;
         }).join('; ');
         
-        showError(`Productos inválidos en el carrito: ${issuesList}. Elimínalos antes de continuar.`);
+        showError(`Productos inválidos: ${issuesList}`);
       } else {
         console.log('✅ Todos los productos son válidos');
         setCartHasInvalidItems(false);
@@ -194,7 +191,7 @@ const CheckoutPage = () => {
   }, [items, showError]);
 
   // ============================================================================
-  // CARGAR CONFIGURACIÓN DEL GYM DESDE BACKEND
+  // CARGAR CONFIGURACIÓN DEL GYM
   // ============================================================================
   useEffect(() => {
     const loadGymConfig = async () => {
@@ -202,51 +199,47 @@ const CheckoutPage = () => {
       
       try {
         setIsLoadingConfig(true);
-        console.log('📡 Cargando configuración del gym desde el backend...');
+        console.log('📡 Cargando configuración del gym...');
         
         const [configResponse, contactResponse, hoursResponse] = await Promise.all([
           apiService.getGymConfig().catch(err => {
-            console.warn('⚠️ Error cargando gym config:', err.message);
+            console.warn('⚠️ Error config:', err.message);
             return null;
           }),
           apiService.get('/gym/contact').catch(err => {
-            console.warn('⚠️ Error cargando contacto:', err.message);
+            console.warn('⚠️ Error contacto:', err.message);
             return null;
           }),
           apiService.get('/gym/hours').catch(err => {
-            console.warn('⚠️ Error cargando horarios:', err.message);
+            console.warn('⚠️ Error horarios:', err.message);
             return null;
           })
         ]);
 
-        // INICIAR CON LA CONFIGURACIÓN POR DEFECTO
         let finalConfig = { ...gymConfigDefault };
 
-        // SOBRESCRIBIR CON DATOS DEL BACKEND SI EXISTEN
         if (configResponse?.success && configResponse.data) {
           const config = configResponse.data;
-          console.log('✅ Configuración del gym cargada desde DB:', config);
-          
           finalConfig = {
             ...finalConfig,
             name: config.name || config.gymName || finalConfig.name,
-            description: config.description || config.gymDescription || finalConfig.description,
+            description: config.description || finalConfig.description,
             logo: config.logo || finalConfig.logo,
             contact: {
               ...finalConfig.contact,
-              address: config.contact?.address || config.location?.address || finalConfig.contact.address,
+              address: config.contact?.address || finalConfig.contact.address,
               phone: config.contact?.phone || finalConfig.contact.phone,
               email: config.contact?.email || finalConfig.contact.email,
-              whatsapp: config.contact?.whatsapp || config.contact?.phone || finalConfig.contact.whatsapp
+              whatsapp: config.contact?.whatsapp || finalConfig.contact.whatsapp
             },
             location: {
               ...finalConfig.location,
-              address: config.location?.address || config.contact?.address || finalConfig.location.address,
-              addressFull: config.location?.addressFull || config.location?.address || finalConfig.location.addressFull,
+              address: config.location?.address || finalConfig.location.address,
+              addressFull: config.location?.addressFull || finalConfig.location.addressFull,
               city: config.location?.city || finalConfig.location.city,
               state: config.location?.state || finalConfig.location.state,
               country: config.location?.country || finalConfig.location.country,
-              zipCode: config.location?.zipCode || getPostalCode(config.location?.state) || finalConfig.location.zipCode
+              zipCode: config.location?.zipCode || finalConfig.location.zipCode
             },
             hours: {
               ...finalConfig.hours,
@@ -264,7 +257,7 @@ const CheckoutPage = () => {
             address: contact.address || finalConfig.contact.address,
             phone: contact.phone || finalConfig.contact.phone,
             email: contact.email || finalConfig.contact.email,
-            whatsapp: contact.whatsapp || contact.phone || finalConfig.contact.whatsapp
+            whatsapp: contact.whatsapp || finalConfig.contact.whatsapp
           };
         }
 
@@ -278,19 +271,12 @@ const CheckoutPage = () => {
           };
         }
 
-        console.log('🏋️ Configuración final del gym:', finalConfig);
+        console.log('✅ Configuración cargada');
         setGymConfig(finalConfig);
-
-        // LA CONFIGURACIÓN DE ENVÍO LOCAL YA ESTÁ HARDCODEADA
-        console.log('✅ Configuración de envío local (HARDCODEADA):', LOCAL_DELIVERY_CONFIG);
-
         gymConfigLoaded.current = true;
-        console.log('✅ Configuración del gym completada');
         
       } catch (error) {
-        console.error('❌ Error cargando configuración del gym:', error);
-        // Usar configuración por defecto en caso de error
-        console.log('🔄 Usando configuración por defecto del .env');
+        console.error('❌ Error cargando configuración:', error);
       } finally {
         setIsLoadingConfig(false);
       }
@@ -300,14 +286,11 @@ const CheckoutPage = () => {
   }, []);
 
   // ============================================================================
-  // EFECTO: Configurar departamento y municipios según método de entrega
+  // CONFIGURAR MUNICIPIOS SEGÚN MÉTODO DE ENTREGA
   // ============================================================================
   useEffect(() => {
     if (deliveryMethod === 'local_delivery') {
-      console.log('🚚 Envío local activado - usando configuración HARDCODEADA');
-      console.log('📍 Departamento:', LOCAL_DELIVERY_CONFIG.department);
-      console.log('🏘️ Municipios:', LOCAL_DELIVERY_CONFIG.municipalities);
-      
+      console.log('🚚 Envío local - municipios HARDCODEADOS');
       setShippingAddress(prev => ({
         ...prev,
         state: LOCAL_DELIVERY_CONFIG.department,
@@ -330,18 +313,16 @@ const CheckoutPage = () => {
       } else {
         setAvailableMunicipalities([]);
       }
-    } else if (deliveryMethod === 'pickup_store') {
+    } else {
       setAvailableMunicipalities([]);
     }
   }, [deliveryMethod]);
 
   // ============================================================================
-  // CONFIGURAR OPCIONES DE ENTREGA (usa gymConfig)
+  // CONFIGURAR OPCIONES DE ENTREGA
   // ============================================================================
   useEffect(() => {
     const updateDeliveryOptions = () => {
-      console.log('🚀 Configurando opciones de entrega con gymConfig:', gymConfig);
-
       const options = {
         pickup_store: {
           id: 'pickup_store',
@@ -381,7 +362,7 @@ const CheckoutPage = () => {
       };
 
       setDeliveryOptions(options);
-      console.log('✅ Opciones de entrega configuradas:', options);
+      console.log('✅ Opciones de entrega configuradas');
     };
 
     if (!isLoadingConfig) {
@@ -434,8 +415,6 @@ const CheckoutPage = () => {
         
         if (stripeConfig?.data?.stripe?.enabled) {
           const publishableKey = stripeConfig.data.stripe.publishableKey;
-          console.log('Cargando Stripe...');
-          
           const stripe = await loadStripe(publishableKey);
           setStripePromise(Promise.resolve(stripe));
           setStripeAvailable(true);
@@ -445,11 +424,8 @@ const CheckoutPage = () => {
             memoizedShowInfo('Pagos con tarjeta disponibles');
           }, 100);
         } else {
-          console.warn('Stripe no habilitado en backend');
+          console.warn('Stripe no habilitado');
           setStripeAvailable(false);
-          setTimeout(() => {
-            memoizedShowInfo('Solo pagos en efectivo disponibles');
-          }, 100);
         }
         
         stripeInitialized.current = true;
@@ -457,9 +433,6 @@ const CheckoutPage = () => {
       } catch (error) {
         console.error('Error cargando Stripe:', error);
         setStripeAvailable(false);
-        setTimeout(() => {
-          memoizedShowError('Error cargando sistema de pagos');
-        }, 100);
       } finally {
         stripeInitializing.current = false;
       }
@@ -468,25 +441,16 @@ const CheckoutPage = () => {
     initializeStripe();
   }, []);
 
-  // ============================================================================
-  // ACTUALIZACIÓN DE MUNICIPIOS
-  // ============================================================================
   const updateMunicipalities = useCallback((departmentName) => {
     if (deliveryMethod === 'local_delivery') {
-      console.log('📍 Envío local - municipios HARDCODEADOS');
       return;
     }
     
-    console.log('Actualizando municipios para:', departmentName);
-    
     if (departmentName && DEPARTMENTS.includes(departmentName)) {
       const municipalities = getMunicipalitiesByDepartment(departmentName);
-      console.log('Municipios encontrados:', municipalities.length);
       setAvailableMunicipalities(municipalities);
       
       const postalCode = getPostalCode(departmentName);
-      console.log('Código postal:', postalCode);
-      
       setShippingAddress(prev => {
         if (prev.zipCode !== postalCode) {
           return { ...prev, zipCode: postalCode };
@@ -494,7 +458,6 @@ const CheckoutPage = () => {
         return prev;
       });
     } else {
-      console.log('Limpiando municipios');
       setAvailableMunicipalities([]);
     }
   }, [deliveryMethod]);
@@ -509,7 +472,6 @@ const CheckoutPage = () => {
     if (deliveryMethod !== 'local_delivery' && shippingAddress.state && shippingAddress.municipality) {
       const municipalities = getMunicipalitiesByDepartment(shippingAddress.state);
       if (!municipalities.includes(shippingAddress.municipality)) {
-        console.log('Reseteando municipio inválido');
         setShippingAddress(prev => ({
           ...prev,
           municipality: '',
@@ -570,7 +532,7 @@ const CheckoutPage = () => {
             fieldErrors[name] = 'Selecciona un municipio';
           } else if (deliveryMethod === 'local_delivery') {
             if (!LOCAL_DELIVERY_CONFIG.municipalities.includes(value)) {
-              fieldErrors[name] = 'Municipio no disponible para envío local';
+              fieldErrors[name] = 'Municipio no disponible';
             }
           } else if (!isValidMunicipality(value, shippingAddress.state)) {
             fieldErrors[name] = 'Municipio no válido';
@@ -598,8 +560,6 @@ const CheckoutPage = () => {
   };
 
   const handleInputChange = useCallback((section, field, value) => {
-    console.log(`Cambiando ${section}.${field}`);
-    
     if (section === 'customerInfo') {
       setCustomerInfo(prev => ({ ...prev, [field]: value }));
     } else if (section === 'shippingAddress') {
@@ -607,7 +567,6 @@ const CheckoutPage = () => {
         const newAddress = { ...prev, [field]: value };
         
         if (field === 'municipality' && value) {
-          console.log('Cambiando municipio:', value);
           newAddress.city = value;
           
           if (prev.state) {
@@ -681,13 +640,14 @@ const CheckoutPage = () => {
     
     if (!isValid) {
       console.log('Validación falló:', newErrors);
-    } else {
-      console.log('✅ Validación exitosa');
     }
 
     return isValid;
   };
 
+  // ============================================================================
+  // 🎯 CALCULAR COSTO DE ENVÍO SEGÚN MÉTODO SELECCIONADO
+  // ============================================================================
   const calculateShippingCost = () => {
     const selectedOption = deliveryOptions[deliveryMethod];
     if (!selectedOption) return 0;
@@ -705,11 +665,6 @@ const CheckoutPage = () => {
       console.log('✅ Avanzando al pago');
     } else {
       memoizedShowError('Corrige los errores del formulario');
-      
-      const errorList = Object.values(errors).filter(Boolean);
-      if (errorList.length > 0) {
-        console.log('Errores:', errorList);
-      }
     }
   };
 
@@ -752,6 +707,7 @@ const CheckoutPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* HEADER */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -780,6 +736,7 @@ const CheckoutPage = () => {
         </div>
       </div>
 
+      {/* PROGRESS BAR */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center py-4">
@@ -809,6 +766,7 @@ const CheckoutPage = () => {
         </div>
       </div>
 
+      {/* ALERTA DE PRODUCTOS INVÁLIDOS */}
       {cartHasInvalidItems && step === 1 && (
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
@@ -819,7 +777,7 @@ const CheckoutPage = () => {
                   ⚠️ Productos inválidos detectados
                 </h3>
                 <p className="text-red-800 text-sm mb-3">
-                  Los siguientes productos tienen problemas. Elimínalos para continuar:
+                  Elimina estos productos para continuar:
                 </p>
                 <ul className="space-y-2">
                   {invalidItemsList.map((item, index) => (
@@ -828,7 +786,7 @@ const CheckoutPage = () => {
                         <p className="font-medium text-gray-900">{item.name || 'Producto desconocido'}</p>
                         <p className="text-sm text-red-600">
                           Problemas: 
-                          {item.issues.noPrice && ' Precio inválido o Q0'}
+                          {item.issues.noPrice && ' Precio inválido'}
                           {item.issues.noQuantity && ' Cantidad inválida'}
                           {item.issues.noId && ' Sin ID'}
                         </p>
@@ -848,6 +806,7 @@ const CheckoutPage = () => {
         </div>
       )}
 
+      {/* CONTENIDO PRINCIPAL */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {step === 3 ? (
           <div className="max-w-4xl mx-auto">
@@ -927,6 +886,7 @@ const CheckoutPage = () => {
               )}
             </div>
 
+            {/* RESUMEN DEL PEDIDO */}
             <div className="lg:col-span-1">
               <OrderSummary
                 items={items}
@@ -949,6 +909,9 @@ const CheckoutPage = () => {
   );
 };
 
+// ============================================================================
+// COMPONENTE: CustomerInfoStep
+// ============================================================================
 const CustomerInfoStep = ({ 
   customerInfo, 
   shippingAddress, 
@@ -973,23 +936,13 @@ const CustomerInfoStep = ({
   
   return (
     <div className="space-y-8">
+      {/* INFORMACIÓN DEL CLIENTE */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <User className="w-5 h-5 text-primary-600 mr-2" />
           <h2 className="text-lg font-semibold text-gray-900">
             Información del cliente
           </h2>
-          {!isAuthenticated && (
-            <span className="ml-auto text-sm text-gray-500">
-              ¿Ya tienes cuenta? 
-              <button 
-                onClick={() => window.location.href = '/login'}
-                className="text-primary-600 hover:text-primary-700 ml-1"
-              >
-                Iniciar sesión
-              </button>
-            </span>
-          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1002,7 +955,7 @@ const CustomerInfoStep = ({
               value={customerInfo.name}
               onChange={(e) => onInputChange('customerInfo', 'name', e.target.value)}
               onKeyPress={(e) => onKeyPress(e, 'name')}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
                 errors.name && touched.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
               placeholder="Juan Pérez García"
@@ -1024,7 +977,7 @@ const CustomerInfoStep = ({
               type="email"
               value={customerInfo.email}
               onChange={(e) => onInputChange('customerInfo', 'email', e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
                 errors.email && touched.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
               placeholder="juan@example.com"
@@ -1041,17 +994,16 @@ const CustomerInfoStep = ({
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Teléfono *
-              <span className="text-gray-500 font-normal ml-1">(WhatsApp preferido)</span>
             </label>
             <input
               type="tel"
               value={customerInfo.phone}
               onChange={(e) => onInputChange('customerInfo', 'phone', e.target.value)}
               onKeyPress={(e) => onKeyPress(e, 'phone')}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
                 errors.phone && touched.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
               }`}
-              placeholder="5555-5555 o +502 5555-5555"
+              placeholder="5555-5555"
             />
             {errors.phone && touched.phone && (
               <div className="flex items-center mt-1 text-red-600 text-sm">
@@ -1063,6 +1015,7 @@ const CustomerInfoStep = ({
         </div>
       </div>
 
+      {/* MÉTODO DE ENTREGA */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Truck className="w-5 h-5 text-primary-600 mr-2" />
@@ -1071,130 +1024,59 @@ const CustomerInfoStep = ({
           </h2>
         </div>
 
-        {isLoadingConfig ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-primary-600 mr-2" />
-            <span className="text-gray-600">Cargando opciones...</span>
-          </div>
-        ) : Object.keys(deliveryOptions).length === 0 ? (
-          <div className="text-center py-8">
-            <AlertCircle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-            <p className="text-gray-600 font-medium">Opciones no disponibles</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="mt-3 text-primary-600 hover:text-primary-700 text-sm underline"
-            >
-              Reintentar
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {Object.values(deliveryOptions).map((option) => {
-              const Icon = option.icon;
-              const isSelected = deliveryMethod === option.id;
-              
-              return (
-                <button
-                  key={option.id}
-                  onClick={() => setDeliveryMethod(option.id)}
-                  className={`w-full p-4 border rounded-lg text-left transition-colors ${
-                    isSelected
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start">
-                      <Icon className={`w-5 h-5 mr-3 mt-0.5 ${
-                        option.color === 'green' ? 'text-green-600' :
-                        option.color === 'blue' ? 'text-blue-600' :
-                        'text-purple-600'
-                      }`} />
-                      <div>
-                        <div className="font-medium text-gray-900">{option.name}</div>
-                        <div className="text-sm text-gray-600 mb-2">{option.description}</div>
-                        
-                        <div className="text-sm space-y-1">
-                          <div className="flex items-center text-gray-700">
-                            <span className="font-medium">{option.timeframe}</span>
-                          </div>
-                          
-                          {option.address && (
-                            <div className="text-gray-600">
-                              📍 {option.address}
-                            </div>
-                          )}
-                          
-                          {option.hours && (
-                            <div className="text-gray-600">
-                              🕐 {option.hours}
-                            </div>
-                          )}
-                          
-                          {option.coverage && (
-                            <div className="text-gray-600">
-                              🌍 {option.coverage}
-                            </div>
-                          )}
+        <div className="space-y-3">
+          {Object.values(deliveryOptions).map((option) => {
+            const Icon = option.icon;
+            const isSelected = deliveryMethod === option.id;
+            
+            return (
+              <button
+                key={option.id}
+                onClick={() => setDeliveryMethod(option.id)}
+                className={`w-full p-4 border rounded-lg text-left transition-colors ${
+                  isSelected
+                    ? 'border-primary-500 bg-primary-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start">
+                    <Icon className={`w-5 h-5 mr-3 mt-0.5 ${
+                      option.color === 'green' ? 'text-green-600' :
+                      option.color === 'blue' ? 'text-blue-600' :
+                      'text-purple-600'
+                    }`} />
+                    <div>
+                      <div className="font-medium text-gray-900">{option.name}</div>
+                      <div className="text-sm text-gray-600 mb-2">{option.description}</div>
+                      
+                      <div className="text-sm space-y-1">
+                        <div className="flex items-center text-gray-700">
+                          <span className="font-medium">{option.timeframe}</span>
                         </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      <div className="font-bold text-lg">
-                        {option.cost === 0 ? 'Gratis' : `Q${option.cost.toFixed(2)}`}
+                        
+                        {option.coverage && (
+                          <div className="text-gray-600">
+                            🌍 {option.coverage}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {deliveryMethod && deliveryOptions[deliveryMethod] && (
-          <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <div className="text-sm text-gray-700">
-              {deliveryMethod === 'pickup_store' && (
-                <>
-                  <p className="font-medium mb-1">Instrucciones de recogida:</p>
-                  <ul className="space-y-1 text-xs">
-                    <li>✅ Recibirás un SMS cuando tu pedido esté listo</li>
-                    <li>🆔 Presenta tu número de pedido o documento</li>
-                    {gymConfig.hours.full && <li>🕐 Horario: {gymConfig.hours.full}</li>}
-                    {gymConfig.location.addressFull && <li>📍 Ubicación: {gymConfig.location.addressFull}</li>}
-                  </ul>
-                </>
-              )}
-              
-              {deliveryMethod === 'local_delivery' && (
-                <>
-                  <p className="font-medium mb-1">Entrega local - {LOCAL_DELIVERY_CONFIG.department}:</p>
-                  <ul className="space-y-1 text-xs">
-                    <li>✅ Municipios: {LOCAL_DELIVERY_CONFIG.municipalities.join(', ')}</li>
-                    <li>⏱️ Entrega en días específicos</li>
-                    <li>💵 Costo: Q25.00</li>
-                    <li>📱 Te contactaremos para coordinar el día de entrega</li>
-                  </ul>
-                </>
-              )}
-              
-              {deliveryMethod === 'national_delivery' && (
-                <>
-                  <p className="font-medium mb-1">Entrega nacional:</p>
-                  <ul className="space-y-1 text-xs">
-                    <li>🌍 {gymConfig.location.country ? `Todos los departamentos de ${gymConfig.location.country}` : 'Cobertura nacional'}</li>
-                    <li>⏱️ 3-5 días hábiles</li>
-                    <li>💵 Costo: Q45.00</li>
-                    <li>📱 Seguimiento por WhatsApp</li>
-                  </ul>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+                  
+                  <div className="text-right">
+                    <div className="font-bold text-lg">
+                      {option.cost === 0 ? 'Gratis' : `Q${option.cost.toFixed(2)}`}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
+      {/* DIRECCIÓN DE ENTREGA */}
       {deliveryMethod !== 'pickup_store' && (
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex items-center mb-4">
@@ -1210,13 +1092,10 @@ const CustomerInfoStep = ({
                 <Info className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
                   <p className="font-semibold text-blue-900 mb-1">
-                    📍 Envío Local - Solo {LOCAL_DELIVERY_CONFIG.department}
+                    📍 Envío Local - {localDeliveryConfig.department}
                   </p>
                   <p className="text-blue-800">
-                    Municipios disponibles: <strong>{LOCAL_DELIVERY_CONFIG.municipalities.join(', ')}</strong>
-                  </p>
-                  <p className="text-blue-700 mt-1 text-xs">
-                    ⏱️ Entrega en días específicos - Te contactaremos para coordinar
+                    Municipios: <strong>{localDeliveryConfig.municipalities.join(', ')}</strong>
                   </p>
                 </div>
               </div>
@@ -1232,10 +1111,10 @@ const CustomerInfoStep = ({
                 type="text"
                 value={shippingAddress.street}
                 onChange={(e) => onInputChange('shippingAddress', 'street', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
                   errors.street && touched.street ? 'border-red-500 bg-red-50' : 'border-gray-300'
                 }`}
-                placeholder="5ta Avenida 12-34, Zona 10"
+                placeholder="5ta Avenida 12-34"
               />
               {errors.street && touched.street && (
                 <div className="flex items-center mt-1 text-red-600 text-sm">
@@ -1260,18 +1139,18 @@ const CustomerInfoStep = ({
                 {isDepartmentLocked ? (
                   <div className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-blue-900 font-medium flex items-center">
                     <Lock className="w-4 h-4 mr-2" />
-                    {LOCAL_DELIVERY_CONFIG.department}
+                    {localDeliveryConfig.department}
                   </div>
                 ) : (
                   <select
                     value={shippingAddress.state}
                     onChange={(e) => onInputChange('shippingAddress', 'state', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
                       errors.state && touched.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
                     }`}
                   >
                     <option value="">Seleccionar</option>
-                    {DEPARTMENTS && DEPARTMENTS.map(dept => (
+                    {DEPARTMENTS.map(dept => (
                       <option key={dept} value={dept}>{dept}</option>
                     ))}
                   </select>
@@ -1291,13 +1170,12 @@ const CustomerInfoStep = ({
                 <select
                   value={shippingAddress.municipality}
                   onChange={(e) => onInputChange('shippingAddress', 'municipality', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 ${
                     errors.municipality && touched.municipality ? 'border-red-500 bg-red-50' : 'border-gray-300'
                   }`}
-                  disabled={!shippingAddress.state && deliveryMethod !== 'local_delivery'}
                 >
                   <option value="">Seleccionar</option>
-                  {availableMunicipalities && availableMunicipalities.map(mun => (
+                  {availableMunicipalities.map(mun => (
                     <option key={mun} value={mun}>{mun}</option>
                   ))}
                 </select>
@@ -1319,7 +1197,6 @@ const CustomerInfoStep = ({
                   type="text"
                   value={shippingAddress.zipCode}
                   className="w-full px-3 py-2 border border-gray-300 bg-gray-50 rounded-lg"
-                  placeholder="Automático"
                   readOnly
                 />
               </div>
@@ -1332,8 +1209,8 @@ const CustomerInfoStep = ({
                   type="text"
                   value={shippingAddress.reference}
                   onChange={(e) => onInputChange('shippingAddress', 'reference', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Casa blanca, portón negro"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  placeholder="Casa blanca"
                 />
               </div>
             </div>
@@ -1341,6 +1218,7 @@ const CustomerInfoStep = ({
         </div>
       )}
 
+      {/* NOTAS */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center mb-4">
           <Package className="w-5 h-5 text-primary-600 mr-2" />
@@ -1352,13 +1230,9 @@ const CustomerInfoStep = ({
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
           rows="3"
-          placeholder={
-            deliveryMethod === 'pickup_store' 
-              ? "Instrucciones para preparar tu pedido..."
-              : "Instrucciones para la entrega, horario preferido..."
-          }
+          placeholder="Instrucciones adicionales..."
         />
       </div>
     </div>
