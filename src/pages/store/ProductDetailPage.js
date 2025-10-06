@@ -1,6 +1,5 @@
 // src/pages/store/ProductDetailPage.js
-// Autor: Alexander Echeverria
-// VERSIÓN CORREGIDA: Imágenes e información visible
+// VERSIÓN FINAL CORREGIDA: SKU correcto, sin reseñas, sin peso
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -46,18 +45,51 @@ const ProductDetailPage = () => {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 Cargando producto:', productId);
+      console.log('🔍 Cargando producto ID:', productId);
 
-      // Cargar producto
+      // ✅ MANEJO CORRECTO DE LA RESPUESTA DEL API
       const productResponse = await apiService.get(`/store/products/${productId}`);
       
-      console.log('📦 Respuesta del producto:', productResponse?.data);
+      console.log('📦 Respuesta completa del API:', productResponse);
 
-      if (productResponse?.data) {
-        const productData = productResponse.data;
-        
-        // Verificar estructura de imágenes
-        console.log('🖼️ Imágenes del producto:', productData.images);
+      // ✅ VERIFICAR ESTRUCTURA DE RESPUESTA
+      let productData = null;
+      
+      // Caso 1: Respuesta con estructura { success: true, data: { product: {...} } }
+      if (productResponse?.data?.product) {
+        productData = productResponse.data.product;
+        console.log('✅ Estructura tipo 1: data.product');
+      }
+      // Caso 2: Respuesta directa { data: { ...producto } }
+      else if (productResponse?.data && productResponse.data.id) {
+        productData = productResponse.data;
+        console.log('✅ Estructura tipo 2: data directa');
+      }
+      // Caso 3: Respuesta directa como objeto
+      else if (productResponse?.id) {
+        productData = productResponse;
+        console.log('✅ Estructura tipo 3: objeto directo');
+      }
+
+      if (productData) {
+        console.log('✅ Producto cargado:', {
+          id: productData.id,
+          name: productData.name,
+          sku: productData.sku,
+          price: productData.price,
+          hasImages: !!productData.images?.length,
+          imagesCount: productData.images?.length || 0
+        });
+
+        // ✅ VERIFICAR Y LOGGEAR IMÁGENES
+        if (productData.images && Array.isArray(productData.images)) {
+          console.log('🖼️ Imágenes disponibles:', productData.images.length);
+          productData.images.forEach((img, idx) => {
+            console.log(`  ${idx + 1}. ${img.isPrimary ? '⭐' : '📸'} ${img.imageUrl?.substring(0, 60)}...`);
+          });
+        } else {
+          console.log('⚠️ Sin imágenes o formato incorrecto');
+        }
         
         setProduct(productData);
         
@@ -72,19 +104,38 @@ const ProductDetailPage = () => {
               }
             });
 
+            // ✅ MANEJO CORRECTO DE PRODUCTOS RELACIONADOS
+            let relatedData = [];
             if (relatedResponse?.data?.products) {
-              // Filtrar el producto actual
-              const filtered = relatedResponse.data.products.filter(p => p.id !== productId);
-              setRelatedProducts(filtered.slice(0, 4));
+              relatedData = relatedResponse.data.products;
+            } else if (Array.isArray(relatedResponse?.data)) {
+              relatedData = relatedResponse.data;
+            } else if (Array.isArray(relatedResponse)) {
+              relatedData = relatedResponse;
             }
+
+            // Filtrar el producto actual
+            const filtered = relatedData.filter(p => p.id !== productId);
+            setRelatedProducts(filtered.slice(0, 4));
+            
+            console.log('✅ Productos relacionados:', filtered.length);
+
           } catch (relatedError) {
-            console.warn('No se pudieron cargar productos relacionados:', relatedError);
+            console.warn('⚠️ No se pudieron cargar productos relacionados:', relatedError.message);
           }
         }
+      } else {
+        console.error('❌ No se pudo extraer el producto de la respuesta');
+        setError('Formato de respuesta inválido');
       }
     } catch (error) {
       console.error('❌ Error cargando producto:', error);
-      console.error('Error completo:', error.response?.data || error.message);
+      console.error('Detalles del error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
       setError('No se pudo cargar el producto');
       showError('Error al cargar el producto');
     } finally {
@@ -98,20 +149,25 @@ const ProductDetailPage = () => {
     try {
       setAddingToCart(true);
 
-      const options = {
-        ...selectedOptions,
-        quantity
+      // ✅ FORMATEAR DATOS PARA EL CARRITO CORRECTAMENTE
+      const cartData = {
+        productId: product.id,
+        quantity: quantity,
+        selectedVariants: selectedOptions
       };
 
-      await addItem(product, options);
+      console.log('🛒 Agregando al carrito:', cartData);
+
+      await addItem(product, { quantity, ...selectedOptions });
+      
       showSuccess(`${product.name} agregado al carrito`);
       
       // Reset
       setQuantity(1);
       setSelectedOptions({});
     } catch (error) {
-      console.error('Error agregando al carrito:', error);
-      showError('Error al agregar al carrito');
+      console.error('❌ Error agregando al carrito:', error);
+      showError(error.message || 'Error al agregar al carrito');
     } finally {
       setAddingToCart(false);
     }
@@ -148,17 +204,21 @@ const ProductDetailPage = () => {
     );
   }
 
-  // Obtener imágenes correctamente
+  // ✅ OBTENER IMÁGENES CORRECTAMENTE
   const images = product.images || [];
   const primaryImage = images.find(img => img.isPrimary) || images[0];
   const currentImage = images[selectedImage] || primaryImage || {};
   
-  console.log('🎨 Imagen actual a mostrar:', currentImage);
-  console.log('📸 Todas las imágenes:', images);
+  console.log('🎨 Renderizando imagen actual:', {
+    selectedIndex: selectedImage,
+    totalImages: images.length,
+    currentImageUrl: currentImage.imageUrl
+  });
   
-  // Verificar stock
-  const inStock = product.inStock !== false && (product.stockQuantity === undefined || product.stockQuantity > 0);
-  const lowStock = inStock && product.stockQuantity && product.stockQuantity <= 5;
+  // ✅ VERIFICAR STOCK CORRECTAMENTE
+  const hasStockQuantity = product.stockQuantity !== undefined && product.stockQuantity !== null;
+  const inStock = product.inStock !== false && (!hasStockQuantity || product.stockQuantity > 0);
+  const lowStock = inStock && hasStockQuantity && product.stockQuantity <= 5;
   
   const discount = product.originalPrice && product.originalPrice > product.price 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -229,9 +289,10 @@ const ProductDetailPage = () => {
                     className="object-contain w-full h-full"
                     onError={(e) => {
                       console.error('❌ Error cargando imagen:', e.target.src);
-                      e.target.src = '/api/placeholder/600/600';
+                      e.target.onerror = null;
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%23f0f0f0" width="400" height="400"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" font-size="24"%3ESin imagen%3C/text%3E%3C/svg%3E';
                     }}
-                    onLoad={() => console.log('✅ Imagen cargada exitosamente')}
+                    onLoad={() => console.log('✅ Imagen cargada:', currentImage.imageUrl)}
                   />
                 ) : (
                   <div className="text-center text-gray-400">
@@ -273,7 +334,7 @@ const ProductDetailPage = () => {
                   <button
                     key={index}
                     onClick={() => {
-                      console.log(`🖱️ Seleccionando imagen ${index}:`, image);
+                      console.log(`🖱️ Seleccionando imagen ${index}:`, image.imageUrl);
                       setSelectedImage(index);
                     }}
                     className={`bg-white rounded-lg overflow-hidden border-2 transition-all ${
@@ -290,7 +351,8 @@ const ProductDetailPage = () => {
                           className="object-contain w-full h-full"
                           onError={(e) => {
                             console.error('❌ Error en thumbnail:', e.target.src);
-                            e.target.src = '/api/placeholder/150/150';
+                            e.target.onerror = null;
+                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23f0f0f0" width="100" height="100"/%3E%3C/svg%3E';
                           }}
                         />
                       ) : (
@@ -318,7 +380,7 @@ const ProductDetailPage = () => {
                   <div className="flex items-center space-x-1">
                     <Star className="w-5 h-5 text-yellow-400 fill-current" />
                     <span className="font-semibold text-gray-900">{product.rating}</span>
-                    <span className="text-gray-500 text-sm">({product.reviews || 0} reseñas)</span>
+                    <span className="text-gray-500 text-sm">({product.reviewsCount || 0})</span>
                   </div>
                 )}
               </div>
@@ -358,7 +420,7 @@ const ProductDetailPage = () => {
                   <Check className="w-5 h-5 text-green-500" />
                   <span className="text-green-700 font-medium">
                     En stock
-                    {product.stockQuantity && (
+                    {hasStockQuantity && (
                       <span className="text-gray-600"> - {product.stockQuantity} disponibles</span>
                     )}
                   </span>
@@ -368,7 +430,7 @@ const ProductDetailPage = () => {
                   <Clock className="w-5 h-5 text-orange-600" />
                   <div>
                     <span className="text-orange-700 font-medium block">Disponible bajo pedido</span>
-                    <span className="text-sm text-orange-600">Lo podemos conseguir para ti, contáctanos</span>
+                    <span className="text-sm text-orange-600">Lo podemos conseguir para ti</span>
                   </div>
                 </div>
               )}
@@ -446,14 +508,16 @@ const ProductDetailPage = () => {
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                    disabled={!inStock}
+                    className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50"
                   >
                     <Minus className="w-5 h-5" />
                   </button>
                   <span className="text-2xl font-bold w-16 text-center">{quantity}</span>
                   <button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                    disabled={!inStock}
+                    className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50"
                   >
                     <Plus className="w-5 h-5" />
                   </button>
@@ -463,7 +527,7 @@ const ProductDetailPage = () => {
               {/* Botón agregar al carrito */}
               <button
                 onClick={handleAddToCart}
-                disabled={addingToCart}
+                disabled={addingToCart || !inStock}
                 className="w-full py-4 rounded-lg font-semibold text-lg transition-all flex items-center justify-center space-x-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:shadow-lg disabled:opacity-50"
               >
                 {addingToCart ? (
@@ -529,7 +593,7 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        {/* Tabs de información - CORREGIDO Y MEJORADO */}
+        {/* Tabs de información */}
         <div className="bg-white rounded-2xl shadow-lg mb-12">
           <div className="border-b border-gray-200">
             <div className="flex space-x-8 px-6">
@@ -553,18 +617,6 @@ const ProductDetailPage = () => {
               >
                 Especificaciones
               </button>
-              {product.rating && (
-                <button
-                  onClick={() => setActiveTab('reviews')}
-                  className={`py-4 px-2 border-b-2 font-medium transition-colors ${
-                    activeTab === 'reviews'
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Reseñas ({product.reviews || 0})
-                </button>
-              )}
             </div>
           </div>
 
@@ -577,14 +629,12 @@ const ProductDetailPage = () => {
                       {product.description}
                     </p>
                     
-                    {/* Información adicional si existe */}
                     {product.longDescription && (
                       <div className="mt-6 text-gray-600 leading-relaxed">
                         {product.longDescription}
                       </div>
                     )}
                     
-                    {/* Características si existen */}
                     {product.features && product.features.length > 0 && (
                       <div className="mt-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-3">Características:</h3>
@@ -610,8 +660,15 @@ const ProductDetailPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex justify-between py-3 border-b border-gray-200">
                     <span className="font-medium text-gray-900">SKU:</span>
-                    <span className="text-gray-600">{product.id}</span>
+                    <span className="text-gray-600">{product.sku || product.id}</span>
                   </div>
+                  
+                  {product.id && (
+                    <div className="flex justify-between py-3 border-b border-gray-200">
+                      <span className="font-medium text-gray-900">ID Producto:</span>
+                      <span className="text-gray-600">{product.id}</span>
+                    </div>
+                  )}
                   
                   {product.brand && (
                     <div className="flex justify-between py-3 border-b border-gray-200">
@@ -636,17 +693,10 @@ const ProductDetailPage = () => {
                     <span className="text-gray-600">{inStock ? 'En stock' : 'Bajo pedido'}</span>
                   </div>
                   
-                  {product.stockQuantity && (
+                  {hasStockQuantity && (
                     <div className="flex justify-between py-3 border-b border-gray-200">
                       <span className="font-medium text-gray-900">Stock:</span>
                       <span className="text-gray-600">{product.stockQuantity} unidades</span>
-                    </div>
-                  )}
-                  
-                  {product.weight && (
-                    <div className="flex justify-between py-3 border-b border-gray-200">
-                      <span className="font-medium text-gray-900">Peso:</span>
-                      <span className="text-gray-600">{product.weight}</span>
                     </div>
                   )}
                   
@@ -658,7 +708,6 @@ const ProductDetailPage = () => {
                   )}
                 </div>
                 
-                {/* Especificaciones técnicas adicionales */}
                 {product.specifications && Object.keys(product.specifications).length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Especificaciones Técnicas:</h3>
@@ -672,18 +721,6 @@ const ProductDetailPage = () => {
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {activeTab === 'reviews' && (
-              <div className="text-center py-8">
-                <Star className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Próximamente
-                </h3>
-                <p className="text-gray-600">
-                  Las reseñas de clientes estarán disponibles pronto
-                </p>
               </div>
             )}
           </div>
@@ -728,7 +765,7 @@ const ProductDetailPage = () => {
 // Componente de tarjeta de producto relacionado
 const RelatedProductCard = ({ product, currencySymbol, onNavigate }) => {
   const primaryImage = product.images?.find(img => img.isPrimary) || product.images?.[0];
-  const imageUrl = primaryImage?.imageUrl || '/api/placeholder/300/300';
+  const imageUrl = primaryImage?.imageUrl;
 
   return (
     <div
@@ -742,7 +779,9 @@ const RelatedProductCard = ({ product, currencySymbol, onNavigate }) => {
             alt={product.name}
             className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300"
             onError={(e) => {
-              e.target.src = '/api/placeholder/300/300';
+              console.error('❌ Error en imagen relacionada:', e.target.src);
+              e.target.onerror = null;
+              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="300"%3E%3Crect fill="%23f0f0f0" width="300" height="300"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3ESin imagen%3C/text%3E%3C/svg%3E';
             }}
           />
         ) : (
