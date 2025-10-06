@@ -1,29 +1,32 @@
 // src/pages/store/StorePage.js
 // Autor: Alexander Echeverria
-// VERSIÓN FINAL: Colores mejorados + Header bonito + Navegación a detalle
+// VERSIÓN CORREGIDA: Logo del gym en header + Colores mejorados
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Filter, Search, Grid, List, Star, Heart, Eye, Plus, Minus,
-  Package, Loader2, AlertCircle, RefreshCw,
+  Package, Loader2, AlertCircle, RefreshCw, Dumbbell,
   X, ArrowLeft, ShoppingBag, Sparkles
 } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
+import useGymConfig from '../../hooks/useGymConfig';
 import apiService from '../../services/apiService';
 import gymConfigDefault from '../../config/gymConfig';
+import GymLogo from '../../components/common/GymLogo';
 
 const StorePage = () => {
   const { addItem, isLoading: cartLoading, sessionInfo, debugGuestCart } = useCart();
   const { isAuthenticated, user } = useAuth();
-  const { showSuccess, showError, showInfo } = useApp();
+  const { showSuccess, showError, showInfo, isMobile } = useApp();
+  const { config } = useGymConfig();
   const navigate = useNavigate();
   
   const currencySymbol = gymConfigDefault.regional.currencySymbol;
   const freeShippingThreshold = gymConfigDefault.shipping.freeShippingThreshold;
-  const gymName = gymConfigDefault.name;
+  const gymName = config?.name || gymConfigDefault.name;
   
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -247,7 +250,7 @@ const StorePage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
       
-      {/* ALERTA DE PERSISTENCIA - SOLO SI HAY PROBLEMAS */}
+      {/* ALERTA DE PERSISTENCIA */}
       {!isAuthenticated && showPersistenceAlert && (
         <div className="fixed top-4 right-4 z-50 max-w-sm animate-slide-in">
           <div className={`p-4 rounded-xl shadow-2xl border-2 backdrop-blur-sm ${
@@ -283,7 +286,7 @@ const StorePage = () => {
         </div>
       )}
       
-      {/* HEADER MEJORADO Y BONITO */}
+      {/* HEADER CORREGIDO CON LOGO */}
       <div className="bg-white/90 backdrop-blur-lg shadow-lg border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
@@ -330,19 +333,31 @@ const StorePage = () => {
               </div>
             </div>
             
-            {/* Sección derecha: Badge de productos */}
+            {/* Sección derecha: LOGO DEL GIMNASIO */}
             <div className="hidden md:block">
-              <div className="bg-gradient-to-r from-primary-50 to-secondary-50 px-6 py-3 rounded-xl border border-primary-200 shadow-sm">
-                <div className="flex items-center space-x-2">
-                  <Package className="w-5 h-5 text-primary-600" />
-                  <div className="text-left">
-                    <p className="text-xs text-gray-600 font-medium">Productos disponibles</p>
-                    <p className="text-sm font-bold text-primary-600">
-                      {pagination?.total || products.length} artículos
-                    </p>
+              {config && config.logo && config.logo.url ? (
+                <div className="flex items-center space-x-3 bg-white px-6 py-3 rounded-xl border-2 border-primary-200 shadow-sm">
+                  <img 
+                    src={config.logo.url}
+                    alt={config.logo.alt || gymName}
+                    className="h-12 w-auto object-contain"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="hidden items-center justify-center bg-primary-600 rounded-xl w-12 h-12">
+                    <Dumbbell className="text-white w-6 h-6" />
                   </div>
                 </div>
-              </div>
+              ) : (
+                <GymLogo 
+                  size="md" 
+                  variant="professional" 
+                  showText={false} 
+                  priority="high" 
+                />
+              )}
             </div>
           </div>
         </div>
@@ -351,7 +366,7 @@ const StorePage = () => {
       {/* CONTENIDO PRINCIPAL */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* BARRA DE BUSQUEDA MEJORADA */}
+        {/* BARRA DE BUSQUEDA */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
             
@@ -405,7 +420,7 @@ const StorePage = () => {
         
         <div className="flex gap-8">
           
-          {/* SIDEBAR DE FILTROS MEJORADO */}
+          {/* SIDEBAR DE FILTROS */}
           <div className={`w-72 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 sticky top-28 border border-gray-100">
               
@@ -510,7 +525,7 @@ const StorePage = () => {
             </div>
           </div>
           
-          {/* LISTA DE PRODUCTOS - ESTRUCTURA ORIGINAL MANTENIDA */}
+          {/* LISTA DE PRODUCTOS */}
           <div className="flex-1">
             
             {loading && (
@@ -592,7 +607,7 @@ const StorePage = () => {
                   </div>
                 )}
                 
-                {/* Paginación mejorada */}
+                {/* Paginación */}
                 {pagination && pagination.pages > 1 && (
                   <div className="mt-12 flex items-center justify-center space-x-2">
                     <button
@@ -638,7 +653,7 @@ const StorePage = () => {
   );
 };
 
-// COMPONENTE: Tarjeta de producto - ESTRUCTURA ORIGINAL MANTENIDA
+// COMPONENTE: Tarjeta de producto
 const ProductCard = ({ product, viewMode, onAddToCart, onNavigate, isAuthenticated, persistenceStatus, currencySymbol = 'Q' }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [quantity, setQuantity] = useState(1);
@@ -755,7 +770,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, onNavigate, isAuthenticat
       className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden group hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-100"
     >
       
-      {/* Imagen del producto - MANTENIDA COMO ESTABA */}
+      {/* Imagen del producto */}
       <div className="relative overflow-hidden">
         <img 
           src={imageUrl}
@@ -763,7 +778,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, onNavigate, isAuthenticat
           className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
         />
         
-        {/* Badges mejorados con gradientes */}
+        {/* Badges */}
         <div className="absolute top-4 left-4 space-y-2">
           {discount > 0 && (
             <span className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
@@ -806,7 +821,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, onNavigate, isAuthenticat
         </div>
       </div>
       
-      {/* Contenido - ESTRUCTURA ORIGINAL */}
+      {/* Contenido */}
       <div className="p-6">
         
         {/* Marca y rating */}
@@ -834,7 +849,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, onNavigate, isAuthenticat
           {product.description}
         </p>
         
-        {/* Variantes - Solo mostrar si hay opciones */}
+        {/* Variantes */}
         {product.variants?.colors && (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -976,7 +991,6 @@ const ProductCard = ({ product, viewMode, onAddToCart, onNavigate, isAuthenticat
 };
 
 export default StorePage;
-
 
 
 /*
