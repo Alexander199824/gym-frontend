@@ -1,5 +1,7 @@
 // src/pages/dashboard/landing/LandingStore.js
-// SECCIÓN DE TIENDA CON PRODUCTOS - VERSIÓN LIMPIA SIN BADGES
+// SECCIÓN DE TIENDA CON PRODUCTOS - VERSIÓN CORREGIDA COMPLETA
+// FIX: Corregida la propiedad de imagen de 'url' a 'imageUrl'
+// FIX: Cambiado object-cover a object-contain para mostrar imagen completa
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -145,6 +147,11 @@ const LandingStore = ({
 const MobileProductCard = ({ product, onAddToCart, currencySymbol = 'Q' }) => {
   const [isAdding, setIsAdding] = useState(false);
 
+  // FIX: Obtener imagen correctamente usando imageUrl
+  const primaryImage = product.images?.find(img => img.isPrimary) || product.images?.[0];
+  const imageUrl = primaryImage?.imageUrl || "/api/placeholder/300/225";
+  const imageAlt = primaryImage?.altText || product.name;
+
   const handleAdd = async () => {
     if (isAdding) return;
 
@@ -160,11 +167,15 @@ const MobileProductCard = ({ product, onAddToCart, currencySymbol = 'Q' }) => {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-      <div className="aspect-w-4 aspect-h-3">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center h-40">
         <img 
-          src={product.images?.[0]?.url || "/api/placeholder/300/225"}
-          alt={product.name}
-          className="object-cover w-full h-40"
+          src={imageUrl}
+          alt={imageAlt}
+          className="object-contain w-full h-full max-h-40 p-3"
+          onError={(e) => {
+            console.error('Error cargando imagen:', imageUrl);
+            e.target.src = '/api/placeholder/300/225';
+          }}
         />
       </div>
       <div className="p-4">
@@ -198,6 +209,11 @@ const MobileProductCard = ({ product, onAddToCart, currencySymbol = 'Q' }) => {
 const ProductPreviewCard = ({ product, onAddToCart, currencySymbol = 'Q' }) => {
   const [isAdding, setIsAdding] = useState(false);
 
+  // FIX: Obtener imagen correctamente usando imageUrl
+  const primaryImage = product.images?.find(img => img.isPrimary) || product.images?.[0];
+  const imageUrl = primaryImage?.imageUrl || "/api/placeholder/300/225";
+  const imageAlt = primaryImage?.altText || product.name;
+
   const handleAdd = async () => {
     if (isAdding) return;
 
@@ -213,11 +229,15 @@ const ProductPreviewCard = ({ product, onAddToCart, currencySymbol = 'Q' }) => {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-      <div className="aspect-w-4 aspect-h-3">
+      <div className="bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center h-48">
         <img 
-          src={product.images?.[0]?.url || "/api/placeholder/300/225"}
-          alt={product.name}
-          className="object-cover w-full h-48"
+          src={imageUrl}
+          alt={imageAlt}
+          className="object-contain w-full h-full max-h-48 p-4"
+          onError={(e) => {
+            console.error('Error cargando imagen:', imageUrl);
+            e.target.src = '/api/placeholder/300/225';
+          }}
         />
       </div>
       <div className="p-6">
@@ -246,6 +266,8 @@ const ProductPreviewCard = ({ product, onAddToCart, currencySymbol = 'Q' }) => {
 };
 
 export default LandingStore;
+
+
 
 /**
  * DOCUMENTACIÓN DEL COMPONENTE LandingStore

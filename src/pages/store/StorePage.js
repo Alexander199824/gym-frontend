@@ -1,45 +1,36 @@
 // src/pages/store/StorePage.js
 // Autor: Alexander Echeverria
-// VERSIÓN ACTUALIZADA: Usa gymConfig centralizado sin datos hardcodeados
-
-// FUNCION: Página de tienda MEJORADA - Integración robusta con carrito persistente para invitados
-// MEJORAS: Persistencia garantizada, Feedback mejorado, Recovery automático, Debug integrado
+// VERSIÓN FINAL: Colores mejorados + Header bonito + Navegación a detalle
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Filter, Search, Grid, List, Star, Heart, Eye, Plus, Minus,
-  Package, Truck, Shield, Award, Loader2, AlertCircle, RefreshCw,
-  X, ArrowLeft, CheckCircle, Wifi, WifiOff
+  Package, Loader2, AlertCircle, RefreshCw,
+  X, ArrowLeft, ShoppingBag, Sparkles
 } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
 import apiService from '../../services/apiService';
-
-// IMPORTAR CONFIGURACIÓN CENTRALIZADA
 import gymConfigDefault from '../../config/gymConfig';
 
 const StorePage = () => {
   const { addItem, isLoading: cartLoading, sessionInfo, debugGuestCart } = useCart();
   const { isAuthenticated, user } = useAuth();
   const { showSuccess, showError, showInfo } = useApp();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   
-  // Obtener configuración centralizada
   const currencySymbol = gymConfigDefault.regional.currencySymbol;
   const freeShippingThreshold = gymConfigDefault.shipping.freeShippingThreshold;
   const gymName = gymConfigDefault.name;
   
-  // Estados para datos del backend - MANTIENE TODA LA FUNCIONALIDAD
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState(null);
-  
-  // Estados para filtros y UI - MANTIENE TODA LA FUNCIONALIDAD
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,34 +41,25 @@ const StorePage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(20);
-  
-  // NUEVOS ESTADOS: Para seguimiento de persistencia
   const [persistenceStatus, setPersistenceStatus] = useState('checking');
   const [showPersistenceAlert, setShowPersistenceAlert] = useState(false);
   
-  // EFECTO: Cargar datos iniciales - MANTIENE TODA LA FUNCIONALIDAD
   useEffect(() => {
     loadInitialData();
   }, []);
   
-  // EFECTO: Recargar productos cuando cambien los filtros - MANTIENE TODA LA FUNCIONALIDAD
   useEffect(() => {
     loadProducts();
   }, [selectedCategory, selectedBrand, searchQuery, sortBy, sortOrder, priceRange, currentPage]);
   
-  // NUEVO EFECTO: Verificar persistencia del carrito para invitados
   useEffect(() => {
     if (!isAuthenticated) {
       checkCartPersistence();
-      
-      // Verificar periódicamente
-      const interval = setInterval(checkCartPersistence, 10000); // Cada 10 segundos
-      
+      const interval = setInterval(checkCartPersistence, 10000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
   
-  // NUEVA FUNCION: Verificar persistencia del carrito
   const checkCartPersistence = () => {
     try {
       const hasCartData = !!localStorage.getItem('elite_fitness_cart');
@@ -95,26 +77,14 @@ const StorePage = () => {
       } else {
         setPersistenceStatus('authenticated');
       }
-      
-      console.log('Verificación de persistencia del carrito:', {
-        hasCartData,
-        hasSessionId,
-        sessionIdInContext,
-        status: persistenceStatus
-      });
-      
     } catch (error) {
       console.error('Error verificando persistencia del carrito:', error);
       setPersistenceStatus('error');
     }
   };
   
-  // FUNCION: Cargar datos iniciales - MANTIENE TODA LA FUNCIONALIDAD
   const loadInitialData = async () => {
     try {
-      console.log('Cargando datos iniciales de la tienda...');
-      
-      // Cargar categorías y marcas en paralelo
       const [categoriesResult, brandsResult] = await Promise.all([
         apiService.get('/store/categories').catch(err => {
           console.warn('Endpoint de categorías no disponible:', err.message);
@@ -126,47 +96,36 @@ const StorePage = () => {
         })
       ]);
       
-      // Procesar categorías
       if (categoriesResult?.data?.categories) {
         const categoriesWithAll = [
           { id: 'all', name: 'Todos los productos', productsCount: 0 },
           ...categoriesResult.data.categories
         ];
         setCategories(categoriesWithAll);
-        console.log('Categorías cargadas:', categoriesWithAll.length);
       } else {
         setCategories([{ id: 'all', name: 'Todos los productos' }]);
-        console.log('No hay categorías disponibles desde el backend');
       }
       
-      // Procesar marcas
       if (brandsResult?.data?.brands) {
         const brandsWithAll = [
           { id: 'all', name: 'Todas las marcas' },
           ...brandsResult.data.brands
         ];
         setBrands(brandsWithAll);
-        console.log('Marcas cargadas:', brandsWithAll.length);
       } else {
         setBrands([{ id: 'all', name: 'Todas las marcas' }]);
-        console.log('No hay marcas disponibles desde el backend');
       }
-      
     } catch (error) {
       console.error('Error cargando datos iniciales:', error);
       showError('Error al cargar datos de la tienda');
     }
   };
   
-  // FUNCION: Cargar productos del backend - MANTIENE TODA LA FUNCIONALIDAD
   const loadProducts = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('Cargando productos desde el backend...');
-      
-      // Construir parámetros de la petición según README
       const params = {
         page: currentPage,
         limit: limit,
@@ -174,7 +133,6 @@ const StorePage = () => {
         sortOrder: sortBy === 'price-high' ? 'DESC' : sortOrder
       };
       
-      // Agregar filtros solo si no son "all"
       if (selectedCategory && selectedCategory !== 'all') {
         params.category = selectedCategory;
       }
@@ -195,36 +153,20 @@ const StorePage = () => {
         params.maxPrice = priceRange[1];
       }
       
-      // Solo productos activos y en stock
-      params.featured = false; // Queremos todos los productos, no solo destacados
+      params.featured = false;
       
-      console.log('Parámetros de petición:', params);
-      
-      // Llamar al backend usando la ruta del README
       const response = await apiService.get('/store/products', { params });
       
-      console.log('Respuesta de productos:', response);
-      
-      // Procesar respuesta según estructura del README
       if (response?.data?.products) {
         setProducts(response.data.products);
         setPagination(response.data.pagination);
-        console.log('Productos cargados exitosamente:', {
-          count: response.data.products.length,
-          total: response.data.pagination?.total || 'desconocido',
-          page: response.data.pagination?.page || currentPage
-        });
       } else if (response?.data && Array.isArray(response.data)) {
-        // Fallback si la respuesta es directamente un array
         setProducts(response.data);
         setPagination(null);
-        console.log('Productos cargados (formato array):', response.data.length);
       } else {
-        console.warn('No se encontraron productos o formato inesperado');
         setProducts([]);
         setPagination(null);
       }
-      
     } catch (error) {
       console.error('Error cargando productos:', error);
       setError('Error al cargar productos. Verifica que el backend esté funcionando.');
@@ -243,39 +185,24 @@ const StorePage = () => {
     }
   };
   
-  // FUNCION: Recargar productos - MANTIENE TODA LA FUNCIONALIDAD
   const reloadProducts = () => {
     setCurrentPage(1);
     loadProducts();
   };
   
-  // FUNCION MEJORADA: Agregar producto al carrito - CON PERSISTENCIA GARANTIZADA
   const handleAddToCart = async (product, selectedOptions = {}) => {
     try {
-      console.log('Agregando producto al carrito con verificación de persistencia:', { 
-        product: product.name, 
-        options: selectedOptions,
-        isAuthenticated,
-        userInfo: user ? `${user.firstName} ${user.lastName}` : 'Invitado',
-        sessionId: sessionInfo?.sessionId,
-        persistenceStatus
-      });
-      
-      // NUEVO: Verificar persistencia antes de agregar
       if (!isAuthenticated) {
         checkCartPersistence();
         
-        // Si hay problemas de persistencia, mostrar alerta
         if (persistenceStatus === 'error' || persistenceStatus === 'partial') {
           setShowPersistenceAlert(true);
           setTimeout(() => setShowPersistenceAlert(false), 5000);
         }
       }
       
-      // Agregar al carrito usando la API correcta del CartContext
       await addItem(product, selectedOptions);
       
-      // MEJORADO: Mensaje específico según el estado
       let message;
       if (isAuthenticated) {
         message = `${product.name} agregado al carrito`;
@@ -287,41 +214,28 @@ const StorePage = () => {
       
       showSuccess(message);
       
-      // NUEVO: Verificar persistencia después de agregar
       if (!isAuthenticated) {
         setTimeout(() => {
           checkCartPersistence();
         }, 500);
       }
-      
-      console.log('Producto agregado al carrito exitosamente:', {
-        productName: product.name,
-        userType: isAuthenticated ? 'authenticated' : 'guest',
-        quantity: selectedOptions.quantity || 1,
-        persistenceStatus
-      });
-      
     } catch (error) {
       console.error('Error agregando al carrito:', error);
       showError('Error al agregar producto al carrito');
       
-      // NUEVO: Sugerir debug si hay problemas persistentes
       if (!isAuthenticated && process.env.NODE_ENV === 'development') {
         setTimeout(() => {
-          console.log('Sugerir debug de persistencia del carrito...');
           debugGuestCart();
         }, 1000);
       }
     }
   };
   
-  // FUNCION: Cambiar página - MANTIENE TODA LA FUNCIONALIDAD
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
-  // FUNCION: Limpiar filtros - MANTIENE TODA LA FUNCIONALIDAD
   const clearFilters = () => {
     setSelectedCategory('all');
     setSelectedBrand('all');
@@ -331,36 +245,31 @@ const StorePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
       
-      {/* NUEVA ALERTA: Estado de persistencia del carrito */}
+      {/* ALERTA DE PERSISTENCIA - SOLO SI HAY PROBLEMAS */}
       {!isAuthenticated && showPersistenceAlert && (
-        <div className="fixed top-4 right-4 z-50 max-w-sm">
-          <div className={`p-4 rounded-lg shadow-lg border ${
+        <div className="fixed top-4 right-4 z-50 max-w-sm animate-slide-in">
+          <div className={`p-4 rounded-xl shadow-2xl border-2 backdrop-blur-sm ${
             persistenceStatus === 'active' 
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : persistenceStatus === 'partial'
-                ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                : 'bg-red-50 border-red-200 text-red-800'
+              ? 'bg-green-50/95 border-green-300'
+              : 'bg-yellow-50/95 border-yellow-300'
           }`}>
             <div className="flex items-start">
               {persistenceStatus === 'active' ? (
-                <CheckCircle className="w-5 h-5 mr-2 mt-0.5" />
-              ) : persistenceStatus === 'partial' ? (
-                <AlertCircle className="w-5 h-5 mr-2 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-green-600 mr-2 mt-0.5" />
               ) : (
-                <X className="w-5 h-5 mr-2 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
               )}
               <div className="flex-1">
-                <h4 className="font-medium text-sm">
-                  {persistenceStatus === 'active' && 'Carrito guardado automáticamente'}
-                  {persistenceStatus === 'partial' && 'Advertencia: persistencia parcial'}
-                  {persistenceStatus === 'error' && 'Error en persistencia del carrito'}
+                <h4 className="font-semibold text-sm mb-1">
+                  {persistenceStatus === 'active' ? 'Carrito guardado' : 'Advertencia'}
                 </h4>
-                <p className="text-xs mt-1">
-                  {persistenceStatus === 'active' && 'Tus productos se mantendrán aunque cierres la página'}
-                  {persistenceStatus === 'partial' && 'Es posible que se pierdan algunos productos al navegar'}
-                  {persistenceStatus === 'error' && 'Los productos podrían perderse al navegar'}
+                <p className="text-xs">
+                  {persistenceStatus === 'active' 
+                    ? 'Tus productos se mantendrán seguros'
+                    : 'Algunos productos podrían perderse'
+                  }
                 </p>
               </div>
               <button
@@ -374,145 +283,121 @@ const StorePage = () => {
         </div>
       )}
       
-      {/* HEADER DE LA TIENDA - MEJORADO CON INDICADOR DE PERSISTENCIA */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      {/* HEADER MEJORADO Y BONITO */}
+      <div className="bg-white/90 backdrop-blur-lg shadow-lg border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-20">
             
-            {/* Logo y título con navegación */}
-            <div className="flex items-center space-x-4">
+            {/* Sección izquierda: Navegación y Logo */}
+            <div className="flex items-center space-x-6">
               <Link 
                 to="/"
-                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center text-gray-600 hover:text-primary-600 transition-all duration-300 group"
               >
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                <span className="text-sm">Volver</span>
+                <div className="w-10 h-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center group-hover:from-primary-100 group-hover:to-primary-200 transition-all duration-300">
+                  <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-300" />
+                </div>
+                <span className="ml-3 font-semibold hidden sm:block">Volver</span>
               </Link>
               
-              <div className="h-6 w-px bg-gray-300"></div>
+              <div className="hidden sm:block h-12 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent"></div>
               
-              <h1 className="text-2xl font-bold text-gray-900">
-                Tienda {gymName}
-              </h1>
-              
-              {isAuthenticated && user && (
-                <span className="text-sm text-gray-600">
-                  Hola, {user.firstName}
-                </span>
-              )}
-              
-              {/* MEJORADO: Indicador de estado para invitados */}
-              {!isAuthenticated && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                    Compra como invitado
-                  </span>
-                  
-                  {/* NUEVO: Indicador de persistencia */}
-                  <div className={`flex items-center space-x-1 text-xs px-2 py-1 rounded ${
-                    persistenceStatus === 'active' 
-                      ? 'bg-green-50 text-green-600'
-                      : persistenceStatus === 'partial'
-                        ? 'bg-yellow-50 text-yellow-600'
-                        : 'bg-gray-50 text-gray-600'
-                  }`}>
-                    {persistenceStatus === 'active' ? (
-                      <>
-                        <Wifi className="w-3 h-3" />
-                        <span>Guardado</span>
-                      </>
-                    ) : persistenceStatus === 'partial' ? (
-                      <>
-                        <WifiOff className="w-3 h-3" />
-                        <span>Parcial</span>
-                      </>
-                    ) : (
-                      <>
-                        <WifiOff className="w-3 h-3" />
-                        <span>Local</span>
-                      </>
-                    )}
+              {/* Logo y título mejorados */}
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-2xl blur opacity-50"></div>
+                  <div className="relative w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <ShoppingBag className="w-6 h-6 text-white" />
                   </div>
                 </div>
-              )}
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-900 via-primary-600 to-secondary-600 bg-clip-text text-transparent">
+                    Tienda {gymName}
+                  </h1>
+                  {isAuthenticated && user && (
+                    <p className="text-xs text-gray-600 flex items-center space-x-1">
+                      <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                      <span>Hola, {user.firstName}</span>
+                    </p>
+                  )}
+                  {!isAuthenticated && (
+                    <p className="text-xs text-primary-600 flex items-center space-x-1">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Compra como invitado</span>
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
             
-            {/* Info adicional en desktop */}
-            <div className="hidden md:flex items-center space-x-4 text-sm text-gray-600">
-              {freeShippingThreshold > 0 && (
-                <div className="flex items-center">
-                  <Truck className="w-4 h-4 mr-1" />
-                  <span>Envío gratis +{currencySymbol}{freeShippingThreshold}</span>
+            {/* Sección derecha: Badge de productos */}
+            <div className="hidden md:block">
+              <div className="bg-gradient-to-r from-primary-50 to-secondary-50 px-6 py-3 rounded-xl border border-primary-200 shadow-sm">
+                <div className="flex items-center space-x-2">
+                  <Package className="w-5 h-5 text-primary-600" />
+                  <div className="text-left">
+                    <p className="text-xs text-gray-600 font-medium">Productos disponibles</p>
+                    <p className="text-sm font-bold text-primary-600">
+                      {pagination?.total || products.length} artículos
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div className="flex items-center">
-                <Shield className="w-4 h-4 mr-1" />
-                <span>Garantía incluida</span>
               </div>
-              
-              {/* DEBUG: Solo en desarrollo */}
-              {process.env.NODE_ENV === 'development' && !isAuthenticated && (
-                <button
-                  onClick={debugGuestCart}
-                  className="flex items-center text-xs text-purple-600 hover:text-purple-700"
-                  title="Debug Cart Persistence"
-                >
-                  <Eye className="w-3 h-3 mr-1" />
-                  <span>Debug</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
       </div>
       
-      {/* CONTENIDO PRINCIPAL - MANTIENE TODA LA FUNCIONALIDAD */}
+      {/* CONTENIDO PRINCIPAL */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* BARRA DE BUSQUEDA Y FILTROS - MANTIENE TODA LA FUNCIONALIDAD */}
+        {/* BARRA DE BUSQUEDA MEJORADA */}
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
             
-            {/* Búsqueda */}
             <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar productos..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                />
+              <div className="relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-xl blur opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 group-hover:text-primary-500 transition-colors" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Buscar productos..."
+                    className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white shadow-sm transition-all hover:border-primary-300"
+                  />
+                </div>
               </div>
             </div>
             
-            {/* Filtros y orden */}
-            <div className="flex gap-4">
+            <div className="flex gap-3">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                className="px-5 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 bg-white shadow-sm font-medium hover:border-primary-300 transition-all cursor-pointer"
               >
-                <option value="name">Ordenar por nombre</option>
-                <option value="price-low">Precio: menor a mayor</option>
-                <option value="price-high">Precio: mayor a menor</option>
-                <option value="rating">Mejor valorados</option>
-                <option value="reviews">Más reseñas</option>
+                <option value="name">Nombre</option>
+                <option value="price-low">Precio: Menor</option>
+                <option value="price-high">Precio: Mayor</option>
+                <option value="rating">Mejor Valorados</option>
               </select>
               
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="p-3 border border-gray-300 rounded-lg hover:bg-gray-100"
+                className="p-4 border-2 border-gray-200 rounded-xl hover:bg-primary-50 hover:border-primary-300 transition-all shadow-sm group"
               >
-                {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid className="w-5 h-5" />}
+                {viewMode === 'grid' ? 
+                  <List className="w-5 h-5 text-gray-600 group-hover:text-primary-600" /> : 
+                  <Grid className="w-5 h-5 text-gray-600 group-hover:text-primary-600" />
+                }
               </button>
               
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="lg:hidden p-3 border border-gray-300 rounded-lg hover:bg-gray-100"
+                className="lg:hidden p-4 border-2 border-gray-200 rounded-xl hover:bg-primary-50 hover:border-primary-300 transition-all shadow-sm group"
               >
-                <Filter className="w-5 h-5" />
+                <Filter className="w-5 h-5 text-gray-600 group-hover:text-primary-600" />
               </button>
             </div>
           </div>
@@ -520,18 +405,20 @@ const StorePage = () => {
         
         <div className="flex gap-8">
           
-          {/* SIDEBAR DE FILTROS - MANTIENE TODA LA FUNCIONALIDAD */}
-          <div className={`w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white rounded-lg shadow-sm p-6">
+          {/* SIDEBAR DE FILTROS MEJORADO */}
+          <div className={`w-72 flex-shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 sticky top-28 border border-gray-100">
               
-              {/* Limpiar filtros */}
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                  <div className="w-8 h-8 bg-gradient-to-br from-primary-100 to-primary-200 rounded-lg flex items-center justify-center mr-2">
+                    <Filter className="w-4 h-4 text-primary-600" />
+                  </div>
                   Filtros
                 </h3>
                 <button
                   onClick={clearFilters}
-                  className="text-sm text-primary-600 hover:text-primary-700"
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline"
                 >
                   Limpiar
                 </button>
@@ -539,7 +426,7 @@ const StorePage = () => {
               
               {/* Categorías */}
               <div className="mb-6">
-                <h4 className="text-md font-medium text-gray-900 mb-3">
+                <h4 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
                   Categorías
                 </h4>
                 <div className="space-y-2">
@@ -547,15 +434,19 @@ const StorePage = () => {
                     <button
                       key={category.id}
                       onClick={() => setSelectedCategory(category.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all ${
                         selectedCategory === category.id
-                          ? 'bg-primary-100 text-primary-700'
-                          : 'hover:bg-gray-100'
+                          ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-md scale-105'
+                          : 'hover:bg-gray-50 hover:scale-102'
                       }`}
                     >
-                      <span>{category.name}</span>
+                      <span className="font-medium">{category.name}</span>
                       {category.productsCount > 0 && (
-                        <span className="text-xs text-gray-500">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                          selectedCategory === category.id 
+                            ? 'bg-white/20' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
                           {category.productsCount}
                         </span>
                       )}
@@ -567,7 +458,7 @@ const StorePage = () => {
               {/* Marcas */}
               {brands.length > 1 && (
                 <div className="mb-6">
-                  <h4 className="text-md font-medium text-gray-900 mb-3">
+                  <h4 className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wide">
                     Marcas
                   </h4>
                   <div className="space-y-2">
@@ -575,45 +466,43 @@ const StorePage = () => {
                       <button
                         key={brand.id}
                         onClick={() => setSelectedBrand(brand.id)}
-                        className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
+                        className={`w-full flex items-center px-4 py-3 rounded-xl text-left transition-all ${
                           selectedBrand === brand.id
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'hover:bg-gray-100'
+                            ? 'bg-gradient-to-r from-secondary-500 to-secondary-600 text-white shadow-md scale-105'
+                            : 'hover:bg-gray-50 hover:scale-102'
                         }`}
                       >
-                        {brand.name}
+                        <span className="font-medium">{brand.name}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               )}
               
-              {/* Filtro de precio */}
+              {/* Rango de precio */}
               <div>
-                <h4 className="text-md font-medium text-gray-900 mb-4">
-                  Rango de precio
+                <h4 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-wide">
+                  Rango de Precio
                 </h4>
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
                     <input
                       type="number"
                       value={priceRange[0]}
                       onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                      className="w-24 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
                       placeholder="Min"
-                      min="0"
                     />
-                    <span className="text-gray-500">-</span>
+                    <span className="text-gray-500 font-medium">-</span>
                     <input
                       type="number"
                       value={priceRange[1]}
                       onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                      className="w-24 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-medium focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
                       placeholder="Max"
-                      min="0"
                     />
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-sm text-gray-600 bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 rounded-lg font-medium border border-gray-200">
                     {currencySymbol}{priceRange[0]} - {currencySymbol}{priceRange[1]}
                   </div>
                 </div>
@@ -621,30 +510,30 @@ const StorePage = () => {
             </div>
           </div>
           
-          {/* CONTENIDO PRINCIPAL - MANTIENE TODA LA FUNCIONALIDAD */}
+          {/* LISTA DE PRODUCTOS - ESTRUCTURA ORIGINAL MANTENIDA */}
           <div className="flex-1">
             
-            {/* Estado de carga */}
             {loading && (
-              <div className="flex items-center justify-center py-12">
+              <div className="flex items-center justify-center py-24">
                 <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
-                  <p className="text-gray-600">Cargando productos...</p>
+                  <div className="relative mb-4">
+                    <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
+                  </div>
+                  <p className="text-gray-600 font-medium">Cargando productos...</p>
                 </div>
               </div>
             )}
             
-            {/* Estado de error */}
             {error && !loading && (
-              <div className="text-center py-12">
+              <div className="text-center py-24 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
                 <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
                   Error al cargar productos
                 </h3>
-                <p className="text-gray-600 mb-4">{error}</p>
+                <p className="text-gray-600 mb-6">{error}</p>
                 <button
                   onClick={reloadProducts}
-                  className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Intentar de nuevo
@@ -652,33 +541,15 @@ const StorePage = () => {
               </div>
             )}
             
-            {/* Lista de productos */}
             {!loading && !error && (
               <>
-                {/* Header de resultados */}
-                <div className="mb-4 flex items-center justify-between">
-                  <p className="text-gray-600">
-                    {pagination?.total || products.length} productos encontrados
-                    {searchQuery && (
-                      <span className="ml-2">
-                        para "<strong>{searchQuery}</strong>"
-                      </span>
-                    )}
+                <div className="mb-6 flex items-center justify-between">
+                  <p className="text-gray-700 font-medium">
+                    <span className="text-primary-600 font-bold text-lg">{pagination?.total || products.length}</span> productos encontrados
+                    {searchQuery && <span className="ml-2 text-gray-600">para "<strong className="text-gray-900">{searchQuery}</strong>"</span>}
                   </p>
-                  
-                  {/* NUEVO: Indicador de persistencia en resultados */}
-                  {!isAuthenticated && products.length > 0 && (
-                    <div className={`text-xs px-2 py-1 rounded ${
-                      persistenceStatus === 'active' 
-                        ? 'bg-green-50 text-green-600'
-                        : 'bg-yellow-50 text-yellow-600'
-                    }`}>
-                      {persistenceStatus === 'active' ? 'Carrito se guarda automáticamente' : 'Persistencia parcial'}
-                    </div>
-                  )}
                 </div>
                 
-                {/* Grid/Lista de productos */}
                 {products.length > 0 ? (
                   <div className={
                     viewMode === 'grid' 
@@ -690,20 +561,21 @@ const StorePage = () => {
                         key={product.id} 
                         product={product} 
                         viewMode={viewMode}
-                        onAddToCart={handleAddToCart}  // Función mejorada
+                        onAddToCart={handleAddToCart}
+                        onNavigate={() => navigate(`/store/product/${product.id}`)}
                         isAuthenticated={isAuthenticated}
-                        persistenceStatus={persistenceStatus} // NUEVO: Estado de persistencia
-                        currencySymbol={currencySymbol} // NUEVO: Símbolo de moneda
+                        persistenceStatus={persistenceStatus}
+                        currencySymbol={currencySymbol}
                       />
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
+                  <div className="text-center py-24 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
                     <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
                       No se encontraron productos
                     </h3>
-                    <p className="text-gray-600 mb-4">
+                    <p className="text-gray-600 mb-6">
                       {searchQuery || selectedCategory !== 'all' || selectedBrand !== 'all' ? 
                         'Intenta cambiar los filtros o la búsqueda' : 
                         'No hay productos disponibles en este momento'
@@ -712,7 +584,7 @@ const StorePage = () => {
                     {(searchQuery || selectedCategory !== 'all' || selectedBrand !== 'all') && (
                       <button
                         onClick={clearFilters}
-                        className="text-primary-600 hover:text-primary-700"
+                        className="px-6 py-3 bg-gradient-to-r from-secondary-500 to-secondary-600 text-white rounded-xl hover:shadow-lg transition-all font-semibold"
                       >
                         Limpiar filtros
                       </button>
@@ -720,13 +592,13 @@ const StorePage = () => {
                   </div>
                 )}
                 
-                {/* Paginación */}
+                {/* Paginación mejorada */}
                 {pagination && pagination.pages > 1 && (
-                  <div className="mt-8 flex items-center justify-center space-x-2">
+                  <div className="mt-12 flex items-center justify-center space-x-2">
                     <button
                       onClick={() => handlePageChange(pagination.page - 1)}
                       disabled={pagination.page <= 1}
-                      className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                      className="px-5 py-3 border-2 border-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-primary-300 font-medium transition-all"
                     >
                       Anterior
                     </button>
@@ -737,10 +609,10 @@ const StorePage = () => {
                         <button
                           key={page}
                           onClick={() => handlePageChange(page)}
-                          className={`px-3 py-2 border rounded-lg ${
+                          className={`px-5 py-3 rounded-xl font-semibold transition-all ${
                             pagination.page === page
-                              ? 'bg-primary-600 text-white border-primary-600'
-                              : 'border-gray-300 hover:bg-gray-100'
+                              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg scale-110'
+                              : 'border-2 border-gray-200 hover:bg-gray-50 hover:border-primary-300'
                           }`}
                         >
                           {page}
@@ -751,7 +623,7 @@ const StorePage = () => {
                     <button
                       onClick={() => handlePageChange(pagination.page + 1)}
                       disabled={pagination.page >= pagination.pages}
-                      className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                      className="px-5 py-3 border-2 border-gray-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 hover:border-primary-300 font-medium transition-all"
                     >
                       Siguiente
                     </button>
@@ -766,58 +638,42 @@ const StorePage = () => {
   );
 };
 
-// COMPONENTE MEJORADO: Tarjeta de producto - CON INDICADOR DE PERSISTENCIA
-const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persistenceStatus, currencySymbol = 'Q' }) => {
+// COMPONENTE: Tarjeta de producto - ESTRUCTURA ORIGINAL MANTENIDA
+const ProductCard = ({ product, viewMode, onAddToCart, onNavigate, isAuthenticated, persistenceStatus, currencySymbol = 'Q' }) => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   
-  // Obtener imagen principal
   const primaryImage = product.images?.find(img => img.isPrimary) || product.images?.[0];
   const imageUrl = primaryImage?.imageUrl || '/api/placeholder/400/400';
   const imageAlt = primaryImage?.altText || product.name;
   
-  // Calcular descuento
   const discount = product.originalPrice && product.originalPrice > product.price 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
   
-  // Verificar stock
   const inStock = product.inStock !== false && (product.stockQuantity || 0) > 0;
   const lowStock = inStock && (product.stockQuantity || 0) <= 5;
   
-  // FUNCION MEJORADA: handleAddToCart con mejor feedback
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (e) => {
+    e.stopPropagation();
     if (!inStock || addingToCart) return;
     
     try {
       setAddingToCart(true);
       
-      // Crear las options correctamente
       const options = {
         ...selectedOptions,
-        quantity  // quantity va EN las options, no separado
+        quantity
       };
       
-      console.log('ProductCard: Agregando al carrito con conocimiento de persistencia:', {
-        product: product.name,
-        options,
-        isAuthenticated,
-        persistenceStatus
-      });
-      
-      // Usar la API correcta onAddToCart(product, options)
       await onAddToCart(product, options);
       
-      // Reset form después de agregar exitosamente
       setSelectedOptions({});
       setQuantity(1);
-      
-      console.log('ProductCard: Item agregado exitosamente');
-      
     } catch (error) {
-      console.error('ProductCard: Error agregando al carrito:', error);
+      console.error('Error agregando al carrito:', error);
     } finally {
       setAddingToCart(false);
     }
@@ -825,15 +681,18 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
   
   if (viewMode === 'list') {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 flex items-center space-x-6">
+      <div 
+        onClick={onNavigate}
+        className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 flex items-center space-x-6 cursor-pointer hover:shadow-2xl transition-all group border border-gray-100"
+      >
         <img 
           src={imageUrl}
           alt={imageAlt}
-          className="w-24 h-24 object-cover rounded-lg"
+          className="w-24 h-24 object-cover rounded-xl group-hover:scale-110 transition-transform duration-300"
         />
         
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
             {product.name}
           </h3>
           <p className="text-gray-600 text-sm mb-2">
@@ -891,9 +750,12 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden group hover:shadow-lg transition-all duration-300">
+    <div 
+      onClick={onNavigate}
+      className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg overflow-hidden group hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-100"
+    >
       
-      {/* Imagen del producto */}
+      {/* Imagen del producto - MANTENIDA COMO ESTABA */}
       <div className="relative overflow-hidden">
         <img 
           src={imageUrl}
@@ -901,25 +763,25 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
           className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
         />
         
-        {/* Badges */}
+        {/* Badges mejorados con gradientes */}
         <div className="absolute top-4 left-4 space-y-2">
           {discount > 0 && (
-            <span className="bg-red-500 text-white px-2 py-1 rounded-full text-sm font-semibold">
+            <span className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
               -{discount}%
             </span>
           )}
           {!inStock && (
-            <span className="bg-gray-500 text-white px-2 py-1 rounded-full text-sm">
+            <span className="bg-gray-500 text-white px-3 py-1 rounded-full text-sm font-bold">
               Agotado
             </span>
           )}
           {lowStock && inStock && (
-            <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-sm">
+            <span className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg animate-pulse">
               ¡Últimos!
             </span>
           )}
           {product.isFeatured && (
-            <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-sm">
+            <span className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
               Destacado
             </span>
           )}
@@ -928,33 +790,36 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
         {/* Acciones */}
         <div className="absolute top-4 right-4 space-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={() => setIsWishlisted(!isWishlisted)}
-            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-              isWishlisted ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:bg-red-50 hover:text-red-500'
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsWishlisted(!isWishlisted);
+            }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all ${
+              isWishlisted ? 'bg-red-500 text-white scale-110' : 'bg-white/90 text-gray-600 hover:bg-red-50 hover:text-red-500'
             }`}
           >
-            <Heart className="w-5 h-5" />
+            <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
           </button>
-          <button className="w-10 h-10 bg-white text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-100">
+          <button className="w-10 h-10 bg-white/90 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-100 shadow-lg transition-all">
             <Eye className="w-5 h-5" />
           </button>
         </div>
       </div>
       
-      {/* Contenido */}
+      {/* Contenido - ESTRUCTURA ORIGINAL */}
       <div className="p-6">
         
         {/* Marca y rating */}
         <div className="flex items-center justify-between mb-2">
           {product.brand && (
-            <span className="text-sm text-gray-500">
+            <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-3 py-1 rounded-full">
               {product.brand.name || product.brand}
             </span>
           )}
           {product.rating && (
             <div className="flex items-center">
               <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="ml-1 text-sm text-gray-600">
+              <span className="ml-1 text-sm font-bold text-gray-600">
                 {product.rating} ({product.reviews || 0})
               </span>
             </div>
@@ -962,7 +827,7 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
         </div>
         
         {/* Nombre y descripción */}
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
           {product.name}
         </h3>
         <p className="text-gray-600 text-sm mb-4 line-clamp-2">
@@ -976,8 +841,12 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
               Color:
             </label>
             <select 
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              onChange={(e) => setSelectedOptions(prev => ({ ...prev, color: e.target.value }))}
+              className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+              onChange={(e) => {
+                e.stopPropagation();
+                setSelectedOptions(prev => ({ ...prev, color: e.target.value }));
+              }}
+              onClick={(e) => e.stopPropagation()}
               value={selectedOptions.color || ''}
             >
               <option value="">Seleccionar color</option>
@@ -994,8 +863,12 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
               Talla:
             </label>
             <select 
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              onChange={(e) => setSelectedOptions(prev => ({ ...prev, size: e.target.value }))}
+              className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+              onChange={(e) => {
+                e.stopPropagation();
+                setSelectedOptions(prev => ({ ...prev, size: e.target.value }));
+              }}
+              onClick={(e) => e.stopPropagation()}
               value={selectedOptions.size || ''}
             >
               <option value="">Seleccionar talla</option>
@@ -1012,8 +885,12 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
               Sabor:
             </label>
             <select 
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              onChange={(e) => setSelectedOptions(prev => ({ ...prev, flavor: e.target.value }))}
+              className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all"
+              onChange={(e) => {
+                e.stopPropagation();
+                setSelectedOptions(prev => ({ ...prev, flavor: e.target.value }));
+              }}
+              onClick={(e) => e.stopPropagation()}
               value={selectedOptions.flavor || ''}
             >
               <option value="">Seleccionar sabor</option>
@@ -1027,7 +904,9 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
         {/* Precio */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <span className="text-2xl font-bold text-gray-900">{currencySymbol}{product.price}</span>
+            <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
+              {currencySymbol}{product.price}
+            </span>
             {product.originalPrice && product.originalPrice > product.price && (
               <span className="text-gray-500 text-sm line-through ml-2">
                 {currencySymbol}{product.originalPrice}
@@ -1038,16 +917,22 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
           {/* Control de cantidad */}
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                setQuantity(Math.max(1, quantity - 1));
+              }}
+              className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-primary-100 hover:text-primary-600 transition-all disabled:opacity-50"
               disabled={!inStock}
             >
               <Minus className="w-4 h-4" />
             </button>
-            <span className="w-8 text-center text-sm font-medium">{quantity}</span>
+            <span className="w-8 text-center text-sm font-bold">{quantity}</span>
             <button
-              onClick={() => setQuantity(quantity + 1)}
-              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                setQuantity(quantity + 1);
+              }}
+              className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-primary-100 hover:text-primary-600 transition-all disabled:opacity-50"
               disabled={!inStock}
             >
               <Plus className="w-4 h-4" />
@@ -1059,33 +944,17 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
         {inStock && product.stockQuantity && (
           <p className="text-xs text-gray-500 mb-4">
             {product.stockQuantity} disponibles
-            {lowStock && <span className="text-orange-600 font-medium"> - ¡Pocos disponibles!</span>}
+            {lowStock && <span className="text-orange-600 font-semibold"> - ¡Pocos disponibles!</span>}
           </p>
-        )}
-        
-        {/* MEJORADO: Indicador específico para invitados */}
-        {!isAuthenticated && (
-          <div className={`mb-4 text-xs p-2 rounded ${
-            persistenceStatus === 'active' 
-              ? 'text-green-700 bg-green-50 border border-green-200'
-              : 'text-blue-700 bg-blue-50 border border-blue-200'
-          }`}>
-            {persistenceStatus === 'active' 
-              ? 'Se guardará automáticamente en tu carrito'
-              : 'Puedes comprar sin registrarte'
-            }
-          </div>
         )}
         
         {/* Botón de agregar al carrito */}
         <button 
           onClick={handleAddToCart}
           disabled={!inStock || addingToCart}
-          className={`w-full py-3 font-semibold rounded-lg transition-colors flex items-center justify-center space-x-2 ${
+          className={`w-full py-3 font-semibold rounded-xl transition-all flex items-center justify-center space-x-2 ${
             inStock
-              ? (!isAuthenticated && persistenceStatus === 'active')
-                ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
-                : 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50'
+              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white hover:shadow-lg hover:scale-105 disabled:opacity-50'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
@@ -1107,6 +976,8 @@ const ProductCard = ({ product, viewMode, onAddToCart, isAuthenticated, persiste
 };
 
 export default StorePage;
+
+
 
 /*
 === COMENTARIOS FINALES ===

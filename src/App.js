@@ -20,6 +20,7 @@ const LandingPage = React.lazy(() => import('./pages/dashboard/LandingPage'));
 
 // Tienda (página separada)
 const StorePage = React.lazy(() => import('./pages/store/StorePage'));
+const ProductDetailPage = React.lazy(() => import('./pages/store/ProductDetailPage'));
 
 // Página de Checkout
 const CheckoutPage = React.lazy(() => import('./pages/checkout/CheckoutPage'));
@@ -380,6 +381,9 @@ function AppContent() {
           
           {/* Tienda (pública) */}
           <Route path="/store" element={<StorePage />} />
+
+           {/* Detalle de producto (público) */}
+          <Route path="/store/product/:productId" element={<ProductDetailPage />} />
           
           {/* Checkout (público) */}
           <Route path="/checkout" element={<CheckoutPage />} />
