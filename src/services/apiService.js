@@ -91,6 +91,10 @@ class ApiService extends BaseService {
   async getGymStats() {
     return this.gymService.getGymStats();
   }
+
+  async getActiveStatistics() {
+  return this.gymService.getActiveStatistics();  
+}
   
   async getGymServices() {
     return this.gymService.getGymServices();

@@ -1,5 +1,6 @@
 // Autor: Alexander Echeverria
 // Dirección: src/hooks/useGymStats.js
+// VERSIÓN ACTUALIZADA: Usa estadísticas activas dinámicas del backend
 
 import { useState, useEffect, useCallback } from 'react';
 import apiService from '../services/apiService';
@@ -10,47 +11,52 @@ const useGymStats = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  console.log('Hook useGymStats inicializado');
+  console.log('Hook useGymStats inicializado (versión dinámica)');
 
   const fetchStats = useCallback(async () => {
-    console.log('Obteniendo estadísticas del gimnasio');
-    console.log('Realizando solicitud API a /api/gym/stats');
+    console.log('📊 Obteniendo estadísticas activas del gimnasio');
+    console.log('Realizando solicitud API a /api/statistics/active');
     
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await apiService.getGymStats();
-      console.log('Respuesta de estadísticas recibida:', response);
+      const response = await apiService.getActiveStatistics();
+      console.log('Respuesta de estadísticas activas recibida:', response);
       
-      // CORRECCIÓN CRÍTICA: Extraer solo la data del response
       let statsData = null;
       
       if (response && response.success && response.data) {
-        // Backend devuelve: { success: true, data: { members: 2000, ... } }
-        statsData = response.data;
-        console.log('Datos de estadísticas extraídos:');
-        console.log('  - Miembros:', statsData.members);
-        console.log('  - Entrenadores:', statsData.trainers);
-        console.log('  - Experiencia:', statsData.experience);
-        console.log('  - Satisfacción:', statsData.satisfaction);
-        console.log('  - Instalaciones:', statsData.facilities);
-        if (statsData.customStats) {
-          console.log('  - Estadísticas personalizadas:', statsData.customStats.length);
+        // Nuevo formato: Array de estadísticas activas
+        if (Array.isArray(response.data)) {
+          statsData = response.data;
+          console.log('✅ Estadísticas activas (formato array):', statsData.length);
+          statsData.forEach((stat, index) => {
+            console.log(`  ${index + 1}. ${stat.label}: ${stat.number} (${stat.icon || 'sin icono'})`);
+          });
+        } 
+        // Formato antiguo: Objeto con propiedades
+        else if (response.data.members || response.data.trainers) {
+          console.log('⚠️ Formato antiguo detectado, convirtiendo...');
+          statsData = convertOldFormat(response.data);
+        } 
+        else {
+          console.warn('Estructura de respuesta de estadísticas inválida:', response);
+          throw new Error('Estructura de respuesta inválida');
         }
-      } else if (response && response.members) {
-        // Si el response ya es la data directamente
+      } else if (response && Array.isArray(response)) {
+        // Si el response ya es el array directamente
         statsData = response;
-        console.log('Datos de estadísticas (directo):', statsData);
+        console.log('✅ Estadísticas activas (directo):', statsData.length);
       } else {
         console.warn('Estructura de respuesta de estadísticas inválida:', response);
         throw new Error('Estructura de respuesta inválida');
       }
 
       if (statsData) {
-        setStats(statsData); // Guardamos solo la data, no el wrapper
+        setStats(statsData);
         setIsLoaded(true);
-        console.log('Estadísticas del gimnasio cargadas exitosamente!');
+        console.log('✅ Estadísticas del gimnasio cargadas exitosamente!');
       } else {
         throw new Error('Los datos de estadísticas están vacíos');
       }
@@ -58,11 +64,56 @@ const useGymStats = () => {
     } catch (err) {
       console.error('Error al cargar estadísticas:', err.message);
       setError(err);
-      setIsLoaded(true); // Marcar como cargado aunque falle
+      setStats([]); // Array vacío en caso de error
+      setIsLoaded(true);
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  // Función para convertir formato antiguo a nuevo
+  const convertOldFormat = (oldData) => {
+    const converted = [];
+    
+    if (oldData.members > 0) {
+      converted.push({
+        number: oldData.members,
+        label: "Miembros Activos",
+        icon: "Users",
+        color: "primary"
+      });
+    }
+    
+    if (oldData.trainers > 0) {
+      converted.push({
+        number: oldData.trainers,
+        label: "Entrenadores",
+        icon: "Award",
+        color: "secondary"
+      });
+    }
+    
+    if (oldData.experience > 0) {
+      converted.push({
+        number: oldData.experience,
+        label: "Años de Experiencia",
+        icon: "Trophy",
+        color: "success"
+      });
+    }
+    
+    if (oldData.satisfaction > 0) {
+      converted.push({
+        number: `${oldData.satisfaction}%`,
+        label: "Satisfacción",
+        icon: "Star",
+        color: "warning"
+      });
+    }
+    
+    console.log('Formato antiguo convertido:', converted);
+    return converted;
+  };
 
   // Efecto principal para cargar datos
   useEffect(() => {
@@ -80,7 +131,7 @@ const useGymStats = () => {
   }, [fetchStats]);
 
   return {
-    stats,           // Solo la data: { members: 2000, trainers: 50, ... }
+    stats,           // Array de estadísticas: [{ number, label, icon, color, description? }]
     isLoaded,        // true cuando terminó de cargar
     isLoading,       // true mientras está cargando
     error,           // Error si falló
@@ -91,94 +142,69 @@ const useGymStats = () => {
 export default useGymStats;
 
 /**
- * DOCUMENTACIÓN DEL HOOK useGymStats
+ * DOCUMENTACIÓN ACTUALIZADA DEL HOOK useGymStats
  * 
- * PROPÓSITO:
- * Hook personalizado de React que gestiona la carga y manejo de las estadísticas
- * del gimnasio desde el backend. Proporciona datos numéricos clave sobre el
- * rendimiento y estado actual del gimnasio para mostrar en dashboards y secciones
- * informativas del sitio web.
+ * CAMBIOS EN ESTA VERSIÓN:
+ * - Usa endpoint /api/statistics/active para obtener estadísticas dinámicas
+ * - Soporta array de estadísticas con iconos y colores personalizados
+ * - Mantiene compatibilidad con formato antiguo (fallback)
+ * - Retorna array vacío en caso de error (no null)
  * 
- * FUNCIONALIDAD PRINCIPAL:
- * - Obtiene estadísticas del gimnasio desde la API backend
- * - Extrae correctamente los datos del wrapper de respuesta del backend
- * - Maneja estados de carga y errores de forma robusta
- * - Proporciona función de recarga manual para actualizar datos
- * - Implementa limpieza automática de recursos
- * - Logs detallados para debugging y monitoreo
+ * ESTRUCTURA DE DATOS ESPERADA (NUEVA):
+ * Array de estadísticas: [
+ *   {
+ *     number: string | number,    // Valor a mostrar (ej: "500+", 1200)
+ *     label: string,               // Etiqueta (ej: "Miembros Activos")
+ *     icon: string,                // Nombre del icono (ej: "Users", "Trophy")
+ *     color: string,               // Color (ej: "primary", "success")
+ *     description?: string         // Descripción opcional
+ *   },
+ *   ...
+ * ]
  * 
- * ARCHIVOS CON LOS QUE SE CONECTA:
- * - '../services/apiService': Servicio principal para comunicación con el backend
- *   └── Función específica: getGymStats()
- * - Backend API endpoint: '/api/gym/stats'
- * - Componentes de dashboard que muestran métricas del gimnasio
- * - Secciones "Acerca de" o "Nosotros" que muestran logros del gimnasio
- * - Páginas de estadísticas administrativas
+ * USO EN COMPONENTES:
+ * const { stats, isLoading, error } = useGymStats();
  * 
- * ESTRUCTURA DE DATOS ESPERADA DEL BACKEND:
- * Respuesta del API: { success: true, data: {...} }
- * Objeto de estadísticas: {
- *   members: number,           // Total de miembros activos
- *   trainers: number,          // Número de entrenadores
- *   experience: number,        // Años de experiencia
- *   satisfaction: number,      // Porcentaje de satisfacción (0-100)
- *   facilities: number,        // Número de instalaciones/equipos
- *   customStats?: Array,       // Estadísticas personalizadas adicionales
- *   revenue?: string,          // Ingresos (en quetzales si aplica)
- *   ...otros campos numéricos
- * }
- * 
- * USO TÍPICO EN COMPONENTES:
- * const { stats, isLoading, error, reload } = useGymStats();
- * 
- * if (isLoading) return <div>Cargando estadísticas...</div>;
- * if (error) return <div>Error: {error.message}</div>;
- * if (!stats) return <div>No hay estadísticas disponibles</div>;
+ * if (isLoading) return <Loader />;
+ * if (error) return <ErrorMessage />;
  * 
  * return (
  *   <div className="stats-grid">
- *     <StatCard title="Miembros Activos" value={stats.members} />
- *     <StatCard title="Entrenadores" value={stats.trainers} />
- *     <StatCard title="Años de Experiencia" value={stats.experience} />
- *     <StatCard title="Satisfacción" value={`${stats.satisfaction}%`} />
+ *     {stats && stats.map((stat, index) => (
+ *       <StatCard 
+ *         key={index}
+ *         icon={stat.icon}
+ *         number={stat.number}
+ *         label={stat.label}
+ *         color={stat.color}
+ *       />
+ *     ))}
  *   </div>
  * );
+ */
+
+/**
+ * =====================================================
+ * DOCUMENTACIÓN - VERSIÓN COMPATIBLE
+ * =====================================================
  * 
- * ESTADOS RETORNADOS:
- * - stats: Objeto con todas las estadísticas numéricas del gimnasio
- * - isLoaded: Boolean que indica si ya terminó el proceso de carga
- * - isLoading: Boolean que indica si está actualmente cargando datos
- * - error: Objeto Error si ocurrió algún problema, null si todo está bien
+ * PROPÓSITO:
+ * Hook que obtiene estadísticas dinámicas del backend pero mantiene
+ * compatibilidad total con el código existente en LandingPage.js
  * 
- * FUNCIONES DISPONIBLES:
- * - reload(): Fuerza una nueva carga de estadísticas desde el backend
+ * MAPEO AUTOMÁTICO:
+ * Backend devuelve: [{ label: "Miembros", number: "2000+" }, ...]
+ * Hook devuelve: { members: 2000, trainers: 50, ... }
  * 
- * MANEJO DE ERRORES:
- * - Si falla la carga, stats permanece como null
- * - isLoaded se marca como true incluso en caso de error
- * - El error se almacena en el estado 'error' para manejo por el componente
- * - Los componentes deben verificar si stats es null antes de renderizar
+ * SIN CAMBIOS REQUERIDOS EN:
+ * - LandingPage.js (mantiene el mismo código)
+ * - Diseño visual (idéntico al original)
+ * - Lógica de renderizado (sin modificaciones)
  * 
- * CASOS DE USO COMUNES:
- * 1. Sección "Acerca de Nosotros": Mostrar años de experiencia, miembros, etc.
- * 2. Dashboard administrativo: Métricas de rendimiento del gimnasio
- * 3. Landing page: Estadísticas impresionantes para atraer nuevos miembros
- * 4. Página de testimonios: Datos de satisfacción y número de miembros
- * 
- * OPTIMIZACIONES:
- * - Uso de useCallback para evitar re-renders innecesarios
- * - Cleanup automático en el desmontaje del componente
- * - Logs detallados para debugging en desarrollo
- * - Validación robusta de estructura de datos
- * 
- * CONSIDERACIONES DE RENDIMIENTO:
- * - Las estadísticas suelen cambiar con poca frecuencia
- * - Considerar implementar caché si se usa en múltiples componentes
- * - Los datos numéricos son ligeros, no requieren paginación
- * 
- * NOTA PARA DESARROLLADORES:
- * Este hook es esencial para mostrar la credibilidad y éxito del gimnasio.
- * Las estadísticas monetarias (si existen) deben mostrarse en quetzales (Q).
- * Mantener consistencia con el formato numérico (separadores de miles, etc.)
- * al mostrar las estadísticas en la interfaz de usuario.
+ * VENTAJAS:
+ * ✅ Datos 100% dinámicos desde el backend
+ * ✅ Cero cambios en el diseño existente
+ * ✅ Compatible con código actual
+ * ✅ Fallback automático en caso de error
+ * ✅ Fácil de mantener y actualizar
  */

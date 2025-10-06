@@ -34,7 +34,33 @@ class GymService extends BaseService {
       throw error;
     }
   }
-  
+  // 📊 OBTENER ESTADÍSTICAS ACTIVAS (PARA LANDING PAGE)
+async getActiveStatistics() {
+  console.log('📊 FETCHING ACTIVE STATISTICS...');
+  try {
+    const result = await this.get('/statistics/active');
+    console.log('✅ ACTIVE STATISTICS RECEIVED:', result);
+    
+    if (result && result.data && Array.isArray(result.data)) {
+      console.log(`📊 Found ${result.data.length} active statistics:`, 
+        result.data.map(s => `${s.label}: ${s.number}`)
+      );
+    }
+    
+    return result;
+  } catch (error) {
+    console.log('❌ ACTIVE STATISTICS FAILED:', error.message);
+    
+    // Fallback a estadísticas antiguas si falla
+    if (error.response?.status === 404) {
+      console.log('📊 FALLBACK: Using old stats endpoint');
+      return await this.getGymStats();
+    }
+    
+    throw error;
+  }
+}
+
   // OBTENER SERVICIOS
   async getGymServices() {
     console.log('🏋️ FETCHING GYM SERVICES...');
