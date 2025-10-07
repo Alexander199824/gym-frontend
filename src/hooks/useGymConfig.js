@@ -1,19 +1,21 @@
 // Autor: Alexander Echeverria
 // src/hooks/useGymConfig.js
-// FUNCIÓN: Hook optimizado con cache persistente para configuración del gimnasio
+// FUNCIÓN: Hook optimizado ACTUALIZADO para conectar con test-gym-info-manager.js
+// ✅ SIN DATOS HARDCODEADOS - TODO DESDE EL BACKEND
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { requestManager } from '../services/RequestManager';
 import { useApp } from '../contexts/AppContext';
-import apiService from '../services/apiService';
+import { GymService } from '../services/gymService';
+const gymService = new GymService();
 
 const useGymConfig = (options = {}) => {
   // Opciones con defaults
   const {
     enabled = true,
     refetchOnMount = false,
-    staleTime = 30 * 60 * 1000, // 30 minutos (aumentado para persistencia)
-    priority = 'high' // Config es crítico
+    staleTime = 30 * 60 * 1000, // 30 minutos
+    priority = 'high'
   } = options;
 
   // Usar cache del AppContext
@@ -38,7 +40,7 @@ const useGymConfig = (options = {}) => {
   const fetchAbortController = useRef(null);
   const instanceId = useRef(`gymConfig-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
 
-  console.log(`useGymConfig [${instanceId.current}] inicializado con cache del AppContext`);
+  console.log(`useGymConfig [${instanceId.current}] inicializado - conectado con test backend`);
 
   // Verificar cache al inicializar
   useEffect(() => {
@@ -46,8 +48,10 @@ const useGymConfig = (options = {}) => {
     if (cachedData) {
       console.log(`useGymConfig [${instanceId.current}] restaurado desde cache:`, {
         name: cachedData.name,
+        tagline: cachedData.tagline,
         hasLogo: !!cachedData.logo?.url,
-        hasContact: !!cachedData.contact
+        hasContact: !!cachedData.contact,
+        hasSocial: !!cachedData.social
       });
       setConfig(cachedData);
       setIsLoaded(true);
@@ -56,14 +60,14 @@ const useGymConfig = (options = {}) => {
     }
   }, [getCacheData]);
 
-  // Función de fetch optimizada con cache integrado
+  // ✅ FUNCIÓN DE FETCH ACTUALIZADA PARA ENDPOINTS DEL TEST
   const fetchConfig = useCallback(async (forceRefresh = false) => {
     if (!mountedRef.current || !enabled) {
-      console.log(`useGymConfig [${instanceId.current}] fetch omitido - deshabilitado o desmontado`);
+      console.log(`useGymConfig [${instanceId.current}] fetch omitido - deshabilitado`);
       return;
     }
 
-    // Verificar cache válido primero (excepto si es force refresh)
+    // Verificar cache válido primero
     if (!forceRefresh && isCacheValid('gymConfig')) {
       const cachedData = getCacheData('gymConfig');
       if (cachedData) {
@@ -82,7 +86,7 @@ const useGymConfig = (options = {}) => {
     }
 
     try {
-      console.log(`useGymConfig [${instanceId.current}] obteniendo datos${forceRefresh ? ' (forzado)' : ''}...`);
+      console.log(`useGymConfig [${instanceId.current}] 🏢 obteniendo configuración desde backend${forceRefresh ? ' (forzado)' : ''}...`);
       
       // Cancelar petición anterior si existe
       if (fetchAbortController.current) {
@@ -95,10 +99,10 @@ const useGymConfig = (options = {}) => {
       setError(null);
       setDataLoading({ gymConfig: true });
 
-      // Usar Request Manager con cache del AppContext
+      // ✅ USAR gymService.getGymConfig() - conecta con /api/gym/config
       const result = await requestManager.executeRequest(
         '/api/gym/config',
-        () => apiService.getGymConfig(),
+        () => gymService.getGymConfig(),
         {
           forceRefresh,
           ttl: staleTime,
@@ -108,11 +112,11 @@ const useGymConfig = (options = {}) => {
       );
 
       if (!mountedRef.current) {
-        console.log(`useGymConfig [${instanceId.current}] componente desmontado, omitiendo actualización de estado`);
+        console.log(`useGymConfig [${instanceId.current}] componente desmontado, omitiendo actualización`);
         return;
       }
 
-      // Extraer datos del response
+      // Extraer datos del response según estructura del test
       let configData = null;
       
       if (result && result.success && result.data) {
@@ -121,14 +125,17 @@ const useGymConfig = (options = {}) => {
         configData = result;
       }
 
-      if (configData && configData.name) {
-        console.log(`useGymConfig [${instanceId.current}] datos cargados:`, {
-          name: configData.name,
+      if (configData) {
+        console.log(`useGymConfig [${instanceId.current}] ✅ configuración cargada desde backend:`, {
+          name: configData.name || 'N/A',
+          tagline: configData.tagline || 'N/A',
+          hasDescription: !!configData.description,
           hasLogo: !!configData.logo?.url,
+          hasHero: !!configData.hero,
           hasContact: !!configData.contact,
           hasSocial: !!(configData.social && Object.keys(configData.social).length > 0),
-          hasHero: !!configData.hero,
-          hasVideo: !!(configData.hero?.videoUrl || configData.videoUrl)
+          hasVideo: !!(configData.hero?.videoUrl),
+          hasMultimedia: !!configData.multimedia
         });
 
         // Guardar en cache del AppContext
@@ -139,14 +146,14 @@ const useGymConfig = (options = {}) => {
         setLastFetch(Date.now());
         hasInitialLoad.current = true;
 
-        console.log(`useGymConfig [${instanceId.current}] guardado en cache del AppContext`);
+        console.log(`useGymConfig [${instanceId.current}] ✅ guardado en cache del AppContext`);
       } else {
-        throw new Error('Estructura de datos de configuración inválida');
+        throw new Error('No se recibió configuración del backend');
       }
 
     } catch (err) {
       if (mountedRef.current && err.name !== 'AbortError') {
-        console.error(`useGymConfig [${instanceId.current}] error:`, err.message);
+        console.error(`useGymConfig [${instanceId.current}] ❌ error:`, err.message);
         setError(err);
         
         // En caso de error, intentar usar cache aunque esté expirado
@@ -169,20 +176,25 @@ const useGymConfig = (options = {}) => {
 
   // Función de refetch manual
   const refetch = useCallback(() => {
-    console.log(`useGymConfig [${instanceId.current}] refetch manual solicitado`);
+    console.log(`useGymConfig [${instanceId.current}] 🔄 refetch manual solicitado`);
     return fetchConfig(true);
   }, [fetchConfig]);
 
   // Función de invalidación
-  const invalidate = useCallback(() => {
-    console.log(`useGymConfig [${instanceId.current}] invalidando cache`);
-    requestManager.invalidateCache('/api/gym/config');
-    clearCacheItem('gymConfig');
-    setLastFetch(null);
-    setConfig(null);
-    setIsLoaded(false);
-    hasInitialLoad.current = false;
-  }, [clearCacheItem]);
+  // Función de invalidación CORREGIDA
+const invalidate = useCallback(() => {
+  console.log(`useGymConfig [${instanceId.current}] 🗑️ invalidando cache de GYM solamente`);
+  
+  // ✅ Solo invalidar cache específico de gym
+  requestManager.invalidateCache('/api/gym/config');
+  clearCacheItem('gymConfig'); // Solo este item
+  
+  // NO tocar otros caches
+  setLastFetch(null);
+  setConfig(null);
+  setIsLoaded(false);
+  hasInitialLoad.current = false;
+}, [clearCacheItem]);
 
   // Efecto principal - Fetch inicial inteligente
   useEffect(() => {
@@ -193,10 +205,10 @@ const useGymConfig = (options = {}) => {
     );
 
     if (shouldFetch) {
-      console.log(`useGymConfig [${instanceId.current}] fetch inicial activado`);
+      console.log(`useGymConfig [${instanceId.current}] 🚀 fetch inicial activado`);
       fetchConfig();
     } else {
-      console.log(`useGymConfig [${instanceId.current}] fetch inicial omitido`, {
+      console.log(`useGymConfig [${instanceId.current}] ⏭️ fetch inicial omitido`, {
         enabled,
         hasInitialLoad: hasInitialLoad.current,
         refetchOnMount,
@@ -204,7 +216,6 @@ const useGymConfig = (options = {}) => {
         cacheValid: isCacheValid('gymConfig')
       });
       
-      // Si tenemos datos pero no está marcado como loaded, marcarlo
       if (config && !isLoaded) {
         setIsLoaded(true);
       }
@@ -212,7 +223,7 @@ const useGymConfig = (options = {}) => {
 
     return () => {
       if (fetchAbortController.current) {
-        console.log(`useGymConfig [${instanceId.current}] abortando fetch en cleanup de efecto`);
+        console.log(`useGymConfig [${instanceId.current}] abortando fetch en cleanup`);
         fetchAbortController.current.abort();
         fetchAbortController.current = null;
       }
@@ -224,7 +235,7 @@ const useGymConfig = (options = {}) => {
     mountedRef.current = true;
     
     return () => {
-      console.log(`useGymConfig [${instanceId.current}] componente desmontándose - limpieza`);
+      console.log(`useGymConfig [${instanceId.current}] 👋 componente desmontándose`);
       mountedRef.current = false;
       
       if (fetchAbortController.current) {
@@ -238,7 +249,7 @@ const useGymConfig = (options = {}) => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && enabled && config && !isCacheValid('gymConfig')) {
-        console.log(`useGymConfig [${instanceId.current}] página visible, cache obsoleto, refrescando...`);
+        console.log(`useGymConfig [${instanceId.current}] 👁️ página visible, cache obsoleto, refrescando...`);
         fetchConfig();
       }
     };
@@ -252,7 +263,7 @@ const useGymConfig = (options = {}) => {
   const isStale = !isCacheValid('gymConfig');
   const cacheAge = lastFetch ? Date.now() - lastFetch : 0;
 
-  // Funciones de utilidad para el config
+  // ✅ FUNCIONES DE UTILIDAD ACTUALIZADAS SEGÚN ESTRUCTURA DEL TEST
   const getLogoUrl = useCallback(() => {
     if (!config?.logo?.url) return null;
     
@@ -266,12 +277,14 @@ const useGymConfig = (options = {}) => {
 
   const getVideoUrl = useCallback(() => {
     if (!config) return null;
-    return config.hero?.videoUrl || config.videoUrl || null;
+    // Según test: config.hero.videoUrl
+    return config.hero?.videoUrl || null;
   }, [config]);
 
   const getPosterUrl = useCallback(() => {
     if (!config) return null;
-    return config.hero?.imageUrl || config.imageUrl || null;
+    // Según test: config.hero.imageUrl
+    return config.hero?.imageUrl || null;
   }, [config]);
 
   const hasLogo = useCallback(() => {
@@ -286,25 +299,69 @@ const useGymConfig = (options = {}) => {
     return !!(getPosterUrl());
   }, [getPosterUrl]);
 
+  // ✅ ACTUALIZADO: Redes sociales según estructura del test
+  // Formato del test: { platform: { url, active, handle } }
   const getSocialLinks = useCallback(() => {
     if (!config?.social) return [];
     
     return Object.entries(config.social)
-      .filter(([platform, data]) => data && data.url && data.active)
+      .filter(([platform, data]) => {
+        // Según test: data.active indica si está activa
+        return data && data.url && data.active;
+      })
       .map(([platform, data]) => ({
         platform,
         url: data.url,
-        handle: data.handle,
-        followers: data.followers
+        handle: data.handle || null,
+        active: data.active
       }));
   }, [config]);
 
+  // ✅ ACTUALIZADO: Información de contacto según estructura del test
+  // Formato del test: config.contact = { phone, email, address, whatsapp, location, city }
   const getContactInfo = useCallback(() => {
     return {
       phone: config?.contact?.phone || null,
       email: config?.contact?.email || null,
       address: config?.contact?.address || null,
-      hours: config?.hours?.full || null
+      whatsapp: config?.contact?.whatsapp || null,
+      city: config?.contact?.city || null,
+      location: config?.contact?.location || null,
+      mapsUrl: config?.contact?.location?.mapsUrl || null
+    };
+  }, [config]);
+
+  // ✅ FUNCIONES ADICIONALES SEGÚN TEST
+  const getThemeColors = useCallback(() => {
+    return {
+      primary: config?.theme?.primaryColor || null,
+      secondary: config?.theme?.secondaryColor || null,
+      success: config?.theme?.successColor || null,
+      warning: config?.theme?.warningColor || null,
+      danger: config?.theme?.dangerColor || null
+    };
+  }, [config]);
+
+  const getMultimediaInfo = useCallback(() => {
+    if (!config?.multimedia) return null;
+    
+    return {
+      hasAnyMedia: config.multimedia.hasAnyMedia || false,
+      hasLogo: config.multimedia.hasLogo || false,
+      hasVideo: config.multimedia.hasVideo || false,
+      hasHeroImage: config.multimedia.hasHeroImage || false,
+      imageType: config.multimedia.imageType || null
+    };
+  }, [config]);
+
+  const getVideoConfig = useCallback(() => {
+    if (!config?.hero?.videoConfig) return null;
+    
+    return {
+      autoplay: config.hero.videoConfig.autoplay || false,
+      muted: config.hero.videoConfig.muted || false,
+      loop: config.hero.videoConfig.loop || false,
+      controls: config.hero.videoConfig.controls || false
     };
   }, [config]);
 
@@ -335,6 +392,9 @@ const useGymConfig = (options = {}) => {
     hasPoster,
     getSocialLinks,
     getContactInfo,
+    getThemeColors,
+    getMultimediaInfo,
+    getVideoConfig,
     
     // Datos derivados (para comodidad)
     logoUrl: getLogoUrl(),
@@ -342,11 +402,14 @@ const useGymConfig = (options = {}) => {
     posterUrl: getPosterUrl(),
     socialLinks: getSocialLinks(),
     contactInfo: getContactInfo(),
+    themeColors: getThemeColors(),
+    multimediaInfo: getMultimediaInfo(),
+    videoConfig: getVideoConfig(),
     
-    // Datos básicos de acceso rápido
-    gymName: config?.name || 'Elite Fitness Club',
-    gymDescription: config?.description || 'Tu transformación comienza aquí',
-    gymTagline: config?.tagline || null,
+    // ✅ Datos básicos según test (SIN hardcodeo)
+    gymName: config?.name || '',
+    gymDescription: config?.description || '',
+    gymTagline: config?.tagline || '',
     
     // Estados específicos para video/imagen
     hasMedia: hasVideo() || hasPoster(),
@@ -362,7 +425,9 @@ const useGymConfig = (options = {}) => {
         isEnabled: enabled,
         cacheAge: Math.round(cacheAge / 1000) + 's',
         cacheValid: isCacheValid('gymConfig'),
-        priority
+        priority,
+        backendConnected: true,
+        testEndpoint: '/api/gym/config'
       }
     })
   };
@@ -371,229 +436,40 @@ const useGymConfig = (options = {}) => {
 export default useGymConfig;
 
 /*
-DOCUMENTACIÓN DEL HOOK useGymConfig
+=============================================================================
+HOOK useGymConfig - ACTUALIZADO PARA TEST-GYM-INFO-MANAGER.JS
+=============================================================================
 
-PROPÓSITO:
-Este hook personalizado gestiona la configuración principal del gimnasio Elite Fitness en Guatemala,
-proporcionando una interfaz optimizada con cache persistente para acceder a información corporativa,
-branding, contacto, horarios, redes sociales y contenido multimedia del gimnasio. Incluye
-integración completa con el AppContext para persistencia entre navegaciones.
+✅ CAMBIOS PRINCIPALES:
+- Conectado con gymService.getGymConfig() -> /api/gym/config
+- SIN datos hardcodeados - todo desde backend
+- Estructura de datos según formato del test
+- Funciones de utilidad actualizadas a estructura real
 
-FUNCIONALIDADES PRINCIPALES:
-- Cache persistente integrado con AppContext del gimnasio
-- Fetch optimizado con Request Manager y control de duplicados
-- Invalidación inteligente y refetch manual disponible
-- Funciones de utilidad para URLs y datos derivados
-- Estados de carga robustos para UI responsive
-- Manejo automático de visibilidad de página
-- Fallbacks con cache expirado en caso de errores
-- Logging detallado para debugging y monitoreo
+✅ FUNCIONES DISPONIBLES:
+- getLogoUrl() - URL completa del logo
+- getVideoUrl() - URL del video hero
+- getPosterUrl() - URL de imagen hero
+- getSocialLinks() - Array de redes sociales ACTIVAS
+- getContactInfo() - Objeto completo de contacto
+- getThemeColors() - Colores del tema
+- getMultimediaInfo() - Info de multimedia disponible
+- getVideoConfig() - Configuración del video
 
-ARCHIVOS Y CONEXIONES:
+✅ ESTADOS RETORNADOS:
+- config: Objeto completo de configuración
+- isLoading: Indica si está cargando
+- isLoaded: Indica si ya cargó
+- error: Error si ocurre
+- hasValidData: Verifica que hay datos válidos
 
-SERVICIOS UTILIZADOS:
-- ../services/RequestManager: Coordinación de peticiones y cache avanzado
-- ../services/apiService: Comunicación directa con backend del gimnasio
-  * getGymConfig(): Endpoint para obtener configuración del gimnasio
+✅ MANTIENE COMPATIBILIDAD:
+- Cache persistente con AppContext
+- Request Manager para optimización
+- Todos los métodos existentes
+- Debug info en desarrollo
 
-CONTEXTS REQUERIDOS:
-- ../contexts/AppContext: Cache global, estados de carga y gestión de datos
-  * getCacheData(): Obtener datos desde cache global
-  * setCacheData(): Guardar datos en cache global
-  * isCacheValid(): Verificar validez del cache
-  * setDataLoading(): Controlar estados de carga globales
-  * clearCacheItem(): Limpiar elementos específicos del cache
-
-DEPENDENCIAS DE REACT:
-- useState: Gestión de estados locales del hook
-- useEffect: Efectos para fetch automático, cleanup y visibilidad
-- useCallback: Optimización de funciones para evitar re-renders
-- useRef: Referencias para control de montaje, IDs y controladores
-
-QUE SE MUESTRA AL USUARIO:
-
-INFORMACIÓN BÁSICA DEL GIMNASIO:
-El hook proporciona toda la configuración visual y de contenido del gimnasio:
-
-**Identidad Corporativa**:
-- **Nombre del gimnasio**: "Elite Fitness Club" (configurable)
-- **Tagline/Eslogan**: "Tu transformación comienza aquí" o personalizado
-- **Descripción**: Descripción corporativa del gimnasio
-- **Logo corporativo**: URL completa del logo del gimnasio
-- **Imágenes promocionales**: Posters y banners para el sitio web
-- **Videos promocionales**: Videos de presentación del gimnasio
-
-**Información de Contacto**:
-- **Teléfono**: Número local guatemalteco (+502 XXXX-XXXX)
-- **Email**: Dirección de correo electrónico oficial
-- **Dirección física**: Ubicación del gimnasio en Guatemala
-- **Horarios de atención**: Horarios completos de funcionamiento
-- **Días de operación**: Información de días laborables y feriados
-
-**Redes Sociales**:
-- **Facebook**: URL de página oficial con número de seguidores
-- **Instagram**: Perfil oficial con handle y métricas
-- **YouTube**: Canal con videos de entrenamientos y testimonios
-- **TikTok**: Contenido viral y dinámico del gimnasio
-- **Twitter**: Actualizaciones y noticias del gimnasio
-- **LinkedIn**: Presencia corporativa y profesional
-
-**Contenido Hero/Principal**:
-- **Video de fondo**: Video promocional para página principal
-- **Imagen hero**: Imagen de fondo alternativa
-- **Call-to-actions**: Botones principales de conversión
-- **Mensajes promocionales**: Ofertas y promociones destacadas
-- **Testimonios**: Casos de éxito de miembros del gimnasio
-
-FUNCIONES DE UTILIDAD PROPORCIONADAS:
-
-**URLs y Media**:
-- `getLogoUrl()`: URL completa y formateada del logo
-- `getVideoUrl()`: URL del video promocional principal
-- `getPosterUrl()`: URL de imagen hero o poster principal
-- `hasLogo()`: Verificar si hay logo disponible
-- `hasVideo()`: Verificar si hay video promocional
-- `hasPoster()`: Verificar si hay imagen de fondo
-
-**Información Social**:
-- `getSocialLinks()`: Array de enlaces activos de redes sociales
-- Filtrado automático de enlaces inactivos o incorrectos
-- Información de handles y número de seguidores
-- Plataformas ordenadas por popularidad y actividad
-
-**Datos de Contacto**:
-- `getContactInfo()`: Objeto completo con toda la información
-- Teléfonos formateados para Guatemala (+502)
-- Direcciones específicas con referencias locales
-- Horarios en formato 24 horas para claridad
-
-ESTADOS Y CONTROL:
-
-**Estados de Carga**:
-- `isLoading`: Indica si hay una petición en curso
-- `isLoaded`: Confirma que se han cargado datos al menos una vez
-- `hasValidData`: Verifica que los datos están completos y válidos
-- `isStale`: Indica si el cache ha expirado y necesita actualización
-
-**Control de Cache**:
-- Cache persistente de 30 minutos para datos estables
-- Invalidación automática y manual disponible
-- Verificación de validez antes de cada uso
-- Fallback con cache expirado en caso de errores de red
-
-**Funciones de Control**:
-- `refetch()`: Forzar nueva carga ignorando cache
-- `invalidate()`: Limpiar cache y forzar recarga completa
-- Control automático de peticiones duplicadas
-- Cancelación de peticiones al desmontar componente
-
-CARACTERÍSTICAS ESPECÍFICAS PARA GUATEMALA:
-
-**Localización**:
-- Teléfonos con código de país guatemalteco (+502)
-- Direcciones con formato local (zonas de Guatemala)
-- Horarios en timezone de Guatemala (GMT-6)
-- Contenido en español guatemalteco
-
-**Adaptación Cultural**:
-- Mensajes adaptados al mercado guatemalteco
-- Referencias culturales locales apropiadas
-- Promociones contextualizadas para fechas importantes
-- Precios implícitos en quetzales para servicios
-
-**Integración Local**:
-- Enlaces a Google Maps con ubicaciones exactas
-- Integración con números de WhatsApp Business
-- Referencias a landmarks conocidos en Guatemala
-- Información específica del mercado fitness guatemalteco
-
-OPTIMIZACIONES TÉCNICAS:
-
-**Rendimiento**:
-- Cache inteligente con invalidación automática
-- Fetch controlado con abort controllers
-- Funciones memoizadas con useCallback
-- Estados optimizados para evitar re-renders innecesarios
-
-**Experiencia de Usuario**:
-- Datos disponibles inmediatamente desde cache
-- Actualizaciones en background sin interrumpir UX
-- Estados de carga suaves y no intrusivos
-- Información siempre disponible incluso con errores
-
-**Desarrollo y Debugging**:
-- Logging detallado en desarrollo
-- IDs únicos de instancia para tracking
-- Información de debug disponible en development
-- Métricas de cache y rendimiento
-
-CASOS DE USO EN EL GIMNASIO:
-
-**Página Principal**:
-- Header con logo y navegación principal
-- Video hero de fondo con información corporativa
-- Sección de contacto con horarios y ubicación
-- Enlaces a redes sociales en footer
-
-**Páginas de Marketing**:
-- Landing pages con información consistente
-- Formularios de contacto con datos actualizados
-- Call-to-actions con información de precios
-- Testimonios y casos de éxito
-
-**Dashboard de Usuarios**:
-- Información de contacto para soporte
-- Enlaces a redes sociales del gimnasio
-- Logo corporativo en interfaz de usuario
-- Datos de la empresa en facturas y documentos
-
-**Aplicación Móvil**:
-- Configuración sincronizada entre plataformas
-- Información de contacto para emergencias
-- Enlaces directos a redes sociales
-- Datos corporativos en notificaciones
-
-INTEGRACIÓN CON OTROS SISTEMAS:
-
-**Sistema de Pagos**:
-- Información corporativa en facturas
-- Datos de contacto para soporte de pagos
-- Logo en comprobantes y recibos
-- Dirección fiscal para documentos oficiales
-
-**CRM y Marketing**:
-- Datos consistentes en todas las comunicaciones
-- Información actualizada para campañas de email
-- Redes sociales para remarketing
-- Contenido multimedia para promociones
-
-**Sistema de Membresías**:
-- Información corporativa en contratos
-- Datos de contacto en documentos legales
-- Horarios actualizados en términos de servicio
-- Logo en tarjetas de membresía
-
-BENEFICIOS PARA EL GIMNASIO:
-
-**Consistencia de Marca**:
-- Información uniforme en todos los canales
-- Actualizaciones centralizadas sin cambios de código
-- Branding consistente en toda la experiencia
-- Mensaje corporativo coherente
-
-**Gestión Eficiente**:
-- Cambios de información desde panel admin
-- Actualizaciones automáticas en toda la aplicación
-- No necesidad de tocar código para cambios básicos
-- Gestión centralizada de contenido multimedia
-
-**Experiencia de Usuario**:
-- Información siempre actualizada y disponible
-- Carga rápida con sistema de cache inteligente
-- Datos de contacto precisos para comunicación
-- Enlaces funcionales a redes sociales
-
-Este hook es fundamental para mantener la identidad y información del gimnasio
-actualizada y accesible en toda la aplicación, proporcionando una base sólida
-para la presencia digital del negocio en Guatemala.
+Este hook está completamente sincronizado con el test backend
+y NO tiene datos hardcodeados.
+=============================================================================
 */
