@@ -316,27 +316,6 @@ const WebsiteManager = () => {
             Administra el contenido básico y elementos visuales de tu página web
           </p>
           
-          {/* Notas informativas sobre gestión separada */}
-          <div className="mt-3 space-y-2">
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 text-blue-600 mr-2" />
-                <p className="text-sm text-blue-800">
-                  <strong>Los horarios del gimnasio</strong> se gestionan desde "Gestión de Horarios" en el menú lateral
-                </p>
-              </div>
-            </div>
-            
-            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-              <div className="flex items-center">
-                <Target className="w-4 h-4 text-purple-600 mr-2" />
-                <p className="text-sm text-purple-800">
-                  <strong>Planes y Productos</strong> ahora se gestionan desde sus secciones dedicadas en el menú
-                </p>
-              </div>
-            </div>
-          </div>
-          
           {/* Mostrar resumen de contenido cargado */}
           <div className="mt-3 flex flex-wrap gap-2">
             {webSections.map(section => section.dataLoaded && (
@@ -464,6 +443,7 @@ CAMBIOS REALIZADOS EN WebsiteManager.js
 - Imports de PlansManager y ProductsManager
 - Imports de iconos CreditCard y ShoppingBag
 - Secciones del render condicional para planes y productos
+- Notas informativas sobre gestión separada (eliminadas en última actualización)
 
 ✅ MANTENIDO:
 - Información General del gimnasio
@@ -473,9 +453,9 @@ CAMBIOS REALIZADOS EN WebsiteManager.js
 - Verificación de permisos
 - Debug info actualizado
 
-🆕 AGREGADO:
-- Notas informativas sobre gestión separada de planes y productos
-- Header actualizado para reflejar nueva funcionalidad
+🆕 MEJORAS:
+- Header más limpio sin mensajes informativos
+- Interfaz más enfocada en contenido web básico
 - Debug info actualizado con indicadores de cambio
 - Documentación actualizada
 
@@ -493,132 +473,4 @@ El WebsiteManager ahora se enfoca exclusivamente en:
 
 Los planes y productos serán gestionados desde sus propias 
 secciones especializadas en el sistema.
-*/
-/*
-=============================================================================
-CAMBIOS PRINCIPALES EN WebsiteManager.js
-=============================================================================
-
-🗑️ ELIMINADO COMPLETAMENTE:
-- Referencias a métricas de capacidad (capacityMetrics)
-- Carga de datos de horarios flexibles
-- Funciones relacionadas con horarios
-- Indicadores de horarios flexibles en el header
-- Debug info específico de horarios
-- Props relacionadas con horarios pasadas a ContentEditor
-
-✅ MANTENIDO SIN CAMBIOS:
-- Gestión de Información General (sin horarios)
-- Gestión de Servicios del gimnasio
-- Gestión de Planes de Membresía
-- Gestión de Productos de la tienda
-- Gestión de Multimedia
-- Sistema de guardado independiente por sección
-- Verificación de permisos
-- Navegación por pestañas
-
-🆕 MEJORAS AGREGADAS:
-- Nota informativa sobre nueva ubicación de horarios
-- Header actualizado sin referencias a horarios
-- Resumen de contenido cargado sin métricas de horarios
-- Debug info actualizado para reflejar cambios
-- Documentación actualizada
-
-📍 REFERENCIAS A NUEVA UBICACIÓN:
-- Nota azul con icono Clock sobre nueva gestión de horarios
-- Información clara sobre ubicación en menú lateral
-- Debug info actualizado con nueva estructura
-
-🎯 BENEFICIOS:
-- Gestor más enfocado en contenido web
-- Carga más rápida sin lógica compleja de horarios
-- Interfaz más limpia y especializada
-- Separación clara de responsabilidades
-- Mejor organización funcional
-
-El WebsiteManager ahora se enfoca exclusivamente en la gestión 
-del contenido web (información, servicios, planes, productos, 
-multimedia), mientras que los horarios tienen su propio gestor 
-independiente y especializado.
-*/
-/*
-=============================================================================
-DOCUMENTACIÓN DEL COMPONENTE WebsiteManager
-=============================================================================
-
-PROPÓSITO:
-Este componente es la nueva página principal para la gestión completa del contenido 
-de la página web del gimnasio. Se ha separado del AdminDashboard principal para ser 
-accesible desde el sidebar, proporcionando una experiencia dedicada para la 
-administración de contenido web con horarios flexibles.
-
-FUNCIONALIDADES PRINCIPALES:
-- Gestión completa de información general con horarios flexibles avanzados
-- Administración de servicios del gimnasio con características personalizables
-- Gestión de planes de membresía con precios en Quetzales guatemaltecos
-- Administración de productos de la tienda del gimnasio
-- Gestión de multimedia (logo, videos, imágenes) para la página web
-- Sistema de horarios flexibles con múltiples franjas por día
-- Métricas de capacidad y ocupación en tiempo real
-- Vista previa de cambios antes de publicar
-- Sistema de guardado independiente por sección
-
-ESTRUCTURA DE NAVEGACIÓN:
-- Información General: Configuración básica, contacto, horarios flexibles, estadísticas
-- Servicios: Creación y edición de servicios del gimnasio
-- Planes de Membresía: Gestión de planes con precios en Quetzales
-- Productos: Administración de la tienda online
-- Multimedia: Logo, videos, imágenes y contenido visual
-
-SISTEMA DE HORARIOS FLEXIBLES:
-- Configuración independiente por día de la semana
-- Múltiples franjas horarias por día (ej: mañana, tarde, noche)
-- Capacidad individual para cada franja horaria
-- Métricas en tiempo real de ocupación y disponibilidad
-- Etiquetas personalizables para franjas especiales
-- Herramientas de gestión masiva para aplicar cambios
-
-INTEGRACIÓN CON BACKEND:
-- Carga datos existentes desde múltiples endpoints especializados
-- Guardado independiente por sección para eficiencia
-- Soporte para horarios flexibles con endpoint dedicado
-- Manejo de errores robusto con fallbacks automáticos
-- Métricas de capacidad actualizadas en tiempo real
-
-CARACTERÍSTICAS ESPECIALES:
-- Debug info discreto para desarrollo con información de horarios flexibles
-- Indicadores visuales de estado de carga y cambios sin guardar
-- Vista previa en tiempo real de configuraciones
-- Advertencias antes de perder cambios no guardados
-- Botón directo para ver la página web pública
-- Métricas de capacidad en el header para monitoreo rápido
-
-CONEXIONES Y DEPENDENCIAS:
-- AuthContext: Verificación de permisos para gestión de contenido
-- AppContext: Notificaciones y utilidades del sistema
-- apiService: Comunicación con backend para todos los endpoints
-- ContentEditor: Gestión de información general y horarios flexibles
-- ServicesManager: Administración de servicios del gimnasio
-- PlansManager: Gestión de planes de membresía
-- ProductsManager: Administración de productos de la tienda
-- MediaUploader: Gestión de contenido multimedia
-
-FLUJO DE USUARIO:
-1. Acceso desde el sidebar del dashboard administrativo
-2. Navegación por pestañas para diferentes secciones de contenido
-3. Edición en tiempo real con vista previa instantánea
-4. Guardado independiente por sección para evitar pérdida de datos
-5. Actualización automática de métricas tras cambios en horarios
-6. Vista previa de la página web pública desde botón dedicado
-
-SEGURIDAD Y PERMISOS:
-- Verificación de permisos canManageContent antes de mostrar contenido
-- Manejo seguro de errores con mensajes descriptivos
-- Validación de datos antes del guardado
-- Fallbacks automáticos en caso de errores de API
-
-Este componente centraliza toda la gestión de contenido web en una interfaz 
-dedicada y especializada, separada del dashboard operativo principal, 
-proporcionando una experiencia enfocada y profesional para la administración 
-de la presencia online del gimnasio.
 */
