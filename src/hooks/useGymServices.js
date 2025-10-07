@@ -1,8 +1,10 @@
 // Autor: Alexander Echeverria
 // Dirección: src/hooks/useGymServices.js
+// ✅ ACTUALIZADO para usar GymService en lugar de apiService
 
 import { useState, useEffect, useCallback } from 'react';
-import apiService from '../services/apiService';
+import { GymService } from '../services/gymService';
+const gymService = new GymService();
 
 const useGymServices = () => {
   const [services, setServices] = useState([]);
@@ -13,52 +15,54 @@ const useGymServices = () => {
   console.log('Hook useGymServices inicializado');
 
   const fetchServices = useCallback(async () => {
-    console.log('Obteniendo servicios del gimnasio');
-    console.log('Realizando solicitud API a /api/gym/services');
+    console.log('🏋️ Obteniendo servicios del gimnasio desde backend...');
     
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await apiService.getGymServices();
-      console.log('Respuesta de servicios recibida:', response);
+      // ✅ USAR gymService en lugar de apiService
+      const response = await gymService.getGymServices();
+      console.log('✅ Respuesta de servicios recibida:', response);
       
-      // CORRECCIÓN CRÍTICA: Extraer solo la data del response
       let servicesData = [];
       
       if (response && response.success && response.data) {
-        // Backend devuelve: { success: true, data: [ { id: 1, title: "...", ... }, ... ] }
+        // Backend devuelve: { success: true, data: [...] }
         servicesData = response.data;
-        console.log('Datos de servicios extraídos:');
-        console.log('  - Total de servicios:', servicesData.length);
+        console.log('📋 Datos de servicios extraídos:');
+        console.log('   - Total de servicios:', servicesData.length);
+        
         if (Array.isArray(servicesData)) {
           servicesData.forEach((service, i) => {
-            console.log(`  - Servicio ${i + 1}: ${service.title} (Activo: ${service.active !== false})`);
+            console.log(`   - Servicio ${i + 1}: "${service.title}" (Activo: ${service.active !== false})`);
           });
         }
       } else if (response && Array.isArray(response)) {
         // Si el response ya es la data directamente
         servicesData = response;
-        console.log('Datos de servicios (array directo):', servicesData.length);
+        console.log('📋 Datos de servicios (array directo):', servicesData.length);
       } else {
-        console.warn('Estructura de respuesta de servicios inválida:', response);
+        console.warn('⚠️ Estructura de respuesta de servicios inválida:', response);
         throw new Error('Estructura de respuesta inválida');
       }
 
-      // Filtrar solo servicios activos
-      const activeServices = Array.isArray(servicesData) 
-        ? servicesData.filter(service => service.active !== false)
-        : [];
+      // ✅ Retornar TODOS los servicios (activos e inactivos)
+      // El filtrado se hace en el componente si es necesario
+      const allServices = Array.isArray(servicesData) ? servicesData : [];
 
-      setServices(activeServices); // Guardamos solo la data, no el wrapper
+      setServices(allServices);
       setIsLoaded(true);
-      console.log(`Servicios del gimnasio cargados exitosamente! (${activeServices.length} activos)`);
+      
+      const activeCount = allServices.filter(s => s.active !== false).length;
+      console.log(`✅ Servicios cargados: ${allServices.length} totales, ${activeCount} activos`);
 
     } catch (err) {
-      console.error('Error al cargar servicios:', err.message);
+      console.error('❌ Error al cargar servicios:', err.message);
+      console.error('   Stack:', err.stack);
       setError(err);
-      setServices([]); // Fallback a array vacío
-      setIsLoaded(true); // Marcar como cargado aunque falle
+      setServices([]);
+      setIsLoaded(true);
     } finally {
       setIsLoading(false);
     }
@@ -66,24 +70,25 @@ const useGymServices = () => {
 
   // Efecto principal para cargar datos
   useEffect(() => {
+    console.log('🚀 useGymServices - Cargando servicios inicial...');
     fetchServices();
     
     return () => {
-      console.log('Limpieza del hook useGymServices');
+      console.log('👋 Limpieza del hook useGymServices');
     };
   }, [fetchServices]);
 
   // Función manual de recarga
   const reload = useCallback(() => {
-    console.log('Recarga manual de servicios solicitada');
-    fetchServices();
+    console.log('🔄 useGymServices - Recarga manual de servicios solicitada');
+    return fetchServices();
   }, [fetchServices]);
 
   return {
-    services,        // Solo la data: [ { id: 1, title: "...", ... }, ... ]
+    services,        // Array de servicios: [ { id, title, description, icon, features, active }, ... ]
     isLoaded,        // true cuando terminó de cargar
     isLoading,       // true mientras está cargando
-    error,           // Error si falló
+    error,           // Error si falló, null si todo ok
     reload           // Función para recargar manualmente
   };
 };
