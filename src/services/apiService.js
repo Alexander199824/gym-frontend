@@ -1,5 +1,6 @@
 // src/services/apiService.js
-// ARCHIVO PRINCIPAL ACTUALIZADO CON INVENTARIO Y TIENDA
+// ARCHIVO PRINCIPAL COMPLETO CON ESTADÍSTICAS
+// PARTE 1/2 - Copiar junto con Parte 2
 
 // ================================
 // 📁 IMPORTACIONES DE MÓDULOS
@@ -12,7 +13,8 @@ import { StoreService } from './storeService.js';
 import { StripeService } from './stripeService.js';
 import paymentService from './paymentService.js'; 
 import scheduleService from './scheduleService.js';
-import inventoryService from './inventoryService.js'; // 🆕 NUEVO SERVICIO
+import inventoryService from './inventoryService.js';
+import statisticsService from './statisticsService.js'; // 🆕 ESTADÍSTICAS
 
 // ================================
 // 🏠 CLASE PRINCIPAL DEL SERVICIO API
@@ -29,7 +31,8 @@ class ApiService extends BaseService {
     this.stripeService = new StripeService();
     this.paymentService = paymentService;
     this.scheduleService = scheduleService;
-    this.inventoryService = inventoryService; // 🆕 NUEVO SERVICIO AGREGADO
+    this.inventoryService = inventoryService;
+    this.statisticsService = statisticsService; // 🆕 ESTADÍSTICAS
   }
 
   // ================================
@@ -91,10 +94,6 @@ class ApiService extends BaseService {
   async getGymStats() {
     return this.gymService.getGymStats();
   }
-
-  async getActiveStatistics() {
-  return this.gymService.getActiveStatistics();  
-}
   
   async getGymServices() {
     return this.gymService.getGymServices();
@@ -171,6 +170,101 @@ class ApiService extends BaseService {
   
   async saveGymConfigSection(section, data) {
     return this.gymService.saveGymConfigSection(section, data);
+  }
+
+  // ================================
+  // 📊 MÉTODOS DE ESTADÍSTICAS - DELEGACIÓN A statisticsService
+  // ================================
+
+  /**
+   * Obtener todas las estadísticas (admin)
+   */
+  async getAllStatistics() {
+    return this.statisticsService.getAllStatistics();
+  }
+
+  /**
+   * Obtener estadísticas activas (público)
+   */
+  async getActiveStatistics() {
+    return this.statisticsService.getActiveStatistics();
+  }
+
+  /**
+   * Crear nueva estadística
+   */
+  async createStatistic(statisticData) {
+    return this.statisticsService.createStatistic(statisticData);
+  }
+
+  /**
+   * Actualizar estadística existente
+   */
+  async updateStatistic(id, updates) {
+    return this.statisticsService.updateStatistic(id, updates);
+  }
+
+  /**
+   * Eliminar estadística
+   */
+  async deleteStatistic(id) {
+    return this.statisticsService.deleteStatistic(id);
+  }
+
+  /**
+   * Activar o desactivar estadística
+   */
+  async toggleStatistic(id) {
+    return this.statisticsService.toggleStatistic(id);
+  }
+
+  /**
+   * Reordenar múltiples estadísticas
+   */
+  async reorderStatistics(orderData) {
+    return this.statisticsService.reorderStatistics(orderData);
+  }
+
+  /**
+   * Crear estadísticas predeterminadas del sistema
+   */
+  async seedDefaultStatistics() {
+    return this.statisticsService.seedDefaultStatistics();
+  }
+
+  /**
+   * Obtener colores disponibles para estadísticas
+   */
+  getAvailableStatisticColors() {
+    return this.statisticsService.getAvailableColors();
+  }
+
+  /**
+   * Obtener iconos disponibles para estadísticas
+   */
+  getAvailableStatisticIcons() {
+    return this.statisticsService.getAvailableIcons();
+  }
+
+  /**
+   * Obtener sufijos comunes para estadísticas
+   */
+  getCommonStatisticSuffixes() {
+    return this.statisticsService.getCommonSuffixes();
+  }
+
+  /**
+   * Generar key única desde label
+   */
+  generateStatisticKey(label) {
+    return this.statisticsService.generateKey(label);
+  }
+
+  /**
+   * Validar datos de estadística
+   */
+  validateStatisticData(data) {
+    return this.statisticsService.validateStatisticData(data);
   }
 
   // ================================
@@ -339,7 +433,7 @@ class ApiService extends BaseService {
     return this.storeService.debugCartAndCheckoutSystem();
   }
 
-  // ================================
+ // ================================
   // 📦 MÉTODOS DE INVENTARIO Y GESTIÓN - DELEGACIÓN A inventoryService
   // ================================
 
@@ -734,7 +828,8 @@ class ApiService extends BaseService {
         stripe: this.stripeService.constructor.name,
         payments: 'PaymentService',
         schedule: 'ScheduleService',
-        inventory: this.inventoryService.constructor.name // 🆕 NUEVO
+        inventory: this.inventoryService.constructor.name,
+        statistics: this.statisticsService.constructor.name // 🆕 ESTADÍSTICAS
       },
       features: [
         'Autenticación JWT',
@@ -743,10 +838,11 @@ class ApiService extends BaseService {
         'Tienda online completa',
         'Pagos con Stripe',
         'Gestión de horarios flexibles',
-        'Sistema de inventario completo', // 🆕 NUEVO
-        'Ventas locales y transferencias', // 🆕 NUEVO
-        'Gestión de productos con imágenes', // 🆕 NUEVO
-        'Reportes financieros', // 🆕 NUEVO
+        'Sistema de inventario completo',
+        'Ventas locales y transferencias',
+        'Gestión de productos con imágenes',
+        'Reportes financieros',
+        'Estadísticas dinámicas personalizables', // 🆕 ESTADÍSTICAS
         'Cache inteligente',
         'Debug integrado'
       ],
@@ -757,9 +853,10 @@ class ApiService extends BaseService {
         store: '/api/store/*',
         payments: '/api/payments/*',
         schedule: '/api/schedule/*',
-        inventory: '/api/inventory/*', // 🆕 NUEVO
-        management: '/api/store/management/*', // 🆕 NUEVO
-        localSales: '/api/local-sales/*' // 🆕 NUEVO
+        inventory: '/api/inventory/*',
+        management: '/api/store/management/*',
+        localSales: '/api/local-sales/*',
+        statistics: '/api/statistics/*' // 🆕 ESTADÍSTICAS
       }
     };
   }
@@ -837,7 +934,6 @@ class ApiService extends BaseService {
 const apiService = new ApiService();
 
 export default apiService;
-
 // ✅ INVENTARIO Y TIENDA COMPLETAMENTE INTEGRADOS AL SERVICIO PRINCIPAL
 // 
 // 📁 ARCHIVOS RELACIONADOS:

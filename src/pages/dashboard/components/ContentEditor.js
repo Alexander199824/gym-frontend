@@ -1,24 +1,27 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/ContentEditor.js
-// FUNCIÓN: Editor de contenido general del gimnasio (sin horarios)
-// ACTUALIZADO: Errores de ESLint corregidos
+// FUNCIÓN: Editor de contenido general CON AUTO-GENERACIÓN DE KEY
+// ARCHIVO COMPLETO - Copiar y pegar directamente
 
 import React, { useState, useEffect } from 'react';
 import {
   Save, RefreshCw, AlertTriangle, CheckCircle, Info, 
   Globe, Phone, Mail, MapPin, Clock, Users, Star,
   Facebook, Instagram, Twitter, Youtube, Linkedin,
-  Edit3, Eye, Copy, Download, Upload, Image, Bug
+  Edit3, Eye, Copy, Download, Upload, Image, Bug,
+  Plus, Trash2, EyeOff, ArrowUp, ArrowDown, X,
+  Award, Trophy, TrendingUp, Heart, Dumbbell, Activity,
+  Target, Calendar, Zap, DollarSign, HelpCircle
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
+import statisticsService from '../../../services/statisticsService';
 
 const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const { user } = useAuth();
-  // Removed unused variable 'isMobile' to fix ESLint error
-  const { showError, showSuccess, formatCurrency } = useApp();
+  const { showError, showSuccess } = useApp();
   
-  // Estados locales
+  // Estados locales para información general
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
@@ -42,6 +45,23 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   });
   
+  // Estados para estadísticas dinámicas
+  const [statistics, setStatistics] = useState([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [editingStatId, setEditingStatId] = useState(null);
+  const [creatingNewStat, setCreatingNewStat] = useState(false);
+  const [statFormData, setStatFormData] = useState({
+    statKey: '',
+    statValue: 0,
+    label: '',
+    iconName: 'Users',
+    valueSuffix: '+',
+    colorScheme: 'primary',
+    displayOrder: 1,
+    description: '',
+    isActive: true
+  });
+  
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
@@ -60,7 +80,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       const config = gymConfig.data;
       console.log('ContentEditor - Cargando configuración:', config);
       
-      // Mapear datos del backend al formulario
       setFormData({
         name: config.name || '',
         tagline: config.tagline || '',
@@ -88,6 +107,13 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   }, [gymConfig]);
   
+  // Cargar estadísticas dinámicas cuando se activa la pestaña
+  useEffect(() => {
+    if (activeTab === 'stats') {
+      loadStatistics();
+    }
+  }, [activeTab]);
+  
   // Notificar cambios sin guardar
   useEffect(() => {
     onUnsavedChanges(hasChanges);
@@ -111,11 +137,233 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       id: 'stats',
       title: 'Estadísticas',
       icon: Star,
-      description: 'Números del gimnasio'
+      description: 'Números destacados dinámicos'
     }
   ];
   
-  // Manejar cambios en el formulario
+  // ================================
+  // FUNCIONES DE ESTADÍSTICAS DINÁMICAS
+  // ================================
+  
+  const loadStatistics = async () => {
+    try {
+      setIsLoadingStats(true);
+      console.log('📊 Cargando estadísticas...');
+      
+      const response = await statisticsService.getAllStatistics();
+      
+      if (response.success) {
+        setStatistics(response.data || []);
+        console.log(`✅ ${response.data?.length || 0} estadísticas cargadas`);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando estadísticas:', error);
+      showError('Error al cargar estadísticas');
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const handleCreateStatistic = () => {
+    setCreatingNewStat(true);
+    setEditingStatId(null);
+    setStatFormData({
+      statKey: '',
+      statValue: 0,
+      label: '',
+      iconName: 'Users',
+      valueSuffix: '+',
+      colorScheme: 'primary',
+      displayOrder: statistics.length + 1,
+      description: '',
+      isActive: true
+    });
+  };
+
+  const handleEditStatistic = (stat) => {
+    setEditingStatId(stat.id);
+    setCreatingNewStat(false);
+    setStatFormData({
+      statKey: stat.statKey,
+      statValue: stat.statValue,
+      label: stat.label,
+      iconName: stat.iconName,
+      valueSuffix: stat.valueSuffix,
+      colorScheme: stat.colorScheme,
+      displayOrder: stat.displayOrder,
+      description: stat.description || '',
+      isActive: stat.isActive
+    });
+  };
+
+  const handleCancelStatForm = () => {
+    setCreatingNewStat(false);
+    setEditingStatId(null);
+    setStatFormData({
+      statKey: '',
+      statValue: 0,
+      label: '',
+      iconName: 'Users',
+      valueSuffix: '+',
+      colorScheme: 'primary',
+      displayOrder: 1,
+      description: '',
+      isActive: true
+    });
+  };
+
+  // 🆕 FUNCIÓN PARA AUTO-GENERAR KEY DESDE LABEL
+  const handleLabelChange = (newLabel) => {
+    setStatFormData(prev => {
+      // Solo generar key automáticamente si estamos creando (no editando)
+      if (creatingNewStat) {
+        const autoKey = statisticsService.generateKey(newLabel);
+        return {
+          ...prev,
+          label: newLabel,
+          statKey: autoKey // Actualizar automáticamente
+        };
+      } else {
+        // Si estamos editando, solo actualizar el label
+        return {
+          ...prev,
+          label: newLabel
+        };
+      }
+    });
+  };
+
+  const handleSaveStatistic = async () => {
+    try {
+      // Validar
+      if (!statFormData.statKey || !statFormData.label) {
+        showError('Key y Label son requeridos');
+        return;
+      }
+
+      setIsLoading(true);
+
+      if (creatingNewStat) {
+        // Crear nueva
+        const response = await statisticsService.createStatistic(statFormData);
+        
+        if (response.success) {
+          showSuccess('Estadística creada exitosamente');
+          await loadStatistics();
+          handleCancelStatForm();
+        }
+      } else if (editingStatId) {
+        // Actualizar existente
+        const response = await statisticsService.updateStatistic(editingStatId, statFormData);
+        
+        if (response.success) {
+          showSuccess('Estadística actualizada exitosamente');
+          await loadStatistics();
+          handleCancelStatForm();
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error guardando estadística:', error);
+      showError(error.message || 'Error al guardar estadística');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteStatistic = async (stat) => {
+    const confirmed = window.confirm(
+      `¿Eliminar "${stat.label}"?\n\nEsta acción no se puede deshacer.`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setIsLoading(true);
+      
+      const response = await statisticsService.deleteStatistic(stat.id);
+      
+      if (response.success) {
+        showSuccess('Estadística eliminada');
+        await loadStatistics();
+      }
+    } catch (error) {
+      console.error('❌ Error eliminando:', error);
+      showError('Error al eliminar estadística');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleStatistic = async (stat) => {
+    try {
+      const response = await statisticsService.toggleStatistic(stat.id);
+      
+      if (response.success) {
+        const status = stat.isActive ? 'desactivada' : 'activada';
+        showSuccess(`Estadística ${status}`);
+        await loadStatistics();
+      }
+    } catch (error) {
+      console.error('❌ Error cambiando estado:', error);
+      showError('Error al cambiar estado');
+    }
+  };
+
+  const handleMoveStatistic = async (index, direction) => {
+    const sortedStats = [...statistics].sort((a, b) => a.displayOrder - b.displayOrder);
+    
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === sortedStats.length - 1) return;
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    [sortedStats[index], sortedStats[newIndex]] = [sortedStats[newIndex], sortedStats[index]];
+
+    const orderData = sortedStats.map((stat, idx) => ({
+      id: stat.id,
+      displayOrder: idx + 1
+    }));
+
+    try {
+      const response = await statisticsService.reorderStatistics(orderData);
+      
+      if (response.success) {
+        showSuccess('Orden actualizado');
+        await loadStatistics();
+      }
+    } catch (error) {
+      console.error('❌ Error reordenando:', error);
+      showError('Error al reordenar');
+    }
+  };
+
+  const handleSeedDefaults = async () => {
+    const confirmed = window.confirm(
+      '¿Crear estadísticas por defecto?\n\nEsto puede crear duplicados si ya existen.'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setIsLoading(true);
+      
+      const response = await statisticsService.seedDefaultStatistics();
+      
+      if (response.success) {
+        showSuccess(`${response.data?.length || 0} estadísticas creadas`);
+        await loadStatistics();
+      }
+    } catch (error) {
+      console.error('❌ Error creando defaults:', error);
+      showError('Error al crear estadísticas por defecto');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // ================================
+  // FUNCIONES GENERALES
+  // ================================
+  
   const handleInputChange = (section, field, value) => {
     setFormData(prev => {
       let newData;
@@ -140,13 +388,11 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     });
   };
   
-  // Guardar configuración
   const handleSave = async () => {
     try {
       setIsLoading(true);
       console.log('ContentEditor - Guardando configuración:', formData);
       
-      // Llamar la función de guardado del componente padre
       await onSave({
         section: 'general',
         data: formData
@@ -163,7 +409,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // Resetear formulario
   const handleReset = () => {
     if (gymConfig?.data) {
       const config = gymConfig.data;
@@ -194,9 +439,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     }
   };
   
-  // Obtener icono de red social
   const getSocialIcon = (network) => {
-    // Fixed switch statement with default case
     switch (network) {
       case 'facebook':
         return Facebook;
@@ -209,11 +452,18 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       case 'linkedin':
         return Linkedin;
       default:
-        return Globe; // Added default case to fix ESLint error
+        return Globe;
     }
   };
   
-  // Mostrar loading si está cargando
+  const getIconComponent = (iconName) => {
+    const icons = {
+      Users, Award, Trophy, Star, TrendingUp, Heart, Dumbbell,
+      Activity, Target, Calendar, Clock, Zap, CheckCircle, DollarSign
+    };
+    return icons[iconName] || Users;
+  };
+  
   if (gymConfig?.isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -234,32 +484,20 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           <button
             onClick={() => setShowDebugInfo(!showDebugInfo)}
             className="w-8 h-8 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200"
-            title="Información de Debug - ContentEditor"
+            title="Información de Debug"
           >
             <Bug className="w-4 h-4" />
           </button>
           
           {showDebugInfo && (
             <div className="absolute top-10 right-0 bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-800 shadow-lg min-w-80">
-              <div className="font-medium mb-2">ContentEditor - Sin Horarios</div>
+              <div className="font-medium mb-2">ContentEditor - Auto-generación Key</div>
               <div className="space-y-1">
                 <div>Usuario: {user?.firstName} {user?.lastName}</div>
                 <div>Tab activa: {activeTab}</div>
                 <div>Cambios: {hasChanges ? 'Sí' : 'No'}</div>
-                <div>Modo: {previewMode ? 'Vista previa' : 'Edición'}</div>
-                
-                <div className="border-t pt-1 mt-1">
-                  <div className="font-medium text-orange-700">Datos cargados:</div>
-                  <div>Nombre: {formData.name ? 'Sí' : 'No'}</div>
-                  <div>Contacto: {formData.phone || formData.email ? 'Sí' : 'No'}</div>
-                  <div>Redes sociales: {Object.values(formData.social).some(v => v) ? 'Sí' : 'No'}</div>
-                  <div>Estadísticas: {Object.values(formData.stats).some(v => v > 0) ? 'Sí' : 'No'}</div>
-                </div>
-                
-                <div className="border-t pt-1 mt-1 text-red-700">
-                  <div>🗑️ Horarios excluidos de este editor</div>
-                  <div>📍 ESLint: Variables y casos corregidos</div>
-                </div>
+                <div>Estadísticas: {statistics.length}</div>
+                <div className="text-green-700 font-medium">✅ Key auto-generado desde Label</div>
               </div>
             </div>
           )}
@@ -278,7 +516,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
         
         <div className="flex items-center space-x-3 mt-4 lg:mt-0">
-          {/* Toggle modo vista previa */}
           <button
             onClick={() => setPreviewMode(!previewMode)}
             className={`btn-sm transition-colors ${
@@ -291,7 +528,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
             {previewMode ? 'Editar' : 'Vista Previa'}
           </button>
           
-          {/* Botón resetear */}
           {hasChanges && (
             <button
               onClick={handleReset}
@@ -302,7 +538,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
             </button>
           )}
           
-          {/* Botón guardar */}
           <button
             onClick={handleSave}
             disabled={isLoading || !hasChanges}
@@ -361,7 +596,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Nombre del gimnasio */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Nombre del Gimnasio
@@ -376,7 +610,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
               />
             </div>
             
-            {/* Eslogan */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Eslogan / Tagline
@@ -391,7 +624,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
               />
             </div>
             
-            {/* Descripción */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Descripción del Gimnasio
@@ -406,7 +638,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
               />
             </div>
             
-            {/* Dirección */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <MapPin className="w-4 h-4 inline mr-1" />
@@ -422,7 +653,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
               />
             </div>
             
-            {/* Teléfono */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Phone className="w-4 h-4 inline mr-1" />
@@ -438,7 +668,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
               />
             </div>
             
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Mail className="w-4 h-4 inline mr-1" />
@@ -454,7 +683,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
               />
             </div>
             
-            {/* Sitio web */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Globe className="w-4 h-4 inline mr-1" />
@@ -508,76 +736,383 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* PESTAÑA: ESTADÍSTICAS */}
+      {/* PESTAÑA: ESTADÍSTICAS DINÁMICAS */}
       {activeTab === 'stats' && (
-        <div className="bg-white rounded-lg p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+        <div className="bg-white rounded-lg p-6 space-y-6">
+          
+          {/* Header con acciones */}
+          <div className="flex items-center justify-between">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Users className="w-4 h-4 inline mr-1" />
-                Número de Miembros
-              </label>
-              <input
-                type="number"
-                value={formData.stats.membersCount}
-                onChange={(e) => handleInputChange('stats', 'membersCount', parseInt(e.target.value) || 0)}
-                placeholder="500"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={previewMode}
-                min="0"
-              />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Estadísticas Dinámicas
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Gestiona los números destacados que se muestran en la web
+              </p>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Star className="w-4 h-4 inline mr-1" />
-                Entrenadores Profesionales
-              </label>
-              <input
-                type="number"
-                value={formData.stats.trainersCount}
-                onChange={(e) => handleInputChange('stats', 'trainersCount', parseInt(e.target.value) || 0)}
-                placeholder="15"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={previewMode}
-                min="0"
-              />
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleSeedDefaults}
+                className="btn-secondary btn-sm"
+                disabled={isLoading}
+                title="Crear estadísticas por defecto"
+              >
+                <TrendingUp className="w-4 h-4" />
+              </button>
+              
+              <button
+                onClick={loadStatistics}
+                className="btn-secondary btn-sm"
+                disabled={isLoadingStats}
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingStats ? 'animate-spin' : ''}`} />
+              </button>
+              
+              <button
+                onClick={handleCreateStatistic}
+                className="btn-primary btn-sm"
+                disabled={creatingNewStat || editingStatId}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Estadística
+              </button>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Años de Experiencia
-              </label>
-              <input
-                type="number"
-                value={formData.stats.yearsActive}
-                onChange={(e) => handleInputChange('stats', 'yearsActive', parseInt(e.target.value) || 0)}
-                placeholder="10"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={previewMode}
-                min="0"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <CheckCircle className="w-4 h-4 inline mr-1" />
-                Historias de Éxito
-              </label>
-              <input
-                type="number"
-                value={formData.stats.successStories}
-                onChange={(e) => handleInputChange('stats', 'successStories', parseInt(e.target.value) || 0)}
-                placeholder="100"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={previewMode}
-                min="0"
-              />
-            </div>
-            
           </div>
+
+          {/* Formulario de creación/edición */}
+          {(creatingNewStat || editingStatId) && (
+            <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-gray-900">
+                  {creatingNewStat ? '➕ Nueva Estadística' : '✏️ Editar Estadística'}
+                </h4>
+                <button
+                  onClick={handleCancelStatForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Label - CON AUTO-GENERACIÓN */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Etiqueta (Texto visible) *
+                  </label>
+                  <input
+                    type="text"
+                    value={statFormData.label}
+                    onChange={(e) => handleLabelChange(e.target.value)}
+                    placeholder="Miembros Activos"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={previewMode}
+                  />
+                  {/* Preview del key generado */}
+                  {creatingNewStat && statFormData.label && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Key generado: <span className="font-mono text-blue-600">{statFormData.statKey}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Key - SOLO LECTURA cuando crea */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    Key (Identificador único) *
+                    <button
+                      type="button"
+                      className="ml-1 text-gray-400 hover:text-gray-600"
+                      title="El key se genera automáticamente desde la etiqueta. Formato: minúsculas_con_guiones_bajos"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                  </label>
+                  <input
+                    type="text"
+                    value={statFormData.statKey}
+                    onChange={(e) => setStatFormData({ ...statFormData, statKey: e.target.value })}
+                    placeholder="miembros_activos"
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      creatingNewStat ? 'bg-gray-50' : ''
+                    }`}
+                    disabled={creatingNewStat || previewMode}
+                    readOnly={creatingNewStat}
+                  />
+                  {creatingNewStat && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      ✓ Se genera automáticamente
+                    </p>
+                  )}
+                </div>
+
+                {/* Valor */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Valor Numérico *
+                  </label>
+                  <input
+                    type="number"
+                    value={statFormData.statValue}
+                    onChange={(e) => setStatFormData({ ...statFormData, statValue: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={previewMode}
+                  />
+                </div>
+
+                {/* Sufijo */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sufijo
+                  </label>
+                  <select
+                    value={statFormData.valueSuffix}
+                    onChange={(e) => setStatFormData({ ...statFormData, valueSuffix: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={previewMode}
+                  >
+                    <option value="+">+</option>
+                    <option value="%">%</option>
+                    <option value="K">K</option>
+                    <option value="M">M</option>
+                    <option value="★">★</option>
+                    <option value="">Sin sufijo</option>
+                  </select>
+                </div>
+
+                {/* Icono */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Icono
+                  </label>
+                  <select
+                    value={statFormData.iconName}
+                    onChange={(e) => setStatFormData({ ...statFormData, iconName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={previewMode}
+                  >
+                    <option value="Users">👥 Users</option>
+                    <option value="Award">🏆 Award</option>
+                    <option value="Trophy">🥇 Trophy</option>
+                    <option value="Star">⭐ Star</option>
+                    <option value="TrendingUp">📈 TrendingUp</option>
+                    <option value="Heart">❤️ Heart</option>
+                    <option value="Dumbbell">🏋️ Dumbbell</option>
+                    <option value="Activity">📊 Activity</option>
+                    <option value="Target">🎯 Target</option>
+                    <option value="Calendar">📅 Calendar</option>
+                    <option value="Clock">⏰ Clock</option>
+                    <option value="Zap">⚡ Zap</option>
+                  </select>
+                </div>
+
+                {/* Color */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Color
+                  </label>
+                  <select
+                    value={statFormData.colorScheme}
+                    onChange={(e) => setStatFormData({ ...statFormData, colorScheme: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={previewMode}
+                  >
+                    <option value="primary">🔵 Primario</option>
+                    <option value="secondary">🟣 Secundario</option>
+                    <option value="success">🟢 Éxito</option>
+                    <option value="warning">🟡 Advertencia</option>
+                    <option value="danger">🔴 Peligro</option>
+                    <option value="info">🔷 Información</option>
+                  </select>
+                </div>
+
+                {/* Descripción */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción (Opcional)
+                  </label>
+                  <textarea
+                    value={statFormData.description}
+                    onChange={(e) => setStatFormData({ ...statFormData, description: e.target.value })}
+                    placeholder="Descripción adicional..."
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                    disabled={previewMode}
+                  />
+                </div>
+              </div>
+
+              {/* Botones del formulario */}
+              <div className="flex justify-end space-x-3 mt-4">
+                <button
+                  onClick={handleCancelStatForm}
+                  className="btn-secondary btn-sm"
+                  disabled={isLoading}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancelar
+                </button>
+
+                <button
+                  onClick={handleSaveStatistic}
+                  className="btn-primary btn-sm"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  Guardar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Lista de estadísticas */}
+          <div className="space-y-3">
+            {isLoadingStats ? (
+              <div className="text-center py-8">
+                <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
+                <p className="text-gray-600">Cargando estadísticas...</p>
+              </div>
+            ) : statistics.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 font-medium mb-2">No hay estadísticas</p>
+                <p className="text-gray-500 text-sm mb-4">Crea tu primera estadística o usa las predeterminadas</p>
+                <button
+                  onClick={handleCreateStatistic}
+                  className="btn-primary btn-sm inline-flex items-center"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Primera Estadística
+                </button>
+              </div>
+            ) : (
+              [...statistics]
+                .sort((a, b) => a.displayOrder - b.displayOrder)
+                .map((stat, index) => {
+                  const IconComponent = getIconComponent(stat.iconName);
+                  const isEditing = editingStatId === stat.id;
+                  
+                  return (
+                    <div
+                      key={stat.id}
+                      className={`p-4 border rounded-lg hover:border-blue-300 transition-all ${
+                        isEditing ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white'
+                      } ${!stat.isActive ? 'opacity-60' : ''}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4 flex-1">
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            stat.colorScheme === 'primary' ? 'bg-blue-100 text-blue-600' :
+                            stat.colorScheme === 'secondary' ? 'bg-purple-100 text-purple-600' :
+                            stat.colorScheme === 'success' ? 'bg-green-100 text-green-600' :
+                            stat.colorScheme === 'warning' ? 'bg-yellow-100 text-yellow-600' :
+                            stat.colorScheme === 'danger' ? 'bg-red-100 text-red-600' :
+                            'bg-cyan-100 text-cyan-600'
+                          }`}>
+                            <IconComponent className="w-6 h-6" />
+                          </div>
+
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-semibold text-gray-900">{stat.label}</h4>
+                              {!stat.isActive && (
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                                  Inactiva
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-3 text-sm text-gray-600 mt-1">
+                              <span className="font-mono bg-gray-100 px-2 py-0.5 rounded text-xs">
+                                {stat.statKey}
+                              </span>
+                              <span className="font-bold text-lg">
+                                {stat.statValue}{stat.valueSuffix}
+                              </span>
+                              <span className="text-gray-400">|</span>
+                              <span className="text-xs">Orden: {stat.displayOrder}</span>
+                            </div>
+                            {stat.description && (
+                              <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <div className="flex flex-col space-y-1">
+                            <button
+                              onClick={() => handleMoveStatistic(index, 'up')}
+                              disabled={index === 0}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                              title="Subir"
+                            >
+                              <ArrowUp className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleMoveStatistic(index, 'down')}
+                              disabled={index === statistics.length - 1}
+                              className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                              title="Bajar"
+                            >
+                              <ArrowDown className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => handleToggleStatistic(stat)}
+                            className={`p-2 rounded-lg ${
+                              stat.isActive
+                                ? 'text-green-600 hover:bg-green-50'
+                                : 'text-gray-400 hover:bg-gray-100'
+                            }`}
+                            title={stat.isActive ? 'Desactivar' : 'Activar'}
+                          >
+                            {stat.isActive ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                          </button>
+
+                          <button
+                            onClick={() => handleEditStatistic(stat)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                            disabled={creatingNewStat || (editingStatId && editingStatId !== stat.id)}
+                          >
+                            <Edit3 className="w-5 h-5" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteStatistic(stat)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+            )}
+          </div>
+
+          {/* Resumen */}
+          {statistics.length > 0 && (
+            <div className="flex items-center justify-between text-sm text-gray-600 pt-4 border-t">
+              <div>
+                Total: {statistics.length} estadísticas
+              </div>
+              <div className="flex items-center space-x-4">
+                <span className="text-green-600">
+                  ✓ {statistics.filter(s => s.isActive).length} activas
+                </span>
+                <span className="text-gray-500">
+                  ✕ {statistics.filter(s => !s.isActive).length} inactivas
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
       
@@ -650,7 +1185,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
               </div>
             )}
             
-            {/* Redes sociales */}
             {Object.values(formData.social).some(url => url) && (
               <div>
                 <h4 className="font-semibold text-gray-900 mb-2">Síguenos</h4>
@@ -677,7 +1211,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
 };
 
 export default ContentEditor;
-
 /*
 =============================================================================
 CONTENTEDITOR COMPLETO SIN GESTIÓN DE HORARIOS

@@ -58,7 +58,7 @@ const queryClient = new QueryClient({
 
 // 🔧 CONFIGURACIÓN DE DESARROLLO
 if (process.env.REACT_APP_DEBUG_MODE === 'true') {
-  console.log('🏋️‍♂️ Gym Management System - Frontend Iniciado');
+  console.log('🏋️‍♂️ Elite Fitnes Club - Frontend Iniciado');
   console.log('🔗 Backend URL:', process.env.REACT_APP_API_URL);
   console.log('🌍 Entorno:', process.env.REACT_APP_ENVIRONMENT);
   console.log('📱 Versión:', process.env.REACT_APP_VERSION);

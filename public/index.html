@@ -8,18 +8,18 @@
     <meta name="theme-color" content="#ef4444" />
     <meta name="description" content="Sistema de gestión integral para gimnasios. Controla membresías, pagos, usuarios y más." />
     <meta name="keywords" content="gimnasio, gestión, membresías, pagos, fitness, management" />
-    <meta name="author" content="Gym Management System" />
+    <meta name="author" content="Tu Nombre" />
     
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Gym Management System" />
+    <meta property="og:title" content="Elite Fitnes Club- Sistema de Gestión" />
     <meta property="og:description" content="Sistema de gestión integral para gimnasios" />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://your-gym-frontend.com" />
+    <meta property="og:url" content="https://tugimnasio.com" />
     <meta property="og:image" content="%PUBLIC_URL%/logo192.png" />
     
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Gym Management System" />
+    <meta name="twitter:title" content="Elite Fines Club - Sistema de Gestión" />
     <meta name="twitter:description" content="Sistema de gestión integral para gimnasios" />
     <meta name="twitter:image" content="%PUBLIC_URL%/logo192.png" />
     
@@ -40,7 +40,8 @@
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     
-    <title>Gym Management System</title>
+    <!-- 🎯 CAMBIA ESTE TÍTULO - Aparece en la pestaña del navegador -->
+    <title>Elite Fines Club </title>
     
     <!-- Inline Critical CSS for better performance -->
     <style>
@@ -81,6 +82,13 @@
             justify-content: center;
             margin-bottom: 20px;
             animation: pulse 2s ease-in-out infinite;
+        }
+        
+        /* Si tienes un logo en /logo.png, se mostrará aquí */
+        .loading-logo img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
         }
         
         .loading-text {
@@ -126,6 +134,11 @@
                 height: 60px;
             }
             
+            .loading-logo img {
+                width: 45px;
+                height: 45px;
+            }
+            
             .loading-text {
                 font-size: 20px;
             }
@@ -150,7 +163,7 @@
             padding: 20px;
         ">
             <h1 style="color: #ef4444; margin-bottom: 20px;">
-                🏋️‍♂️ Gym Management System
+                🏋️‍♂️ Elite Fines Club
             </h1>
             <h2 style="margin-bottom: 15px;">
                 JavaScript es necesario para usar esta aplicación
@@ -178,7 +191,11 @@
     <!-- Loading Screen -->
     <div class="loading-container" id="loading-screen">
         <div class="loading-logo">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <!-- Opción 1: Si tienes un logo en /logo.png -->
+            <img src="%PUBLIC_URL%/logo.png" alt="Logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+            
+            <!-- Opción 2: SVG por defecto (se oculta si existe logo.png) -->
+            <svg style="display: none;" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M6.5 6.5h11l-1 7h-9l-1-7z"/>
                 <path d="M6 4V2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/>
                 <path d="M10 10h4"/>
@@ -186,7 +203,8 @@
                 <path d="M10 18h4"/>
             </svg>
         </div>
-        <div class="loading-text">Gym Management System</div>
+        <!-- 🎯 CAMBIA ESTE NOMBRE - Aparece en la pantalla de carga -->
+        <div class="loading-text">Elite Fines Club</div>
         <div class="loading-subtitle">Cargando aplicación...</div>
         <div class="loading-spinner"></div>
     </div>
@@ -194,34 +212,7 @@
     <!-- React App Container -->
     <div id="root"></div>
     
-    <!-- 
-        INFORMACIÓN PARA DESARROLLADORES
-        
-        Este archivo HTML es el punto de entrada principal de la aplicación React.
-        
-        Estructura:
-        - Meta tags para SEO y redes sociales
-        - Preconnect para optimización de performance
-        - CSS crítico inline para evitar FOUC
-        - Loading screen mientras carga React
-        - Fallback para navegadores sin JavaScript
-        
-        Optimizaciones implementadas:
-        - Preconnect a Google Fonts
-        - CSS crítico inline
-        - Loading screen personalizado
-        - Meta tags completos para SEO
-        - Soporte para PWA (manifest.json)
-        - Responsive design
-        
-        Para futuras actualizaciones:
-        - Service Worker para PWA
-        - Análisis de Google Analytics
-        - Más optimizaciones de performance
-        - Soporte para modo offline
-    -->
-    
-    <!-- Performance Monitoring (opcional) -->
+    <!-- Performance Monitoring -->
     <script>
         // Medir tiempo de carga
         if ('performance' in window) {
@@ -230,7 +221,6 @@
                     const perfData = performance.getEntriesByType('navigation')[0];
                     const loadTime = perfData.loadEventEnd - perfData.loadEventStart;
                     
-                    // En producción, enviar métricas a servicio de monitoreo
                     if (window.location.hostname !== 'localhost') {
                         console.log('Page load time:', loadTime + 'ms');
                     }
