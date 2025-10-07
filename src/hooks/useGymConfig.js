@@ -181,20 +181,15 @@ const useGymConfig = (options = {}) => {
   }, [fetchConfig]);
 
   // Función de invalidación
-  // Función de invalidación CORREGIDA
-const invalidate = useCallback(() => {
-  console.log(`useGymConfig [${instanceId.current}] 🗑️ invalidando cache de GYM solamente`);
-  
-  // ✅ Solo invalidar cache específico de gym
-  requestManager.invalidateCache('/api/gym/config');
-  clearCacheItem('gymConfig'); // Solo este item
-  
-  // NO tocar otros caches
-  setLastFetch(null);
-  setConfig(null);
-  setIsLoaded(false);
-  hasInitialLoad.current = false;
-}, [clearCacheItem]);
+  const invalidate = useCallback(() => {
+    console.log(`useGymConfig [${instanceId.current}] 🗑️ invalidando cache`);
+    requestManager.invalidateCache('/api/gym/config');
+    clearCacheItem('gymConfig');
+    setLastFetch(null);
+    setConfig(null);
+    setIsLoaded(false);
+    hasInitialLoad.current = false;
+  }, [clearCacheItem]);
 
   // Efecto principal - Fetch inicial inteligente
   useEffect(() => {

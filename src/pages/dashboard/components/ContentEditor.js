@@ -1,8 +1,8 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/ContentEditor.js
-// ✅ ACTUALIZADO para conectar con test-gym-info-manager.js
-// ✅ MANTIENE TODAS LAS FUNCIONES EXISTENTES - SIN PÉRDIDA DE FUNCIONALIDAD
-// ✅ SIN DATOS HARDCODEADOS - TODO DESDE EL BACKEND
+// ✅ VERSIÓN COMPLETA CORREGIDA - PARTE 1/2
+// ✅ TODAS LAS FUNCIONALIDADES MANTENIDAS
+// ✅ SOLO CAMPOS VÁLIDOS DEL BACKEND
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -24,7 +24,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const { user } = useAuth();
   const { showError, showSuccess } = useApp();
   
-  // ✅ Estados locales para información general - SIN HARDCODEO
+  // ✅ ESTADOS LOCALES - SOLO CAMPOS VÁLIDOS DEL BACKEND
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
@@ -32,10 +32,8 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     address: '',
     phone: '',
     email: '',
-    website: '',
-    whatsapp: '',
     city: '',
-    mapsUrl: '',
+    mapsUrl: '', // ✅ Este SÍ existe en el backend
     social: {
       facebook: '',
       instagram: '',
@@ -43,9 +41,11 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       youtube: '',
       linkedin: ''
     }
+    // ❌ whatsapp - ELIMINADO (no existe en backend)
+    // ❌ website - ELIMINADO (no existe en backend)
   });
   
-  // ✅ Estados para estadísticas dinámicas (MANTENER TODO)
+  // ✅ ESTADOS PARA ESTADÍSTICAS DINÁMICAS (MANTENER TODO)
   const [statistics, setStatistics] = useState([]);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [editingStatId, setEditingStatId] = useState(null);
@@ -68,7 +68,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [previewMode, setPreviewMode] = useState(false);
   
-  // ✅ INICIALIZAR DATOS DESDE EL BACKEND (sin hardcodeo)
+  // ✅ INICIALIZAR DATOS DESDE EL BACKEND - SOLO CAMPOS VÁLIDOS
   useEffect(() => {
     console.log('ContentEditor - Verificando datos de configuración:', {
       hasGymConfig: !!gymConfig?.data,
@@ -78,9 +78,20 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     
     if (gymConfig?.data && !gymConfig.isLoading) {
       const config = gymConfig.data;
-      console.log('ContentEditor - Cargando configuración desde backend:', config);
+      console.log('ContentEditor - Configuración recibida del backend:', config);
+      console.log('ContentEditor - Contact info completo:', config.contact);
+      console.log('ContentEditor - Location info:', config.contact?.location);
       
-      // ✅ Mapear datos según estructura del test backend
+      // ✅ MAPEO CORRECTO: Backend usa snake_case, frontend usa camelCase
+      const mapsUrl = 
+        config.contact?.location?.mapsUrl ||    // Si viene en camelCase
+        config.contact?.location?.maps_url ||   // ⭐ Si viene en snake_case (BD)
+        config.contact?.mapsUrl ||              // Fallback 1
+        config.contact?.maps_url ||             // ⭐ Fallback 2 (BD directo)
+        '';
+      
+      console.log('ContentEditor - Maps URL encontrado:', mapsUrl);
+      
       setFormData({
         name: config.name || '',
         tagline: config.tagline || '',
@@ -88,10 +99,8 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         address: config.contact?.address || '',
         phone: config.contact?.phone || '',
         email: config.contact?.email || '',
-        website: config.website || '',
-        whatsapp: config.contact?.whatsapp || '',
         city: config.contact?.city || '',
-        mapsUrl: config.contact?.location?.mapsUrl || '',
+        mapsUrl: mapsUrl, // ✅ Usar el valor mapeado correctamente
         social: {
           facebook: config.social?.facebook?.url || '',
           instagram: config.social?.instagram?.url || '',
@@ -101,11 +110,11 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         }
       });
       
-      console.log('ContentEditor - Datos cargados en formulario desde backend');
+      console.log('ContentEditor - FormData inicializado con mapsUrl:', mapsUrl);
     }
   }, [gymConfig]);
   
-  // ✅ Cargar estadísticas dinámicas cuando se activa la pestaña (MANTENER)
+  // ✅ CARGAR ESTADÍSTICAS CUANDO SE ACTIVA LA PESTAÑA
   useEffect(() => {
     if (activeTab === 'stats') {
       loadStatistics();
@@ -210,19 +219,16 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     });
   };
 
-  // 🆕 FUNCIÓN PARA AUTO-GENERAR KEY DESDE LABEL (MANTENER)
   const handleLabelChange = (newLabel) => {
     setStatFormData(prev => {
-      // Solo generar key automáticamente si estamos creando (no editando)
       if (creatingNewStat) {
         const autoKey = statisticsService.generateKey(newLabel);
         return {
           ...prev,
           label: newLabel,
-          statKey: autoKey // Actualizar automáticamente
+          statKey: autoKey
         };
       } else {
-        // Si estamos editando, solo actualizar el label
         return {
           ...prev,
           label: newLabel
@@ -233,7 +239,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
 
   const handleSaveStatistic = async () => {
     try {
-      // Validar
       if (!statFormData.statKey || !statFormData.label) {
         showError('Key y Label son requeridos');
         return;
@@ -242,7 +247,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       setIsLoading(true);
 
       if (creatingNewStat) {
-        // Crear nueva
         const response = await statisticsService.createStatistic(statFormData);
         
         if (response.success) {
@@ -251,7 +255,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           handleCancelStatForm();
         }
       } else if (editingStatId) {
-        // Actualizar existente
         const response = await statisticsService.updateStatistic(editingStatId, statFormData);
         
         if (response.success) {
@@ -359,7 +362,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
   };
   
   // ================================
-  // ✅ FUNCIONES GENERALES ACTUALIZADAS PARA BACKEND
+  // ✅ FUNCIONES GENERALES
   // ================================
   
   const handleInputChange = (section, field, value) => {
@@ -386,72 +389,93 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
     });
   };
   
-  // ✅ GUARDAR ACTUALIZADO PARA USAR gymService
-  const handleSave = async () => {
-  try {
-    setIsLoading(true);
-    console.log('ContentEditor - Guardando configuración en backend:', formData);
-    
-    // Determinar qué guardar según la pestaña activa
-    if (activeTab === 'basic') {
-      // ✅ Solo actualizar config y contacto, NO tocar productos
-      await gymService.updateGymConfig({
-        name: formData.name,
-        tagline: formData.tagline,
-        description: formData.description
-      });
+  // ✅ GUARDAR - CORREGIDO SIN CAMPOS INVÁLIDOS
+    const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      console.log('ContentEditor - Guardando configuración:', formData);
       
-      await gymService.updateContactInfo({
-        phone: formData.phone,
-        email: formData.email,
-        address: formData.address,
-        whatsapp: formData.whatsapp,
-        city: formData.city,
-        mapsUrl: formData.mapsUrl
-      });
+      if (activeTab === 'basic') {
+        // ✅ Actualizar configuración básica
+        console.log('📝 Guardando config básica:', {
+          name: formData.name,
+          tagline: formData.tagline,
+          description: formData.description
+        });
+        
+        await gymService.updateGymConfig({
+          name: formData.name,
+          tagline: formData.tagline,
+          description: formData.description
+        });
+        
+        console.log('✅ Config básica guardada');
+        
+        // ✅ Actualizar contacto - SOLO CAMPOS VÁLIDOS
+        console.log('📞 Guardando info de contacto:', {
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          city: formData.city,
+          mapsUrl: formData.mapsUrl
+        });
+        
+        await gymService.updateContactInfo({
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          city: formData.city,
+          mapsUrl: formData.mapsUrl // Se convertirá a maps_url en gymService
+        });
+        
+        console.log('✅ Info de contacto guardada');
+        
+        showSuccess('Información básica guardada exitosamente');
+        
+      } else if (activeTab === 'social') {
+        // ✅ Guardar redes sociales
+        const socialPromises = [];
+        
+        Object.entries(formData.social).forEach(([platform, url]) => {
+          if (url && url.trim()) {
+            socialPromises.push(
+              gymService.saveSocialMedia({
+                platform,
+                url: url.trim(),
+                isActive: true
+              })
+            );
+          }
+        });
+        
+        await Promise.all(socialPromises);
+        showSuccess('Redes sociales guardadas exitosamente');
+      }
       
-      showSuccess('Información básica guardada exitosamente');
+      setHasChanges(false);
       
-    } else if (activeTab === 'social') {
-      // ✅ Solo guardar redes sociales
-      const socialPromises = [];
+      // ✅ NO llamar a onSave para evitar recargas que afecten productos
+      console.log('✅ Guardado completado sin recargar productos');
       
-      Object.entries(formData.social).forEach(([platform, url]) => {
-        if (url && url.trim()) {
-          socialPromises.push(
-            gymService.saveSocialMedia({
-              platform,
-              url: url.trim(),
-              isActive: true
-            })
-          );
-        }
-      });
+    } catch (error) {
+      console.error('ContentEditor - Error guardando:', error);
       
-      await Promise.all(socialPromises);
-      showSuccess('Redes sociales guardadas exitosamente');
+      // Mostrar detalles del error
+      if (error.response) {
+        console.error('Error response:', {
+          status: error.response.status,
+          data: error.response.data,
+          url: error.response.config?.url
+        });
+      }
+      
+      showError('Error al guardar la información');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setHasChanges(false);
-    
-    // ✅ IMPORTANTE: Solo recargar datos de gym, NO productos
-    if (onSave) {
-      await onSave({
-        section: activeTab,
-        data: formData,
-        skipProductsReload: true // ⭐ Agregar esta flag
-      });
-    }
-    
-  } catch (error) {
-    console.error('ContentEditor - Error guardando configuración:', error);
-    showError('Error al guardar la información');
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
   
-  // ✅ RESET ACTUALIZADO PARA DATOS DEL BACKEND
+  // ✅ RESET
   const handleReset = () => {
     if (gymConfig?.data) {
       const config = gymConfig.data;
@@ -462,8 +486,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         address: config.contact?.address || '',
         phone: config.contact?.phone || '',
         email: config.contact?.email || '',
-        website: config.website || '',
-        whatsapp: config.contact?.whatsapp || '',
         city: config.contact?.city || '',
         mapsUrl: config.contact?.location?.mapsUrl || '',
         social: {
@@ -509,21 +531,23 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Cargando información del gimnasio desde backend...</p>
+          <p className="text-gray-600">Cargando información del gimnasio...</p>
         </div>
       </div>
     );
   }
 
+  // CONTINUACIÓN DE PARTE 1...
+
   return (
     <div className="space-y-6 relative">
       
-      {/* DEBUG INFO DISCRETO */}
+      {/* DEBUG INFO */}
       {process.env.NODE_ENV === 'development' && (
         <div className="absolute top-0 right-0 z-10">
           <button
             onClick={() => setShowDebugInfo(!showDebugInfo)}
-            className="w-8 h-8 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200"
+            className="w-8 h-8 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-lg"
             title="Información de Debug"
           >
             <Bug className="w-4 h-4" />
@@ -531,22 +555,20 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           
           {showDebugInfo && (
             <div className="absolute top-10 right-0 bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-800 shadow-lg min-w-80">
-              <div className="font-medium mb-2">ContentEditor - Conectado con Backend</div>
+              <div className="font-medium mb-2">ContentEditor - CORREGIDO</div>
               <div className="space-y-1">
                 <div>Usuario: {user?.firstName} {user?.lastName}</div>
-                <div>Tab activa: {activeTab}</div>
+                <div>Tab: {activeTab}</div>
                 <div>Cambios: {hasChanges ? 'Sí' : 'No'}</div>
-                <div>Estadísticas: {statistics.length}</div>
-                <div className="text-green-700 font-medium">✅ Backend: test-gym-info-manager.js</div>
-                <div className="text-blue-700">✅ Key auto-generado desde Label</div>
-                <div className="text-purple-700">✅ Sin datos hardcodeados</div>
+                <div>Stats: {statistics.length}</div>
+                <div className="text-green-700">✅ Solo campos válidos</div>
               </div>
             </div>
           )}
         </div>
       )}
       
-      {/* HEADER DEL EDITOR */}
+      {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-1">
@@ -629,8 +651,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           ))}
         </nav>
       </div>
-      
-      {/* CONTENIDO SEGÚN PESTAÑA ACTIVA */}
       
       {/* PESTAÑA: INFORMACIÓN BÁSICA */}
       {activeTab === 'basic' && (
@@ -727,21 +747,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Phone className="w-4 h-4 inline mr-1" />
-                WhatsApp
-              </label>
-              <input
-                type="tel"
-                value={formData.whatsapp}
-                onChange={(e) => handleInputChange(null, 'whatsapp', e.target.value)}
-                placeholder="+502 5XXX-XXXX"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={previewMode}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Mail className="w-4 h-4 inline mr-1" />
                 Email
               </label>
@@ -750,21 +755,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                 value={formData.email}
                 onChange={(e) => handleInputChange(null, 'email', e.target.value)}
                 placeholder="info@elitegym.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                disabled={previewMode}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Globe className="w-4 h-4 inline mr-1" />
-                Sitio Web
-              </label>
-              <input
-                type="url"
-                value={formData.website}
-                onChange={(e) => handleInputChange(null, 'website', e.target.value)}
-                placeholder="https://www.elitegym.com"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={previewMode}
               />
@@ -838,9 +828,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/*  pestaña de ESTADÍSTICAS... */}
-
-      {/* PESTAÑA: ESTADÍSTICAS DINÁMICAS - MANTENER TODA LA FUNCIONALIDAD */}
+      {/* PESTAÑA: ESTADÍSTICAS DINÁMICAS - COMPLETA */}
       {activeTab === 'stats' && (
         <div className="bg-white rounded-lg p-6 space-y-6">
           
@@ -914,7 +902,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={previewMode}
                   />
-                  {/* Preview del key generado */}
                   {creatingNewStat && statFormData.label && (
                     <p className="text-xs text-gray-500 mt-1">
                       Key generado: <span className="font-mono text-blue-600">{statFormData.statKey}</span>
@@ -929,7 +916,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                     <button
                       type="button"
                       className="ml-1 text-gray-400 hover:text-gray-600"
-                      title="El key se genera automáticamente desde la etiqueta. Formato: minúsculas_con_guiones_bajos"
+                      title="El key se genera automáticamente desde la etiqueta"
                     >
                       <HelpCircle className="w-4 h-4" />
                     </button>
@@ -1220,7 +1207,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* VISTA PREVIA - MANTENER FUNCIONALIDAD */}
+      {/* VISTA PREVIA */}
       {previewMode && (
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
           <h3 className="text-lg font-medium text-blue-900 mb-4 flex items-center">
@@ -1258,12 +1245,6 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
                     <div className="flex items-center">
                       <Phone className="w-4 h-4 mr-2" />
                       {formData.phone}
-                    </div>
-                  )}
-                  {formData.whatsapp && (
-                    <div className="flex items-center">
-                      <Phone className="w-4 h-4 mr-2" />
-                      WhatsApp: {formData.whatsapp}
                     </div>
                   )}
                   {formData.email && (
@@ -1317,13 +1298,12 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
           </div>
         </div>
       )}
-      
     </div>
   );
 };
 
 export default ContentEditor;
-
+  
 /*
 =============================================================================
 CONTENTEDITOR COMPLETO - ACTUALIZADO PARA TEST-GYM-INFO-MANAGER.JS

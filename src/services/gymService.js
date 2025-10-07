@@ -26,8 +26,43 @@ class GymService extends BaseService {
           hasHero: !!result.data.hero,
           hasContact: !!result.data.contact,
           hasSocial: !!result.data.social,
-          hasMultimedia: !!result.data.multimedia
+          hasMultimedia: !!result.data.multimedia,
+          contactRaw: result.data.contact
         });
+        
+        // ✅ MAPEO CORRECTO: Asegurar que contact.location.mapsUrl existe
+        if (result.data.contact) {
+          const contact = result.data.contact;
+          
+          // Mapear maps_url a mapsUrl si es necesario
+          if (contact.maps_url && !contact.mapsUrl) {
+            contact.mapsUrl = contact.maps_url;
+          }
+          
+          // Mapear location.maps_url a location.mapsUrl
+          if (contact.location) {
+            if (contact.location.maps_url && !contact.location.mapsUrl) {
+              contact.location.mapsUrl = contact.location.maps_url;
+            }
+            
+            // También copiar lat/lng si vienen como latitude/longitude
+            if (contact.latitude && !contact.location.lat) {
+              contact.location.lat = contact.latitude;
+            }
+            if (contact.longitude && !contact.location.lng) {
+              contact.location.lng = contact.longitude;
+            }
+          } else if (contact.maps_url || contact.latitude || contact.longitude) {
+            // Crear objeto location si no existe pero hay datos
+            contact.location = {
+              mapsUrl: contact.mapsUrl || contact.maps_url,
+              lat: contact.latitude,
+              lng: contact.longitude
+            };
+          }
+          
+          console.log('✅ Contact después de mapeo:', contact);
+        }
       }
       
       return result;
@@ -90,7 +125,7 @@ class GymService extends BaseService {
   // ================================
   
   // OBTENER INFORMACIÓN DE CONTACTO
-  async getContactInfo() {
+   async getContactInfo() {
     console.log('📞 FETCHING CONTACT INFO...');
     try {
       const result = await this.get('/gym/contact');
@@ -101,10 +136,33 @@ class GymService extends BaseService {
           hasPhone: !!result.data.phone,
           hasEmail: !!result.data.email,
           hasAddress: !!result.data.address,
-          hasWhatsapp: !!result.data.whatsapp,
           hasLocation: !!result.data.location,
-          hasCity: !!result.data.city
+          hasCity: !!result.data.city,
+          rawMapsUrl: result.data.maps_url,        // ⭐ Campo en BD (snake_case)
+          rawMapsUrlCamel: result.data.mapsUrl,    // Por si viene en camelCase
+          locationMapsUrl: result.data.location?.maps_url,
+          locationMapsUrlCamel: result.data.location?.mapsUrl
         });
+        
+        // ✅ MAPEO CORRECTO: Convertir snake_case a camelCase
+        const contactData = {
+          ...result.data,
+          // Si viene maps_url (snake_case), convertir a mapsUrl (camelCase)
+          mapsUrl: result.data.mapsUrl || result.data.maps_url,
+          location: result.data.location ? {
+            ...result.data.location,
+            mapsUrl: result.data.location.mapsUrl || result.data.location.maps_url,
+            lat: result.data.location.lat || result.data.latitude,
+            lng: result.data.location.lng || result.data.longitude
+          } : null
+        };
+        
+        console.log('✅ Contact data mapeado:', contactData);
+        
+        return {
+          ...result,
+          data: contactData
+        };
       }
       
       return result;

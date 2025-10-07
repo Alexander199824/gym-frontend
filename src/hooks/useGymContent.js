@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // Dirección: src/hooks/useGymContent.js
-// ✅ ACTUALIZADO para conectar con test-gym-info-manager.js
-// ✅ SIN DATOS HARDCODEADOS - TODO DESDE EL BACKEND
+// ✅ COMPLETO - Este archivo NO necesita cambios
+// ✅ Ya está conectado correctamente con el backend
 
 import { useState, useEffect, useCallback } from 'react';
 import { gymService } from '../services';
@@ -11,26 +11,22 @@ const useGymContent = (options = {}) => {
   const {
     enabled = true,
     autoFetch = true,
-    cacheTime = 10 * 60 * 1000 // 10 minutos
+    cacheTime = 10 * 60 * 1000
   } = options;
 
   const { showError } = useApp();
 
-  // Estados principales
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
 
-  // Estados específicos por sección
   const [stats, setStats] = useState([]);
   const [services, setServices] = useState([]);
   const [plans, setPlans] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
 
-  // ✅ FUNCIÓN PARA OBTENER CONTENIDO COMPLETO
   const fetchGymContent = useCallback(async (force = false) => {
-    // Verificar cache
     if (content && !force && lastFetch) {
       const timeDiff = Date.now() - lastFetch;
       if (timeDiff < cacheTime) {
@@ -50,15 +46,12 @@ const useGymContent = (options = {}) => {
       
       console.log('📋 useGymContent: obteniendo contenido desde backend...');
       
-      // ✅ Obtener configuración general
       const configResponse = await gymService.getGymConfig();
       
       if (configResponse && configResponse.data) {
         console.log('✅ useGymContent: configuración obtenida');
         
-        // Estructurar contenido según lo recibido del backend
         const structuredContent = {
-          // Hero desde configuración
           hero: {
             title: configResponse.data.name || '',
             subtitle: configResponse.data.tagline || '',
@@ -68,7 +61,6 @@ const useGymContent = (options = {}) => {
             videoConfig: configResponse.data.hero?.videoConfig || null
           },
           
-          // Configuración general
           config: {
             name: configResponse.data.name || '',
             tagline: configResponse.data.tagline || '',
@@ -96,7 +88,6 @@ const useGymContent = (options = {}) => {
     }
   }, [content, lastFetch, cacheTime, enabled, showError]);
 
-  // ✅ FUNCIÓN PARA OBTENER ESTADÍSTICAS
   const fetchStats = useCallback(async (force = false) => {
     try {
       console.log('📊 useGymContent: obteniendo estadísticas...');
@@ -115,7 +106,6 @@ const useGymContent = (options = {}) => {
     }
   }, []);
 
-  // ✅ FUNCIÓN PARA OBTENER SERVICIOS
   const fetchServices = useCallback(async (force = false) => {
     try {
       console.log('🏋️ useGymContent: obteniendo servicios...');
@@ -134,7 +124,6 @@ const useGymContent = (options = {}) => {
     }
   }, []);
 
-  // ✅ FUNCIÓN PARA OBTENER PLANES
   const fetchPlans = useCallback(async (force = false) => {
     try {
       console.log('💳 useGymContent: obteniendo planes...');
@@ -153,7 +142,6 @@ const useGymContent = (options = {}) => {
     }
   }, []);
 
-  // ✅ FUNCIÓN PARA OBTENER TESTIMONIOS
   const fetchTestimonials = useCallback(async (force = false) => {
     try {
       console.log('💬 useGymContent: obteniendo testimonios...');
@@ -172,7 +160,6 @@ const useGymContent = (options = {}) => {
     }
   }, []);
 
-  // ✅ FUNCIÓN PARA CARGAR TODO EL CONTENIDO
   const fetchAllContent = useCallback(async (force = false) => {
     console.log('🔄 useGymContent: cargando todo el contenido...');
     
@@ -187,7 +174,6 @@ const useGymContent = (options = {}) => {
     console.log('✅ useGymContent: todo el contenido cargado');
   }, [fetchGymContent, fetchStats, fetchServices, fetchPlans, fetchTestimonials]);
 
-  // Efecto para cargar contenido al montar (si autoFetch está habilitado)
   useEffect(() => {
     if (autoFetch && enabled) {
       console.log('🚀 useGymContent: carga automática inicial');
@@ -195,20 +181,16 @@ const useGymContent = (options = {}) => {
     }
   }, [autoFetch, enabled, fetchAllContent]);
 
-  // ✅ FUNCIÓN PARA REFRESCAR TODO
   const refresh = useCallback(() => {
     console.log('🔄 useGymContent: refresh manual solicitado');
     return fetchAllContent(true);
   }, [fetchAllContent]);
 
-  // ✅ FUNCIÓN PARA ACTUALIZAR SERVICIOS
   const updateServices = useCallback(async (newServices) => {
     try {
       console.log('💾 useGymContent: actualizando servicios...');
       
       await gymService.updateServices(newServices);
-      
-      // Recargar servicios después de actualizar
       await fetchServices(true);
       
       console.log('✅ useGymContent: servicios actualizados');
@@ -220,14 +202,11 @@ const useGymContent = (options = {}) => {
     }
   }, [fetchServices, showError]);
 
-  // ✅ FUNCIÓN PARA ACTUALIZAR PLANES
   const updatePlans = useCallback(async (newPlans) => {
     try {
       console.log('💾 useGymContent: actualizando planes...');
       
       await gymService.updateMembershipPlans(newPlans);
-      
-      // Recargar planes después de actualizar
       await fetchPlans(true);
       
       console.log('✅ useGymContent: planes actualizados');
@@ -239,7 +218,6 @@ const useGymContent = (options = {}) => {
     }
   }, [fetchPlans, showError]);
 
-  // ✅ FUNCIÓN PARA ACTUALIZAR UNA SECCIÓN ESPECÍFICA
   const updateContent = useCallback(async (section, newData) => {
     try {
       console.log(`💾 useGymContent: actualizando sección ${section}...`);
@@ -252,17 +230,16 @@ const useGymContent = (options = {}) => {
           return await updatePlans(newData);
         
         default:
-          console.warn(`⚠️ useGymContent: sección ${section} no soportada para actualización`);
+          console.warn(`⚠️ useGymContent: sección ${section} no soportada`);
           return false;
       }
     } catch (err) {
-      console.error(`❌ useGymContent: error al actualizar sección ${section}:`, err);
+      console.error(`❌ useGymContent: error al actualizar ${section}:`, err);
       showError?.(`Error al actualizar ${section}`);
       return false;
     }
   }, [updateServices, updatePlans, showError]);
 
-  // ✅ FUNCIONES DE VERIFICACIÓN
   const hasSection = useCallback((sectionName) => {
     if (sectionName === 'stats') return stats && stats.length > 0;
     if (sectionName === 'services') return services && services.length > 0;
@@ -285,7 +262,6 @@ const useGymContent = (options = {}) => {
     ) || stats.length > 0 || services.length > 0 || plans.length > 0 || testimonials.length > 0;
   }, [content, stats, services, plans, testimonials]);
 
-  // ✅ FUNCIÓN PARA OBTENER CONTENIDO DE UNA SECCIÓN
   const getSectionContent = useCallback((sectionName) => {
     if (sectionName === 'stats') return stats;
     if (sectionName === 'services') return services;
@@ -295,7 +271,6 @@ const useGymContent = (options = {}) => {
     return content?.[sectionName] || null;
   }, [content, stats, services, plans, testimonials]);
 
-  // ✅ FUNCIÓN PARA VERIFICAR COMPLETITUD
   const isContentComplete = useCallback(() => {
     if (!content) return false;
     
@@ -308,20 +283,18 @@ const useGymContent = (options = {}) => {
     return hasHero && hasConfig && hasStats && hasServices && hasPlans;
   }, [content, stats, services, plans, hasSection]);
 
-  // ✅ ESTADÍSTICAS DEL CONTENIDO
   const getContentStats = useCallback(() => {
     if (!content) return null;
     
     const sections = ['hero', 'config'];
     const sectionsWithContent = sections.filter(key => hasSection(key));
     
-    // Agregar secciones de arrays
     if (stats.length > 0) sectionsWithContent.push('stats');
     if (services.length > 0) sectionsWithContent.push('services');
     if (plans.length > 0) sectionsWithContent.push('plans');
     if (testimonials.length > 0) sectionsWithContent.push('testimonials');
     
-    const totalSections = sections.length + 4; // hero, config + 4 arrays
+    const totalSections = sections.length + 4;
     
     return {
       total: totalSections,
@@ -343,21 +316,17 @@ const useGymContent = (options = {}) => {
     };
   }, [content, stats, services, plans, testimonials, hasSection]);
 
-  // Retornar todas las propiedades y funciones disponibles
   return {
-    // Estados principales
     content,
     loading,
     error,
     lastFetch,
     
-    // Datos específicos por sección
     stats,
     services,
     plans,
     testimonials,
     
-    // Funciones principales
     refresh,
     fetchAllContent,
     updateContent,
@@ -365,38 +334,31 @@ const useGymContent = (options = {}) => {
     updatePlans,
     getSectionContent,
     
-    // Funciones de fetch específicas
     fetchStats,
     fetchServices,
     fetchPlans,
     fetchTestimonials,
     
-    // Verificaciones
     hasSection,
     hasAnyContent,
     isContentComplete,
     
-    // Estadísticas
     getContentStats,
     
-    // Acceso directo a secciones
     hero: getSectionContent('hero'),
     config: getSectionContent('config'),
     
-    // Estados útiles para componentes
     isLoaded: !loading && content !== null && !error,
     hasError: !!error,
     isEmpty: !content || !hasAnyContent(),
     isComplete: isContentComplete(),
     contentStats: getContentStats(),
     
-    // Contadores rápidos
     statsCount: stats.length,
     servicesCount: services.length,
     plansCount: plans.length,
     testimonialsCount: testimonials.length,
     
-    // Información de debug (solo en desarrollo)
     ...(process.env.NODE_ENV === 'development' && {
       debugInfo: {
         enabled,
@@ -423,42 +385,6 @@ export default useGymContent;
 HOOK useGymContent - ACTUALIZADO PARA TEST-GYM-INFO-MANAGER.JS
 =============================================================================
 
-✅ CAMBIOS PRINCIPALES:
-- Usa gymService en lugar de apiService directamente
-- Conectado con endpoints reales del test backend
-- SIN datos hardcodeados - todo desde backend
-- Manejo separado de secciones (stats, services, plans, testimonials)
-- Funciones de actualización para servicios y planes
-
-✅ ENDPOINTS UTILIZADOS (según test):
-- GET /api/gym/config              - Configuración general
-- GET /api/gym/stats               - Estadísticas (o /api/statistics/active)
-- GET /api/gym/services            - Servicios del gym
-- GET /api/gym/membership-plans    - Planes de membresía
-- GET /api/gym/testimonials        - Testimonios
-- PUT /api/gym/services            - Actualizar servicios
-- PUT /api/gym/membership-plans    - Actualizar planes
-
-✅ DATOS RETORNADOS:
-{
-  // Objeto principal
-  content: {
-    hero: {
-      title, subtitle, description,
-      imageUrl, videoUrl, videoConfig
-    },
-    config: {
-      name, tagline, description,
-      logo, contact, social, multimedia
-    }
-  },
-  
-  // Arrays específicos
-  stats: [...],
-  services: [...],
-  plans: [...],
-  testimonials: [...]
-}
 
 ✅ FUNCIONES DISPONIBLES:
 - refresh() - Recargar todo
