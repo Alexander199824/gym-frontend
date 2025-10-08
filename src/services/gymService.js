@@ -1161,33 +1161,31 @@ export { GymService };
 GYM SERVICE COMPLETO - SIN PERDER NINGUNA FUNCIÓN
 =============================================================================
 
-✅ ARCHIVO 100% COMPLETO CON TODAS LAS FUNCIONES ORIGINALES
-
-🔧 ÚNICO CAMBIO: Rutas de servicios corregidas
+ARCHIVO 100% COMPLETO CON TODAS LAS FUNCIONES ORIGINALES
+ÚNICO CAMBIO: Rutas de servicios corregidas
 - /gym/services/* → /services/*
+TODAS LAS FUNCIONES INCLUIDAS:
 
-📋 TODAS LAS FUNCIONES INCLUIDAS:
-
-🏢 CONFIGURACIÓN:
+CONFIGURACIÓN:
 - getGymConfig()
 - updateGymConfig()
 
-📞 CONTACTO:
+CONTACTO:
 - getContactInfo()
 - updateContactInfo()
 
-📱 REDES SOCIALES:
+REDES SOCIALES:
 - getSocialMedia()
 - getAllSocialMedia()
 - getSocialMediaPlatform()
 - saveSocialMedia()
 - toggleSocialMedia()
 
-📊 ESTADÍSTICAS:
+ESTADÍSTICAS:
 - getGymStats()
 - getActiveStatistics()
 
-🏋️ SERVICIOS (RUTAS CORREGIDAS):
+SERVICIOS (RUTAS CORREGIDAS):
 - getGymServices()          → /services
 - getActiveServices()       → /services/active
 - getServiceById()          → /services/:id
@@ -1200,38 +1198,35 @@ GYM SERVICE COMPLETO - SIN PERDER NINGUNA FUNCIÓN
 - reorderServices()         → /services/reorder
 - getServicesStats()        → /services/stats
 - updateServices() (legacy)
-
-💳 MEMBRESÍAS:
+MEMBRESÍAS:
 - getMembershipPlans()
 - updateMembershipPlans()
-
-💬 TESTIMONIOS:
+TESTIMONIOS:
 - getTestimonials()
 
-🎬 MULTIMEDIA:
+MULTIMEDIA:
 - getGymVideo()
 
-📄 CONTENIDO:
+CONTENIDO:
 - getSectionsContent()
 - getNavigation()
 - getPromotions()
 - getBranding()
 - getLandingContent()
-
-🔧 ADMINISTRACIÓN:
+ADMINISTRACIÓN:
 - initializeGymData()
 
-🆕 HORARIOS FLEXIBLES:
+ HORARIOS FLEXIBLES:
 - getGymConfigEditor()
 - saveFlexibleSchedule()
 - getCapacityMetrics()
 - saveGymConfigSection()
 
-✅ TODO EL LOGGING DETALLADO MANTENIDO
-✅ TODOS LOS TOASTS MANTENIDOS
-✅ TODO EL MANEJO DE ERRORES MANTENIDO
-✅ TODOS LOS COMENTARIOS MANTENIDOS
-✅ TODA LA LÓGICA DE MAPEO MANTENIDA
+TODO EL LOGGING DETALLADO MANTENIDO
+TODOS LOS TOASTS MANTENIDOS
+TODO EL MANEJO DE ERRORES MANTENIDO
+TODOS LOS COMENTARIOS MANTENIDOS
+TODA LA LÓGICA DE MAPEO MANTENIDA
 
 Este archivo está listo para producción.
 =============================================================================
