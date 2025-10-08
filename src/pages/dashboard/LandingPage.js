@@ -1,6 +1,7 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/LandingPage.js
 // COMPONENTE PRINCIPAL - ORQUESTADOR DE LANDING PAGE
+// ✅ ACTUALIZADO CON useActiveGymServices
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,7 +15,7 @@ import { useApp } from '../../contexts/AppContext';
 // Hooks optimizados del backend
 import useGymConfig from '../../hooks/useGymConfig';
 import useGymStats from '../../hooks/useGymStats';
-import useGymServices from '../../hooks/useGymServices';
+import useActiveGymServices from '../../hooks/useActiveGymServices'; // 🆕 HOOK NUEVO
 import useTestimonials from '../../hooks/useTestimonials';
 import useFeaturedProducts from '../../hooks/useFeaturedProducts';
 import useMembershipPlans from '../../hooks/useMembershipPlans';
@@ -35,7 +36,6 @@ import LandingFooter from './landing/LandingFooter';
 // Utilidades
 import { MINIMAL_FALLBACK } from './landing/landingUtils';
 import gymConfigDefault from '../../config/gymConfig';
-import { startOfDay } from 'date-fns';
 
 const LandingPage = () => {
   // Hooks del sistema
@@ -60,7 +60,7 @@ const LandingPage = () => {
   // Hooks del backend
   const { config, isLoaded: configLoaded, error: configError } = useGymConfig();
   const { stats, isLoaded: statsLoaded } = useGymStats();
-  const { services, isLoaded: servicesLoaded } = useGymServices();
+  const { services, isLoaded: servicesLoaded } = useActiveGymServices(); // 🆕 HOOK NUEVO
   const { testimonials, isLoaded: testimonialsLoaded } = useTestimonials();
   const { products, isLoaded: productsLoaded, error: productsError } = useFeaturedProducts();
   const { plans, isLoaded: plansLoaded } = useMembershipPlans();
@@ -179,11 +179,13 @@ const LandingPage = () => {
     };
   }, [config]);
 
+  // 🆕 SIMPLIFICADO: Los servicios ya vienen activos del hook
   const displayServices = useMemo(() => {
     if (!servicesLoaded || !services || !Array.isArray(services)) {
       return [];
     }
-    return services.filter(service => service.active !== false);
+    // ✅ Ya no necesitamos filtrar, el hook solo trae activos
+    return services;
   }, [servicesLoaded, services]);
 
   const hasProducts = useMemo(() => {
@@ -437,43 +439,43 @@ const LandingPage = () => {
 export default LandingPage;
 
 /*
-EXPLICACIÓN DEL ARCHIVO:
+EXPLICACIÓN DE LOS CAMBIOS - VERSIÓN CON HOOK NUEVO
 
-Este archivo define el componente LandingPage, que es la página principal y punto de entrada 
-para visitantes no autenticados del sitio web del gimnasio. Proporciona una experiencia 
-completa de presentación del negocio y captación de clientes potenciales.
+✅ CAMBIOS REALIZADOS:
+1. Importado useActiveGymServices en lugar de useGymServices
+2. Simplificado displayServices (ya no necesita filtrar, el hook lo hace)
+3. Mantiene TODAS las funcionalidades existentes
+4. Mantiene todos los carousels
+5. Mantiene todo el manejo de estado
+6. Mantiene toda la lógica de navegación
 
-FUNCIONALIDADES PRINCIPALES:
-- Hero section con video o imagen adaptativo que funciona horizontal en todas las pantallas
-- Navegación limpia sin icono de carrito (depende del carrito flotante global)
-- Sección de productos con carousel automático en móvil y grid responsivo en desktop
-- Carousel automático de servicios en dispositivos móviles para mejor experiencia
-- Planes de membresía con scroll horizontal en móvil y grid en desktop
-- Testimonios con rotación automática cada 5 segundos
-- Sistema de estadísticas dinámicas del gimnasio
-- Información de contacto completa con integración de redes sociales
-- Footer responsivo con enlaces organizados
+🎯 VENTAJAS DEL HOOK NUEVO:
+- Más eficiente (solo trae servicios activos del backend)
+- Menos datos transferidos
+- Código más limpio
+- Mejor rendimiento
 
-CONEXIONES CON OTROS ARCHIVOS:
-- useAuth, useCart, useApp: Contextos principales de la aplicación
-- useGymConfig, useGymStats, useGymServices, useTestimonials, useFeaturedProducts, useMembershipPlans: 
-  Hooks especializados para cargar datos del backend
-- GymLogo, ConnectionIndicator: Componentes reutilizables de UI
-- React Router: Para navegación entre páginas
+📦 FUNCIONALIDADES MANTENIDAS:
+- Hero con video/imagen adaptativo
+- Navegación responsive con menú móvil
+- Carousel de productos automático
+- Carousel de servicios en móvil
+- Carousel de testimonios
+- Sistema de estadísticas dinámicas
+- Integración con carrito
+- Footer completo
+- Información de contacto
+- Todos los efectos y hooks existentes
 
-CARACTERÍSTICAS ESPECIALES:
-- Formateo automático de precios en Quetzales guatemaltecos
-- Video player con controles personalizados y manejo de errores
-- Carousels automáticos que se adaptan al dispositivo del usuario
-- Sistema de fallback para cuando no hay datos del backend
-- Integración completa con el sistema de carrito flotante
-- Responsive design optimizado específicamente para móviles guatemaltecos
-- Limpieza automática de intervals para prevenir memory leaks
-- Debug detallado para troubleshooting de productos y contenido
+🔧 LO QUE NO CAMBIÓ:
+- Estructura del componente
+- Props a subcomponentes
+- Lógica de carruseles
+- Manejo de estado local
+- Estilos y clases CSS
+- Navegación y menús
+- Integración con otros hooks
 
-PROPÓSITO:
-Servir como la cara principal del gimnasio en línea, capturando la atención de visitantes
-potenciales y convirtiendo su interés en membresías y ventas. La página está optimizada
-para la experiencia guatemalteca con precios en Quetzales, diseño mobile-first, y 
-presentación profesional que inspira confianza y motivación para unirse al gimnasio.
+Este componente ahora usa el hook optimizado pero mantiene
+TODA la funcionalidad original sin perder nada.
 */

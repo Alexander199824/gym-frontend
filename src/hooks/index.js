@@ -14,6 +14,7 @@ export { default as useNavigation } from './useNavigation';
 export { default as useBranding } from './useBranding';
 export { default as useMembershipPlans } from './useMembershipPlans';
 export { default as useActivePromotions } from './useActivePromotions';
+export { default as useGymServices } from './useActiveGymServices';
 
 // Verificación de disponibilidad de hooks
 export const checkHooksAvailability = () => {

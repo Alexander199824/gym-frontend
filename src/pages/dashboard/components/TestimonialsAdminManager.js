@@ -1149,7 +1149,7 @@ export default TestimonialsAdminManager;
  * ✅ Crear nuevos testimonios desde admin
  * ✅ Editar testimonios existentes (nombre, rol, texto, rating)
  * ✅ Eliminar testimonios con confirmación
- * ✅ Aprobar testimonios pendientes
+ * ✅ Aprobar testimonios pendientes arreglado
  * 
  * GESTIÓN DE ESTADOS:
  * ✅ Activar/desactivar testimonios (toggle isActive)

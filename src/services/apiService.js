@@ -102,6 +102,49 @@ class ApiService extends BaseService {
     return this.gymService.getGymServices();
   }
   
+  // 🆕 SERVICIOS DEL GIMNASIO - MÉTODOS CRUD COMPLETOS
+  
+  async getActiveServices() {
+    return this.gymService.getActiveServices();
+  }
+  
+  async getServiceById(serviceId) {
+    return this.gymService.getServiceById(serviceId);
+  }
+  
+  async createService(serviceData) {
+    return this.gymService.createService(serviceData);
+  }
+  
+  async updateService(serviceId, serviceData) {
+    return this.gymService.updateService(serviceId, serviceData);
+  }
+  
+  async deleteService(serviceId) {
+    return this.gymService.deleteService(serviceId);
+  }
+  
+  async toggleService(serviceId) {
+    return this.gymService.toggleService(serviceId);
+  }
+  
+  async duplicateService(serviceId) {
+    return this.gymService.duplicateService(serviceId);
+  }
+  
+  async reorderServices(orderData) {
+    return this.gymService.reorderServices(orderData);
+  }
+  
+  async seedDefaultServices() {
+    return this.gymService.seedDefaultServices();
+  }
+  
+  async getServicesStats() {
+    return this.gymService.getServicesStats();
+  }
+
+
   async getMembershipPlans() {
     return this.gymService.getMembershipPlans();
   }
