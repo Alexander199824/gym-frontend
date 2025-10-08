@@ -147,61 +147,33 @@ api.interceptors.response.use(
       // ✅ CORRECCIÓN CRÍTICA: Contexto específico por tipo de error
       switch (status) {
         case 401:
-          // ✅ NO INTERFERIR CON LOGIN - Solo redirigir si NO estamos en login
-          const isLoginRequest = url.includes('/auth/login') || url.includes('/login');
-          const isLoginPage = window.location.pathname.includes('/login');
-          
-          if (isLoginRequest) {
-            console.log('🔐 LOGIN FAILED: Credenciales incorrectas');
-            console.log('✅ Permitiendo que LoginPage maneje el error');
-          } else if (!isLoginPage) {
-            console.log('🔐 PROBLEMA: Token expirado o inválido');
-            console.log('🔧 ACCIÓN: Redirigiendo a login...');
-            localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
-            toast.error('Sesión expirada. Redirigiendo...');
-            setTimeout(() => window.location.href = '/login', 1500);
-          } else {
-            console.log('🔐 Error 401 en página de login - No redirigir');
-          }
-          break;
-          
-        case 403:
-          console.log('🚫 PROBLEMA: Sin permisos para esta acción');
-          console.log('🔧 VERIFICAR: Rol del usuario y permisos necesarios');
-          if (!url.includes('/auth/login')) {
-            toast.error('Sin permisos para esta acción');
-          }
-          break;
-          
-        case 404:
-          console.log('🔍 PROBLEMA: Endpoint no implementado en backend');
-          console.log('🔧 VERIFICAR: ¿Existe la ruta en el backend?');
-          console.log('📋 URL completa:', fullUrl);
-          
-          const isCritical = url.includes('/auth') || url.includes('/config');
-          if (isCritical) {
-            toast.error('Servicio no disponible');
-          }
-          break;
-          
-        case 422:
-          console.log('📝 PROBLEMA: Datos inválidos enviados');
-          console.log('🔧 VERIFICAR: Formato y validación de datos');
-          if (response.data?.errors) {
-            const errors = response.data.errors;
-            console.log('📋 Errores de validación:', errors);
-            
-            // ✅ MEJORADO: No mostrar toast automático para errores de validación de perfil
-            if (!url.includes('/auth/profile')) {
-              if (Array.isArray(errors)) {
-                const errorMsg = errors.map(err => err.message || err).join(', ');
-                toast.error(`Datos inválidos: ${errorMsg}`);
-              } else {
-                toast.error('Datos inválidos enviados');
-              }
-            }
-          }
-          break;
+  // ✅ LISTA DE RUTAS PÚBLICAS QUE NO DEBEN REDIRIGIR
+  const PUBLIC_ROUTES = ['/', '/store', '/register', '/auth/google-success'];
+  const currentPath = window.location.pathname;
+  const isPublicRoute = PUBLIC_ROUTES.some(route => 
+    currentPath === route || currentPath.startsWith(route)
+  );
+  
+  const isLoginRequest = url.includes('/auth/login') || url.includes('/login');
+  const isLoginPage = window.location.pathname.includes('/login');
+  
+  if (isLoginRequest) {
+    // Error en login - dejar que LoginPage lo maneje
+    console.log('🔐 LOGIN FAILED: Credenciales incorrectas');
+    console.log('✅ Permitiendo que LoginPage maneje el error');
+  } else if (isPublicRoute) {
+    // ✅ NUEVO: Si estamos en ruta pública, NO redirigir
+    console.log('🌐 Error 401 en ruta pública:', currentPath);
+    console.log('✅ NO redirigir - la página puede funcionar sin autenticación');
+  } else if (!isLoginPage) {
+    // Solo redirigir si NO estamos en login NI en ruta pública
+    console.log('🔐 PROBLEMA: Token expirado o inválido');
+    console.log('🔧 ACCIÓN: Redirigiendo a login...');
+    localStorage.removeItem(process.env.REACT_APP_TOKEN_KEY || 'elite_fitness_token');
+    toast.error('Sesión expirada. Redirigiendo...');
+    setTimeout(() => window.location.href = '/login', 1500);
+  }
+  break;
           
         case 429:
           console.log('🚦 PROBLEMA: Demasiadas peticiones (rate limiting)');

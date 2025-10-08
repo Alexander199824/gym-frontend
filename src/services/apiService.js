@@ -14,7 +14,8 @@ import { StripeService } from './stripeService.js';
 import paymentService from './paymentService.js'; 
 import scheduleService from './scheduleService.js';
 import inventoryService from './inventoryService.js';
-import statisticsService from './statisticsService.js'; // 🆕 ESTADÍSTICAS
+import statisticsService from './statisticsService.js';
+import testimonialService from './testimonialService.js';
 
 // ================================
 // 🏠 CLASE PRINCIPAL DEL SERVICIO API
@@ -32,7 +33,9 @@ class ApiService extends BaseService {
     this.paymentService = paymentService;
     this.scheduleService = scheduleService;
     this.inventoryService = inventoryService;
-    this.statisticsService = statisticsService; // 🆕 ESTADÍSTICAS
+    this.statisticsService = statisticsService; 
+    this.testimonialService = testimonialService;
+
   }
 
   // ================================
@@ -266,6 +269,119 @@ class ApiService extends BaseService {
   validateStatisticData(data) {
     return this.statisticsService.validateStatisticData(data);
   }
+
+
+// ================================
+// 💬 MÉTODOS DE TESTIMONIOS - DELEGACIÓN A testimonialService
+// ================================
+
+/**
+ * Obtener todos los testimonios (admin)
+ */
+async getAllTestimonials(params = {}) {
+  return this.testimonialService.getAllTestimonials(params);
+}
+
+/**
+ * Obtener testimonios públicos
+ */
+async getPublicTestimonials() {
+  return this.testimonialService.getPublicTestimonials();
+}
+
+/**
+ * Obtener testimonios pendientes
+ */
+async getPendingTestimonials() {
+  return this.testimonialService.getPendingTestimonials();
+}
+
+/**
+ * Obtener mis testimonios
+ */
+async getMyTestimonials() {
+  return this.testimonialService.getMyTestimonials();
+}
+
+/**
+ * Obtener detalles de testimonio
+ */
+async getTestimonialDetails(testimonialId) {
+  return this.testimonialService.getTestimonialDetails(testimonialId);
+}
+
+/**
+ * Obtener estadísticas de testimonios
+ */
+async getTestimonialStats() {
+  return this.testimonialService.getTestimonialStats();
+}
+
+/**
+ * Crear testimonio (cliente)
+ */
+async createTestimonial(testimonialData) {
+  return this.testimonialService.createTestimonial(testimonialData);
+}
+
+/**
+ * Crear testimonio (admin)
+ */
+async createTestimonialAdmin(testimonialData) {
+  return this.testimonialService.createTestimonialAdmin(testimonialData);
+}
+
+/**
+ * Actualizar testimonio
+ */
+async updateTestimonial(testimonialId, updates) {
+  return this.testimonialService.updateTestimonial(testimonialId, updates);
+}
+
+/**
+ * Aprobar testimonio
+ */
+async approveTestimonial(testimonialId, approvalData = {}) {
+  return this.testimonialService.approveTestimonial(testimonialId, approvalData);
+}
+
+/**
+ * Toggle estado activo
+ */
+async toggleTestimonialActive(testimonialId) {
+  return this.testimonialService.toggleActive(testimonialId);
+}
+
+/**
+ * Toggle estado destacado
+ */
+async toggleTestimonialFeatured(testimonialId) {
+  return this.testimonialService.toggleFeatured(testimonialId);
+}
+
+/**
+ * Eliminar testimonio
+ */
+async deleteTestimonial(testimonialId) {
+  return this.testimonialService.deleteTestimonial(testimonialId);
+}
+
+/**
+ * Validar datos de testimonio
+ */
+validateTestimonialData(testimonialData) {
+  return this.testimonialService.validateTestimonialData(testimonialData);
+}
+
+/**
+ * Formatear datos de testimonio
+ */
+formatTestimonialDataForAPI(testimonialData) {
+  return this.testimonialService.formatTestimonialDataForAPI(testimonialData);
+}
+
+
+
 
   // ================================
   // 👥 MÉTODOS DE USUARIOS - DELEGACIÓN A userService
