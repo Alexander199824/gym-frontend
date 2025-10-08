@@ -35,6 +35,7 @@ import LandingFooter from './landing/LandingFooter';
 // Utilidades
 import { MINIMAL_FALLBACK } from './landing/landingUtils';
 import gymConfigDefault from '../../config/gymConfig';
+import { startOfDay } from 'date-fns';
 
 const LandingPage = () => {
   // Hooks del sistema
