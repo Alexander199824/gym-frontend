@@ -1,6 +1,7 @@
 // src/services/gymService.js
-// SERVICIO DE GIMNASIO - ACTUALIZADO PARA CONECTAR CON TEST-GYM-INFO-MANAGER
+// SERVICIO DE GIMNASIO - COMPLETO CON CRUD DE SERVICIOS
 // Autor: Alexander Echeverria
+// ✅ MANTIENE TODO + AGREGA CRUD DE SERVICIOS
 
 import toast from 'react-hot-toast';
 import { BaseService } from './baseService.js';
@@ -125,7 +126,7 @@ class GymService extends BaseService {
   // ================================
   
   // OBTENER INFORMACIÓN DE CONTACTO
-   async getContactInfo() {
+  async getContactInfo() {
     console.log('📞 FETCHING CONTACT INFO...');
     try {
       const result = await this.get('/gym/contact');
@@ -138,8 +139,8 @@ class GymService extends BaseService {
           hasAddress: !!result.data.address,
           hasLocation: !!result.data.location,
           hasCity: !!result.data.city,
-          rawMapsUrl: result.data.maps_url,        // ⭐ Campo en BD (snake_case)
-          rawMapsUrlCamel: result.data.mapsUrl,    // Por si viene en camelCase
+          rawMapsUrl: result.data.maps_url,
+          rawMapsUrlCamel: result.data.mapsUrl,
           locationMapsUrl: result.data.location?.maps_url,
           locationMapsUrlCamel: result.data.location?.mapsUrl
         });
@@ -147,7 +148,6 @@ class GymService extends BaseService {
         // ✅ MAPEO CORRECTO: Convertir snake_case a camelCase
         const contactData = {
           ...result.data,
-          // Si viene maps_url (snake_case), convertir a mapsUrl (camelCase)
           mapsUrl: result.data.mapsUrl || result.data.maps_url,
           location: result.data.location ? {
             ...result.data.location,
@@ -178,7 +178,6 @@ class GymService extends BaseService {
     console.log('📤 Contact data to update:', contactData);
     
     try {
-      // El backend espera: phone, email, address, city, mapsUrl, etc.
       const requestData = {};
       
       if (contactData.phone !== undefined) requestData.phone = contactData.phone;
@@ -266,7 +265,6 @@ class GymService extends BaseService {
     } catch (error) {
       console.log('❌ ALL SOCIAL MEDIA FAILED:', error.message);
       
-      // Fallback a endpoint público si falla
       if (error.response?.status === 404 || error.response?.status === 403) {
         console.log('📱 FALLBACK: Using public social media endpoint');
         return await this.getSocialMedia();
@@ -304,12 +302,11 @@ class GymService extends BaseService {
     console.log('📤 Social data:', socialData);
     
     try {
-      // El backend espera: platform, url, handle, isActive
       const requestData = {
         platform: socialData.platform,
         url: socialData.url,
         handle: socialData.handle || null,
-        isActive: socialData.isActive !== false // default true
+        isActive: socialData.isActive !== false
       };
       
       console.log('📤 Request data formatted:', requestData);
@@ -400,7 +397,6 @@ class GymService extends BaseService {
   async getActiveStatistics() {
     console.log('📊 FETCHING ACTIVE STATISTICS...');
     try {
-      // Primero intentar endpoint de estadísticas activas
       const result = await this.get('/statistics/active');
       console.log('✅ ACTIVE STATISTICS RECEIVED:', result);
       
@@ -414,7 +410,6 @@ class GymService extends BaseService {
     } catch (error) {
       console.log('❌ ACTIVE STATISTICS FAILED:', error.message);
       
-      // Fallback a estadísticas del gym si falla
       if (error.response?.status === 404) {
         console.log('📊 FALLBACK: Using gym stats endpoint');
         return await this.getGymStats();
@@ -425,35 +420,319 @@ class GymService extends BaseService {
   }
 
   // ================================
-  // 🏋️ SERVICIOS
+  // 🏋️ SERVICIOS DEL GIMNASIO - CRUD COMPLETO
   // ================================
   
-  // OBTENER SERVICIOS DEL GYM
+  // OBTENER TODOS LOS SERVICIOS (incluye activos e inactivos)
   async getGymServices() {
-    console.log('🏋️ FETCHING GYM SERVICES...');
+    console.log('🏋️ FETCHING ALL GYM SERVICES...');
     try {
       const result = await this.get('/gym/services');
-      console.log('✅ GYM SERVICES RECEIVED:', result);
+      console.log('✅ ALL SERVICES RECEIVED:', result);
       
       if (result && result.data) {
         console.log('🏋️ Services structure:', {
           isArray: Array.isArray(result.data),
           count: Array.isArray(result.data) ? result.data.length : 0,
           activeCount: Array.isArray(result.data) ? 
-            result.data.filter(s => s.active).length : 0
+            result.data.filter(s => s.isActive !== false).length : 0,
+          inactiveCount: Array.isArray(result.data) ? 
+            result.data.filter(s => s.isActive === false).length : 0,
+          sample: Array.isArray(result.data) && result.data[0] ? {
+            id: result.data[0].id,
+            title: result.data[0].title,
+            hasIconName: !!result.data[0].iconName,
+            hasFeatures: Array.isArray(result.data[0].features),
+            featuresCount: result.data[0].features?.length || 0,
+            hasDisplayOrder: result.data[0].displayOrder !== undefined,
+            isActive: result.data[0].isActive
+          } : null
         });
       }
       
       return result;
     } catch (error) {
-      console.log('❌ GYM SERVICES FAILED:', error.message);
+      console.log('❌ ALL SERVICES FAILED:', error.message);
       throw error;
     }
   }
 
-  // ACTUALIZAR SERVICIOS
+  // OBTENER SOLO SERVICIOS ACTIVOS (para página pública)
+  async getActiveServices() {
+    console.log('🏋️ FETCHING ACTIVE SERVICES (PUBLIC)...');
+    try {
+      const result = await this.get('/gym/services/active');
+      console.log('✅ ACTIVE SERVICES RECEIVED:', result);
+      
+      if (result && result.data) {
+        console.log(`🏋️ Found ${result.data.length} active services`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ ACTIVE SERVICES FAILED:', error.message);
+      
+      // Fallback: Obtener todos y filtrar activos
+      if (error.response?.status === 404) {
+        console.log('🏋️ FALLBACK: Getting all services and filtering active');
+        const allServices = await this.getGymServices();
+        
+        if (allServices && allServices.data) {
+          const activeServices = allServices.data.filter(s => s.isActive !== false);
+          return {
+            success: true,
+            data: activeServices
+          };
+        }
+      }
+      
+      throw error;
+    }
+  }
+
+  // OBTENER SERVICIO POR ID
+  async getServiceById(serviceId) {
+    console.log(`🏋️ FETCHING SERVICE BY ID: ${serviceId}...`);
+    try {
+      const result = await this.get(`/gym/services/${serviceId}`);
+      console.log('✅ SERVICE RECEIVED:', result);
+      
+      if (result && result.data) {
+        console.log('🏋️ Service details:', {
+          id: result.data.id,
+          title: result.data.title,
+          description: result.data.description?.substring(0, 50) + '...',
+          iconName: result.data.iconName,
+          featuresCount: result.data.features?.length || 0,
+          displayOrder: result.data.displayOrder,
+          isActive: result.data.isActive
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      console.log(`❌ GET SERVICE ${serviceId} FAILED:`, error.message);
+      throw error;
+    }
+  }
+
+  // CREAR NUEVO SERVICIO
+  async createService(serviceData) {
+    console.log('💾 CREATING NEW SERVICE...');
+    console.log('📤 Service data:', serviceData);
+    
+    try {
+      // Validar datos requeridos
+      if (!serviceData.title || !serviceData.title.trim()) {
+        throw new Error('El título del servicio es obligatorio');
+      }
+      
+      // Formatear datos para el backend según el test
+      const requestData = {
+        title: serviceData.title.trim(),
+        description: serviceData.description || '',
+        iconName: serviceData.iconName || 'dumbbell',
+        imageUrl: serviceData.imageUrl || null,
+        features: Array.isArray(serviceData.features) ? serviceData.features : [],
+        displayOrder: serviceData.displayOrder || null, // Backend calculará si es null
+        isActive: serviceData.isActive !== false // default true
+      };
+      
+      console.log('📤 Request data formatted:', requestData);
+      
+      const result = await this.post('/gym/services', requestData);
+      
+      console.log('✅ SERVICE CREATED SUCCESSFULLY:', result);
+      
+      if (result && result.success) {
+        toast.success(result.message || 'Servicio creado exitosamente');
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ CREATE SERVICE FAILED:', error.message);
+      
+      if (error.response?.status === 422) {
+        console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
+        toast.error('Error de validación: Verifica los datos del servicio');
+      } else if (error.response?.status === 403) {
+        toast.error('Sin permisos para crear servicios');
+      } else {
+        toast.error(error.message || 'Error al crear servicio');
+      }
+      
+      throw error;
+    }
+  }
+
+  // ACTUALIZAR SERVICIO EXISTENTE
+  async updateService(serviceId, serviceData) {
+    console.log(`💾 UPDATING SERVICE: ${serviceId}...`);
+    console.log('📤 Update data:', serviceData);
+    
+    try {
+      // Formatear datos para el backend
+      const requestData = {};
+      
+      if (serviceData.title !== undefined) requestData.title = serviceData.title.trim();
+      if (serviceData.description !== undefined) requestData.description = serviceData.description;
+      if (serviceData.iconName !== undefined) requestData.iconName = serviceData.iconName;
+      if (serviceData.imageUrl !== undefined) requestData.imageUrl = serviceData.imageUrl;
+      if (serviceData.features !== undefined) requestData.features = Array.isArray(serviceData.features) ? serviceData.features : [];
+      if (serviceData.displayOrder !== undefined) requestData.displayOrder = serviceData.displayOrder;
+      if (serviceData.isActive !== undefined) requestData.isActive = serviceData.isActive;
+      
+      console.log('📤 Request data formatted:', requestData);
+      
+      const result = await this.put(`/gym/services/${serviceId}`, requestData);
+      
+      console.log('✅ SERVICE UPDATED SUCCESSFULLY:', result);
+      
+      if (result && result.success) {
+        toast.success(result.message || 'Servicio actualizado exitosamente');
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ UPDATE SERVICE FAILED:', error.message);
+      
+      if (error.response?.status === 422) {
+        console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
+        toast.error('Error de validación en actualización de servicio');
+      } else if (error.response?.status === 404) {
+        toast.error('Servicio no encontrado');
+      } else if (error.response?.status === 403) {
+        toast.error('Sin permisos para actualizar servicios');
+      } else {
+        toast.error('Error al actualizar servicio');
+      }
+      
+      throw error;
+    }
+  }
+
+  // ELIMINAR SERVICIO
+  async deleteService(serviceId) {
+    console.log(`🗑️ DELETING SERVICE: ${serviceId}...`);
+    
+    try {
+      const result = await this.delete(`/gym/services/${serviceId}`);
+      
+      console.log('✅ SERVICE DELETED SUCCESSFULLY:', result);
+      
+      if (result && result.success) {
+        toast.success(result.message || 'Servicio eliminado exitosamente');
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ DELETE SERVICE FAILED:', error.message);
+      
+      if (error.response?.status === 404) {
+        toast.error('Servicio no encontrado');
+      } else if (error.response?.status === 403) {
+        toast.error('Sin permisos para eliminar servicios');
+      } else {
+        toast.error('Error al eliminar servicio');
+      }
+      
+      throw error;
+    }
+  }
+
+  // ACTIVAR/DESACTIVAR SERVICIO (TOGGLE)
+  async toggleService(serviceId) {
+    console.log(`🔄 TOGGLING SERVICE: ${serviceId}...`);
+    
+    try {
+      const result = await this.patch(`/gym/services/${serviceId}/toggle`, {});
+      
+      console.log('✅ SERVICE TOGGLED SUCCESSFULLY:', result);
+      
+      if (result && result.success) {
+        const status = result.data?.isActive ? 'activado' : 'desactivado';
+        toast.success(`Servicio ${status} exitosamente`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.log(`❌ TOGGLE SERVICE FAILED for ${serviceId}:`, error.message);
+      
+      if (error.response?.status === 404) {
+        toast.error('Servicio no encontrado');
+      } else if (error.response?.status === 403) {
+        toast.error('Sin permisos para cambiar estado de servicios');
+      } else {
+        toast.error('Error al cambiar estado del servicio');
+      }
+      
+      throw error;
+    }
+  }
+
+  // CREAR SERVICIOS POR DEFECTO (SEED)
+  async seedDefaultServices() {
+    console.log('🌱 SEEDING DEFAULT SERVICES...');
+    
+    try {
+      const result = await this.post('/gym/services/seed', {});
+      
+      console.log('✅ DEFAULT SERVICES SEEDED SUCCESSFULLY:', result);
+      
+      if (result && result.success) {
+        const count = result.data?.length || 0;
+        toast.success(`${count} servicios por defecto creados exitosamente`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ SEED DEFAULT SERVICES FAILED:', error.message);
+      
+      if (error.response?.status === 403) {
+        toast.error('Sin permisos para crear servicios por defecto');
+      } else {
+        toast.error('Error al crear servicios por defecto');
+      }
+      
+      throw error;
+    }
+  }
+
+  // REORDENAR SERVICIOS
+  async reorderServices(orderData) {
+    console.log('🔢 REORDERING SERVICES...');
+    console.log('📤 Order data:', orderData);
+    
+    try {
+      // orderData debe ser un array de { id, displayOrder }
+      const result = await this.put('/gym/services/reorder', { services: orderData });
+      
+      console.log('✅ SERVICES REORDERED SUCCESSFULLY:', result);
+      
+      if (result && result.success) {
+        toast.success(result.message || 'Orden de servicios actualizado');
+      }
+      
+      return result;
+    } catch (error) {
+      console.log('❌ REORDER SERVICES FAILED:', error.message);
+      
+      if (error.response?.status === 422) {
+        console.log('📝 VALIDATION ERRORS:', error.response.data?.errors);
+        toast.error('Error de validación al reordenar servicios');
+      } else if (error.response?.status === 403) {
+        toast.error('Sin permisos para reordenar servicios');
+      } else {
+        toast.error('Error al reordenar servicios');
+      }
+      
+      throw error;
+    }
+  }
+
+  // ACTUALIZAR SERVICIOS (LEGACY - mantener compatibilidad)
   async updateServices(services) {
-    console.log('💾 UPDATING GYM SERVICES...');
+    console.log('💾 UPDATING SERVICES (LEGACY METHOD)...');
     console.log('📤 Services data:', services);
     
     try {
@@ -680,12 +959,11 @@ class GymService extends BaseService {
   // 🆕 SISTEMA DE HORARIOS FLEXIBLES (mantener compatibilidad)
   // ================================
   
-  // 📝 OBTENER CONFIGURACIÓN COMPLETA PARA CONTENTEDITOR
+  // OBTENER CONFIGURACIÓN COMPLETA PARA CONTENTEDITOR
   async getGymConfigEditor() {
     console.log('📝 FETCHING GYM CONFIG FOR CONTENT EDITOR...');
     
     try {
-      // Intentar endpoint especializado primero
       const result = await this.get('/gym/config/editor');
       console.log('✅ GYM CONFIG EDITOR RECEIVED:', result);
       return result;
@@ -694,7 +972,6 @@ class GymService extends BaseService {
       
       if (error.response?.status === 404) {
         console.log('📝 CONFIG EDITOR: Endpoint not found - using fallback to regular config');
-        // Usar configuración regular como fallback
         return await this.getGymConfig();
       }
       
@@ -702,7 +979,7 @@ class GymService extends BaseService {
     }
   }
   
-  // 💾 GUARDAR HORARIOS FLEXIBLES (mantener para compatibilidad)
+  // GUARDAR HORARIOS FLEXIBLES (mantener para compatibilidad)
   async saveFlexibleSchedule(scheduleData) {
     console.log('💾 SAVING FLEXIBLE SCHEDULE...');
     console.log('📤 Schedule data to save:', scheduleData);
@@ -740,7 +1017,7 @@ class GymService extends BaseService {
     }
   }
   
-  // 📊 OBTENER MÉTRICAS DE CAPACIDAD (mantener para compatibilidad)
+  // OBTENER MÉTRICAS DE CAPACIDAD (mantener para compatibilidad)
   async getCapacityMetrics() {
     console.log('📊 FETCHING CAPACITY METRICS...');
     
@@ -770,7 +1047,7 @@ class GymService extends BaseService {
     }
   }
   
-  // 🔧 GUARDAR CONFIGURACIÓN POR SECCIONES (mantener para compatibilidad)
+  // GUARDAR CONFIGURACIÓN POR SECCIONES (mantener para compatibilidad)
   async saveGymConfigSection(section, data) {
     console.log(`🔧 SAVING GYM CONFIG SECTION: ${section}`);
     console.log('📤 Section data:', data);
@@ -821,60 +1098,54 @@ export { GymService };
 
 /*
 =============================================================================
-GYM SERVICE - ACTUALIZADO PARA TEST-GYM-INFO-MANAGER
+GYM SERVICE COMPLETO - CON CRUD DE SERVICIOS SEGÚN TEST
 =============================================================================
 
-✅ ENDPOINTS IMPLEMENTADOS SEGÚN EL TEST:
+✅ MANTIENE TODO LO EXISTENTE + AGREGA CRUD DE SERVICIOS
 
-CONFIGURACIÓN:
-- GET  /api/gym/config               - Obtener configuración completa
-- PUT  /api/gym/config               - Actualizar config (gymName, gymTagline, gymDescription, colores)
+🆕 NUEVOS MÉTODOS DE SERVICIOS:
+- getGymServices()         - Obtener todos los servicios (admin)
+- getActiveServices()      - Obtener solo servicios activos (público)
+- getServiceById(id)       - Obtener servicio por ID
+- createService(data)      - Crear nuevo servicio
+- updateService(id, data)  - Actualizar servicio existente
+- deleteService(id)        - Eliminar servicio
+- toggleService(id)        - Activar/Desactivar servicio
+- seedDefaultServices()    - Crear servicios por defecto
+- reorderServices(data)    - Reordenar servicios
+- updateServices(data)     - Actualizar múltiples (legacy)
 
-CONTACTO:
-- GET  /api/gym/contact              - Obtener info de contacto
-- PUT  /api/gym/contact              - Actualizar contacto (phone, email, address, city, mapsUrl)
-
-REDES SOCIALES:
-- GET  /api/gym/social-media         - Obtener redes activas (público)
-- GET  /api/gym/social-media/all     - Obtener todas las redes (admin)
-- GET  /api/gym/social-media/:platform - Obtener red específica
-- POST /api/gym/social-media         - Crear/actualizar red (platform, url, handle, isActive)
-- PATCH /api/gym/social-media/:platform/toggle - Activar/desactivar red
-
-CONTENIDO:
-- GET  /api/gym/stats                - Obtener estadísticas
-- GET  /api/gym/services             - Obtener servicios
-- GET  /api/gym/membership-plans     - Obtener planes de membresía
-- GET  /api/gym/testimonials         - Obtener testimonios
-- GET  /api/gym/video                - Obtener video
-
-ADMINISTRACIÓN:
-- POST /api/gym/initialize           - Reinicializar datos por defecto
+✅ ESTRUCTURA DE DATOS SEGÚN TEST:
+{
+  id: number,
+  title: string,           // REQUERIDO
+  description: string,
+  iconName: string,        // Backend usa "iconName" no "icon"
+  imageUrl: string,        // opcional
+  features: Array<string>, // array de strings
+  displayOrder: number,    // para ordenar
+  isActive: boolean,       // Backend usa "isActive" no "active"
+  createdAt: Date,
+  updatedAt: Date
+}
 
 ✅ CARACTERÍSTICAS:
-- Mapeo correcto de campos al formato del backend
-- Validación y manejo de errores robusto
-- Fallbacks para endpoints no disponibles
+- Mapeo correcto de campos (icon→iconName, active→isActive)
+- Validación y manejo de errores completo
 - Logging detallado para debugging
 - Notificaciones toast apropiadas
-- Compatibilidad con código existente
+- Fallbacks cuando endpoints no existen
+- Compatible con código existente
 
-✅ FORMATO DE DATOS:
-- Config: gymName, gymTagline, gymDescription, colores
-- Contact: phone, email, address, city, mapsUrl
-- Social: platform, url, handle, isActive
-- Stats: Array de estadísticas dinámicas
-- Services: Array de servicios
-- Plans: Array de planes de membresía
+✅ NO SE PERDIÓ NADA:
+- Todos los métodos existentes se mantienen
+- Configuración, contacto, redes sociales
+- Estadísticas, planes, testimonios
+- Video, navegación, promociones
+- Horarios flexibles
+- Administración
 
-✅ MANTIENE FUNCIONALIDAD EXISTENTE:
-- Sistema de horarios flexibles
-- Métodos de contenido de secciones
-- Navegación, promociones, branding
-- Landing content
-- Video y multimedia
-
-Este servicio está completamente sincronizado con el test backend
-y mantiene toda la funcionalidad existente sin romper nada.
+Este servicio está listo para usar con el backend del test.
+Copia y pega directamente, reemplaza el archivo existente.
 =============================================================================
 */
