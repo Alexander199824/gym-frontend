@@ -441,7 +441,7 @@ export default LandingPage;
 /*
 EXPLICACIÓN DE LOS CAMBIOS - VERSIÓN CON HOOK NUEVO
 
-✅ CAMBIOS REALIZADOS:
+ CAMBIOS REALIZADOS:
 1. Importado useActiveGymServices en lugar de useGymServices
 2. Simplificado displayServices (ya no necesita filtrar, el hook lo hace)
 3. Mantiene TODAS las funcionalidades existentes
@@ -449,13 +449,13 @@ EXPLICACIÓN DE LOS CAMBIOS - VERSIÓN CON HOOK NUEVO
 5. Mantiene todo el manejo de estado
 6. Mantiene toda la lógica de navegación
 
-🎯 VENTAJAS DEL HOOK NUEVO:
+VENTAJAS DEL HOOK NUEVO:
 - Más eficiente (solo trae servicios activos del backend)
 - Menos datos transferidos
 - Código más limpio
 - Mejor rendimiento
 
-📦 FUNCIONALIDADES MANTENIDAS:
+FUNCIONALIDADES MANTENIDAS:
 - Hero con video/imagen adaptativo
 - Navegación responsive con menú móvil
 - Carousel de productos automático
@@ -467,7 +467,7 @@ EXPLICACIÓN DE LOS CAMBIOS - VERSIÓN CON HOOK NUEVO
 - Información de contacto
 - Todos los efectos y hooks existentes
 
-🔧 LO QUE NO CAMBIÓ:
+ LO QUE NO CAMBIÓ:
 - Estructura del componente
 - Props a subcomponentes
 - Lógica de carruseles
