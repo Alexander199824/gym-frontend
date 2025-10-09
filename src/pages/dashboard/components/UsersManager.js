@@ -311,121 +311,117 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   
   // CARGAR DATOS CON FILTROS DE ROL APLICADOS
   const loadUsers = async () => {
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
+    
+    const viewableRoles = getViewableUserRoles();
+    
+    const params = {
+      page: currentPage,
+      limit: usersPerPage,
+      search: searchTerm || undefined,
+      sortBy,
+      sortOrder
+    };
+    
+    // Aplicar filtro de rol
+    if (viewableRoles.length === 1) {
+      params.role = viewableRoles[0];
+    } else if (selectedRole !== 'all' && viewableRoles.includes(selectedRole)) {
+      params.role = selectedRole;
+    }
+    
+    // Aplicar filtro de estado
+    if (selectedStatus !== 'all') {
+      params.isActive = selectedStatus === 'active';
+    }
+    
+    console.log('Cargando usuarios con parámetros:', params);
+    
+    // ✅ CAMBIO PRINCIPAL: apiService ahora retorna { users: [...], pagination: {...} }
+    const response = await apiService.getUsers(params);
+    
+    console.log('📦 Response from apiService:', response);
+    
+    // ✅ Extraer users y pagination de la respuesta
+    if (response && response.users) {
+      const { users: fetchedUsers, pagination } = response;
       
-      const viewableRoles = getViewableUserRoles();
+      // Filtrar usuarios según permisos (validación extra del lado del cliente)
+      const filteredUsers = fetchedUsers.filter(user => {
+        return canViewUsersOfRole(user.role);
+      });
       
-      const params = {
-        page: currentPage,
-        limit: usersPerPage,
-        search: searchTerm || undefined,
-        sortBy,
-        sortOrder
-      };
+      setUsers(filteredUsers);
+      setTotalUsers(pagination?.total || filteredUsers.length);
       
-      if (viewableRoles.length === 1) {
-        params.role = viewableRoles[0];
-      } else if (selectedRole !== 'all' && viewableRoles.includes(selectedRole)) {
-        params.role = selectedRole;
-      }
+      console.log('✅ Users loaded successfully:', {
+        displayed: filteredUsers.length,
+        total: pagination?.total,
+        page: pagination?.page
+      });
       
-      if (selectedStatus !== 'all') {
-        params.isActive = selectedStatus === 'active';
-      }
-      
-      console.log('Cargando usuarios con parámetros:', params);
-      
-      const response = await apiService.get('/users', { params });
-      const userData = response.data || response;
-      
-      if (userData.users && Array.isArray(userData.users)) {
-        const filteredUsers = userData.users.filter(user => {
-          return canViewUsersOfRole(user.role);
-        });
-        
-        setUsers(filteredUsers);
-        setTotalUsers(userData.pagination?.total || filteredUsers.length);
-        
-      } else if (Array.isArray(userData)) {
-        const filteredUsers = userData.filter(user => {
-          return canViewUsersOfRole(user.role);
-        });
-        
-        setUsers(filteredUsers);
-        setTotalUsers(filteredUsers.length);
-      } else {
-        setUsers([]);
-        setTotalUsers(0);
-      }
-      
-    } catch (error) {
-      console.error('Error al cargar usuarios:', error);
-      
-      if (userRole === 'admin') {
-        showError('Error al cargar usuarios');
-      } else {
-        console.log('Error silenciado para colaborador');
-      }
-      
+    } else {
+      console.warn('⚠️ Unexpected response format');
       setUsers([]);
       setTotalUsers(0);
-    } finally {
-      setLoading(false);
     }
-  };
+    
+  } catch (error) {
+    console.error('Error al cargar usuarios:', error);
+    
+    if (userRole === 'admin') {
+      showError('Error al cargar usuarios: ' + (error.message || 'Error desconocido'));
+    } else {
+      console.log('Error silenciado para colaborador');
+    }
+    
+    setUsers([]);
+    setTotalUsers(0);
+  } finally {
+    setLoading(false);
+  }
+};
   
   // Cargar estadísticas
   const loadUserStats = async () => {
-    try {
-      const stats = await apiService.getUserStats();
-      const viewableRoles = getViewableUserRoles();
-      const filteredStats = { ...stats };
-      
-      if (viewableRoles.length < 3) {
-        filteredStats.roleStats = {};
-        viewableRoles.forEach(role => {
-          if (stats.roleStats && stats.roleStats[role]) {
-            filteredStats.roleStats[role] = stats.roleStats[role];
-          }
-        });
-        
-        const visibleRoleCount = Object.values(filteredStats.roleStats).reduce((sum, count) => sum + count, 0);
-        if (visibleRoleCount > 0) {
-          filteredStats.totalUsers = visibleRoleCount;
-          filteredStats.totalActiveUsers = Math.min(filteredStats.totalActiveUsers || 0, visibleRoleCount);
+  try {
+    // ✅ CAMBIO: Pasar el rol actual para filtrado correcto en el backend
+    const stats = await apiService.getUserStats(userRole);
+    
+    console.log('📊 Stats received:', stats);
+    
+    // Las stats ya vienen filtradas según el rol del usuario
+    setUserStats(stats);
+    
+  } catch (error) {
+    console.log('Error al cargar estadísticas (silenciado):', error.message);
+    
+    // Calcular stats locales como fallback
+    const viewableRoles = getViewableUserRoles();
+    const filteredUsers = users.filter(user => viewableRoles.includes(user.role));
+    
+    const localStats = {
+      totalUsers: filteredUsers.length,
+      totalActiveUsers: filteredUsers.filter(u => u.isActive).length,
+      totalInactiveUsers: filteredUsers.filter(u => !u.isActive).length,
+      roleStats: filteredUsers.reduce((acc, user) => {
+        if (viewableRoles.includes(user.role)) {
+          acc[user.role] = (acc[user.role] || 0) + 1;
         }
-      }
-      
-      setUserStats(filteredStats);
-      
-    } catch (error) {
-      console.log('Error al cargar estadísticas (silenciado):', error.message);
-      
-      const viewableRoles = getViewableUserRoles();
-      const filteredUsers = users.filter(user => viewableRoles.includes(user.role));
-      
-      const localStats = {
-        totalUsers: filteredUsers.length,
-        totalActiveUsers: filteredUsers.filter(user => user.isActive).length,
-        totalInactiveUsers: filteredUsers.filter(user => !user.isActive).length,
-        roleStats: filteredUsers.reduce((acc, user) => {
-          if (viewableRoles.includes(user.role)) {
-            acc[user.role] = (acc[user.role] || 0) + 1;
-          }
-          return acc;
-        }, {}),
-        newUsersThisMonth: filteredUsers.filter(user => {
-          const userDate = new Date(user.createdAt || user.created_at);
-          const thisMonth = new Date();
-          return userDate.getMonth() === thisMonth.getMonth() && 
-                 userDate.getFullYear() === thisMonth.getFullYear();
-        }).length
-      };
-      
-      setUserStats(localStats);
-    }
-  };
+        return acc;
+      }, {}),
+      newUsersThisMonth: filteredUsers.filter(user => {
+        const userDate = new Date(user.createdAt || user.created_at);
+        const thisMonth = new Date();
+        return userDate.getMonth() === thisMonth.getMonth() && 
+               userDate.getFullYear() === thisMonth.getFullYear();
+      }).length
+    };
+    
+    setUserStats(localStats);
+  }
+};
   
   // Cargar datos al montar
   useEffect(() => {
@@ -474,118 +470,156 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   // FUNCIONES DE USUARIO
   
   const handleViewUserDetails = (user) => {
-    if (!canViewUserDetails(user)) {
-      console.log('No se pueden ver detalles (permisos)');
+  if (!canViewUserDetails(user)) {
+    console.log('No se pueden ver detalles (permisos)');
+    return;
+  }
+  
+  console.log('👁️ Viewing user details:', user.email); // ✅ AGREGADO
+  
+  setViewingUser(user);
+  setShowUserDetailsModal(true);
+ };
+  
+  const handleCreateUser = async () => {
+  if (!canCreateUsers()) {
+    showError('No tienes permisos para crear usuarios');
+    return;
+  }
+
+  if (!validateForm()) {
+    showError('Por favor corrige los errores en el formulario');
+    return;
+  }
+
+  try {
+    setSaving(true);
+    
+    // Validación extra para colaboradores
+    if (userRole === 'colaborador' && userFormData.role !== 'cliente') {
+      showError('Los colaboradores solo pueden crear usuarios clientes');
       return;
     }
     
-    setViewingUser(user);
-    setShowUserDetailsModal(true);
-  };
-  
-  const handleCreateUser = async () => {
-    if (!canCreateUsers()) {
-      showError('No tienes permisos para crear usuarios');
-      return;
-    }
-
-    if (!validateForm()) {
-      showError('Por favor corrige los errores en el formulario');
-      return;
-    }
-
-    try {
-      setSaving(true);
-      
-      if (userRole === 'colaborador' && userFormData.role !== 'cliente') {
-        showError('Los colaboradores solo pueden crear usuarios clientes');
+    const userData = {
+      ...userFormData,
+      emergencyContact: userFormData.emergencyContact.name 
+        ? userFormData.emergencyContact 
+        : undefined
+    };
+    
+    if (editingUser) {
+      // ✅ ACTUALIZAR USUARIO EXISTENTE
+      if (!canEditSpecificUser(editingUser)) {
+        showError('No tienes permisos para editar este usuario');
         return;
       }
       
-      const userData = {
-        ...userFormData,
-        emergencyContact: userFormData.emergencyContact.name ? userFormData.emergencyContact : undefined
-      };
+      // ✅ CAMBIO: updateUser ahora retorna el usuario directamente
+      // Los mensajes toast se manejan automáticamente en el servicio
+      await apiService.updateUser(
+        editingUser.id, 
+        userData,
+        userRole,
+        currentUser?.id
+      );
       
-      let response;
-      if (editingUser) {
-        if (!canEditSpecificUser(editingUser)) {
-          showError('No tienes permisos para editar este usuario');
-          return;
-        }
-        
-        response = await apiService.put(`/users/${editingUser.id}`, userData);
-        showSuccess('Usuario actualizado exitosamente');
-      } else {
-        response = await apiService.post('/users', userData);
-        showSuccess('Usuario creado exitosamente');
-      }
+      console.log('✅ User updated successfully');
       
-      await loadUsers();
-      await loadUserStats();
+    } else {
+      // ✅ CREAR USUARIO NUEVO
+      // ✅ CAMBIO: createUser ahora retorna el usuario directamente
+      // Los mensajes toast se manejan automáticamente en el servicio
+      await apiService.createUser(userData, userRole);
       
-      setShowUserModal(false);
-      setEditingUser(null);
-      resetUserForm();
-      
-      if (onSave) {
-        onSave({ type: 'user', action: editingUser ? 'updated' : 'created' });
-      }
-      
-    } catch (error) {
-      console.error('Error al guardar usuario:', error);
-      const errorMsg = error.response?.data?.message || 'Error al guardar usuario';
-      showError(errorMsg);
-    } finally {
-      setSaving(false);
+      console.log('✅ User created successfully');
     }
-  };
+    
+    // Recargar datos
+    await loadUsers();
+    await loadUserStats();
+    
+    // Cerrar modal y limpiar
+    setShowUserModal(false);
+    setEditingUser(null);
+    resetUserForm();
+    
+    if (onSave) {
+      onSave({ 
+        type: 'user', 
+        action: editingUser ? 'updated' : 'created' 
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error al guardar usuario:', error);
+    // El error ya fue mostrado por el servicio con toast
+    // No necesitamos mostrar otro mensaje aquí
+  } finally {
+    setSaving(false);
+  }
+};
   
   const handleDeleteUser = async (userId) => {
-    const userToDelete = users.find(u => u.id === userId);
+  const userToDelete = users.find(u => u.id === userId);
+  
+  if (!canDeleteSpecificUser(userToDelete)) {
+    showError('No tienes permisos para eliminar este usuario');
+    return;
+  }
+  
+  if (!window.confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) {
+    return;
+  }
+  
+  try {
+    // ✅ CAMBIO: deleteUser ahora maneja todo el flujo correctamente
+    // Pasa el rol y el ID del usuario actual para validaciones
+    await apiService.deleteUser(userId, userRole, currentUser?.id);
     
-    if (!canDeleteSpecificUser(userToDelete)) {
-      showError('No tienes permisos para eliminar este usuario');
-      return;
-    }
+    console.log('✅ User deleted successfully');
+    // El mensaje de éxito ya se mostró en el servicio
     
-    if (!window.confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) {
-      return;
-    }
+    // Recargar datos
+    await loadUsers();
+    await loadUserStats();
     
-    try {
-      await apiService.delete(`/users/${userId}`);
-      showSuccess('Usuario eliminado exitosamente');
-      
-      await loadUsers();
-      await loadUserStats();
-      
-    } catch (error) {
-      console.error('Error al eliminar usuario:', error);
-      showError('Error al eliminar usuario');
-    }
-  };
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error);
+    // El error ya fue mostrado por el servicio con toast
+  }
+};
   
   const handleToggleUserStatus = async (userId, currentStatus) => {
-    const userToToggle = users.find(u => u.id === userId);
+  const userToToggle = users.find(u => u.id === userId);
+  
+  if (!canEditSpecificUser(userToToggle)) {
+    console.log('Colaborador no puede cambiar estado (permisos)');
+    return;
+  }
+  
+  try {
+    // ✅ CAMBIO: Usar updateUser para cambiar solo el estado
+    // Pasamos solo { isActive: !currentStatus } como actualización parcial
+    await apiService.updateUser(
+      userId,
+      { isActive: !currentStatus },
+      userRole,
+      currentUser?.id
+    );
     
-    if (!canEditSpecificUser(userToToggle)) {
-      console.log('Colaborador no puede cambiar estado (permisos)');
-      return;
-    }
+    console.log('✅ User status toggled successfully');
+    // El mensaje de éxito ya se mostró en el servicio
     
-    try {
-      await apiService.put(`/users/${userId}`, { isActive: !currentStatus });
-      showSuccess(`Usuario ${!currentStatus ? 'activado' : 'desactivado'} exitosamente`);
-      
-      await loadUsers();
-      await loadUserStats();
-      
-    } catch (error) {
-      console.error('Error al cambiar estado:', error);
-      showError('Error al cambiar estado del usuario');
-    }
-  };
+    // Recargar datos
+    await loadUsers();
+    await loadUserStats();
+    
+  } catch (error) {
+    console.error('Error al cambiar estado:', error);
+    // El error ya fue mostrado por el servicio con toast
+  }
+};
   
   const resetUserForm = () => {
     const defaultRole = userRole === 'colaborador' ? 'cliente' : 'cliente';
@@ -608,30 +642,30 @@ const UsersManager = ({ onSave, onUnsavedChanges }) => {
   };
   
   const handleEditUser = (user) => {
-    if (!canEditSpecificUser(user)) {
-      console.log('Colaborador no puede editar (permisos)');
-      return;
-    }
-    
-    setEditingUser(user);
-    setUserFormData({
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      email: user.email || '',
-      password: '',
-      phone: user.phone || '',
-      role: user.role || 'cliente',
-      dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '',
-      emergencyContact: {
-        name: user.emergencyContact?.name || '',
-        phone: user.emergencyContact?.phone || ''
-      },
-      isActive: user.isActive !== false
-    });
-    setFieldErrors({});
-    setShowUserModal(true);
-  };
+  if (!canEditSpecificUser(user)) {
+    console.log('Colaborador no puede editar (permisos)');
+    return;
+  }
   
+  setEditingUser(user);
+  setUserFormData({
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    email: user.email || '',
+    password: '', // Siempre vacío al editar
+    phone: user.phone || '',
+    role: user.role || 'cliente',
+    // ✅ CAMBIO: Formato correcto de fecha para input type="date"
+    dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '',
+    emergencyContact: {
+      name: user.emergencyContact?.name || '',
+      phone: user.emergencyContact?.phone || ''
+    },
+    isActive: user.isActive !== false // Default true si no está definido
+  });
+  setFieldErrors({});
+  setShowUserModal(true);
+};
   const handleNewUser = () => {
     if (!canCreateUsers()) {
       showError('No tienes permisos para crear usuarios');
