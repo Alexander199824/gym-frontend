@@ -471,13 +471,47 @@ formatTestimonialDataForAPI(testimonialData) {
     return this.userService.getMembershipStats();
   }
   
-  async getExpiredMemberships(days = 0) {
-    return this.userService.getExpiredMemberships(days);
+  /**
+ * Obtener membresías vencidas (solo para staff)
+ * @param {number} days - Días desde el vencimiento (0 = hoy)
+ */
+async getExpiredMemberships(days = 0) {
+  try {
+    console.log(`📊 MembershipService: Obteniendo membresías vencidas (días: ${days})...`);
+    
+    const response = await apiService.get('/api/memberships/expired', {
+      params: { days }
+    });
+    
+    console.log(`✅ ${response.data?.memberships?.length || 0} membresías vencidas obtenidas`);
+    return response;
+    
+  } catch (error) {
+    console.error('❌ MembershipService: Error obteniendo membresías vencidas:', error);
+    throw error;
   }
-  
-  async getExpiringSoonMemberships(days = 7) {
-    return this.userService.getExpiringSoonMemberships(days);
+}
+
+/**
+ * Obtener membresías próximas a vencer (solo para staff)
+ * @param {number} days - Días antes del vencimiento (7 = próximos 7 días)
+ */
+async getExpiringSoonMemberships(days = 7) {
+  try {
+    console.log(`📊 MembershipService: Obteniendo membresías por vencer (días: ${days})...`);
+    
+    const response = await apiService.get('/api/memberships/expiring-soon', {
+      params: { days }
+    });
+    
+    console.log(`✅ ${response.data?.memberships?.length || 0} membresías por vencer obtenidas`);
+    return response;
+    
+  } catch (error) {
+    console.error('❌ MembershipService: Error obteniendo membresías por vencer:', error);
+    throw error;
   }
+}
 
   // ================================
   // 🛍️ MÉTODOS DE TIENDA - DELEGACIÓN A storeService

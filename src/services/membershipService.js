@@ -555,6 +555,8 @@ class MembershipService {
       };
     }
   }
+
+  
   
   // ✅ MEJORADO: OBTENER MEMBRESÍAS DEL USUARIO CON PROCESAMIENTO COMPLETO
   async getUserMemberships() {
@@ -1513,6 +1515,7 @@ class MembershipService {
   }
 
 }
+
 
 // Exportar instancia singleton
 const membershipService = new MembershipService();
