@@ -1,103 +1,27 @@
 /*
  * ============================================================================
- * MEMBERSHIP MANAGEMENT SERVICE
+ * MEMBERSHIP MANAGEMENT SERVICE - USANDO BASESERVICE
  * ============================================================================
  * Autor: Alexander Echeverria
  * Archivo: src/services/membershipManagementService.js
  * 
- * PROPÓSITO:
- * Servicio dedicado para la GESTIÓN de membresías desde el dashboard de
- * administración. Separado del membershipService.js que es para clientes.
- * 
- * RESPONSABILIDADES:
- * - Gestión CRUD de membresías (crear, editar, eliminar)
- * - Obtener estadísticas y reportes
- * - Filtros y búsquedas avanzadas
- * - Renovaciones y cancelaciones
- * - Alertas de vencimientos
- * - Operaciones exclusivas de staff/admin
- * 
- * ENDPOINTS USADOS (según el test):
- * - GET    /api/memberships                      - Listar con filtros
- * - GET    /api/memberships/:id                  - Obtener por ID
- * - GET    /api/memberships/stats                - Estadísticas generales
- * - GET    /api/memberships/expired              - Membresías vencidas
- * - GET    /api/memberships/expiring-soon        - Por vencer
- * - GET    /api/memberships/purchase/plans       - Planes disponibles
- * - POST   /api/memberships/purchase             - Crear membresía
- * - POST   /api/memberships/:id/renew            - Renovar
- * - POST   /api/memberships/:id/cancel           - Cancelar
- * - PUT    /api/memberships/:id                  - Actualizar
- * - DELETE /api/memberships/:id                  - Eliminar
+ * CORREGIDO: Ahora extiende de BaseService y usa sus métodos correctamente
  * ============================================================================
  */
 
-import axios from 'axios';
+import { BaseService } from './baseService';
 
-class MembershipManagementService {
+class MembershipManagementService extends BaseService {
   constructor() {
-    this.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    super();
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutos
   }
 
   // ============================================================================
-  // CONFIGURACIÓN Y HELPERS
+  // HELPERS DE CACHÉ
   // ============================================================================
 
-  /**
-   * Obtener configuración de axios con token de autenticación
-   */
-  getAxiosConfig() {
-    const token = localStorage.getItem('token');
-    return {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json'
-      }
-    };
-  }
-
-  /**
-   * Manejar errores de API de forma consistente
-   */
-  handleError(error, context = '') {
-    console.error(`❌ MembershipManagement [${context}]:`, error);
-
-    if (error.response) {
-      const status = error.response.status;
-      const message = error.response.data?.message || error.message;
-
-      switch (status) {
-        case 401:
-          console.error('No autorizado - Token inválido o expirado');
-          break;
-        case 403:
-          console.error('Permisos insuficientes');
-          break;
-        case 404:
-          console.error('Recurso no encontrado');
-          break;
-        case 400:
-          console.error('Datos inválidos:', message);
-          break;
-        default:
-          console.error(`Error ${status}:`, message);
-      }
-
-      throw new Error(message);
-    }
-
-    if (error.request) {
-      throw new Error('No se pudo conectar con el servidor');
-    }
-
-    throw error;
-  }
-
-  /**
-   * Caché simple para reducir peticiones repetidas
-   */
   getCached(key) {
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -133,33 +57,42 @@ class MembershipManagementService {
 
   /**
    * Obtener lista de membresías con filtros y paginación
-   * @param {Object} params - Parámetros de filtrado
-   * @returns {Promise<Object>} Lista de membresías y paginación
+   * USA: GET /api/memberships
    */
   async getMemberships(params = {}) {
     try {
-      console.log('📋 Obteniendo membresías con parámetros:', params);
+      console.log('📋 [membershipManagementService] Obteniendo membresías con parámetros:', params);
 
-      const response = await axios.get(`${this.baseURL}/memberships`, {
-        ...this.getAxiosConfig(),
-        params: {
-          page: params.page || 1,
-          limit: params.limit || 20,
-          search: params.search || undefined,
-          status: params.status !== 'all' ? params.status : undefined,
-          type: params.type !== 'all' ? params.type : undefined,
-          sortBy: params.sortBy || 'createdAt',
-          sortOrder: params.sortOrder || 'desc',
-          startDate: params.startDate || undefined,
-          endDate: params.endDate || undefined
-        }
-      });
+      // Construir query params
+      const queryParams = new URLSearchParams();
+      
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+      if (params.search) queryParams.append('search', params.search);
+      if (params.status && params.status !== 'all') queryParams.append('status', params.status);
+      if (params.type && params.type !== 'all') queryParams.append('type', params.type);
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+      if (params.startDate) queryParams.append('startDate', params.startDate);
+      if (params.endDate) queryParams.append('endDate', params.endDate);
+      if (params.userId) queryParams.append('userId', params.userId);
 
-      const data = response.data?.data || response.data;
+      const queryString = queryParams.toString();
+      const endpoint = queryString ? `/memberships?${queryString}` : '/memberships';
+
+      console.log('🎯 Endpoint final:', endpoint);
+
+      // USAR BaseService.get
+      const response = await this.get(endpoint);
+
+      console.log('📦 Respuesta del backend:', response);
+
+      // Extraer datos según el formato del backend
+      const data = response.data || response;
       const memberships = data.memberships || [];
       const pagination = data.pagination || {
-        page: 1,
-        limit: memberships.length,
+        page: parseInt(params.page) || 1,
+        limit: parseInt(params.limit) || 20,
         total: memberships.length,
         pages: 1
       };
@@ -173,32 +106,35 @@ class MembershipManagementService {
       };
 
     } catch (error) {
-      this.handleError(error, 'getMemberships');
+      console.error('❌ Error en getMemberships:', error);
+      throw error;
     }
   }
 
   /**
    * Obtener membresía por ID
+   * USA: GET /api/memberships/:id
    */
   async getMembershipById(membershipId) {
     try {
-      console.log(`🔍 Obteniendo membresía ${membershipId}...`);
+      console.log(`🔍 [membershipManagementService] Obteniendo membresía ${membershipId}...`);
 
-      const response = await axios.get(
-        `${this.baseURL}/memberships/${membershipId}`,
-        this.getAxiosConfig()
-      );
+      // USAR BaseService.get
+      const response = await this.get(`/memberships/${membershipId}`);
 
-      const membership = response.data?.data?.membership || response.data?.membership;
+      const data = response.data || response;
+      const membership = data.membership || data;
 
-      console.log('✅ Membresía obtenida');
+      console.log('✅ Membresía obtenida:', membership);
+
       return {
         success: true,
         membership
       };
 
     } catch (error) {
-      this.handleError(error, 'getMembershipById');
+      console.error('❌ Error en getMembershipById:', error);
+      throw error;
     }
   }
 
@@ -208,27 +144,12 @@ class MembershipManagementService {
 
   /**
    * Obtener estadísticas generales de membresías
+   * USA: GET /api/memberships/stats (con fallback manual)
    */
   async getStatistics() {
     try {
-      console.log('📊 Obteniendo estadísticas generales...');
+      console.log('📊 [membershipManagementService] Obteniendo estadísticas...');
 
-      // Intentar usar endpoint de estadísticas si existe
-      try {
-        const response = await axios.get(
-          `${this.baseURL}/memberships/stats`,
-          this.getAxiosConfig()
-        );
-
-        if (response.data?.success) {
-          console.log('✅ Estadísticas del backend obtenidas');
-          return response.data.data;
-        }
-      } catch (backendError) {
-        console.log('⚠️ Endpoint de stats no disponible, calculando manualmente...');
-      }
-
-      // Fallback: Calcular estadísticas manualmente
       const stats = {
         totalMemberships: 0,
         activeMemberships: 0,
@@ -239,100 +160,121 @@ class MembershipManagementService {
         suspendedMemberships: 0
       };
 
-      // Total
+      // Intentar endpoint de estadísticas
       try {
-        const allResponse = await axios.get(`${this.baseURL}/memberships`, {
-          ...this.getAxiosConfig(),
-          params: { limit: 1000 }
-        });
-        const allData = allResponse.data?.data || allResponse.data;
-        stats.totalMemberships = allData.pagination?.total || (allData.memberships?.length || 0);
+        const response = await this.get('/memberships/stats');
+        if (response.success || response.data) {
+          console.log('✅ Estadísticas del endpoint stats obtenidas');
+          const data = response.data || response;
+          return data;
+        }
+      } catch (statsError) {
+        console.log('⚠️ Endpoint /stats no disponible, calculando manualmente...');
+      }
+
+      // Fallback: Calcular manualmente
+      console.log('📊 Calculando estadísticas manualmente...');
+
+      // Total de membresías
+      try {
+        const allResponse = await this.get('/memberships?limit=1000');
+        const allData = allResponse.data || allResponse;
+        stats.totalMemberships = allData.pagination?.total || allData.memberships?.length || 0;
+        console.log(`  Total: ${stats.totalMemberships}`);
       } catch (error) {
         console.warn('Error obteniendo total:', error.message);
       }
 
-      // Activas
+      // Membresías activas
       try {
-        const activeResponse = await axios.get(`${this.baseURL}/memberships`, {
-          ...this.getAxiosConfig(),
-          params: { status: 'active', limit: 1000 }
-        });
-        const activeData = activeResponse.data?.data || activeResponse.data;
-        stats.activeMemberships = activeData.pagination?.total || (activeData.memberships?.length || 0);
+        const activeResponse = await this.get('/memberships?status=active&limit=1000');
+        const activeData = activeResponse.data || activeResponse;
+        stats.activeMemberships = activeData.pagination?.total || activeData.memberships?.length || 0;
+        console.log(`  Activas: ${stats.activeMemberships}`);
       } catch (error) {
         console.warn('Error obteniendo activas:', error.message);
       }
 
-      // Vencidas (usando endpoint del test)
+      // Membresías vencidas
       try {
-        const expiredResponse = await axios.get(`${this.baseURL}/memberships/expired`, {
-          ...this.getAxiosConfig(),
-          params: { days: 0 }
-        });
-        const expiredData = expiredResponse.data?.data || expiredResponse.data;
-        stats.expiredMemberships = expiredData.total || (expiredData.memberships?.length || 0);
+        const expiredResponse = await this.get('/memberships/expired?days=0');
+        const expiredData = expiredResponse.data || expiredResponse;
+        stats.expiredMemberships = expiredData.total || expiredData.memberships?.length || 0;
+        console.log(`  Vencidas: ${stats.expiredMemberships}`);
       } catch (error) {
         console.warn('Error obteniendo vencidas:', error.message);
       }
 
-      // Por vencer (usando endpoint del test)
+      // Membresías por vencer (próximos 7 días)
       try {
-        const expiringResponse = await axios.get(`${this.baseURL}/memberships/expiring-soon`, {
-          ...this.getAxiosConfig(),
-          params: { days: 7 }
-        });
-        const expiringData = expiringResponse.data?.data || expiringResponse.data;
-        stats.expiringSoon = expiringData.total || (expiringData.memberships?.length || 0);
+        const expiringResponse = await this.get('/memberships/expiring-soon?days=7');
+        const expiringData = expiringResponse.data || expiringResponse;
+        stats.expiringSoon = expiringData.total || expiringData.memberships?.length || 0;
+        console.log(`  Por vencer: ${stats.expiringSoon}`);
       } catch (error) {
         console.warn('Error obteniendo por vencer:', error.message);
       }
 
-      // Pendientes
+      // Membresías pendientes
       try {
-        const pendingResponse = await axios.get(`${this.baseURL}/memberships`, {
-          ...this.getAxiosConfig(),
-          params: { status: 'pending', limit: 1000 }
-        });
-        const pendingData = pendingResponse.data?.data || pendingResponse.data;
-        stats.pendingMemberships = pendingData.pagination?.total || (pendingData.memberships?.length || 0);
+        const pendingResponse = await this.get('/memberships?status=pending&limit=1000');
+        const pendingData = pendingResponse.data || pendingResponse;
+        stats.pendingMemberships = pendingData.pagination?.total || pendingData.memberships?.length || 0;
+        console.log(`  Pendientes: ${stats.pendingMemberships}`);
       } catch (error) {
         console.warn('Error obteniendo pendientes:', error.message);
       }
 
-      // Canceladas
+      // Membresías canceladas
       try {
-        const cancelledResponse = await axios.get(`${this.baseURL}/memberships`, {
-          ...this.getAxiosConfig(),
-          params: { status: 'cancelled', limit: 1000 }
-        });
-        const cancelledData = cancelledResponse.data?.data || cancelledResponse.data;
-        stats.cancelledMemberships = cancelledData.pagination?.total || (cancelledData.memberships?.length || 0);
+        const cancelledResponse = await this.get('/memberships?status=cancelled&limit=1000');
+        const cancelledData = cancelledResponse.data || cancelledResponse;
+        stats.cancelledMemberships = cancelledData.pagination?.total || cancelledData.memberships?.length || 0;
+        console.log(`  Canceladas: ${stats.cancelledMemberships}`);
       } catch (error) {
         console.warn('Error obteniendo canceladas:', error.message);
+      }
+
+      // Membresías suspendidas
+      try {
+        const suspendedResponse = await this.get('/memberships?status=suspended&limit=1000');
+        const suspendedData = suspendedResponse.data || suspendedResponse;
+        stats.suspendedMemberships = suspendedData.pagination?.total || suspendedData.memberships?.length || 0;
+        console.log(`  Suspendidas: ${stats.suspendedMemberships}`);
+      } catch (error) {
+        console.warn('Error obteniendo suspendidas:', error.message);
       }
 
       console.log('✅ Estadísticas calculadas:', stats);
       return stats;
 
     } catch (error) {
-      this.handleError(error, 'getStatistics');
+      console.error('❌ Error en getStatistics:', error);
+      // Retornar estadísticas vacías en caso de error
+      return {
+        totalMemberships: 0,
+        activeMemberships: 0,
+        expiredMemberships: 0,
+        expiringSoon: 0,
+        pendingMemberships: 0,
+        cancelledMemberships: 0,
+        suspendedMemberships: 0
+      };
     }
   }
 
   /**
    * Obtener membresías vencidas
-   * ENDPOINT DEL TEST: GET /api/memberships/expired?days=0
+   * USA: GET /api/memberships/expired?days=0
    */
   async getExpiredMemberships(days = 0) {
     try {
-      console.log(`📊 Obteniendo membresías vencidas (días: ${days})...`);
+      console.log(`📊 [membershipManagementService] Obteniendo vencidas (días: ${days})...`);
 
-      const response = await axios.get(`${this.baseURL}/memberships/expired`, {
-        ...this.getAxiosConfig(),
-        params: { days }
-      });
+      // USAR BaseService.get
+      const response = await this.get(`/memberships/expired?days=${days}`);
 
-      const data = response.data?.data || response.data;
+      const data = response.data || response;
       const memberships = data.memberships || [];
       const total = data.total || memberships.length;
 
@@ -345,24 +287,27 @@ class MembershipManagementService {
       };
 
     } catch (error) {
-      this.handleError(error, 'getExpiredMemberships');
+      console.error('❌ Error en getExpiredMemberships:', error);
+      return {
+        success: false,
+        memberships: [],
+        total: 0
+      };
     }
   }
 
   /**
    * Obtener membresías próximas a vencer
-   * ENDPOINT DEL TEST: GET /api/memberships/expiring-soon?days=7
+   * USA: GET /api/memberships/expiring-soon?days=7
    */
   async getExpiringSoonMemberships(days = 7) {
     try {
-      console.log(`📊 Obteniendo membresías por vencer (días: ${days})...`);
+      console.log(`📊 [membershipManagementService] Obteniendo por vencer (días: ${days})...`);
 
-      const response = await axios.get(`${this.baseURL}/memberships/expiring-soon`, {
-        ...this.getAxiosConfig(),
-        params: { days }
-      });
+      // USAR BaseService.get
+      const response = await this.get(`/memberships/expiring-soon?days=${days}`);
 
-      const data = response.data?.data || response.data;
+      const data = response.data || response;
       const memberships = data.memberships || [];
       const total = data.total || memberships.length;
 
@@ -375,7 +320,12 @@ class MembershipManagementService {
       };
 
     } catch (error) {
-      this.handleError(error, 'getExpiringSoonMemberships');
+      console.error('❌ Error en getExpiringSoonMemberships:', error);
+      return {
+        success: false,
+        memberships: [],
+        total: 0
+      };
     }
   }
 
@@ -385,22 +335,20 @@ class MembershipManagementService {
 
   /**
    * Obtener planes de membresía disponibles
-   * ENDPOINT DEL TEST: GET /api/memberships/purchase/plans
+   * USA: GET /api/memberships/plans
    */
   async getPlans() {
     try {
-      console.log('📦 Obteniendo planes de membresía...');
+      console.log('📦 [membershipManagementService] Obteniendo planes...');
 
-      // Intentar obtener de caché
+      // Verificar caché
       const cached = this.getCached('membership-plans');
       if (cached) return cached;
 
-     
-    const response = await axios.get(`${this.baseURL}/memberships/plans`, {
-        ...this.getAxiosConfig()
-      });
+      // USAR BaseService.get
+      const response = await this.get('/memberships/plans');
 
-      const data = response.data?.data || response.data;
+      const data = response.data || response;
       const plans = data.plans || data || [];
 
       console.log(`✅ ${plans.length} planes obtenidos`);
@@ -416,7 +364,11 @@ class MembershipManagementService {
       return result;
 
     } catch (error) {
-      this.handleError(error, 'getPlans');
+      console.error('❌ Error en getPlans:', error);
+      return {
+        success: false,
+        plans: []
+      };
     }
   }
 
@@ -426,22 +378,20 @@ class MembershipManagementService {
 
   /**
    * Crear nueva membresía
-   * ENDPOINT DEL TEST: POST /api/memberships/purchase
+   * USA: POST /api/memberships/purchase
    */
   async createMembership(membershipData) {
     try {
-      console.log('💰 Creando nueva membresía...', membershipData);
+      console.log('💰 [membershipManagementService] Creando membresía...', membershipData);
 
       // Validar datos requeridos
       if (!membershipData.planId) {
         throw new Error('planId es requerido');
       }
-
       if (!membershipData.userId) {
         throw new Error('userId es requerido');
       }
 
-      // Preparar payload según el formato del test
       const payload = {
         planId: membershipData.planId,
         selectedSchedule: membershipData.selectedSchedule || {},
@@ -452,19 +402,16 @@ class MembershipManagementService {
 
       console.log('📤 Enviando payload:', payload);
 
-      const response = await axios.post(
-        `${this.baseURL}/memberships/purchase`,
-        payload,
-        this.getAxiosConfig()
-      );
-
-      const data = response.data?.data || response.data;
+      // USAR BaseService.post
+      const response = await this.post('/memberships/purchase', payload);
 
       console.log('✅ Membresía creada exitosamente');
 
       // Limpiar caché
       this.clearCache('memberships');
       this.clearCache('statistics');
+
+      const data = response.data || response;
 
       return {
         success: true,
@@ -475,24 +422,21 @@ class MembershipManagementService {
       };
 
     } catch (error) {
-      this.handleError(error, 'createMembership');
+      console.error('❌ Error en createMembership:', error);
+      throw error;
     }
   }
 
   /**
    * Actualizar membresía existente
+   * USA: PUT /api/memberships/:id
    */
   async updateMembership(membershipId, updates) {
     try {
-      console.log(`✏️ Actualizando membresía ${membershipId}...`, updates);
+      console.log(`✏️ [membershipManagementService] Actualizando ${membershipId}...`, updates);
 
-      const response = await axios.put(
-        `${this.baseURL}/memberships/${membershipId}`,
-        updates,
-        this.getAxiosConfig()
-      );
-
-      const data = response.data?.data || response.data;
+      // USAR BaseService.put
+      const response = await this.put(`/memberships/${membershipId}`, updates);
 
       console.log('✅ Membresía actualizada');
 
@@ -500,13 +444,16 @@ class MembershipManagementService {
       this.clearCache('memberships');
       this.clearCache('statistics');
 
+      const data = response.data || response;
+
       return {
         success: true,
         membership: data.membership || data
       };
 
     } catch (error) {
-      this.handleError(error, 'updateMembership');
+      console.error('❌ Error en updateMembership:', error);
+      throw error;
     }
   }
 
@@ -516,10 +463,11 @@ class MembershipManagementService {
 
   /**
    * Renovar membresía
+   * USA: POST /api/memberships/:id/renew
    */
   async renewMembership(membershipId, renewalData = {}) {
     try {
-      console.log(`🔄 Renovando membresía ${membershipId}...`, renewalData);
+      console.log(`🔄 [membershipManagementService] Renovando ${membershipId}...`, renewalData);
 
       const payload = {
         months: renewalData.months || 1,
@@ -527,19 +475,16 @@ class MembershipManagementService {
         notes: renewalData.notes || 'Renovación desde dashboard'
       };
 
-      const response = await axios.post(
-        `${this.baseURL}/memberships/${membershipId}/renew`,
-        payload,
-        this.getAxiosConfig()
-      );
+      // USAR BaseService.post
+      const response = await this.post(`/memberships/${membershipId}/renew`, payload);
 
-      const data = response.data?.data || response.data;
-
-      console.log('✅ Membresía renovada exitosamente');
+      console.log('✅ Membresía renovada');
 
       // Limpiar caché
       this.clearCache('memberships');
       this.clearCache('statistics');
+
+      const data = response.data || response;
 
       return {
         success: true,
@@ -547,34 +492,33 @@ class MembershipManagementService {
       };
 
     } catch (error) {
-      this.handleError(error, 'renewMembership');
+      console.error('❌ Error en renewMembership:', error);
+      throw error;
     }
   }
 
   /**
    * Cancelar membresía
+   * USA: POST /api/memberships/:id/cancel
    */
   async cancelMembership(membershipId, reason = '') {
     try {
-      console.log(`🚫 Cancelando membresía ${membershipId}...`);
+      console.log(`🚫 [membershipManagementService] Cancelando ${membershipId}...`);
 
       const payload = {
         reason: reason || 'Cancelación desde dashboard'
       };
 
-      const response = await axios.post(
-        `${this.baseURL}/memberships/${membershipId}/cancel`,
-        payload,
-        this.getAxiosConfig()
-      );
+      // USAR BaseService.post
+      const response = await this.post(`/memberships/${membershipId}/cancel`, payload);
 
-      const data = response.data?.data || response.data;
-
-      console.log('✅ Membresía cancelada exitosamente');
+      console.log('✅ Membresía cancelada');
 
       // Limpiar caché
       this.clearCache('memberships');
       this.clearCache('statistics');
+
+      const data = response.data || response;
 
       return {
         success: true,
@@ -582,23 +526,23 @@ class MembershipManagementService {
       };
 
     } catch (error) {
-      this.handleError(error, 'cancelMembership');
+      console.error('❌ Error en cancelMembership:', error);
+      throw error;
     }
   }
 
   /**
    * Eliminar membresía (solo admin)
+   * USA: DELETE /api/memberships/:id
    */
   async deleteMembership(membershipId) {
     try {
-      console.log(`🗑️ Eliminando membresía ${membershipId}...`);
+      console.log(`🗑️ [membershipManagementService] Eliminando ${membershipId}...`);
 
-      const response = await axios.delete(
-        `${this.baseURL}/memberships/${membershipId}`,
-        this.getAxiosConfig()
-      );
+      // USAR BaseService.delete
+      const response = await this.delete(`/memberships/${membershipId}`);
 
-      console.log('✅ Membresía eliminada exitosamente');
+      console.log('✅ Membresía eliminada');
 
       // Limpiar caché
       this.clearCache('memberships');
@@ -610,7 +554,8 @@ class MembershipManagementService {
       };
 
     } catch (error) {
-      this.handleError(error, 'deleteMembership');
+      console.error('❌ Error en deleteMembership:', error);
+      throw error;
     }
   }
 
@@ -620,22 +565,24 @@ class MembershipManagementService {
 
   /**
    * Obtener lista de clientes para selector
+   * USA: GET /api/users?role=cliente
    */
   async getClients(params = {}) {
     try {
-      console.log('👥 Obteniendo lista de clientes...');
+      console.log('👥 [membershipManagementService] Obteniendo clientes...');
 
-      const response = await axios.get(`${this.baseURL}/users`, {
-        ...this.getAxiosConfig(),
-        params: {
-          role: 'cliente',
-          limit: params.limit || 100,
-          search: params.search || undefined,
-          isActive: params.isActive !== undefined ? params.isActive : undefined
-        }
-      });
+      const queryParams = new URLSearchParams();
+      queryParams.append('role', 'cliente');
+      if (params.limit) queryParams.append('limit', params.limit);
+      if (params.search) queryParams.append('search', params.search);
+      if (params.isActive !== undefined) queryParams.append('isActive', params.isActive);
 
-      const data = response.data?.data || response.data;
+      const endpoint = `/users?${queryParams.toString()}`;
+
+      // USAR BaseService.get
+      const response = await this.get(endpoint);
+
+      const data = response.data || response;
       const clients = data.users || data || [];
 
       console.log(`✅ ${clients.length} clientes obtenidos`);
@@ -646,57 +593,17 @@ class MembershipManagementService {
       };
 
     } catch (error) {
-      this.handleError(error, 'getClients');
+      console.error('❌ Error en getClients:', error);
+      return {
+        success: false,
+        clients: []
+      };
     }
   }
 
   // ============================================================================
-  // UTILIDADES Y VALIDACIONES
+  // UTILIDADES
   // ============================================================================
-
-  /**
-   * Validar datos de membresía antes de crear/actualizar
-   */
-  validateMembershipData(data) {
-    const errors = [];
-
-    if (!data.userId) {
-      errors.push('Usuario es requerido');
-    }
-
-    if (!data.planId) {
-      errors.push('Plan es requerido');
-    }
-
-    if (!data.startDate) {
-      errors.push('Fecha de inicio es requerida');
-    }
-
-    if (data.price !== undefined && data.price <= 0) {
-      errors.push('Precio debe ser mayor a 0');
-    }
-
-    if (errors.length > 0) {
-      throw new Error(errors.join(', '));
-    }
-
-    return true;
-  }
-
-  /**
-   * Formatear datos de membresía para la API
-   */
-  formatMembershipDataForAPI(formData) {
-    return {
-      planId: formData.planId,
-      userId: formData.userId,
-      selectedSchedule: formData.selectedSchedule || {},
-      paymentMethod: formData.paymentMethod || 'cash',
-      notes: formData.notes || '',
-      startDate: formData.startDate,
-      endDate: formData.endDate || undefined
-    };
-  }
 
   /**
    * Calcular días hasta vencimiento
@@ -713,7 +620,7 @@ class MembershipManagementService {
   }
 
   /**
-   * Determinar estado visual de una membresía
+   * Obtener información de estado de membresía
    */
   getMembershipStatusInfo(membership) {
     const status = membership.status;
@@ -730,11 +637,7 @@ class MembershipManagementService {
       'pending': {
         label: 'Pendiente',
         color: 'blue',
-        description: membership.payment?.paymentMethod === 'transfer'
-          ? 'Validando transferencia...'
-          : membership.payment?.paymentMethod === 'cash'
-          ? 'Esperando pago...'
-          : 'En proceso de validación...'
+        description: 'En proceso de validación'
       },
       'expired': {
         label: 'Vencida',
@@ -759,51 +662,6 @@ class MembershipManagementService {
       label: status || 'Desconocido',
       color: 'gray',
       description: 'Estado no definido'
-    };
-  }
-
-  /**
-   * Health check del servicio
-   */
-  async healthCheck() {
-    try {
-      const response = await axios.get(`${this.baseURL}/health`, {
-        timeout: 5000
-      });
-
-      return {
-        healthy: true,
-        message: 'Servicio de gestión de membresías operativo',
-        timestamp: new Date().toISOString()
-      };
-
-    } catch (error) {
-      return {
-        healthy: false,
-        message: 'Servicio de gestión de membresías no disponible',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  /**
-   * Debug: Mostrar información del servicio
-   */
-  getServiceInfo() {
-    return {
-      name: 'MembershipManagementService',
-      version: '1.0.0',
-      baseURL: this.baseURL,
-      cacheSize: this.cache.size,
-      cacheTimeout: `${this.cacheTimeout / 1000}s`,
-      endpoints: {
-        memberships: `${this.baseURL}/memberships`,
-        plans: `${this.baseURL}/memberships/purchase/plans`,
-        expired: `${this.baseURL}/memberships/expired`,
-        expiringSoon: `${this.baseURL}/memberships/expiring-soon`,
-        stats: `${this.baseURL}/memberships/stats`
-      }
     };
   }
 }

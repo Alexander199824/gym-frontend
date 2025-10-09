@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/MembershipsManager.js
-// VERSIÓN: Conectada 100% al backend con membershipManagementService
+// VERSIÓN: Final - Cards con datos directos de endpoints específicos
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
-import apiService from '../../../services/apiService';
+import membershipManagementService from '../../../services/membershipManagementService';
 import MembershipPlansManager from './MembershipPlansManager';
 
 const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
@@ -25,7 +25,12 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   
   // Estados de membresías
   const [memberships, setMemberships] = useState([]);
-  const [membershipStats, setMembershipStats] = useState({});
+  
+  // ✅ NUEVO: Estados separados para cada card
+  const [activeMembershipsCount, setActiveMembershipsCount] = useState(0);
+  const [expiredMembershipsCount, setExpiredMembershipsCount] = useState(0);
+  const [expiringSoonCount, setExpiringSoonCount] = useState(0);
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -41,12 +46,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   const [membershipsPerPage] = useState(isMobile ? 10 : 20);
   const [totalMemberships, setTotalMemberships] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  
-  // Alertas
-  const [expiredMemberships, setExpiredMemberships] = useState([]);
-  const [expiringSoon, setExpiringSoon] = useState([]);
-  const [showExpiredAlert, setShowExpiredAlert] = useState(false);
-  const [showExpiringAlert, setShowExpiringAlert] = useState(false);
   
   // Modal de membresía
   const [showMembershipModal, setShowMembershipModal] = useState(false);
@@ -95,46 +94,114 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'active', label: 'Activa', color: 'bg-green-100 text-green-800', icon: CheckCircle },
     { value: 'pending', label: 'Pendiente', color: 'bg-blue-100 text-blue-800', icon: Clock },
     { value: 'expired', label: 'Vencida', color: 'bg-red-100 text-red-800', icon: XCircle },
+    { value: 'expiring', label: 'Por Vencer', color: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle },
     { value: 'cancelled', label: 'Cancelada', color: 'bg-gray-100 text-gray-800', icon: XCircle },
-    { value: 'suspended', label: 'Suspendida', color: 'bg-yellow-100 text-yellow-800', icon: AlertTriangle }
+    { value: 'suspended', label: 'Suspendida', color: 'bg-orange-100 text-orange-800', icon: AlertTriangle }
   ];
+  
+  // ============================================================================
+  // ✅ NUEVA FUNCIÓN: Cargar estadísticas directamente de los endpoints
+  // ============================================================================
+  
+  const loadMembershipStats = useCallback(async () => {
+    try {
+      console.log('📊 Cargando estadísticas desde endpoints específicos...');
+      
+      // 1. Membresías activas
+      try {
+        const activeResponse = await membershipManagementService.getMemberships({
+          status: 'active',
+          limit: 1
+        });
+        const count = activeResponse.pagination?.total || activeResponse.memberships?.length || 0;
+        console.log(`✅ Activas: ${count}`);
+        setActiveMembershipsCount(count);
+      } catch (error) {
+        console.warn('Error obteniendo activas:', error.message);
+        setActiveMembershipsCount(0);
+      }
+      
+      // 2. Membresías vencidas - USANDO ENDPOINT ESPECÍFICO
+      try {
+        const expiredResponse = await membershipManagementService.getExpiredMemberships(0);
+        const count = expiredResponse.total || expiredResponse.memberships?.length || 0;
+        console.log(`✅ Vencidas: ${count}`);
+        setExpiredMembershipsCount(count);
+      } catch (error) {
+        console.warn('Error obteniendo vencidas:', error.message);
+        setExpiredMembershipsCount(0);
+      }
+      
+      // 3. Membresías por vencer - USANDO ENDPOINT ESPECÍFICO
+      try {
+        const expiringResponse = await membershipManagementService.getExpiringSoonMemberships(7);
+        const count = expiringResponse.total || expiringResponse.memberships?.length || 0;
+        console.log(`✅ Por vencer: ${count}`);
+        setExpiringSoonCount(count);
+      } catch (error) {
+        console.warn('Error obteniendo por vencer:', error.message);
+        setExpiringSoonCount(0);
+      }
+      
+      console.log('✅ Estadísticas cargadas correctamente');
+      
+    } catch (error) {
+      console.error('❌ Error cargando estadísticas:', error);
+      setActiveMembershipsCount(0);
+      setExpiredMembershipsCount(0);
+      setExpiringSoonCount(0);
+    }
+  }, []);
   
   // ============================================================================
   // FUNCIONES DE CARGA DE DATOS DESDE EL BACKEND
   // ============================================================================
   
-  /**
-   * Cargar membresías desde el backend
-   */
   const loadMemberships = useCallback(async () => {
     try {
       setLoading(true);
       console.log('📋 Cargando membresías desde el backend...');
       
+      let statusFilter = selectedStatus;
+      let additionalParams = {};
+      
+      if (selectedStatus === 'expiring') {
+        statusFilter = 'active';
+        additionalParams.expiringSoon = true;
+      }
+      
       const params = {
         page: currentPage,
         limit: membershipsPerPage,
         search: searchTerm || undefined,
-        status: selectedStatus !== 'all' ? selectedStatus : undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
         type: selectedType !== 'all' ? selectedType : undefined,
         sortBy,
-        sortOrder
+        sortOrder,
+        ...additionalParams
       };
       
-      // ✅ Usar el método del apiService
-      const response = await apiService.getMemberships(params);
+      console.log('🔍 Parámetros de búsqueda:', params);
       
-      console.log('✅ Respuesta de membresías:', response);
-      
-      if (response.success && response.memberships) {
-        setMemberships(response.memberships);
-        setTotalMemberships(response.pagination?.total || response.memberships.length);
-        setTotalPages(response.pagination?.pages || 1);
+      let response;
+      if (selectedStatus === 'expiring') {
+        response = await membershipManagementService.getExpiringSoonMemberships(7);
+        console.log('✅ Respuesta de por vencer:', response);
+        
+        if (response.success && response.memberships) {
+          setMemberships(response.memberships);
+          setTotalMemberships(response.total || response.memberships.length);
+          setTotalPages(Math.ceil((response.total || response.memberships.length) / membershipsPerPage));
+        }
       } else {
-        console.warn('⚠️ Formato de respuesta inesperado:', response);
-        setMemberships([]);
-        setTotalMemberships(0);
-        setTotalPages(1);
+        response = await membershipManagementService.getMemberships(params);
+        console.log('✅ Respuesta de membresías:', response);
+        
+        if (response.success && response.memberships) {
+          setMemberships(response.memberships);
+          setTotalMemberships(response.pagination?.total || response.memberships.length);
+          setTotalPages(response.pagination?.pages || 1);
+        }
       }
       
     } catch (error) {
@@ -148,82 +215,12 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, [currentPage, membershipsPerPage, searchTerm, selectedStatus, selectedType, sortBy, sortOrder]);
   
-  /**
-   * Cargar estadísticas desde el backend
-   */
-  const loadMembershipStats = useCallback(async () => {
-    try {
-      console.log('📊 Cargando estadísticas desde el backend...');
-      
-      // ✅ Usar el método del apiService
-      const stats = await apiService.getMembershipStats();
-      
-      console.log('✅ Estadísticas obtenidas:', stats);
-      
-      setMembershipStats({
-        totalMemberships: stats.totalMemberships || 0,
-        activeMemberships: stats.activeMemberships || 0,
-        expiredMemberships: stats.expiredMemberships || 0,
-        expiringSoon: stats.expiringSoon || 0,
-        pendingMemberships: stats.pendingMemberships || 0,
-        cancelledMemberships: stats.cancelledMemberships || 0,
-        suspendedMemberships: stats.suspendedMemberships || 0
-      });
-      
-    } catch (error) {
-      console.error('❌ Error cargando estadísticas:', error);
-      setMembershipStats({
-        totalMemberships: 0,
-        activeMemberships: 0,
-        expiredMemberships: 0,
-        expiringSoon: 0,
-        pendingMemberships: 0,
-        cancelledMemberships: 0,
-        suspendedMemberships: 0
-      });
-    }
-  }, []);
-  
-  /**
-   * Cargar alertas de vencimiento desde el backend
-   */
-  const loadExpirationAlerts = useCallback(async () => {
-    try {
-      console.log('⏰ Cargando alertas de vencimiento...');
-      
-      // ✅ Membresías vencidas (hoy)
-      const expiredResponse = await apiService.getExpiredMemberships(0);
-      console.log('Vencidas:', expiredResponse);
-      
-      if (expiredResponse.success && expiredResponse.memberships) {
-        setExpiredMemberships(expiredResponse.memberships);
-      }
-      
-      // ✅ Membresías por vencer (próximos 7 días)
-      const expiringResponse = await apiService.getExpiringSoonMemberships(7);
-      console.log('Por vencer:', expiringResponse);
-      
-      if (expiringResponse.success && expiringResponse.memberships) {
-        setExpiringSoon(expiringResponse.memberships);
-      }
-      
-    } catch (error) {
-      console.error('❌ Error cargando alertas:', error);
-      setExpiredMemberships([]);
-      setExpiringSoon([]);
-    }
-  }, []);
-  
-  /**
-   * Cargar planes disponibles desde el backend
-   */
   const loadAvailablePlans = useCallback(async () => {
     try {
       setLoadingPlans(true);
       console.log('📦 Cargando planes disponibles...');
       
-      // ✅ Usar el método del apiService
-      const response = await apiService.getMembershipPlans();
+      const response = await membershipManagementService.getPlans();
       
       console.log('✅ Planes obtenidos:', response);
       
@@ -242,16 +239,12 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, []);
   
-  /**
-   * Cargar clientes disponibles desde el backend
-   */
   const loadAvailableClients = useCallback(async (searchQuery = '') => {
     try {
       setLoadingClients(true);
       console.log('👥 Cargando clientes...', searchQuery ? `Búsqueda: ${searchQuery}` : '');
       
-      // ✅ Usar el método del apiService
-      const response = await apiService.getMembershipClients({
+      const response = await membershipManagementService.getClients({
         search: searchQuery || undefined,
         isActive: true,
         limit: 50
@@ -274,9 +267,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, []);
   
-  /**
-   * Verificar si el cliente tiene membresía activa
-   */
   const checkClientMembership = useCallback(async (userId) => {
     if (!userId) {
       setSelectedClientHasMembership(false);
@@ -287,8 +277,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     try {
       console.log('🔍 Verificando membresía del cliente:', userId);
       
-      // Buscar membresías activas del cliente
-      const response = await apiService.getMemberships({
+      const response = await membershipManagementService.getMemberships({
         userId,
         status: 'active',
         limit: 1
@@ -319,22 +308,19 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   // EFECTOS PARA CARGAR DATOS
   // ============================================================================
   
-  // Cargar membresías cuando cambien filtros
   useEffect(() => {
     if (activeSection === 'memberships') {
       loadMemberships();
     }
   }, [activeSection, loadMemberships]);
   
-  // Cargar estadísticas y alertas al inicio
+  // ✅ Cargar estadísticas al inicio y cuando se refresque
   useEffect(() => {
     if (activeSection === 'memberships') {
       loadMembershipStats();
-      loadExpirationAlerts();
     }
-  }, [activeSection, loadMembershipStats, loadExpirationAlerts, refreshKey]);
+  }, [activeSection, loadMembershipStats, refreshKey]);
   
-  // Cargar planes y clientes al abrir el modal
   useEffect(() => {
     if (showMembershipModal) {
       loadAvailablePlans();
@@ -342,7 +328,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, [showMembershipModal, loadAvailablePlans, loadAvailableClients]);
   
-  // Buscar clientes cuando cambie el término de búsqueda
   useEffect(() => {
     if (showMembershipModal) {
       const timeoutId = setTimeout(() => {
@@ -353,7 +338,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, [clientSearchTerm, showMembershipModal, loadAvailableClients]);
   
-  // Verificar membresía del cliente cuando se seleccione
   useEffect(() => {
     if (membershipFormData.userId && !editingMembership) {
       checkClientMembership(membershipFormData.userId);
@@ -364,25 +348,17 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   // FUNCIONES DE MEMBRESÍA
   // ============================================================================
   
-  /**
-   * Refrescar todos los datos
-   */
   const refreshMembershipsData = () => {
     setRefreshKey(prev => prev + 1);
     loadMemberships();
     loadMembershipStats();
-    loadExpirationAlerts();
     showSuccess('Datos actualizados');
   };
   
-  /**
-   * Crear/Actualizar membresía
-   */
   const handleSaveMembership = async () => {
     try {
       setSaving(true);
       
-      // Validaciones
       if (!membershipFormData.userId) {
         showError('Debe seleccionar un cliente');
         return;
@@ -393,13 +369,11 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         return;
       }
       
-      // Si el cliente ya tiene membresía activa y no estamos editando, no permitir crear
       if (selectedClientHasMembership && !editingMembership) {
         showError('Este cliente ya tiene una membresía activa. Use la opción de renovar.');
         return;
       }
       
-      // Preparar datos según formato del backend
       const membershipData = {
         planId: membershipFormData.planId,
         userId: membershipFormData.userId,
@@ -412,23 +386,18 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
       
       let response;
       if (editingMembership) {
-        // ✅ Actualizar membresía existente
-        response = await apiService.updateMembership(editingMembership.id, membershipData);
+        response = await membershipManagementService.updateMembership(editingMembership.id, membershipData);
         showSuccess('Membresía actualizada exitosamente');
       } else {
-        // ✅ Crear nueva membresía
-        response = await apiService.createMembership(membershipData);
+        response = await membershipManagementService.createMembership(membershipData);
         showSuccess('Membresía creada exitosamente');
       }
       
       console.log('✅ Membresía guardada:', response);
       
-      // Recargar datos
       await loadMemberships();
       await loadMembershipStats();
-      await loadExpirationAlerts();
       
-      // Cerrar modal
       setShowMembershipModal(false);
       setEditingMembership(null);
       resetMembershipForm();
@@ -450,15 +419,11 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  /**
-   * Renovar membresía
-   */
   const handleRenewMembership = async (membershipId, months = 1) => {
     try {
       console.log('🔄 Renovando membresía:', membershipId);
       
-      // ✅ Usar el método del apiService
-      await apiService.renewMembership(membershipId, {
+      await membershipManagementService.renewMembership(membershipId, {
         months,
         notes: `Renovación por ${months} mes${months > 1 ? 'es' : ''} desde dashboard`
       });
@@ -467,7 +432,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
       
       await loadMemberships();
       await loadMembershipStats();
-      await loadExpirationAlerts();
       
     } catch (error) {
       console.error('❌ Error renovando membresía:', error);
@@ -475,9 +439,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  /**
-   * Cancelar membresía
-   */
   const handleCancelMembership = async (membershipId) => {
     if (!window.confirm('¿Estás seguro de cancelar esta membresía?')) {
       return;
@@ -486,14 +447,12 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     try {
       console.log('🚫 Cancelando membresía:', membershipId);
       
-      // ✅ Usar el método del apiService
-      await apiService.cancelMembership(membershipId, 'Cancelación solicitada desde dashboard');
+      await membershipManagementService.cancelMembership(membershipId, 'Cancelación solicitada desde dashboard');
       
       showSuccess('Membresía cancelada exitosamente');
       
       await loadMemberships();
       await loadMembershipStats();
-      await loadExpirationAlerts();
       
     } catch (error) {
       console.error('❌ Error cancelando membresía:', error);
@@ -501,9 +460,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  /**
-   * Reset form
-   */
   const resetMembershipForm = () => {
     setMembershipFormData({
       userId: '',
@@ -518,9 +474,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     setSelectedClientMembership(null);
   };
   
-  /**
-   * Abrir modal para editar
-   */
   const handleEditMembership = (membership) => {
     setEditingMembership(membership);
     setMembershipFormData({
@@ -533,23 +486,16 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     setShowMembershipModal(true);
   };
   
-  /**
-   * Abrir modal para crear
-   */
   const handleNewMembership = () => {
     setEditingMembership(null);
     resetMembershipForm();
     setShowMembershipModal(true);
   };
   
-  /**
-   * Manejar guardado desde planes
-   */
   const handleSavePlans = (data) => {
     console.log('✅ Planes guardados:', data);
     setHasUnsavedChanges(false);
     
-    // Recargar planes si estamos en el modal
     if (showMembershipModal) {
       loadAvailablePlans();
     }
@@ -563,9 +509,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   // FUNCIONES DE UI
   // ============================================================================
   
-  /**
-   * Obtener información del estado
-   */
   const getStatusInfo = (status) => {
     return membershipStatuses.find(s => s.value === status) || {
       value: status,
@@ -575,9 +518,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     };
   };
   
-  /**
-   * Filtrar clientes para el selector
-   */
   const filteredClients = availableClients.filter(client => {
     if (!clientSearchTerm) return true;
     const searchLower = clientSearchTerm.toLowerCase();
@@ -585,9 +525,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     return fullName.includes(searchLower) || client.email.toLowerCase().includes(searchLower);
   });
   
-  /**
-   * Filtrar planes para el selector
-   */
   const filteredPlans = availablePlans.filter(plan => {
     if (!planSearchTerm) return true;
     const searchLower = planSearchTerm.toLowerCase();
@@ -595,7 +532,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
            plan.description?.toLowerCase().includes(searchLower);
   });
   
-  // Notificar cambios no guardados
   useEffect(() => {
     if (onUnsavedChanges) {
       onUnsavedChanges(hasUnsavedChanges);
@@ -664,137 +600,48 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         {activeSection === 'memberships' && (
           <div className="space-y-6">
             
-            {/* ALERTAS DE VENCIMIENTO */}
-            {(expiredMemberships.length > 0 || expiringSoon.length > 0) && (
-              <div className="space-y-3">
-                {/* Vencidas */}
-                {expiredMemberships.length > 0 && (
-                  <div className="bg-red-50 border-l-4 border-red-400 p-4">
-                    <div className="flex items-center">
-                      <XCircle className="w-5 h-5 text-red-400" />
-                      <div className="ml-3 flex-1">
-                        <h3 className="text-sm font-medium text-red-800">
-                          {expiredMemberships.length} Membresía{expiredMemberships.length !== 1 ? 's' : ''} Vencida{expiredMemberships.length !== 1 ? 's' : ''}
-                        </h3>
-                        <button
-                          onClick={() => setShowExpiredAlert(!showExpiredAlert)}
-                          className="text-sm text-red-700 underline hover:no-underline mt-1"
-                        >
-                          {showExpiredAlert ? 'Ocultar' : 'Ver'} detalles
-                        </button>
-                        
-                        {showExpiredAlert && (
-                          <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
-                            {expiredMemberships.slice(0, 5).map(membership => (
-                              <div key={membership.id} className="flex items-center justify-between text-sm">
-                                <span>
-                                  {membership.user?.firstName} {membership.user?.lastName}
-                                </span>
-                                <button
-                                  onClick={() => handleRenewMembership(membership.id)}
-                                  className="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded"
-                                >
-                                  Renovar
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Por vencer */}
-                {expiringSoon.length > 0 && (
-                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-                    <div className="flex items-center">
-                      <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                      <div className="ml-3 flex-1">
-                        <h3 className="text-sm font-medium text-yellow-800">
-                          {expiringSoon.length} Membresía{expiringSoon.length !== 1 ? 's' : ''} por Vencer
-                        </h3>
-                        <button
-                          onClick={() => setShowExpiringAlert(!showExpiringAlert)}
-                          className="text-sm text-yellow-700 underline hover:no-underline mt-1"
-                        >
-                          {showExpiringAlert ? 'Ocultar' : 'Ver'} detalles
-                        </button>
-                        
-                        {showExpiringAlert && (
-                          <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
-                            {expiringSoon.slice(0, 5).map(membership => (
-                              <div key={membership.id} className="flex items-center justify-between text-sm">
-                                <span>
-                                  {membership.user?.firstName} {membership.user?.lastName} - 
-                                  {formatDate(membership.endDate, 'dd/MM/yyyy')}
-                                </span>
-                                <button
-                                  onClick={() => handleRenewMembership(membership.id)}
-                                  className="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-2 py-1 rounded"
-                                >
-                                  Renovar
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* ESTADÍSTICAS RÁPIDAS */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-center">
-                  <CreditCard className="w-8 h-8 text-purple-600" />
-                  <div className="ml-3">
-                    <div className="text-2xl font-bold text-purple-900">
-                      {membershipStats.totalMemberships || 0}
-                    </div>
-                    <div className="text-sm text-purple-600">Total</div>
-                  </div>
-                </div>
-              </div>
+            {/* ✅ SOLO 3 CARDS - SIN TOTAL */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
+              {/* Card Activas */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-center">
                   <CheckCircle className="w-8 h-8 text-green-600" />
                   <div className="ml-3">
                     <div className="text-2xl font-bold text-green-900">
-                      {membershipStats.activeMemberships || 0}
+                      {activeMembershipsCount}
                     </div>
                     <div className="text-sm text-green-600">Activas</div>
                   </div>
                 </div>
               </div>
               
+              {/* Card Vencidas */}
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <div className="flex items-center">
                   <XCircle className="w-8 h-8 text-red-600" />
                   <div className="ml-3">
                     <div className="text-2xl font-bold text-red-900">
-                      {membershipStats.expiredMemberships || 0}
+                      {expiredMembershipsCount}
                     </div>
                     <div className="text-sm text-red-600">Vencidas</div>
                   </div>
                 </div>
               </div>
               
+              {/* Card Por Vencer */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-center">
                   <Clock className="w-8 h-8 text-yellow-600" />
                   <div className="ml-3">
                     <div className="text-2xl font-bold text-yellow-900">
-                      {membershipStats.expiringSoon || 0}
+                      {expiringSoonCount}
                     </div>
                     <div className="text-sm text-yellow-600">Por Vencer</div>
                   </div>
                 </div>
               </div>
+              
             </div>
             
             {/* CONTROLES SUPERIORES */}
@@ -1095,7 +942,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             
-            {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
@@ -1114,7 +960,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            {/* Contenido */}
             <div className="px-6 py-4">
               <div className="space-y-6">
                 
@@ -1124,7 +969,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     Cliente * {loadingClients && <Loader className="inline w-4 h-4 animate-spin ml-2" />}
                   </label>
                   
-                  {/* Búsqueda de cliente */}
                   <div className="relative mb-2">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
@@ -1137,7 +981,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     />
                   </div>
                   
-                  {/* Lista de clientes */}
                   <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
                     {filteredClients.length === 0 ? (
                       <div className="p-4 text-center text-gray-500">
@@ -1199,7 +1042,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     </p>
                   )}
                   
-                  {/* Alerta si el cliente ya tiene membresía */}
                   {selectedClientHasMembership && !editingMembership && (
                     <div className="mt-2 bg-orange-50 border border-orange-200 rounded-lg p-3">
                       <div className="flex">
@@ -1229,7 +1071,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     Plan de Membresía * {loadingPlans && <Loader className="inline w-4 h-4 animate-spin ml-2" />}
                   </label>
                   
-                  {/* Búsqueda de plan */}
                   <div className="relative mb-2">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
@@ -1241,7 +1082,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     />
                   </div>
                   
-                  {/* Lista de planes */}
                   <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
                     {filteredPlans.length === 0 ? (
                       <div className="p-4 text-center text-gray-500">
@@ -1311,7 +1151,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            {/* Footer */}
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => {
