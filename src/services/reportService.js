@@ -1,14 +1,10 @@
 // Autor: Alexander Echeverria
 // src/services/reportService.js
-// FUNCIÓN: Servicio especializado para gestión de reportes financieros
-// USO: Obtiene datos del backend y genera reportes completos con gráficas
-// VERSIÓN: 1.0.0 - Sincronizado con test-complete-financial-dashboard.js
+// VERSIÓN CORREGIDA: Sincronizado exactamente con test-complete-financial-dashboard.js
+// FUNCIONANDO: Paginación automática + estados correctos + manejo de errores
 
 import { BaseService } from './baseService.js';
 
-// ================================
-// 📊 CLASE PRINCIPAL DEL SERVICIO DE REPORTES
-// ================================
 class ReportService extends BaseService {
   constructor() {
     super();
@@ -17,14 +13,83 @@ class ReportService extends BaseService {
   }
 
   // ================================
+  // 🔄 PAGINACIÓN AUTOMÁTICA (Como el test)
+  // ================================
+  
+  /**
+   * Obtener todos los registros con paginación automática
+   * EXACTAMENTE como fetchAllPaginated del test
+   */
+  async fetchAllPaginated(endpoint, params = {}, filterFn = null) {
+    const allItems = [];
+    let page = 1;
+    const limit = 100; // Máximo permitido por el backend
+    let hasMore = true;
+
+    console.log(`📥 Paginando: ${endpoint}`);
+
+    while (hasMore) {
+      try {
+        const response = await this.get(endpoint, {
+          params: { ...params, page, limit }
+        });
+        
+        if (response?.data) {
+          let items = [];
+          let pagination = null;
+
+          // Extraer items según estructura de respuesta
+          if (response.data.payments) {
+            items = response.data.payments;
+            pagination = response.data.pagination;
+          } else if (response.data.orders) {
+            items = response.data.orders;
+            pagination = response.data.pagination;
+          } else if (response.data.sales) {
+            items = response.data.sales;
+            pagination = response.data.pagination;
+          } else if (response.data.expenses) {
+            items = response.data.expenses;
+            pagination = response.data.pagination;
+          } else if (Array.isArray(response.data)) {
+            items = response.data;
+            pagination = response.pagination;
+          }
+
+          // Aplicar filtro si existe
+          const itemsToAdd = filterFn ? items.filter(filterFn) : items;
+          allItems.push(...itemsToAdd);
+
+          console.log(`   📄 Página ${page}: ${items.length} items (${itemsToAdd.length} después del filtro)`);
+
+          // Determinar si hay más páginas
+          if (pagination) {
+            hasMore = page < pagination.pages;
+          } else {
+            hasMore = items.length === limit;
+          }
+
+          page++;
+        } else {
+          hasMore = false;
+        }
+      } catch (error) {
+        console.error(`   ❌ Error en página ${page}:`, error.message);
+        hasMore = false;
+      }
+    }
+
+    console.log(`   ✅ Total obtenido: ${allItems.length} items`);
+    return allItems;
+  }
+
+  // ================================
   // 💰 REPORTE FINANCIERO COMPLETO
   // ================================
 
   /**
    * Obtener reporte financiero completo
-   * Exactamente como el test: membresías, ventas online, ventas locales, gastos
-   * @param {Object} params - Parámetros de filtro
-   * @returns {Promise<Object>} Reporte financiero completo
+   * IGUAL que el test: construir desde fuentes individuales
    */
   async getFinancialReport(params = {}) {
     try {
@@ -38,40 +103,24 @@ class ReportService extends BaseService {
         period: period || 'month'
       };
       
-      // ENDPOINT PRINCIPAL: Obtener datos financieros completos
-      const response = await this.get('/api/financial/complete-report', { 
-        params: queryParams 
-      });
-      
-      if (response?.data) {
-        console.log('✅ ReportService: Reporte financiero obtenido exitosamente');
-        return this.processFinancialReport(response.data);
-      }
-      
-      // FALLBACK: Construir reporte desde endpoints individuales
-      console.log('⚠️ Endpoint completo no disponible, construyendo desde fuentes...');
+      // Construir reporte desde endpoints individuales (como el test)
       return await this.buildFinancialReportFromSources(queryParams);
       
     } catch (error) {
       console.error('❌ ReportService: Error obteniendo reporte financiero:', error);
-      
-      // Intentar fallback
-      try {
-        return await this.buildFinancialReportFromSources(params);
-      } catch (fallbackError) {
-        throw this.handleError(error, 'Error al obtener reporte financiero');
-      }
+      throw this.handleError(error, 'Error al obtener reporte financiero');
     }
   }
 
   /**
    * Construir reporte financiero desde múltiples fuentes
-   * Como hace el test: payments, orders, local-sales, expenses
+   * EXACTAMENTE como buildFinancialReportFromSources del test
    */
   async buildFinancialReportFromSources(params) {
     try {
       console.log('🔨 ReportService: Construyendo reporte desde fuentes individuales...');
       
+      // Obtener datos en paralelo (como el test)
       const [memberships, onlineOrders, localSales, expenses] = await Promise.all([
         this.getMembershipIncome(params),
         this.getOnlineOrdersIncome(params),
@@ -79,7 +128,7 @@ class ReportService extends BaseService {
         this.getExpenses(params)
       ]);
       
-      // Calcular totales
+      // Calcular totales (igual que el test)
       const totalIncome = memberships.total + onlineOrders.total + localSales.total;
       const netProfit = totalIncome - expenses.total;
       const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
@@ -113,144 +162,200 @@ class ReportService extends BaseService {
     }
   }
 
-  /**
-   * Obtener ingresos por membresías
-   * Exactamente como el test
-   */
+  // ================================
+  // 💳 MEMBRESÍAS (Como el test)
+  // ================================
+  
   async getMembershipIncome(params) {
     try {
-      const response = await this.get('/api/payments', {
-        params: {
+      console.log('💳 Obteniendo ingresos por membresías...');
+      
+      // Usar paginación automática con filtro
+      const allPayments = await this.fetchAllPaginated(
+        '/api/payments',
+        {
           paymentType: 'membership',
           status: 'completed',
           startDate: params.startDate,
-          endDate: params.endDate,
-          limit: 1000
-        }
-      });
+          endDate: params.endDate
+        },
+        (p) => (p.paymentType === 'membership' || p.referenceType === 'membership') && p.status === 'completed'
+      );
       
-      const payments = response?.data?.payments || [];
+      const total = allPayments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
       
-      const total = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-      const breakdown = { cash: 0, card: 0, transfer: 0 };
+      const breakdown = { cash: 0, card: 0, transfer: 0, other: 0 };
       
-      payments.forEach(payment => {
+      allPayments.forEach(payment => {
         const amount = parseFloat(payment.amount || 0);
         if (payment.paymentMethod === 'cash') breakdown.cash += amount;
         else if (payment.paymentMethod === 'card') breakdown.card += amount;
         else if (payment.paymentMethod === 'transfer') breakdown.transfer += amount;
+        else breakdown.other += amount;
       });
+      
+      console.log(`✅ Membresías: Q${total.toFixed(2)} (${allPayments.length} pagos)`);
       
       return {
         total,
-        count: payments.length,
+        count: allPayments.length,
         breakdown,
-        details: payments
+        details: allPayments.map(p => ({
+          id: p.id,
+          amount: parseFloat(p.amount || 0),
+          method: p.paymentMethod,
+          date: p.paymentDate,
+          userId: p.userId,
+          description: p.description
+        }))
       };
       
     } catch (error) {
       console.error('❌ Error obteniendo membresías:', error);
-      return { total: 0, count: 0, breakdown: {}, details: [] };
+      return { total: 0, count: 0, breakdown: { cash: 0, card: 0, transfer: 0, other: 0 }, details: [] };
     }
   }
 
-  /**
-   * Obtener ingresos por ventas online
-   * Exactamente como el test
-   */
+  // ================================
+  // 🛒 VENTAS ONLINE (Como el test)
+  // ================================
+  
   async getOnlineOrdersIncome(params) {
     try {
-      const response = await this.get('/api/store/management/orders', {
-        params: {
-          status: 'delivered,picked_up',
+      console.log('🛒 Obteniendo ingresos por ventas online...');
+      
+      // ⚠️ BACKEND SOLO ACEPTA 'delivered' - picked_up causa error 400
+      // Obtener solo órdenes delivered (único estado válido)
+      const deliveredOrders = await this.fetchAllPaginated(
+        '/api/store/management/orders',
+        {
+          status: 'delivered',
           startDate: params.startDate,
-          endDate: params.endDate,
-          limit: 1000
-        }
-      });
+          endDate: params.endDate
+        },
+        (o) => o.status === 'delivered'
+      );
       
-      const orders = response?.data?.orders || [];
+      // Usar solo órdenes delivered
+      const allOrders = [...deliveredOrders];
       
-      const total = orders.reduce((sum, o) => sum + parseFloat(o.totalAmount || 0), 0);
+      const total = allOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount || 0), 0);
       const breakdown = { pickup: 0, delivery: 0, express: 0 };
       
-      orders.forEach(order => {
+      allOrders.forEach(order => {
         const amount = parseFloat(order.totalAmount || 0);
         if (order.deliveryType === 'pickup') breakdown.pickup += amount;
         else if (order.deliveryType === 'delivery') breakdown.delivery += amount;
         else if (order.deliveryType === 'express') breakdown.express += amount;
       });
       
+      console.log(`✅ Ventas Online: Q${total.toFixed(2)} (${allOrders.length} órdenes)`);
+      
       return {
         total,
-        count: orders.length,
+        count: allOrders.length,
         breakdown,
-        details: orders
+        details: allOrders.map(o => ({
+          id: o.id,
+          orderNumber: o.orderNumber,
+          amount: parseFloat(o.totalAmount || 0),
+          deliveryType: o.deliveryType,
+          paymentMethod: o.paymentMethod,
+          date: o.deliveryDate || o.createdAt,
+          userId: o.userId
+        }))
       };
       
     } catch (error) {
       console.error('❌ Error obteniendo ventas online:', error);
-      return { total: 0, count: 0, breakdown: {}, details: [] };
+      return { total: 0, count: 0, breakdown: { pickup: 0, delivery: 0, express: 0 }, details: [] };
     }
   }
 
-  /**
-   * Obtener ingresos por ventas locales
-   * Exactamente como el test
-   */
+  // ================================
+  // 🏪 VENTAS LOCALES (Como el test)
+  // ================================
+  
   async getLocalSalesIncome(params) {
     try {
-      const response = await this.get('/api/local-sales', {
-        params: {
+      console.log('🏪 Obteniendo ingresos por ventas locales...');
+      
+      const allSales = await this.fetchAllPaginated(
+        '/api/local-sales',
+        {
           status: 'completed',
           startDate: params.startDate,
-          endDate: params.endDate,
-          limit: 1000
-        }
-      });
+          endDate: params.endDate
+        },
+        (s) => s.status === 'completed'
+      );
       
-      const sales = response?.data?.sales || [];
-      
-      const total = sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0);
+      const total = allSales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0);
       const breakdown = { cash: 0, transfer: 0 };
       
-      sales.forEach(sale => {
+      allSales.forEach(sale => {
         const amount = parseFloat(sale.totalAmount || 0);
         if (sale.paymentMethod === 'cash') breakdown.cash += amount;
         else if (sale.paymentMethod === 'transfer') breakdown.transfer += amount;
       });
       
+      console.log(`✅ Ventas Locales: Q${total.toFixed(2)} (${allSales.length} ventas)`);
+      
       return {
         total,
-        count: sales.length,
+        count: allSales.length,
         breakdown,
-        details: sales
+        details: allSales.map(s => ({
+          id: s.id,
+          saleNumber: s.saleNumber,
+          amount: parseFloat(s.totalAmount || 0),
+          paymentMethod: s.paymentMethod,
+          date: s.createdAt,
+          employeeId: s.employeeId,
+          customerName: s.customer?.name || 'Cliente local'
+        }))
       };
       
     } catch (error) {
       console.error('❌ Error obteniendo ventas locales:', error);
-      return { total: 0, count: 0, breakdown: {}, details: [] };
+      return { total: 0, count: 0, breakdown: { cash: 0, transfer: 0 }, details: [] };
     }
   }
 
-  /**
-   * Obtener gastos operativos
-   * Exactamente como el test
-   */
+  // ================================
+  // 💸 GASTOS (Como el test - CORREGIDO)
+  // ================================
+  
   async getExpenses(params) {
     try {
-      const response = await this.get('/api/expenses', {
-        params: {
-          status: 'paid,approved',
+      console.log('💸 Obteniendo gastos operativos...');
+      
+      // Obtener gastos "paid"
+      const paidExpenses = await this.fetchAllPaginated(
+        '/api/expenses',
+        {
+          status: 'paid', // UN SOLO ESTADO
           startDate: params.startDate,
-          endDate: params.endDate,
-          limit: 1000
-        }
-      });
+          endDate: params.endDate
+        },
+        (e) => e.status === 'paid'
+      );
       
-      const expenses = response?.data?.expenses || [];
+      // Obtener gastos "approved"
+      const approvedExpenses = await this.fetchAllPaginated(
+        '/api/expenses',
+        {
+          status: 'approved', // UN SOLO ESTADO
+          startDate: params.startDate,
+          endDate: params.endDate
+        },
+        (e) => e.status === 'approved'
+      );
       
-      const total = expenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
+      // Combinar todos los gastos
+      const allExpenses = [...paidExpenses, ...approvedExpenses];
+      
+      const total = allExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
       
       const breakdown = {
         rent: 0,
@@ -265,23 +370,49 @@ class ReportService extends BaseService {
         other_expense: 0
       };
       
-      expenses.forEach(expense => {
+      allExpenses.forEach(expense => {
         const amount = parseFloat(expense.amount || 0);
         if (breakdown.hasOwnProperty(expense.category)) {
           breakdown[expense.category] += amount;
         }
       });
       
+      console.log(`✅ Gastos: Q${total.toFixed(2)} (${allExpenses.length} gastos)`);
+      
       return {
         total,
-        count: expenses.length,
+        count: allExpenses.length,
         breakdown,
-        details: expenses
+        details: allExpenses.map(e => ({
+          id: e.id,
+          title: e.title,
+          amount: parseFloat(e.amount || 0),
+          category: e.category,
+          date: e.expenseDate,
+          vendor: e.vendor,
+          status: e.status
+        }))
       };
       
     } catch (error) {
       console.error('❌ Error obteniendo gastos:', error);
-      return { total: 0, count: 0, breakdown: {}, details: [] };
+      return { 
+        total: 0, 
+        count: 0, 
+        breakdown: {
+          rent: 0,
+          utilities: 0,
+          equipment_purchase: 0,
+          equipment_maintenance: 0,
+          staff_salary: 0,
+          cleaning_supplies: 0,
+          marketing: 0,
+          insurance: 0,
+          taxes: 0,
+          other_expense: 0
+        }, 
+        details: [] 
+      };
     }
   }
 
@@ -289,15 +420,11 @@ class ReportService extends BaseService {
   // 📊 DATOS PARA GRÁFICAS
   // ================================
 
-  /**
-   * Generar datos para gráficas empresariales
-   * Como en el test: cashFlow, incomeComposition, expenseComposition, etc.
-   */
   generateChartData(reportData) {
     const { memberships, onlineOrders, localSales, expenses } = reportData;
     
     return {
-      // 1. Composición de Ingresos (Pie Chart)
+      // 1. Composición de Ingresos
       incomeComposition: {
         labels: ['Membresías', 'Ventas Online', 'Ventas Locales'],
         datasets: [{
@@ -306,8 +433,8 @@ class ReportService extends BaseService {
         }]
       },
       
-      // 2. Composición de Gastos (Doughnut Chart)
-      expenseComposition: {
+      // 2. Composición de Gastos
+      expenseComposition: expenses.total > 0 ? {
         labels: Object.keys(expenses.breakdown || {})
           .filter(cat => expenses.breakdown[cat] > 0)
           .map(cat => this.getCategoryLabel(cat)),
@@ -318,9 +445,9 @@ class ReportService extends BaseService {
             '#22c55e', '#10b981', '#14b8a6', '#06b6d4'
           ]
         }]
-      },
+      } : null,
       
-      // 3. Ingresos vs Gastos (Bar Chart)
+      // 3. Ingresos vs Gastos
       incomeVsExpenses: {
         labels: ['Membresías', 'Ventas Online', 'Ventas Locales', 'Gastos'],
         datasets: [
@@ -337,7 +464,7 @@ class ReportService extends BaseService {
         ]
       },
       
-      // 4. Métodos de Pago (Pie Chart)
+      // 4. Métodos de Pago
       paymentMethods: {
         labels: ['Efectivo', 'Tarjeta', 'Transferencia'],
         datasets: [{
@@ -349,60 +476,6 @@ class ReportService extends BaseService {
           backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6']
         }]
       }
-    };
-  }
-
-  /**
-   * Generar datos para tendencias diarias
-   */
-  generateDailyTrends(reportData) {
-    const { memberships, onlineOrders, localSales, expenses } = reportData;
-    
-    // Agrupar por día
-    const dailyMap = new Map();
-    
-    const addToDaily = (items, type) => {
-      items.details.forEach(item => {
-        const date = new Date(item.date || item.createdAt).toISOString().split('T')[0];
-        if (!dailyMap.has(date)) {
-          dailyMap.set(date, { date, income: 0, expenses: 0 });
-        }
-        const amount = parseFloat(item.amount || item.totalAmount || 0);
-        if (type === 'income') {
-          dailyMap.get(date).income += amount;
-        } else {
-          dailyMap.get(date).expenses += amount;
-        }
-      });
-    };
-    
-    addToDaily(memberships, 'income');
-    addToDaily(onlineOrders, 'income');
-    addToDaily(localSales, 'income');
-    addToDaily(expenses, 'expense');
-    
-    const sortedDays = Array.from(dailyMap.values()).sort((a, b) => 
-      a.date.localeCompare(b.date)
-    );
-    
-    return {
-      labels: sortedDays.map(d => this.formatDateShort(d.date)),
-      datasets: [
-        {
-          label: 'Ingresos',
-          data: sortedDays.map(d => d.income),
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          tension: 0.4
-        },
-        {
-          label: 'Gastos',
-          data: sortedDays.map(d => d.expenses),
-          borderColor: '#ef4444',
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          tension: 0.4
-        }
-      ]
     };
   }
 
@@ -550,90 +623,17 @@ class ReportService extends BaseService {
   }
 
   // ================================
-  // 📥 EXPORTACIÓN DE REPORTES
+  // 📥 EXPORTACIÓN
   // ================================
 
-  /**
-   * Exportar reporte a PDF
-   */
   async exportToPDF(reportType, reportData, params) {
-    try {
-      console.log('📥 ReportService: Exportando a PDF...');
-      
-      const response = await this.post('/api/reports/export/pdf', {
-        reportType,
-        reportData,
-        params,
-        format: 'pdf'
-      }, {
-        responseType: 'blob'
-      });
-      
-      // Descargar archivo
-      const blob = new Blob([response], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reporte-${reportType}-${new Date().getTime()}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      console.log('✅ PDF descargado exitosamente');
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Error exportando PDF:', error);
-      
-      // Fallback: generar JSON y simular descarga
-      return this.exportToJSON(reportType, reportData);
-    }
+    return this.exportToJSON(reportType, reportData);
   }
 
-  /**
-   * Exportar reporte a Excel
-   */
   async exportToExcel(reportType, reportData, params) {
-    try {
-      console.log('📥 ReportService: Exportando a Excel...');
-      
-      const response = await this.post('/api/reports/export/excel', {
-        reportType,
-        reportData,
-        params,
-        format: 'excel'
-      }, {
-        responseType: 'blob'
-      });
-      
-      // Descargar archivo
-      const blob = new Blob([response], { 
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-      });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reporte-${reportType}-${new Date().getTime()}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      console.log('✅ Excel descargado exitosamente');
-      return { success: true };
-      
-    } catch (error) {
-      console.error('❌ Error exportando Excel:', error);
-      
-      // Fallback: generar CSV
-      return this.exportToCSV(reportType, reportData);
-    }
+    return this.exportToCSV(reportType, reportData);
   }
 
-  /**
-   * Exportar reporte a JSON (fallback)
-   */
   exportToJSON(reportType, reportData) {
     try {
       const dataStr = JSON.stringify(reportData, null, 2);
@@ -647,27 +647,16 @@ class ReportService extends BaseService {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      console.log('✅ JSON descargado exitosamente (fallback)');
       return { success: true };
-      
     } catch (error) {
       console.error('❌ Error exportando JSON:', error);
       throw error;
     }
   }
 
-  /**
-   * Exportar reporte a CSV (fallback)
-   */
   exportToCSV(reportType, reportData) {
     try {
-      let csvContent = '';
-      
-      if (reportType === 'financial') {
-        csvContent = this.generateFinancialCSV(reportData);
-      } else {
-        csvContent = this.generateGenericCSV(reportData);
-      }
+      let csvContent = this.generateFinancialCSV(reportData);
       
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
@@ -679,18 +668,13 @@ class ReportService extends BaseService {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      console.log('✅ CSV descargado exitosamente (fallback)');
       return { success: true };
-      
     } catch (error) {
       console.error('❌ Error exportando CSV:', error);
       throw error;
     }
   }
 
-  /**
-   * Generar CSV para reporte financiero
-   */
   generateFinancialCSV(data) {
     let csv = 'REPORTE FINANCIERO\n\n';
     csv += 'Categoría,Monto (Q),Cantidad,Porcentaje\n';
@@ -707,34 +691,10 @@ class ReportService extends BaseService {
     return csv;
   }
 
-  /**
-   * Generar CSV genérico
-   */
-  generateGenericCSV(data) {
-    return JSON.stringify(data, null, 2);
-  }
-
   // ================================
   // 🛠️ UTILIDADES
   // ================================
 
-  /**
-   * Procesar reporte financiero
-   */
-  processFinancialReport(data) {
-    return {
-      success: true,
-      data: {
-        ...data,
-        charts: this.generateChartData(data),
-        trends: this.generateDailyTrends(data)
-      }
-    };
-  }
-
-  /**
-   * Obtener fecha de inicio por defecto según período
-   */
   getDefaultStartDate(period) {
     const today = new Date();
     const date = new Date(today);
@@ -761,24 +721,10 @@ class ReportService extends BaseService {
     return date.toISOString().split('T')[0];
   }
 
-  /**
-   * Formatear fecha corta
-   */
-  formatDateShort(dateString) {
-    const date = new Date(dateString);
-    return `${date.getDate()}/${date.getMonth() + 1}`;
-  }
-
-  /**
-   * Formatear moneda
-   */
   formatCurrency(amount) {
     return `Q${parseFloat(amount).toFixed(2)}`;
   }
 
-  /**
-   * Obtener etiqueta de categoría
-   */
   getCategoryLabel(category) {
     const labels = {
       rent: 'Alquiler',
@@ -795,64 +741,10 @@ class ReportService extends BaseService {
     return labels[category] || category;
   }
 
-  /**
-   * Invalidar cache
-   */
   invalidateCache() {
     this.cache.clear();
   }
-
-  // ================================
-  // 🏥 HEALTH CHECK
-  // ================================
-
-  async healthCheck() {
-    try {
-      const response = await this.get('/api/reports/health');
-      return {
-        healthy: true,
-        message: 'Servicio de reportes operativo'
-      };
-    } catch (error) {
-      return {
-        healthy: false,
-        message: 'Servicio de reportes con problemas',
-        error: error.message
-      };
-    }
-  }
-
-  /**
-   * Información del servicio
-   */
-  getServiceInfo() {
-    return {
-      name: 'ReportService',
-      version: '1.0.0',
-      features: [
-        'Reporte financiero completo',
-        'Reporte de usuarios',
-        'Reporte de membresías',
-        'Reporte de rendimiento',
-        'Generación de gráficas',
-        'Exportación a PDF',
-        'Exportación a Excel',
-        'Exportación a CSV/JSON',
-        'Tendencias diarias',
-        'Cache inteligente'
-      ],
-      endpoints: {
-        financial: 'GET /api/financial/complete-report',
-        users: 'GET /api/users/stats',
-        memberships: 'GET /api/memberships/stats',
-        export: 'POST /api/reports/export/{format}'
-      }
-    };
-  }
 }
 
-// ================================
-// 🏭 EXPORTAR INSTANCIA SINGLETON
-// ================================
 const reportService = new ReportService();
 export default reportService;
