@@ -1,7 +1,7 @@
 // src/pages/dashboard/components/ExpensesManager.js
-// GESTOR DE GASTOS - Gestión completa con sistema de pestañas
+// GESTOR DE GASTOS MEJORADO - TODAS las acciones SIEMPRE visibles
 // Autor: Alexander Echeverria
-// ✅ RESPONSIVE: Mobile, Tablet, Desktop
+// ✅ Botones Editar, Eliminar y Agregar SIEMPRE disponibles
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -10,7 +10,8 @@ import {
   User, TrendingUp, TrendingDown, Bell, BarChart3,
   FileText, Download, Upload, MoreHorizontal, Loader, RotateCcw,
   Receipt, Building, Zap, Settings, Users, Sparkles, Megaphone,
-  Shield, FileCheck, Package, Ban
+  Shield, FileCheck, Package, Ban, Grid3X3, List, ChevronDown, 
+  SlidersHorizontal, ChevronUp
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -20,12 +21,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
   const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
   
-  // Estados principales para pestañas
+  // Estados principales
   const [activeSection, setActiveSection] = useState('expenses');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   
-  // Estados principales para gastos
   const [expenses, setExpenses] = useState([]);
   const [pendingExpenses, setPendingExpenses] = useState([]);
   const [recurringExpenses, setRecurringExpenses] = useState([]);
@@ -33,7 +33,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // Estados de filtros y búsqueda
+  // Filtros y búsqueda
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -42,12 +42,17 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
   const [sortBy, setSortBy] = useState('expenseDate');
   const [sortOrder, setSortOrder] = useState('desc');
   
-  // Estados de paginación
+  // Estados para vista mejorada
+  const [viewMode, setViewMode] = useState('list');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [expandedCards, setExpandedCards] = useState(new Set());
+  
+  // Paginación
   const [currentPage, setCurrentPage] = useState(1);
   const [expensesPerPage] = useState(isMobile ? 10 : 20);
   const [totalExpenses, setTotalExpenses] = useState(0);
   
-  // Estados para crear/editar gasto
+  // Modal crear/editar
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [expenseFormData, setExpenseFormData] = useState({
@@ -65,7 +70,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     recurringEndDate: ''
   });
   
-  // Secciones del gestor de gastos
+  // Secciones del gestor
   const expenseSections = [
     {
       id: 'expenses',
@@ -77,7 +82,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     },
     {
       id: 'pending',
-      title: 'Pendientes de Aprobación',
+      title: 'Pendientes',
       icon: Clock,
       description: 'Gastos que requieren aprobación',
       dataLoaded: true,
@@ -85,7 +90,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     },
     {
       id: 'recurring',
-      title: 'Gastos Recurrentes',
+      title: 'Recurrentes',
       icon: RotateCcw,
       description: 'Gastos automáticos programados',
       dataLoaded: true,
@@ -93,7 +98,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     },
     {
       id: 'reports',
-      title: 'Reportes y Estadísticas',
+      title: 'Reportes',
       icon: BarChart3,
       description: 'Análisis financiero de gastos',
       dataLoaded: true,
@@ -101,7 +106,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     }
   ];
   
-  // Obtener categorías con iconos
+  // Obtener iconos de categoría
   const getCategoryIcon = (category) => {
     const icons = {
       rent: Building,
@@ -129,6 +134,19 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     };
     return colors[status] || 'gray';
   };
+
+  // Toggle expand card
+  const toggleCardExpand = (expenseId) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(expenseId)) {
+        newSet.delete(expenseId);
+      } else {
+        newSet.add(expenseId);
+      }
+      return newSet;
+    });
+  };
   
   // Notificar cambios sin guardar
   useEffect(() => {
@@ -154,15 +172,12 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         sortOrder
       };
       
-      console.log('Cargando gastos con parámetros:', params);
-      
       const response = await expenseService.getAllExpenses(params);
       
       if (response.data && Array.isArray(response.data)) {
         setExpenses(response.data);
         setTotalExpenses(response.pagination?.total || response.data.length);
       } else {
-        console.warn('Formato de datos de gastos inesperado:', response);
         setExpenses([]);
         setTotalExpenses(0);
       }
@@ -177,15 +192,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // CARGAR GASTOS PENDIENTES
   const loadPendingExpenses = async () => {
     try {
-      console.log('🔄 Cargando gastos pendientes...');
       const response = await expenseService.getPendingApproval(500);
-      
       if (response.data && Array.isArray(response.data)) {
         setPendingExpenses(response.data);
-        console.log(`✅ ${response.data.length} gastos pendientes cargados`);
       }
     } catch (error) {
       console.error('Error al cargar gastos pendientes:', error);
@@ -193,15 +204,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // CARGAR GASTOS RECURRENTES
   const loadRecurringExpenses = async () => {
     try {
-      console.log('🔄 Cargando gastos recurrentes...');
       const response = await expenseService.getUpcomingRecurring(30);
-      
       if (response.data && Array.isArray(response.data)) {
         setRecurringExpenses(response.data);
-        console.log(`✅ ${response.data.length} gastos recurrentes cargados`);
       }
     } catch (error) {
       console.error('Error al cargar gastos recurrentes:', error);
@@ -209,12 +216,8 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
-  // CARGAR ESTADÍSTICAS
   const loadStats = async () => {
     try {
-      console.log('📊 Cargando estadísticas...');
-      
-      // Fechas por defecto: último mes
       const today = new Date();
       const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
       
@@ -233,15 +236,12 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         vendors: vendors.data,
         period: { startDate: defaultStartDate, endDate: defaultEndDate }
       });
-      
-      console.log('✅ Estadísticas cargadas');
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
       setStatsData(null);
     }
   };
   
-  // Refrescar todos los datos
   const refreshExpensesData = () => {
     setRefreshKey(prev => prev + 1);
     
@@ -258,7 +258,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     showSuccess('Datos actualizados');
   };
   
-  // Cargar datos al montar y cuando cambien filtros
   useEffect(() => {
     if (activeSection === 'expenses') {
       loadExpenses();
@@ -271,12 +270,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, [activeSection, currentPage, searchTerm, selectedStatus, selectedCategory, startDate, endDate, sortBy, sortOrder, refreshKey]);
   
-  // CREAR/ACTUALIZAR GASTO
+  // CRUD OPERATIONS
   const handleSaveExpense = async () => {
     try {
       setSaving(true);
       
-      // Validar
       const validation = expenseService.validateExpenseData(expenseFormData);
       
       if (!validation.isValid) {
@@ -284,50 +282,44 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         return;
       }
       
-      let response;
       if (editingExpense) {
-        response = await expenseService.updateExpense(editingExpense.id, expenseFormData);
+        await expenseService.updateExpense(editingExpense.id, expenseFormData);
         showSuccess('Gasto actualizado exitosamente');
       } else {
-        response = await expenseService.createExpense(expenseFormData);
+        await expenseService.createExpense(expenseFormData);
         showSuccess('Gasto creado exitosamente');
       }
       
-      // Recargar datos
       await loadExpenses();
       if (activeSection === 'pending') await loadPendingExpenses();
       if (activeSection === 'recurring') await loadRecurringExpenses();
       
-      // Cerrar modal
       setShowExpenseModal(false);
       setEditingExpense(null);
       resetExpenseForm();
       
-      // Notificar cambios guardados
       if (onSave) {
         onSave({ type: 'expense', action: editingExpense ? 'updated' : 'created' });
       }
       
     } catch (error) {
       console.error('Error al guardar gasto:', error);
-      // El error ya fue manejado por el servicio
     } finally {
       setSaving(false);
     }
   };
   
-  // APROBAR GASTO
   const handleApproveExpense = async (expenseId) => {
     try {
       await expenseService.approveExpense(expenseId);
       await loadExpenses();
       await loadPendingExpenses();
+      showSuccess('Gasto aprobado');
     } catch (error) {
       console.error('Error al aprobar gasto:', error);
     }
   };
   
-  // RECHAZAR GASTO
   const handleRejectExpense = async (expenseId) => {
     const reason = prompt('Motivo del rechazo:');
     if (!reason) return;
@@ -336,12 +328,12 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
       await expenseService.rejectExpense(expenseId, reason);
       await loadExpenses();
       await loadPendingExpenses();
+      showSuccess('Gasto rechazado');
     } catch (error) {
       console.error('Error al rechazar gasto:', error);
     }
   };
   
-  // CANCELAR GASTO
   const handleCancelExpense = async (expenseId) => {
     if (!window.confirm('¿Estás seguro de cancelar este gasto?')) {
       return;
@@ -354,12 +346,12 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
       await expenseService.cancelExpense(expenseId, reason);
       await loadExpenses();
       await loadPendingExpenses();
+      showSuccess('Gasto cancelado');
     } catch (error) {
       console.error('Error al cancelar gasto:', error);
     }
   };
   
-  // ELIMINAR GASTO
   const handleDeleteExpense = async (expenseId) => {
     if (!window.confirm('¿Estás seguro de ELIMINAR este gasto? Esta acción no se puede deshacer.')) {
       return;
@@ -369,12 +361,12 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
       await expenseService.deleteExpense(expenseId);
       await loadExpenses();
       await loadPendingExpenses();
+      showSuccess('Gasto eliminado');
     } catch (error) {
       console.error('Error al eliminar gasto:', error);
     }
   };
   
-  // PROCESAR RECURRENTES
   const handleProcessRecurring = async () => {
     if (!window.confirm('¿Procesar gastos recurrentes ahora? Se crearán nuevos gastos según la programación.')) {
       return;
@@ -384,12 +376,12 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
       await expenseService.processRecurringExpenses();
       await loadExpenses();
       await loadRecurringExpenses();
+      showSuccess('Gastos recurrentes procesados');
     } catch (error) {
       console.error('Error al procesar recurrentes:', error);
     }
   };
   
-  // Reset form
   const resetExpenseForm = () => {
     setExpenseFormData({
       title: '',
@@ -407,7 +399,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     });
   };
   
-  // Abrir modal para editar
   const handleEditExpense = (expense) => {
     setEditingExpense(expense);
     setExpenseFormData({
@@ -427,24 +418,53 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     setShowExpenseModal(true);
   };
   
-  // Abrir modal para crear
   const handleNewExpense = () => {
     setEditingExpense(null);
     resetExpenseForm();
     setShowExpenseModal(true);
   };
   
-  // Cálculo de paginación
-  const totalPages = Math.max(1, Math.ceil(totalExpenses / expensesPerPage));
+  // UTILITY FUNCTIONS
+  const hasActiveFilters = () => {
+    return selectedStatus !== 'all' || selectedCategory !== 'all' || 
+           sortBy !== 'expenseDate' || (searchTerm && searchTerm.length > 0) ||
+           startDate || endDate;
+  };
   
-  // Categorías y estados
+  const clearAllFilters = () => {
+    setSelectedStatus('all');
+    setSelectedCategory('all');
+    setSortBy('expenseDate');
+    setSortOrder('desc');
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+  };
+  
+  const totalPages = Math.max(1, Math.ceil(totalExpenses / expensesPerPage));
   const categories = expenseService.getAvailableCategories();
   const statuses = expenseService.getAvailableStatuses();
+
+  const calculateViewStats = () => {
+    if (!expenses || expenses.length === 0) {
+      return { pending: 0, approved: 0, paid: 0, rejected: 0, cancelled: 0 };
+    }
+
+    return {
+      pending: expenses.filter(e => e.status === 'pending').length,
+      approved: expenses.filter(e => e.status === 'approved').length,
+      paid: expenses.filter(e => e.status === 'paid').length,
+      rejected: expenses.filter(e => e.status === 'rejected').length,
+      cancelled: expenses.filter(e => e.status === 'cancelled').length
+    };
+  };
+
+  const viewStats = calculateViewStats();
 
   return (
     <div className="space-y-6 relative">
       
-      {/* HEADER DEL GESTOR DE GASTOS */}
+      {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex items-center space-x-3 mb-2">
@@ -459,7 +479,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         </div>
         
         <div className="flex items-center space-x-4 mt-4 lg:mt-0">
-          {/* Botón de actualizar */}
           <button
             onClick={refreshExpensesData}
             className="btn-secondary btn-sm"
@@ -468,7 +487,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
             <RefreshCw className="w-4 h-4" />
           </button>
           
-          {/* Indicador de cambios sin guardar */}
           {hasUnsavedChanges && (
             <div className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
               <AlertTriangle className="w-4 h-4 mr-1" />
@@ -478,7 +496,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* NAVEGACIÓN POR SECCIONES */}
+      {/* NAVEGACIÓN */}
       <div className="bg-white rounded-lg shadow-sm p-4">
         <div className="flex space-x-1 overflow-x-auto">
           {expenseSections.map((section) => (
@@ -494,12 +512,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
               <section.icon className="w-4 h-4 mr-2" />
               {section.title}
               
-              {/* Indicadores de estado */}
-              {section.dataLoaded && (
-                <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
-              )}
-              
-              {/* Badge para pendientes */}
               {section.id === 'pending' && pendingExpenses.length > 0 && (
                 <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                   {pendingExpenses.length}
@@ -510,411 +522,664 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       </div>
       
-      {/* CONTENIDO SEGÚN SECCIÓN ACTIVA */}
+      {/* CONTENIDO */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         
         {/* SECCIÓN: Todos los Gastos */}
         {activeSection === 'expenses' && (
           <div className="space-y-6">
             
-            {/* CONTROLES SUPERIORES */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="flex items-center space-x-3">
-                <h4 className="text-lg font-medium text-gray-900">
-                  Gastos Registrados
-                </h4>
-                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
-                  {totalExpenses} total
-                </span>
+            {/* ESTADÍSTICAS */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-900">{viewStats.pending}</div>
+                  <div className="text-xs text-yellow-600">Pendientes</div>
+                </div>
               </div>
               
-              {hasPermission('create_expenses') && (
-                <button
-                  onClick={handleNewExpense}
-                  className="btn-primary btn-sm w-full sm:w-auto"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nuevo Gasto
-                </button>
-              )}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-900">{viewStats.approved}</div>
+                  <div className="text-xs text-green-600">Aprobados</div>
+                </div>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-900">{viewStats.paid}</div>
+                  <div className="text-xs text-blue-600">Pagados</div>
+                </div>
+              </div>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-900">{viewStats.rejected}</div>
+                  <div className="text-xs text-red-600">Rechazados</div>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-900">{totalExpenses}</div>
+                  <div className="text-xs text-gray-600">Total</div>
+                </div>
+              </div>
             </div>
             
-            {/* FILTROS Y BÚSQUEDA */}
-            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                
+            {/* CONTROLES SUPERIORES */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h4 className="text-lg font-medium text-gray-900">
+                Gastos Registrados
+              </h4>
+              
+              {/* BOTÓN CREAR - SIEMPRE VISIBLE */}
+              <button
+                onClick={handleNewExpense}
+                className="btn-primary btn-sm w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nuevo Gasto
+              </button>
+            </div>
+            
+            {/* FILTROS */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              
+              <div className="p-4">
                 {/* Búsqueda */}
-                <div className="relative">
+                <div className="relative mb-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Buscar gastos..."
+                    placeholder="Buscar por título, proveedor o factura..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
                   />
-                </div>
-                
-                {/* Filtro por estado */}
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="all">Todos los estados</option>
-                  {statuses.map(status => (
-                    <option key={status.value} value={status.value}>
-                      {status.label}
-                    </option>
-                  ))}
-                </select>
-                
-                {/* Filtro por categoría */}
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="all">Todas las categorías</option>
-                  {categories.map(cat => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.icon} {cat.label}
-                    </option>
-                  ))}
-                </select>
-                
-                {/* Ordenamiento */}
-                <select
-                  value={`${sortBy}-${sortOrder}`}
-                  onChange={(e) => {
-                    const [field, order] = e.target.value.split('-');
-                    setSortBy(field);
-                    setSortOrder(order);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="expenseDate-desc">Más recientes</option>
-                  <option value="expenseDate-asc">Más antiguos</option>
-                  <option value="amount-desc">Mayor monto</option>
-                  <option value="amount-asc">Menor monto</option>
-                </select>
-                
-              </div>
-              
-              {/* Rango de fechas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Desde
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hasta
-                  </label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            {/* TABLA/LISTA DE GASTOS */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader className="w-6 h-6 animate-spin text-purple-600 mr-2" />
-                  <span className="text-gray-600">Cargando gastos...</span>
-                </div>
-              ) : expenses.length === 0 ? (
-                <div className="text-center py-12">
-                  <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No hay gastos</h3>
-                  <p className="text-gray-600 mb-4">
-                    {searchTerm || selectedStatus !== 'all' || selectedCategory !== 'all' 
-                      ? 'No se encontraron gastos con los filtros aplicados'
-                      : 'Comienza creando tu primer gasto'
-                    }
-                  </p>
-                  {hasPermission('create_expenses') && (
-                    <button onClick={handleNewExpense} className="btn-primary">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Crear Gasto
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
                     </button>
                   )}
                 </div>
-              ) : (
-                <>
-                  {/* Desktop Table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Gasto
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Categoría
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Monto
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Fecha
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Estado
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Acciones
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {expenses.map((expense) => {
-                          const CategoryIcon = getCategoryIcon(expense.category);
-                          const statusColor = getStatusColor(expense.status);
-                          const category = categories.find(c => c.value === expense.category);
-                          
-                          return (
-                            <tr key={expense.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4">
-                                <div className="flex items-start">
-                                  <div className="flex-shrink-0 mr-3">
-                                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                      <CategoryIcon className="w-5 h-5 text-purple-600" />
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {expense.title}
-                                    </div>
-                                    {expense.vendor && (
-                                      <div className="text-sm text-gray-500">
-                                        {expense.vendor}
-                                      </div>
-                                    )}
-                                    {expense.invoiceNumber && (
-                                      <div className="text-xs text-gray-400">
-                                        Factura: {expense.invoiceNumber}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                  {category?.label || expense.category}
-                                </span>
-                              </td>
-                              
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-semibold text-gray-900">
-                                  {expenseService.formatCurrency(expense.amount)}
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatDate(expense.expenseDate, 'dd/MM/yyyy')}
-                              </td>
-                              
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800`}>
-                                  {expense.status}
-                                </span>
-                              </td>
-                              
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex items-center justify-end space-x-2">
-                                  
-                                  {/* Aprobar */}
-                                  {expense.status === 'pending' && hasPermission('approve_expenses') && (
-                                    <button
-                                      onClick={() => handleApproveExpense(expense.id)}
-                                      className="text-green-600 hover:text-green-800"
-                                      title="Aprobar gasto"
-                                    >
-                                      <Check className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  
-                                  {/* Rechazar */}
-                                  {expense.status === 'pending' && hasPermission('approve_expenses') && (
-                                    <button
-                                      onClick={() => handleRejectExpense(expense.id)}
-                                      className="text-red-600 hover:text-red-800"
-                                      title="Rechazar gasto"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  
-                                  {/* Editar */}
-                                  {hasPermission('edit_expenses') && (
-                                    <button
-                                      onClick={() => handleEditExpense(expense)}
-                                      className="text-blue-600 hover:text-blue-800"
-                                      title="Editar gasto"
-                                    >
-                                      <Edit className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  
-                                  {/* Cancelar */}
-                                  {(expense.status === 'pending' || expense.status === 'approved') && hasPermission('cancel_expenses') && (
-                                    <button
-                                      onClick={() => handleCancelExpense(expense.id)}
-                                      className="text-orange-600 hover:text-orange-800"
-                                      title="Cancelar gasto"
-                                    >
-                                      <Ban className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  
-                                  {/* Eliminar */}
-                                  {hasPermission('delete_expenses') && (
-                                    <button
-                                      onClick={() => handleDeleteExpense(expense.id)}
-                                      className="text-red-600 hover:text-red-800"
-                                      title="Eliminar gasto"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
                   
-                  {/* Mobile Cards */}
-                  <div className="md:hidden divide-y divide-gray-200">
-                    {expenses.map((expense) => {
-                      const CategoryIcon = getCategoryIcon(expense.category);
-                      const statusColor = getStatusColor(expense.status);
-                      const category = categories.find(c => c.value === expense.category);
+                  {/* Panel móvil */}
+                  <div className="sm:hidden">
+                    <div className="grid grid-cols-2 gap-3 mb-3">
                       
-                      return (
-                        <div key={expense.id} className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-start">
-                              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-                                <CategoryIcon className="w-5 h-5 text-purple-600" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  {expense.title}
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {category?.label || expense.category}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800`}>
-                              {expense.status}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-lg font-bold text-gray-900">
-                                {expenseService.formatCurrency(expense.amount)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {formatDate(expense.expenseDate, 'dd/MM/yyyy')}
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2">
-                              {expense.status === 'pending' && hasPermission('approve_expenses') && (
-                                <>
-                                  <button
-                                    onClick={() => handleApproveExpense(expense.id)}
-                                    className="text-green-600 hover:text-green-800"
-                                  >
-                                    <Check className="w-5 h-5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleRejectExpense(expense.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    <X className="w-5 h-5" />
-                                  </button>
-                                </>
-                              )}
-                              
-                              {hasPermission('edit_expenses') && (
-                                <button
-                                  onClick={() => handleEditExpense(expense)}
-                                  className="text-blue-600 hover:text-blue-800"
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Vista</label>
+                        <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                          <button
+                            onClick={() => setViewMode('grid')}
+                            className={`flex-1 p-2.5 flex items-center justify-center text-sm font-medium transition-colors ${
+                              viewMode === 'grid'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <Grid3X3 className="w-4 h-4 mr-1" />
+                            Cards
+                          </button>
+                          <button
+                            onClick={() => setViewMode('list')}
+                            className={`flex-1 p-2.5 flex items-center justify-center text-sm font-medium transition-colors ${
+                              viewMode === 'list'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-white text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <List className="w-4 h-4 mr-1" />
+                            Lista
+                          </button>
                         </div>
-                      );
-                    })}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Filtros</label>
+                        <button
+                          onClick={() => setShowMobileFilters(!showMobileFilters)}
+                          className={`w-full p-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center relative ${
+                            hasActiveFilters()
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <SlidersHorizontal className="w-4 h-4 mr-2" />
+                          Filtros
+                          {hasActiveFilters() && (
+                            <div className="ml-2 w-2 h-2 bg-white rounded-full"></div>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {hasActiveFilters() && !showMobileFilters && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 mb-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-purple-700 font-medium">Filtros activos</span>
+                          <button
+                            onClick={clearAllFilters}
+                            className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                          >
+                            Limpiar
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Controles desktop */}
+                  <div className="hidden sm:flex items-center space-x-3 flex-1">
+                    
+                    <select
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      className="text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="all">Todos los estados</option>
+                      {statuses.map(status => (
+                        <option key={status.value} value={status.value}>
+                          {status.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => setSelectedCategory(e.target.value)}
+                      className="text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="all">Todas las categorías</option>
+                      {categories.map(cat => (
+                        <option key={cat.value} value={cat.value}>
+                          {cat.icon} {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    <select
+                      value={`${sortBy}-${sortOrder}`}
+                      onChange={(e) => {
+                        const [field, order] = e.target.value.split('-');
+                        setSortBy(field);
+                        setSortOrder(order);
+                      }}
+                      className="text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="expenseDate-desc">Más recientes</option>
+                      <option value="expenseDate-asc">Más antiguos</option>
+                      <option value="amount-desc">Mayor monto</option>
+                      <option value="amount-asc">Menor monto</option>
+                    </select>
+                    
+                    <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        className={`p-2.5 ${
+                          viewMode === 'grid' 
+                            ? 'bg-purple-100 text-purple-600' 
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Grid3X3 className="w-4 h-4" />
+                      </button>
+                      
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`p-2.5 ${
+                          viewMode === 'list' 
+                            ? 'bg-purple-100 text-purple-600' 
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <List className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="text-sm text-gray-500 whitespace-nowrap">
+                      {expenses.length} gastos
+                    </div>
+                    
+                    {hasActiveFilters() && (
+                      <button
+                        onClick={clearAllFilters}
+                        className="text-sm text-purple-600 hover:text-purple-800 font-medium whitespace-nowrap"
+                      >
+                        Limpiar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Panel filtros móvil expandido */}
+              {showMobileFilters && (
+                <div className="sm:hidden bg-gray-50 border-t border-gray-200 p-4">
+                  <div className="space-y-4">
+                    
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-900">Filtros de búsqueda</h4>
+                      <button
+                        onClick={() => setShowMobileFilters(false)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                      <select
+                        value={selectedStatus}
+                        onChange={(e) => setSelectedStatus(e.target.value)}
+                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white"
+                      >
+                        <option value="all">Todos los estados</option>
+                        {statuses.map(status => (
+                          <option key={status.value} value={status.value}>
+                            {status.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                      <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white"
+                      >
+                        <option value="all">Todas las categorías</option>
+                        {categories.map(cat => (
+                          <option key={cat.value} value={cat.value}>
+                            {cat.icon} {cat.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Desde</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Hasta</label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      {hasActiveFilters() && (
+                        <button
+                          onClick={clearAllFilters}
+                          className="flex-1 px-4 py-2.5 bg-gray-600 text-white rounded-lg font-medium text-sm"
+                        >
+                          Limpiar
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setShowMobileFilters(false)}
+                        className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg font-medium text-sm"
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Rango fechas desktop */}
+              {!isMobile && (
+                <div className="px-4 pb-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* LISTA/GRID DE GASTOS */}
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader className="w-6 h-6 animate-spin text-purple-600 mr-2" />
+                <span className="text-gray-600">Cargando gastos...</span>
+              </div>
+            ) : expenses.length === 0 ? (
+              <div className="text-center py-12">
+                <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay gastos</h3>
+                <p className="text-gray-600 mb-4">
+                  {hasActiveFilters()
+                    ? 'No se encontraron gastos con los filtros aplicados'
+                    : 'Comienza creando tu primer gasto'
+                  }
+                </p>
+                <button onClick={handleNewExpense} className="btn-primary">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear Gasto
+                </button>
+              </div>
+            ) : (
+              <div className={viewMode === 'grid' 
+                ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' 
+                : 'space-y-4'
+              }>
+                {expenses.map((expense) => {
+                  const CategoryIcon = getCategoryIcon(expense.category);
+                  const statusColor = getStatusColor(expense.status);
+                  const category = categories.find(c => c.value === expense.category);
+                  const isExpanded = expandedCards.has(expense.id);
                   
-                  {/* PAGINACIÓN */}
-                  {totalPages > 1 && (
-                    <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <p className="text-sm text-gray-700">
-                            Mostrando {((currentPage - 1) * expensesPerPage) + 1} a {Math.min(currentPage * expensesPerPage, totalExpenses)} de {totalExpenses} gastos
-                          </p>
+                  return viewMode === 'grid' ? (
+                    // VISTA TARJETA - TODAS LAS ACCIONES VISIBLES
+                    <div key={expense.id} className="bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all">
+                      
+                      {/* Header con badge de estado */}
+                      <div className={`px-4 py-3 border-b bg-${statusColor}-50 border-${statusColor}-200`}>
+                        <div className="flex items-center justify-between">
+                          <span className={`text-sm font-medium text-${statusColor}-700`}>
+                            {expense.status || 'pending'}
+                          </span>
+                          {expense.isRecurring && (
+                            <span className="text-xs text-purple-600 flex items-center">
+                              <RotateCcw className="w-3 h-3 mr-1" />
+                              Recurrente
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-6">
+                        {/* Info principal */}
+                        <div className="flex items-start mb-4">
+                          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
+                            <CategoryIcon className="w-6 h-6 text-purple-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 mb-1 truncate">
+                              {expense.title}
+                            </h3>
+                            <p className="text-sm text-gray-500 truncate">
+                              {category?.label || expense.category}
+                            </p>
+                            {expense.vendor && (
+                              <p className="text-xs text-gray-400 truncate">
+                                {expense.vendor}
+                              </p>
+                            )}
+                          </div>
                         </div>
                         
-                        <div className="flex items-center space-x-2">
+                        {/* Monto y fecha */}
+                        <div className="mb-4">
+                          <div className="text-2xl font-bold text-purple-600">
+                            {expenseService.formatCurrency(expense.amount)}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {formatDate(expense.expenseDate, 'dd/MM/yyyy')}
+                          </div>
+                        </div>
+
+                        {/* Detalles expandibles */}
+                        {isExpanded && (
+                          <div className="mb-4 space-y-2">
+                            {expense.description && (
+                              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                                <strong>Descripción:</strong> {expense.description}
+                              </div>
+                            )}
+                            {expense.invoiceNumber && (
+                              <div className="text-xs text-gray-500">
+                                Factura: {expense.invoiceNumber}
+                              </div>
+                            )}
+                            {expense.notes && (
+                              <div className="text-sm text-gray-600 bg-yellow-50 p-2 rounded">
+                                <strong>Notas:</strong> {expense.notes}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Botón expandir/colapsar */}
+                        {(expense.description || expense.notes || expense.invoiceNumber) && (
                           <button
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                            onClick={() => toggleCardExpand(expense.id)}
+                            className="w-full text-sm text-purple-600 hover:text-purple-800 flex items-center justify-center py-2 mb-3"
                           >
-                            Anterior
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="w-4 h-4 mr-1" />
+                                Ver menos
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-4 h-4 mr-1" />
+                                Ver más
+                              </>
+                            )}
                           </button>
+                        )}
+                        
+                        {/* BOTONES DE ACCIÓN - SIEMPRE VISIBLES */}
+                        <div className="space-y-2">
                           
-                          <span className="text-sm text-gray-700">
-                            {currentPage} de {totalPages}
-                          </span>
-                          
+                          {/* Editar - SIEMPRE VISIBLE */}
                           <button
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                            onClick={() => handleEditExpense(expense)}
+                            className="w-full btn-sm bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center"
                           >
-                            Siguiente
+                            <Edit className="w-4 h-4 mr-2" />
+                            Editar Gasto
+                          </button>
+
+                          {/* Acciones de estado en grid */}
+                          {expense.status === 'pending' && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => handleApproveExpense(expense.id)}
+                                className="btn-sm bg-green-600 hover:bg-green-700 text-white flex items-center justify-center"
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                Aprobar
+                              </button>
+                              <button
+                                onClick={() => handleRejectExpense(expense.id)}
+                                className="btn-sm bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                Rechazar
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Cancelar */}
+                          {(expense.status === 'pending' || expense.status === 'approved') && (
+                            <button
+                              onClick={() => handleCancelExpense(expense.id)}
+                              className="w-full btn-sm bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center"
+                            >
+                              <Ban className="w-4 h-4 mr-2" />
+                              Cancelar Gasto
+                            </button>
+                          )}
+
+                          {/* Eliminar - SIEMPRE VISIBLE */}
+                          <button
+                            onClick={() => handleDeleteExpense(expense.id)}
+                            className="w-full btn-sm border-2 border-red-300 text-red-700 hover:bg-red-50 flex items-center justify-center"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar
                           </button>
                         </div>
                       </div>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
+                  ) : (
+                    // VISTA LISTA - TODAS LAS ACCIONES
+                    <div key={expense.id} className="bg-white border rounded-lg p-4 hover:shadow-md transition-all">
+                      <div className="flex items-center justify-between gap-4">
+                        
+                        {/* Info principal */}
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <CategoryIcon className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 truncate">
+                              {expense.title}
+                            </h3>
+                            <p className="text-sm text-gray-500 truncate">
+                              {category?.label}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className="font-bold text-purple-600">
+                              {expenseService.formatCurrency(expense.amount)}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {formatDate(expense.expenseDate, 'dd/MM/yyyy')}
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800 flex-shrink-0`}>
+                            {expense.status}
+                          </span>
+                        </div>
+                        
+                        {/* BOTONES DE ACCIÓN - TODOS VISIBLES */}
+                        <div className="flex items-center space-x-2 flex-shrink-0">
+                          
+                          {/* Aprobar/Rechazar */}
+                          {expense.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleApproveExpense(expense.id)}
+                                className="p-2 text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
+                                title="Aprobar"
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleRejectExpense(expense.id)}
+                                className="p-2 text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+                                title="Rechazar"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                          
+                          {/* Editar - SIEMPRE VISIBLE */}
+                          <button
+                            onClick={() => handleEditExpense(expense)}
+                            className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+
+                          {/* Cancelar */}
+                          {(expense.status === 'pending' || expense.status === 'approved') && (
+                            <button
+                              onClick={() => handleCancelExpense(expense.id)}
+                              className="p-2 text-white bg-orange-600 hover:bg-orange-700 rounded transition-colors"
+                              title="Cancelar"
+                            >
+                              <Ban className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {/* Eliminar - SIEMPRE VISIBLE */}
+                          <button
+                            onClick={() => handleDeleteExpense(expense.id)}
+                            className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {/* PAGINACIÓN */}
+            {totalPages > 1 && !loading && expenses.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+                  <div className="text-sm text-gray-700">
+                    Página <span className="font-medium">{currentPage}</span> de{' '}
+                    <span className="font-medium">{totalPages}</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      ← Anterior
+                    </button>
+                    
+                    <div className="text-sm text-gray-500">
+                      {currentPage} / {totalPages}
+                    </div>
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Siguiente →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
         
-        {/* SECCIÓN: Pendientes de Aprobación */}
+        {/* SECCIÓN: Pendientes */}
         {activeSection === 'pending' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -952,11 +1217,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                             <div className="text-xs text-gray-600 mt-1">
                               {category?.label || expense.category}
                             </div>
-                            {expense.vendor && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                Proveedor: {expense.vendor}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -966,7 +1226,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                           {expenseService.formatCurrency(expense.amount)}
                         </div>
                         <div className="text-xs text-gray-600">
-                          Registrado: {formatDate(expense.createdAt, 'dd/MM/yyyy HH:mm')}
+                          {formatDate(expense.createdAt, 'dd/MM/yyyy HH:mm')}
                         </div>
                       </div>
                       
@@ -1000,7 +1260,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* SECCIÓN: Gastos Recurrentes */}
+        {/* SECCIÓN: Recurrentes */}
         {activeSection === 'recurring' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -1071,7 +1331,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
           </div>
         )}
         
-        {/* SECCIÓN: Reportes y Estadísticas */}
+        {/* SECCIÓN: Reportes */}
         {activeSection === 'reports' && (
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-gray-900">
@@ -1086,7 +1346,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
             ) : (
               <div className="space-y-6">
                 
-                {/* Resumen */}
                 {statsData.summary && (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -1119,7 +1378,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 )}
                 
-                {/* Breakdown por categorías */}
                 {statsData.breakdown && (
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
                     <h4 className="text-md font-medium text-gray-900 mb-4">
@@ -1153,7 +1411,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   </div>
                 )}
                 
-                {/* Top proveedores */}
                 {statsData.vendors && statsData.vendors.length > 0 && (
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
                     <h4 className="text-md font-medium text-gray-900 mb-4">
@@ -1191,12 +1448,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* MODAL PARA CREAR/EDITAR GASTO */}
+      {/* MODAL CREAR/EDITAR */}
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
             
-            {/* Header del modal */}
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
@@ -1215,11 +1471,9 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            {/* Contenido del modal */}
             <div className="px-6 py-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
-                {/* Título */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Título del Gasto *
@@ -1228,12 +1482,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     type="text"
                     value={expenseFormData.title}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Ej: Pago de alquiler mensual"
                   />
                 </div>
                 
-                {/* Descripción */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Descripción
@@ -1242,12 +1495,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     value={expenseFormData.description}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, description: e.target.value }))}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Detalles adicionales del gasto..."
                   />
                 </div>
                 
-                {/* Monto */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Monto (Q) *
@@ -1258,11 +1510,10 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     min="0"
                     value={expenseFormData.amount}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
                 
-                {/* Categoría */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Categoría *
@@ -1270,7 +1521,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   <select
                     value={expenseFormData.category}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     {categories.map(cat => (
                       <option key={cat.value} value={cat.value}>
@@ -1280,7 +1531,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   </select>
                 </div>
                 
-                {/* Proveedor */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Proveedor
@@ -1289,12 +1539,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     type="text"
                     value={expenseFormData.vendor}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, vendor: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Nombre del proveedor"
                   />
                 </div>
                 
-                {/* Número de factura */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Número de Factura
@@ -1303,12 +1552,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     type="text"
                     value={expenseFormData.invoiceNumber}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Ej: F-001234"
                   />
                 </div>
                 
-                {/* Fecha del gasto */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Fecha del Gasto *
@@ -1317,11 +1565,10 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     type="date"
                     value={expenseFormData.expenseDate}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, expenseDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
                 
-                {/* Método de pago */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Método de Pago
@@ -1329,7 +1576,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   <select
                     value={expenseFormData.paymentMethod}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="cash">Efectivo</option>
                     <option value="transfer">Transferencia</option>
@@ -1338,7 +1585,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   </select>
                 </div>
                 
-                {/* Notas */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Notas Adicionales
@@ -1347,12 +1593,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     value={expenseFormData.notes}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Notas internas..."
                   />
                 </div>
                 
-                {/* Gasto recurrente */}
                 <div className="md:col-span-2">
                   <label className="inline-flex items-center">
                     <input
@@ -1365,7 +1610,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   </label>
                 </div>
                 
-                {/* Opciones de recurrencia */}
                 {expenseFormData.isRecurring && (
                   <>
                     <div>
@@ -1375,7 +1619,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                       <select
                         value={expenseFormData.recurringFrequency}
                         onChange={(e) => setExpenseFormData(prev => ({ ...prev, recurringFrequency: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       >
                         {expenseService.getRecurringFrequencies().map(freq => (
                           <option key={freq.value} value={freq.value}>
@@ -1393,7 +1637,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                         type="date"
                         value={expenseFormData.recurringEndDate}
                         onChange={(e) => setExpenseFormData(prev => ({ ...prev, recurringEndDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
                   </>
@@ -1402,7 +1646,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            {/* Footer del modal */}
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
               <button
                 onClick={() => {
@@ -1444,7 +1687,6 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default ExpensesManager;
-
 /*
 =============================================================================
 EXPENSES MANAGER COMPLETO
