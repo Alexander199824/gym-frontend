@@ -1,17 +1,17 @@
 // src/pages/dashboard/components/ExpensesManager.js
-// GESTOR DE GASTOS MEJORADO - TODAS las acciones SIEMPRE visibles
+// GESTOR DE GASTOS MEJORADO - Vista móvil optimizada
 // Autor: Alexander Echeverria
-// ✅ Botones Editar, Eliminar y Agregar SIEMPRE disponibles
+// ✅ Iconos apropiados + Responsive mejorado
 
 import React, { useState, useEffect } from 'react';
 import {
-  DollarSign, Plus, Search, Filter, Edit, RefreshCw, Calendar, Clock,
+  Plus, Search, Filter, Edit, RefreshCw, Calendar, Clock,
   AlertTriangle, CheckCircle, XCircle, Eye, Trash2, Check, X,
   User, TrendingUp, TrendingDown, Bell, BarChart3,
   FileText, Download, Upload, MoreHorizontal, Loader, RotateCcw,
   Receipt, Building, Zap, Settings, Users, Sparkles, Megaphone,
   Shield, FileCheck, Package, Ban, Grid3X3, List, ChevronDown, 
-  SlidersHorizontal, ChevronUp
+  SlidersHorizontal, ChevronUp, Wallet
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
@@ -75,7 +75,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     {
       id: 'expenses',
       title: 'Todos los Gastos',
-      icon: DollarSign,
+      icon: Receipt,
       description: 'Gestionar todos los gastos del gimnasio',
       dataLoaded: !loading,
       color: 'purple'
@@ -462,23 +462,23 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
   const viewStats = calculateViewStats();
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-4 md:space-y-6 relative">
       
       {/* HEADER */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <div>
-          <div className="flex items-center space-x-3 mb-2">
-            <DollarSign className="w-8 h-8 text-purple-500" />
-            <h1 className="text-3xl font-bold text-gray-900">
+          <div className="flex items-center space-x-2 md:space-x-3 mb-2">
+            <Wallet className="w-6 h-6 md:w-8 md:h-8 text-purple-500" />
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Gestión de Gastos
             </h1>
           </div>
-          <p className="text-gray-600 text-lg">
+          <p className="text-gray-600 text-sm md:text-lg">
             Administra todos los gastos operativos del gimnasio
           </p>
         </div>
         
-        <div className="flex items-center space-x-4 mt-4 lg:mt-0">
+        <div className="flex items-center space-x-3 md:space-x-4">
           <button
             onClick={refreshExpensesData}
             className="btn-secondary btn-sm"
@@ -488,32 +488,34 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
           </button>
           
           {hasUnsavedChanges && (
-            <div className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-              <AlertTriangle className="w-4 h-4 mr-1" />
-              Cambios sin guardar
+            <div className="flex items-center bg-yellow-100 text-yellow-800 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm">
+              <AlertTriangle className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+              <span className="hidden sm:inline">Cambios sin guardar</span>
+              <span className="sm:hidden">Sin guardar</span>
             </div>
           )}
         </div>
       </div>
       
       {/* NAVEGACIÓN */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="flex space-x-1 overflow-x-auto">
+      <div className="bg-white rounded-lg shadow-sm p-2 md:p-4">
+        <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
           {expenseSections.map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex items-center relative ${
+              className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex items-center relative ${
                 activeSection === section.id
                   ? `bg-${section.color}-100 text-${section.color}-700`
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
-              <section.icon className="w-4 h-4 mr-2" />
-              {section.title}
+              <section.icon className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">{section.title}</span>
+              <span className="sm:hidden">{section.title.split(' ')[0]}</span>
               
               {section.id === 'pending' && pendingExpenses.length > 0 && (
-                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                <span className="ml-1 md:ml-2 bg-red-500 text-white text-xs px-1.5 md:px-2 py-0.5 rounded-full">
                   {pendingExpenses.length}
                 </span>
               )}
@@ -523,60 +525,60 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
       </div>
       
       {/* CONTENIDO */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-3 md:p-6">
         
         {/* SECCIÓN: Todos los Gastos */}
         {activeSection === 'expenses' && (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             
             {/* ESTADÍSTICAS */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 md:p-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-900">{viewStats.pending}</div>
+                  <div className="text-xl md:text-2xl font-bold text-yellow-900">{viewStats.pending}</div>
                   <div className="text-xs text-yellow-600">Pendientes</div>
                 </div>
               </div>
               
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-2 md:p-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-900">{viewStats.approved}</div>
+                  <div className="text-xl md:text-2xl font-bold text-green-900">{viewStats.approved}</div>
                   <div className="text-xs text-green-600">Aprobados</div>
                 </div>
               </div>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 md:p-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-900">{viewStats.paid}</div>
+                  <div className="text-xl md:text-2xl font-bold text-blue-900">{viewStats.paid}</div>
                   <div className="text-xs text-blue-600">Pagados</div>
                 </div>
               </div>
               
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-2 md:p-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-red-900">{viewStats.rejected}</div>
+                  <div className="text-xl md:text-2xl font-bold text-red-900">{viewStats.rejected}</div>
                   <div className="text-xs text-red-600">Rechazados</div>
                 </div>
               </div>
               
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <div className="col-span-2 sm:col-span-1 bg-gray-50 border border-gray-200 rounded-lg p-2 md:p-3">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{totalExpenses}</div>
+                  <div className="text-xl md:text-2xl font-bold text-gray-900">{totalExpenses}</div>
                   <div className="text-xs text-gray-600">Total</div>
                 </div>
               </div>
             </div>
             
             {/* CONTROLES SUPERIORES */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h4 className="text-lg font-medium text-gray-900">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
+              <h4 className="text-base md:text-lg font-medium text-gray-900">
                 Gastos Registrados
               </h4>
               
               {/* BOTÓN CREAR - SIEMPRE VISIBLE */}
               <button
                 onClick={handleNewExpense}
-                className="btn-primary btn-sm w-full sm:w-auto"
+                className="btn-primary btn-sm w-full sm:w-auto text-sm"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Nuevo Gasto
@@ -586,16 +588,16 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
             {/* FILTROS */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               
-              <div className="p-4">
+              <div className="p-3 md:p-4">
                 {/* Búsqueda */}
-                <div className="relative mb-4">
+                <div className="relative mb-3 md:mb-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Buscar por título, proveedor o factura..."
+                    placeholder="Buscar gastos..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                    className="w-full pl-10 pr-10 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
                   />
                   {searchTerm && (
                     <button
@@ -611,31 +613,31 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   
                   {/* Panel móvil */}
                   <div className="sm:hidden">
-                    <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="grid grid-cols-2 gap-2 mb-3">
                       
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">Vista</label>
                         <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                           <button
                             onClick={() => setViewMode('grid')}
-                            className={`flex-1 p-2.5 flex items-center justify-center text-sm font-medium transition-colors ${
+                            className={`flex-1 p-2 flex items-center justify-center text-xs font-medium transition-colors ${
                               viewMode === 'grid'
                                 ? 'bg-purple-600 text-white'
                                 : 'bg-white text-gray-700 hover:bg-gray-50'
                             }`}
                           >
-                            <Grid3X3 className="w-4 h-4 mr-1" />
+                            <Grid3X3 className="w-3 h-3 mr-1" />
                             Cards
                           </button>
                           <button
                             onClick={() => setViewMode('list')}
-                            className={`flex-1 p-2.5 flex items-center justify-center text-sm font-medium transition-colors ${
+                            className={`flex-1 p-2 flex items-center justify-center text-xs font-medium transition-colors ${
                               viewMode === 'list'
                                 ? 'bg-purple-600 text-white'
                                 : 'bg-white text-gray-700 hover:bg-gray-50'
                             }`}
                           >
-                            <List className="w-4 h-4 mr-1" />
+                            <List className="w-3 h-3 mr-1" />
                             Lista
                           </button>
                         </div>
@@ -645,13 +647,13 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                         <label className="block text-xs font-medium text-gray-700 mb-1">Filtros</label>
                         <button
                           onClick={() => setShowMobileFilters(!showMobileFilters)}
-                          className={`w-full p-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center relative ${
+                          className={`w-full p-2 rounded-lg font-medium text-xs transition-all flex items-center justify-center relative ${
                             hasActiveFilters()
                               ? 'bg-purple-600 text-white'
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                         >
-                          <SlidersHorizontal className="w-4 h-4 mr-2" />
+                          <SlidersHorizontal className="w-3 h-3 mr-1" />
                           Filtros
                           {hasActiveFilters() && (
                             <div className="ml-2 w-2 h-2 bg-white rounded-full"></div>
@@ -663,7 +665,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     {hasActiveFilters() && !showMobileFilters && (
                       <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 mb-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-purple-700 font-medium">Filtros activos</span>
+                          <span className="text-xs text-purple-700 font-medium">Filtros activos</span>
                           <button
                             onClick={clearAllFilters}
                             className="text-xs text-purple-600 hover:text-purple-800 font-medium"
@@ -761,8 +763,8 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
               
               {/* Panel filtros móvil expandido */}
               {showMobileFilters && (
-                <div className="sm:hidden bg-gray-50 border-t border-gray-200 p-4">
-                  <div className="space-y-4">
+                <div className="sm:hidden bg-gray-50 border-t border-gray-200 p-3">
+                  <div className="space-y-3">
                     
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-medium text-gray-900">Filtros de búsqueda</h4>
@@ -775,11 +777,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Estado</label>
                       <select
                         value={selectedStatus}
                         onChange={(e) => setSelectedStatus(e.target.value)}
-                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white"
+                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
                       >
                         <option value="all">Todos los estados</option>
                         {statuses.map(status => (
@@ -791,11 +793,11 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Categoría</label>
                       <select
                         value={selectedCategory}
                         onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white"
+                        className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white"
                       >
                         <option value="all">Todas las categorías</option>
                         {categories.map(cat => (
@@ -806,40 +808,40 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Desde</label>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Desde</label>
                         <input
                           type="date"
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
-                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white"
+                          className="w-full text-xs border border-gray-300 rounded-lg px-2 py-2 bg-white"
                         />
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Hasta</label>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
                         <input
                           type="date"
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
-                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white"
+                          className="w-full text-xs border border-gray-300 rounded-lg px-2 py-2 bg-white"
                         />
                       </div>
                     </div>
                     
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                       {hasActiveFilters() && (
                         <button
                           onClick={clearAllFilters}
-                          className="flex-1 px-4 py-2.5 bg-gray-600 text-white rounded-lg font-medium text-sm"
+                          className="flex-1 px-3 py-2 bg-gray-600 text-white rounded-lg font-medium text-sm"
                         >
                           Limpiar
                         </button>
                       )}
                       <button
                         onClick={() => setShowMobileFilters(false)}
-                        className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg font-medium text-sm"
+                        className="flex-1 px-3 py-2 bg-purple-600 text-white rounded-lg font-medium text-sm"
                       >
                         Aplicar
                       </button>
@@ -879,28 +881,28 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
             {/* LISTA/GRID DE GASTOS */}
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader className="w-6 h-6 animate-spin text-purple-600 mr-2" />
-                <span className="text-gray-600">Cargando gastos...</span>
+                <Loader className="w-5 h-5 md:w-6 md:h-6 animate-spin text-purple-600 mr-2" />
+                <span className="text-gray-600 text-sm md:text-base">Cargando gastos...</span>
               </div>
             ) : expenses.length === 0 ? (
               <div className="text-center py-12">
-                <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay gastos</h3>
-                <p className="text-gray-600 mb-4">
+                <Receipt className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">No hay gastos</h3>
+                <p className="text-gray-600 text-sm md:text-base mb-4">
                   {hasActiveFilters()
                     ? 'No se encontraron gastos con los filtros aplicados'
                     : 'Comienza creando tu primer gasto'
                   }
                 </p>
-                <button onClick={handleNewExpense} className="btn-primary">
+                <button onClick={handleNewExpense} className="btn-primary text-sm">
                   <Plus className="w-4 h-4 mr-2" />
                   Crear Gasto
                 </button>
               </div>
             ) : (
               <div className={viewMode === 'grid' 
-                ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' 
-                : 'space-y-4'
+                ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6' 
+                : 'space-y-3 md:space-y-4'
               }>
                 {expenses.map((expense) => {
                   const CategoryIcon = getCategoryIcon(expense.category);
@@ -909,13 +911,13 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   const isExpanded = expandedCards.has(expense.id);
                   
                   return viewMode === 'grid' ? (
-                    // VISTA TARJETA - TODAS LAS ACCIONES VISIBLES
+                    // VISTA TARJETA - MÓVIL OPTIMIZADO
                     <div key={expense.id} className="bg-white border rounded-lg shadow-sm hover:shadow-lg transition-all">
                       
                       {/* Header con badge de estado */}
-                      <div className={`px-4 py-3 border-b bg-${statusColor}-50 border-${statusColor}-200`}>
+                      <div className={`px-3 md:px-4 py-2 md:py-3 border-b bg-${statusColor}-50 border-${statusColor}-200`}>
                         <div className="flex items-center justify-between">
-                          <span className={`text-sm font-medium text-${statusColor}-700`}>
+                          <span className={`text-xs md:text-sm font-medium text-${statusColor}-700`}>
                             {expense.status || 'pending'}
                           </span>
                           {expense.isRecurring && (
@@ -927,17 +929,17 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                         </div>
                       </div>
 
-                      <div className="p-6">
+                      <div className="p-3 md:p-6">
                         {/* Info principal */}
-                        <div className="flex items-start mb-4">
-                          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-3 flex-shrink-0">
-                            <CategoryIcon className="w-6 h-6 text-purple-600" />
+                        <div className="flex items-start mb-3 md:mb-4">
+                          <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-2 md:mr-3 flex-shrink-0">
+                            <CategoryIcon className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 mb-1 truncate">
+                            <h3 className="font-semibold text-sm md:text-base text-gray-900 mb-1 truncate">
                               {expense.title}
                             </h3>
-                            <p className="text-sm text-gray-500 truncate">
+                            <p className="text-xs md:text-sm text-gray-500 truncate">
                               {category?.label || expense.category}
                             </p>
                             {expense.vendor && (
@@ -949,20 +951,20 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                         </div>
                         
                         {/* Monto y fecha */}
-                        <div className="mb-4">
-                          <div className="text-2xl font-bold text-purple-600">
+                        <div className="mb-3 md:mb-4">
+                          <div className="text-xl md:text-2xl font-bold text-purple-600">
                             {expenseService.formatCurrency(expense.amount)}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs md:text-sm text-gray-500">
                             {formatDate(expense.expenseDate, 'dd/MM/yyyy')}
                           </div>
                         </div>
 
                         {/* Detalles expandibles */}
                         {isExpanded && (
-                          <div className="mb-4 space-y-2">
+                          <div className="mb-3 md:mb-4 space-y-2">
                             {expense.description && (
-                              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                              <div className="text-xs md:text-sm text-gray-600 bg-gray-50 p-2 rounded">
                                 <strong>Descripción:</strong> {expense.description}
                               </div>
                             )}
@@ -972,7 +974,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                               </div>
                             )}
                             {expense.notes && (
-                              <div className="text-sm text-gray-600 bg-yellow-50 p-2 rounded">
+                              <div className="text-xs md:text-sm text-gray-600 bg-yellow-50 p-2 rounded">
                                 <strong>Notas:</strong> {expense.notes}
                               </div>
                             )}
@@ -983,16 +985,16 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                         {(expense.description || expense.notes || expense.invoiceNumber) && (
                           <button
                             onClick={() => toggleCardExpand(expense.id)}
-                            className="w-full text-sm text-purple-600 hover:text-purple-800 flex items-center justify-center py-2 mb-3"
+                            className="w-full text-xs md:text-sm text-purple-600 hover:text-purple-800 flex items-center justify-center py-2 mb-2 md:mb-3"
                           >
                             {isExpanded ? (
                               <>
-                                <ChevronUp className="w-4 h-4 mr-1" />
+                                <ChevronUp className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                 Ver menos
                               </>
                             ) : (
                               <>
-                                <ChevronDown className="w-4 h-4 mr-1" />
+                                <ChevronDown className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                 Ver más
                               </>
                             )}
@@ -1005,9 +1007,9 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                           {/* Editar - SIEMPRE VISIBLE */}
                           <button
                             onClick={() => handleEditExpense(expense)}
-                            className="w-full btn-sm bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center"
+                            className="w-full btn-sm bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center text-xs md:text-sm"
                           >
-                            <Edit className="w-4 h-4 mr-2" />
+                            <Edit className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                             Editar Gasto
                           </button>
 
@@ -1016,16 +1018,16 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                             <div className="grid grid-cols-2 gap-2">
                               <button
                                 onClick={() => handleApproveExpense(expense.id)}
-                                className="btn-sm bg-green-600 hover:bg-green-700 text-white flex items-center justify-center"
+                                className="btn-sm bg-green-600 hover:bg-green-700 text-white flex items-center justify-center text-xs"
                               >
-                                <Check className="w-4 h-4 mr-1" />
+                                <Check className="w-3 h-3 mr-1" />
                                 Aprobar
                               </button>
                               <button
                                 onClick={() => handleRejectExpense(expense.id)}
-                                className="btn-sm bg-red-600 hover:bg-red-700 text-white flex items-center justify-center"
+                                className="btn-sm bg-red-600 hover:bg-red-700 text-white flex items-center justify-center text-xs"
                               >
-                                <X className="w-4 h-4 mr-1" />
+                                <X className="w-3 h-3 mr-1" />
                                 Rechazar
                               </button>
                             </div>
@@ -1035,74 +1037,74 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                           {(expense.status === 'pending' || expense.status === 'approved') && (
                             <button
                               onClick={() => handleCancelExpense(expense.id)}
-                              className="w-full btn-sm bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center"
+                              className="w-full btn-sm bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center text-xs md:text-sm"
                             >
-                              <Ban className="w-4 h-4 mr-2" />
-                              Cancelar Gasto
+                              <Ban className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                              Cancelar
                             </button>
                           )}
 
                           {/* Eliminar - SIEMPRE VISIBLE */}
                           <button
                             onClick={() => handleDeleteExpense(expense.id)}
-                            className="w-full btn-sm border-2 border-red-300 text-red-700 hover:bg-red-50 flex items-center justify-center"
+                            className="w-full btn-sm border-2 border-red-300 text-red-700 hover:bg-red-50 flex items-center justify-center text-xs md:text-sm"
                           >
-                            <Trash2 className="w-4 h-4 mr-2" />
+                            <Trash2 className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                             Eliminar
                           </button>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    // VISTA LISTA - TODAS LAS ACCIONES
-                    <div key={expense.id} className="bg-white border rounded-lg p-4 hover:shadow-md transition-all">
-                      <div className="flex items-center justify-between gap-4">
+                    // VISTA LISTA - MÓVIL OPTIMIZADO
+                    <div key={expense.id} className="bg-white border rounded-lg p-3 md:p-4 hover:shadow-md transition-all">
+                      <div className="flex items-center justify-between gap-2 md:gap-4">
                         
                         {/* Info principal */}
-                        <div className="flex items-center space-x-4 flex-1 min-w-0">
-                          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <CategoryIcon className="w-5 h-5 text-purple-600" />
+                        <div className="flex items-center space-x-2 md:space-x-4 flex-1 min-w-0">
+                          <div className="w-8 h-8 md:w-10 md:h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <CategoryIcon className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 truncate">
+                            <h3 className="font-semibold text-sm md:text-base text-gray-900 truncate">
                               {expense.title}
                             </h3>
-                            <p className="text-sm text-gray-500 truncate">
+                            <p className="text-xs md:text-sm text-gray-500 truncate">
                               {category?.label}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <div className="font-bold text-purple-600">
+                            <div className="font-bold text-sm md:text-base text-purple-600">
                               {expenseService.formatCurrency(expense.amount)}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-xs text-gray-500">
                               {formatDate(expense.expenseDate, 'dd/MM/yyyy')}
                             </div>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800 flex-shrink-0`}>
+                          <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800 flex-shrink-0 hidden sm:inline`}>
                             {expense.status}
                           </span>
                         </div>
                         
-                        {/* BOTONES DE ACCIÓN - TODOS VISIBLES */}
-                        <div className="flex items-center space-x-2 flex-shrink-0">
+                        {/* BOTONES DE ACCIÓN */}
+                        <div className="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
                           
                           {/* Aprobar/Rechazar */}
                           {expense.status === 'pending' && (
                             <>
                               <button
                                 onClick={() => handleApproveExpense(expense.id)}
-                                className="p-2 text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
+                                className="p-1.5 md:p-2 text-white bg-green-600 hover:bg-green-700 rounded transition-colors"
                                 title="Aprobar"
                               >
-                                <Check className="w-4 h-4" />
+                                <Check className="w-3 h-3 md:w-4 md:h-4" />
                               </button>
                               <button
                                 onClick={() => handleRejectExpense(expense.id)}
-                                className="p-2 text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+                                className="p-1.5 md:p-2 text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
                                 title="Rechazar"
                               >
-                                <X className="w-4 h-4" />
+                                <X className="w-3 h-3 md:w-4 md:h-4" />
                               </button>
                             </>
                           )}
@@ -1110,30 +1112,30 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                           {/* Editar - SIEMPRE VISIBLE */}
                           <button
                             onClick={() => handleEditExpense(expense)}
-                            className="p-2 text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                            className="p-1.5 md:p-2 text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
                             title="Editar"
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-3 h-3 md:w-4 md:h-4" />
                           </button>
 
                           {/* Cancelar */}
                           {(expense.status === 'pending' || expense.status === 'approved') && (
                             <button
                               onClick={() => handleCancelExpense(expense.id)}
-                              className="p-2 text-white bg-orange-600 hover:bg-orange-700 rounded transition-colors"
+                              className="p-1.5 md:p-2 text-white bg-orange-600 hover:bg-orange-700 rounded transition-colors hidden sm:block"
                               title="Cancelar"
                             >
-                              <Ban className="w-4 h-4" />
+                              <Ban className="w-3 h-3 md:w-4 md:h-4" />
                             </button>
                           )}
                           
                           {/* Eliminar - SIEMPRE VISIBLE */}
                           <button
                             onClick={() => handleDeleteExpense(expense.id)}
-                            className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                            className="p-1.5 md:p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded transition-colors"
                             title="Eliminar"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
                           </button>
                         </div>
                       </div>
@@ -1145,9 +1147,9 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
             
             {/* PAGINACIÓN */}
             {totalPages > 1 && !loading && expenses.length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="bg-white rounded-lg border border-gray-200 p-3 md:p-4">
                 <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-                  <div className="text-sm text-gray-700">
+                  <div className="text-xs md:text-sm text-gray-700">
                     Página <span className="font-medium">{currentPage}</span> de{' '}
                     <span className="font-medium">{totalPages}</span>
                   </div>
@@ -1156,19 +1158,19 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
+                      className="px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
                     >
                       ← Anterior
                     </button>
                     
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs md:text-sm text-gray-500">
                       {currentPage} / {totalPages}
                     </div>
                     
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
+                      className="px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50"
                     >
                       Siguiente →
                     </button>
@@ -1181,37 +1183,37 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         
         {/* SECCIÓN: Pendientes */}
         {activeSection === 'pending' && (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-base md:text-lg font-medium text-gray-900">
                 Gastos Pendientes de Aprobación
               </h3>
-              <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">
+              <span className="bg-yellow-100 text-yellow-800 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium">
                 {pendingExpenses.length} pendientes
               </span>
             </div>
             
             {pendingExpenses.length === 0 ? (
               <div className="text-center py-12">
-                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">¡Todo al día!</h3>
-                <p className="text-gray-600">No hay gastos pendientes de aprobación</p>
+                <CheckCircle className="w-10 h-10 md:w-12 md:h-12 text-green-500 mx-auto mb-4" />
+                <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">¡Todo al día!</h3>
+                <p className="text-gray-600 text-sm md:text-base">No hay gastos pendientes de aprobación</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 {pendingExpenses.map((expense) => {
                   const CategoryIcon = getCategoryIcon(expense.category);
                   const category = categories.find(c => c.value === expense.category);
                   
                   return (
-                    <div key={expense.id} className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                    <div key={expense.id} className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3 md:p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-start">
-                          <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
-                            <CategoryIcon className="w-5 h-5 text-yellow-600" />
+                          <div className="w-8 h-8 md:w-10 md:h-10 bg-yellow-100 rounded-lg flex items-center justify-center mr-2 md:mr-3">
+                            <CategoryIcon className="w-4 h-4 md:w-5 md:h-5 text-yellow-600" />
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-xs md:text-sm font-medium text-gray-900">
                               {expense.title}
                             </div>
                             <div className="text-xs text-gray-600 mt-1">
@@ -1222,7 +1224,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                       </div>
                       
                       <div className="mb-3">
-                        <div className="text-2xl font-bold text-gray-900">
+                        <div className="text-xl md:text-2xl font-bold text-gray-900">
                           {expenseService.formatCurrency(expense.amount)}
                         </div>
                         <div className="text-xs text-gray-600">
@@ -1231,7 +1233,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                       </div>
                       
                       {expense.description && (
-                        <p className="text-sm text-gray-600 mb-3">
+                        <p className="text-xs md:text-sm text-gray-600 mb-3">
                           {expense.description}
                         </p>
                       )}
@@ -1239,16 +1241,16 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleApproveExpense(expense.id)}
-                          className="flex-1 btn-sm bg-green-600 hover:bg-green-700 text-white"
+                          className="flex-1 btn-sm bg-green-600 hover:bg-green-700 text-white text-xs"
                         >
-                          <Check className="w-4 h-4 mr-1" />
+                          <Check className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                           Aprobar
                         </button>
                         <button
                           onClick={() => handleRejectExpense(expense.id)}
-                          className="flex-1 btn-sm bg-red-600 hover:bg-red-700 text-white"
+                          className="flex-1 btn-sm bg-red-600 hover:bg-red-700 text-white text-xs"
                         >
-                          <X className="w-4 h-4 mr-1" />
+                          <X className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                           Rechazar
                         </button>
                       </div>
@@ -1262,40 +1264,40 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         
         {/* SECCIÓN: Recurrentes */}
         {activeSection === 'recurring' && (
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">
+              <h3 className="text-base md:text-lg font-medium text-gray-900">
                 Gastos Recurrentes Programados
               </h3>
               <button
                 onClick={handleProcessRecurring}
-                className="btn-primary btn-sm"
+                className="btn-primary btn-sm text-xs md:text-sm"
               >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Procesar Ahora
+                <RotateCcw className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                Procesar
               </button>
             </div>
             
             {recurringExpenses.length === 0 ? (
               <div className="text-center py-12">
-                <RotateCcw className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Sin gastos recurrentes</h3>
-                <p className="text-gray-600">No hay gastos programados próximamente</p>
+                <RotateCcw className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-base md:text-lg font-medium text-gray-900 mb-2">Sin gastos recurrentes</h3>
+                <p className="text-gray-600 text-sm md:text-base">No hay gastos programados próximamente</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
                 {recurringExpenses.map((expense) => {
                   const CategoryIcon = getCategoryIcon(expense.category);
                   const category = categories.find(c => c.value === expense.category);
                   
                   return (
-                    <div key={expense.id} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div key={expense.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
                       <div className="flex items-start mb-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                          <CategoryIcon className="w-5 h-5 text-blue-600" />
+                        <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-2 md:mr-3">
+                          <CategoryIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                         </div>
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-xs md:text-sm font-medium text-gray-900">
                             {expense.title}
                           </div>
                           <div className="text-xs text-gray-600 mt-1">
@@ -1305,7 +1307,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                       </div>
                       
                       <div className="mb-3">
-                        <div className="text-xl font-bold text-gray-900">
+                        <div className="text-lg md:text-xl font-bold text-gray-900">
                           {expenseService.formatCurrency(expense.amount)}
                         </div>
                         <div className="text-xs text-gray-600">
@@ -1318,9 +1320,9 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                       
                       <button
                         onClick={() => handleEditExpense(expense)}
-                        className="w-full btn-sm btn-secondary"
+                        className="w-full btn-sm btn-secondary text-xs md:text-sm"
                       >
-                        <Edit className="w-4 h-4 mr-1" />
+                        <Edit className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                         Editar
                       </button>
                     </div>
@@ -1333,45 +1335,45 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         
         {/* SECCIÓN: Reportes */}
         {activeSection === 'reports' && (
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900">
+          <div className="space-y-4 md:space-y-6">
+            <h3 className="text-base md:text-lg font-medium text-gray-900">
               Reportes y Estadísticas
             </h3>
             
             {!statsData ? (
               <div className="text-center py-12">
-                <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">Cargando estadísticas...</p>
+                <BarChart3 className="w-10 h-10 md:w-12 md:h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 text-sm md:text-base">Cargando estadísticas...</p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6">
                 
                 {statsData.summary && (
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <div className="text-sm text-purple-600 mb-1">Total Gastos</div>
-                      <div className="text-2xl font-bold text-purple-900">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 md:p-4">
+                      <div className="text-xs md:text-sm text-purple-600 mb-1">Total Gastos</div>
+                      <div className="text-xl md:text-2xl font-bold text-purple-900">
                         {statsData.summary.totalExpenses || 0}
                       </div>
                     </div>
                     
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="text-sm text-green-600 mb-1">Monto Total</div>
-                      <div className="text-2xl font-bold text-green-900">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 md:p-4">
+                      <div className="text-xs md:text-sm text-green-600 mb-1">Monto Total</div>
+                      <div className="text-xl md:text-2xl font-bold text-green-900">
                         {expenseService.formatCurrency(statsData.summary.totalAmount || 0)}
                       </div>
                     </div>
                     
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="text-sm text-blue-600 mb-1">Promedio</div>
-                      <div className="text-2xl font-bold text-blue-900">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
+                      <div className="text-xs md:text-sm text-blue-600 mb-1">Promedio</div>
+                      <div className="text-xl md:text-2xl font-bold text-blue-900">
                         {expenseService.formatCurrency(statsData.summary.averageAmount || 0)}
                       </div>
                     </div>
                     
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <div className="text-sm text-yellow-600 mb-1">Máximo</div>
-                      <div className="text-2xl font-bold text-yellow-900">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 md:p-4">
+                      <div className="text-xs md:text-sm text-yellow-600 mb-1">Máximo</div>
+                      <div className="text-xl md:text-2xl font-bold text-yellow-900">
                         {expenseService.formatCurrency(statsData.summary.maxAmount || 0)}
                       </div>
                     </div>
@@ -1379,8 +1381,8 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                 )}
                 
                 {statsData.breakdown && (
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h4 className="text-md font-medium text-gray-900 mb-4">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6">
+                    <h4 className="text-sm md:text-md font-medium text-gray-900 mb-4">
                       Gastos por Categoría
                     </h4>
                     <div className="space-y-3">
@@ -1391,16 +1393,16 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                         return (
                           <div key={index} className="flex items-center justify-between">
                             <div className="flex items-center">
-                              <CategoryIcon className="w-5 h-5 text-gray-600 mr-2" />
-                              <span className="text-sm text-gray-700">
+                              <CategoryIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-600 mr-2" />
+                              <span className="text-xs md:text-sm text-gray-700">
                                 {category?.label || item.category}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-3">
-                              <span className="text-sm text-gray-500">
+                            <div className="flex items-center space-x-2 md:space-x-3">
+                              <span className="text-xs md:text-sm text-gray-500">
                                 {item.count} gastos
                               </span>
-                              <span className="text-sm font-semibold text-gray-900">
+                              <span className="text-xs md:text-sm font-semibold text-gray-900">
                                 {expenseService.formatCurrency(item.total)}
                               </span>
                             </div>
@@ -1412,21 +1414,21 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                 )}
                 
                 {statsData.vendors && statsData.vendors.length > 0 && (
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h4 className="text-md font-medium text-gray-900 mb-4">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 md:p-6">
+                    <h4 className="text-sm md:text-md font-medium text-gray-900 mb-4">
                       Top Proveedores
                     </h4>
                     <div className="space-y-3">
                       {statsData.vendors.map((vendor, index) => (
                         <div key={index} className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                              <span className="text-sm font-bold text-purple-600">
+                            <div className="w-7 h-7 md:w-8 md:h-8 bg-purple-100 rounded-full flex items-center justify-center mr-2 md:mr-3">
+                              <span className="text-xs md:text-sm font-bold text-purple-600">
                                 #{index + 1}
                               </span>
                             </div>
                             <div>
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-xs md:text-sm font-medium text-gray-900">
                                 {vendor.vendor}
                               </div>
                               <div className="text-xs text-gray-500">
@@ -1434,7 +1436,7 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                               </div>
                             </div>
                           </div>
-                          <div className="text-sm font-semibold text-gray-900">
+                          <div className="text-xs md:text-sm font-semibold text-gray-900">
                             {expenseService.formatCurrency(vendor.totalSpent)}
                           </div>
                         </div>
@@ -1448,14 +1450,14 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
         )}
       </div>
       
-      {/* MODAL CREAR/EDITAR */}
+      {/* MODAL CREAR/EDITAR - OPTIMIZADO MÓVIL */}
       {showExpenseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] md:max-h-screen overflow-y-auto">
             
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-base md:text-lg font-medium text-gray-900">
                   {editingExpense ? 'Editar Gasto' : 'Nuevo Gasto'}
                 </h3>
                 <button
@@ -1466,42 +1468,42 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
               </div>
             </div>
             
-            <div className="px-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="px-4 md:px-6 py-3 md:py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Título del Gasto *
                   </label>
                   <input
                     type="text"
                     value={expenseFormData.title}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, title: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Ej: Pago de alquiler mensual"
                   />
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Descripción
                   </label>
                   <textarea
                     value={expenseFormData.description}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, description: e.target.value }))}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Detalles adicionales del gasto..."
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Monto (Q) *
                   </label>
                   <input
@@ -1510,18 +1512,18 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     min="0"
                     value={expenseFormData.amount}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Categoría *
                   </label>
                   <select
                     value={expenseFormData.category}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     {categories.map(cat => (
                       <option key={cat.value} value={cat.value}>
@@ -1532,51 +1534,51 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Proveedor
                   </label>
                   <input
                     type="text"
                     value={expenseFormData.vendor}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, vendor: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Nombre del proveedor"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Número de Factura
                   </label>
                   <input
                     type="text"
                     value={expenseFormData.invoiceNumber}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, invoiceNumber: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Ej: F-001234"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Fecha del Gasto *
                   </label>
                   <input
                     type="date"
                     value={expenseFormData.expenseDate}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, expenseDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Método de Pago
                   </label>
                   <select
                     value={expenseFormData.paymentMethod}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="cash">Efectivo</option>
                     <option value="transfer">Transferencia</option>
@@ -1586,14 +1588,14 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                 </div>
                 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                     Notas Adicionales
                   </label>
                   <textarea
                     value={expenseFormData.notes}
                     onChange={(e) => setExpenseFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Notas internas..."
                   />
                 </div>
@@ -1606,20 +1608,20 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                       onChange={(e) => setExpenseFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
                       className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                     />
-                    <span className="ml-2 text-sm text-gray-700">Este es un gasto recurrente</span>
+                    <span className="ml-2 text-xs md:text-sm text-gray-700">Este es un gasto recurrente</span>
                   </label>
                 </div>
                 
                 {expenseFormData.isRecurring && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                         Frecuencia
                       </label>
                       <select
                         value={expenseFormData.recurringFrequency}
                         onChange={(e) => setExpenseFormData(prev => ({ ...prev, recurringFrequency: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       >
                         {expenseService.getRecurringFrequencies().map(freq => (
                           <option key={freq.value} value={freq.value}>
@@ -1630,14 +1632,14 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
                         Fecha de Finalización (opcional)
                       </label>
                       <input
                         type="date"
                         value={expenseFormData.recurringEndDate}
                         onChange={(e) => setExpenseFormData(prev => ({ ...prev, recurringEndDate: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       />
                     </div>
                   </>
@@ -1646,14 +1648,14 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+            <div className="px-4 md:px-6 py-3 md:py-4 border-t border-gray-200 flex justify-end space-x-2 md:space-x-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => {
                   setShowExpenseModal(false);
                   setEditingExpense(null);
                   resetExpenseForm();
                 }}
-                className="btn-secondary"
+                className="btn-secondary text-xs md:text-sm px-3 md:px-4"
                 disabled={saving}
               >
                 Cancelar
@@ -1662,17 +1664,17 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
               <button
                 onClick={handleSaveExpense}
                 disabled={saving}
-                className="btn-primary"
+                className="btn-primary text-xs md:text-sm px-3 md:px-4"
               >
                 {saving ? (
                   <>
-                    <Loader className="w-4 h-4 animate-spin mr-2" />
+                    <Loader className="w-3 h-3 md:w-4 md:h-4 animate-spin mr-1 md:mr-2" />
                     Guardando...
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    {editingExpense ? 'Actualizar' : 'Crear'} Gasto
+                    <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                    {editingExpense ? 'Actualizar' : 'Crear'}
                   </>
                 )}
               </button>
