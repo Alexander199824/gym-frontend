@@ -354,6 +354,7 @@ function AppContent() {
           <div>Checkout: Invitados + autenticados</div>
           <div>Moneda: Quetzales guatemaltecos</div>
           <div>Gastos: Sistema completo</div>
+          <div>Reportes: Gráficas y exportación</div>
           <div>Horarios: Gestor independiente</div>
           <div>Web: Gestor separado</div>
           <div>Inventario: Sistema modular</div>

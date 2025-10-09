@@ -17,6 +17,7 @@ import inventoryService from './inventoryService.js';
 import statisticsService from './statisticsService.js';
 import testimonialService from './testimonialService.js';
 import expenseService from './expenseService.js';
+import reportService from './reportService.js';
 
 // ================================
 // 🏠 CLASE PRINCIPAL DEL SERVICIO API
@@ -37,6 +38,7 @@ class ApiService extends BaseService {
     this.statisticsService = statisticsService; 
     this.testimonialService = testimonialService;
     this.expenseService = expenseService;
+    this.reportService = reportService;
 
   }
 
@@ -1090,6 +1092,115 @@ formatTestimonialDataForAPI(testimonialData) {
     return this.scheduleService.calculateLocalStats(schedule);
   }
 
+
+    // ================================
+    // MÉTODOS DE REPORTES - DELEGACIÓN A reportService
+    // ================================
+
+    /**
+     * Obtener reporte financiero completo
+     * @param {Object} params - Parámetros de filtro (startDate, endDate, period)
+     * @returns {Promise<Object>} Reporte financiero con ingresos, gastos y gráficas
+     */
+    async getFinancialReport(params = {}) {
+      return this.reportService.getFinancialReport(params);
+    }
+
+    /**
+     * Obtener reporte de usuarios
+     * @param {Object} params - Parámetros de filtro
+     * @returns {Promise<Object>} Estadísticas de usuarios
+     */
+    async getUserReport(params = {}) {
+      return this.reportService.getUserReport(params);
+    }
+
+    /**
+     * Obtener reporte de membresías
+     * @param {Object} params - Parámetros de filtro
+     * @returns {Promise<Object>} Análisis de membresías
+     */
+    async getMembershipReport(params = {}) {
+      return this.reportService.getMembershipReport(params);
+    }
+
+    /**
+     * Obtener reporte de rendimiento (KPIs)
+     * @param {Object} params - Parámetros de filtro
+     * @returns {Promise<Object>} Métricas de rendimiento
+     */
+    async getPerformanceReport(params = {}) {
+      return this.reportService.getPerformanceReport(params);
+    }
+
+    /**
+     * Generar datos para gráficas
+     * @param {Object} reportData - Datos del reporte
+     * @returns {Object} Datos formateados para gráficas
+     */
+    generateChartData(reportData) {
+      return this.reportService.generateChartData(reportData);
+    }
+
+    /**
+     * Generar tendencias diarias
+     * @param {Object} reportData - Datos del reporte
+     * @returns {Object} Datos de tendencias diarias
+     */
+    generateDailyTrends(reportData) {
+      return this.reportService.generateDailyTrends(reportData);
+    }
+
+    /**
+     * Exportar reporte a PDF
+     * @param {string} reportType - Tipo de reporte
+     * @param {Object} reportData - Datos del reporte
+     * @param {Object} params - Parámetros adicionales
+     * @returns {Promise<Object>} Resultado de la exportación
+     */
+    async exportReportToPDF(reportType, reportData, params) {
+      return this.reportService.exportToPDF(reportType, reportData, params);
+    }
+
+    /**
+     * Exportar reporte a Excel
+     * @param {string} reportType - Tipo de reporte
+     * @param {Object} reportData - Datos del reporte
+     * @param {Object} params - Parámetros adicionales
+     * @returns {Promise<Object>} Resultado de la exportación
+     */
+    async exportReportToExcel(reportType, reportData, params) {
+      return this.reportService.exportToExcel(reportType, reportData, params);
+    }
+
+    /**
+     * Exportar reporte a JSON
+     * @param {string} reportType - Tipo de reporte
+     * @param {Object} reportData - Datos del reporte
+     * @returns {Object} Resultado de la exportación
+     */
+    exportReportToJSON(reportType, reportData) {
+      return this.reportService.exportToJSON(reportType, reportData);
+    }
+
+    /**
+     * Exportar reporte a CSV
+     * @param {string} reportType - Tipo de reporte
+     * @param {Object} reportData - Datos del reporte
+     * @returns {Object} Resultado de la exportación
+     */
+    exportReportToCSV(reportType, reportData) {
+      return this.reportService.exportToCSV(reportType, reportData);
+    }
+
+    /**
+     * Invalidar cache de reportes
+     */
+    invalidateReportCache() {
+      return this.reportService.invalidateCache();
+    }
+
+
   // ================================
   // 🛠️ MÉTODOS DE DEBUGGING Y UTILIDADES
   // ================================
@@ -1112,12 +1223,17 @@ formatTestimonialDataForAPI(testimonialData) {
       // Debug pagos
       console.log('💰 Testing Payment System...');
       results.systems.payments = await this.paymentService.debugPaymentSystem();
+
+       
+      console.log('📊 Testing Report System...');  
+      results.systems.reports = await this.reportService.healthCheck();
       
       // Health checks
       console.log('🏥 Running Health Checks...');
       results.systems.health = {
         inventory: await this.inventoryService.healthCheck(),
-        payments: await this.paymentService.paymentHealthCheck()
+        payments: await this.paymentService.paymentHealthCheck(),
+        reports: await this.reportService.healthCheck()
       };
       
       console.log('\n✅ DEBUG COMPLETE');
@@ -1144,7 +1260,8 @@ formatTestimonialDataForAPI(testimonialData) {
         schedule: 'ScheduleService',
         inventory: this.inventoryService.constructor.name,
         statistics: this.statisticsService.constructor.name,
-        expenses: this.expenseService.constructor.name
+        expenses: this.expenseService.constructor.name,
+        reports: 'ReportService'
       },
       features: [
         'Autenticación JWT',
@@ -1156,9 +1273,12 @@ formatTestimonialDataForAPI(testimonialData) {
         'Sistema de inventario completo',
         'Ventas locales y transferencias',
         'Gestión de productos con imágenes',
+        'Reportes financieros completos',
         'Reportes financieros',
         'Estadísticas dinámicas personalizables', 
         'Gestión completa de gastos operativos',
+        'Exportación de reportes a PDF/Excel',  
+        'Gráficas interactivas de análisis',
         'Cache inteligente',
         'Debug integrado'
       ],
@@ -1173,7 +1293,8 @@ formatTestimonialDataForAPI(testimonialData) {
         management: '/api/store/management/*',
         localSales: '/api/local-sales/*',
         statistics: '/api/statistics/*',
-        expenses: '/api/expenses/*' 
+        expenses: '/api/expenses/*',
+        reports: '/api/reports/*'
       }
     };
   }
@@ -1200,6 +1321,7 @@ formatTestimonialDataForAPI(testimonialData) {
 
       // Health check de gastos  
       results.services.expenses = await this.expenseService.healthCheck();
+      results.services.reports = await this.reportService.healthCheck();
       
       // Determinar estado general
       const healthyServices = Object.values(results.services).filter(s => s.healthy).length;

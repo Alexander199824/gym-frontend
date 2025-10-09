@@ -1,7 +1,6 @@
 // src/services/statisticsService.js
 // Autor: Alexander Echeverria
 // FUNCIÓN: Servicio completo para gestión de estadísticas dinámicas
-// ARCHIVO COMPLETO - Copiar y pegar directamente
 
 import { BaseService } from './baseService.js';
 

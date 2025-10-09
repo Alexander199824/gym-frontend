@@ -1,310 +1,150 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/ReportsManager.js
+// VERSIÓN MEJORADA: Responsive + Gráficas + Exportación funcional
 
 import React, { useState, useEffect } from 'react';
 import {
   BarChart3, PieChart, TrendingUp, TrendingDown, Calendar, Download,
-  Coins, Users, CreditCard, Clock, Filter, RefreshCw, Eye,
-  FileText, Calculator, Target, Award, Activity, AlertCircle,
-  CheckCircle, ArrowUp, ArrowDown, Loader, X, Settings
+  Coins, Users, CreditCard, Clock, RefreshCw, Eye, FileText,
+  Calculator, Target, Award, Activity, AlertCircle, CheckCircle,
+  ArrowUp, ArrowDown, Loader, DollarSign, ShoppingCart, Building,
+  Percent, ChevronDown, ChevronUp
 } from 'lucide-react';
+import {
+  LineChart, Line, BarChart, Bar, PieChart as RechartsPie, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
-import apiService from '../../../services/apiService';
+import reportService from '../../../services/reportService';
 
-const ReportsManager = ({ onSave, onUnsavedChanges }) => {
+const ReportsManager = () => {
   const { user: currentUser, hasPermission } = useAuth();
   const { showSuccess, showError, formatDate, formatCurrency, isMobile } = useApp();
   
   // Estados principales
   const [loading, setLoading] = useState(true);
   const [activeReport, setActiveReport] = useState('financial');
+  const [activeTab, setActiveTab] = useState('summary');
+  const [exporting, setExporting] = useState(false);
   
-  // Estados de filtros de fecha
+  // Estados de filtros
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
     period: 'month'
   });
   
-  // Estados de datos de reportes
-  const [financialReport, setFinancialReport] = useState({});
-  const [userReport, setUserReport] = useState({});
-  const [membershipReport, setMembershipReport] = useState({});
-  const [performanceReport, setPerformanceReport] = useState({});
+  // Estados de datos
+  const [reportData, setReportData] = useState(null);
+  const [chartData, setChartData] = useState(null);
   
-  // Tipos de reportes disponibles
+  // Colores para gráficas
+  const COLORS = {
+    primary: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'],
+    success: '#10b981',
+    danger: '#ef4444',
+    warning: '#f59e0b',
+    info: '#3b82f6'
+  };
+  
+  // Tipos de reportes
   const reportTypes = [
     {
       id: 'financial',
-      title: 'Reporte Financiero',
-      description: 'Ingresos, gastos y análisis financiero',
+      title: 'Financiero',
+      description: 'Ingresos, gastos y utilidades',
       icon: Coins,
-      color: 'bg-green-100 text-green-800 border-green-200',
+      color: 'from-green-500 to-emerald-600',
       permission: 'view_financial_reports'
     },
     {
       id: 'users',
-      title: 'Reporte de Usuarios',
-      description: 'Estadísticas y análisis de usuarios',
+      title: 'Usuarios',
+      description: 'Estadísticas de clientes',
       icon: Users,
-      color: 'bg-blue-100 text-blue-800 border-blue-200',
+      color: 'from-blue-500 to-indigo-600',
       permission: 'view_user_reports'
     },
     {
       id: 'memberships',
-      title: 'Reporte de Membresías',
-      description: 'Análisis de membresías y renovaciones',
+      title: 'Membresías',
+      description: 'Análisis de membresías',
       icon: CreditCard,
-      color: 'bg-purple-100 text-purple-800 border-purple-200',
+      color: 'from-purple-500 to-pink-600',
       permission: 'view_membership_reports'
     },
     {
       id: 'performance',
-      title: 'Reporte de Rendimiento',
-      description: 'KPIs y métricas de rendimiento',
+      title: 'Rendimiento',
+      description: 'KPIs y métricas clave',
       icon: TrendingUp,
-      color: 'bg-orange-100 text-orange-800 border-orange-200',
+      color: 'from-orange-500 to-red-600',
       permission: 'view_performance_reports'
     }
   ];
   
   // Períodos predefinidos
-  const periodOptions = [
-    { value: 'today', label: 'Hoy', days: 0 },
-    { value: 'week', label: 'Esta semana', days: 7 },
-    { value: 'month', label: 'Este mes', days: 30 },
-    { value: 'quarter', label: 'Este trimestre', days: 90 },
-    { value: 'year', label: 'Este año', days: 365 },
-    { value: 'custom', label: 'Personalizado', days: null }
+  const periods = [
+    { value: 'today', label: 'Hoy' },
+    { value: 'week', label: 'Semana' },
+    { value: 'month', label: 'Mes' },
+    { value: 'quarter', label: 'Trimestre' },
+    { value: 'year', label: 'Año' },
+    { value: 'custom', label: 'Personalizado' }
   ];
   
-  // CARGAR DATOS DE REPORTES
+  // CARGAR DATOS
   const loadReportData = async () => {
     try {
       setLoading(true);
       
-      const params = {
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        period: dateRange.period
-      };
-      
-      console.log('Cargando datos del reporte con parámetros:', params);
-      
-      // Cargar datos según el reporte activo
+      let response;
       switch (activeReport) {
         case 'financial':
-          await loadFinancialReport(params);
+          response = await reportService.getFinancialReport(dateRange);
+          if (response.success && response.data) {
+            setReportData(response.data);
+            setChartData(reportService.generateChartData(response.data));
+          }
           break;
+          
         case 'users':
-          await loadUserReport(params);
+          response = await reportService.getUserReport(dateRange);
+          setReportData(response.data);
           break;
+          
         case 'memberships':
-          await loadMembershipReport(params);
+          response = await reportService.getMembershipReport(dateRange);
+          setReportData(response.data);
           break;
+          
         case 'performance':
-          await loadPerformanceReport(params);
+          response = await reportService.getPerformanceReport(dateRange);
+          setReportData(response.data);
           break;
-        default:
-          await loadFinancialReport(params);
       }
       
     } catch (error) {
-      console.error('Error al cargar datos del reporte:', error);
+      console.error('Error cargando reporte:', error);
       showError('Error al cargar datos del reporte');
     } finally {
       setLoading(false);
     }
   };
   
-  // CARGAR REPORTE FINANCIERO
-  const loadFinancialReport = async (params) => {
-    try {
-      const response = await apiService.get('/payments/reports/enhanced', { params });
-      const reportData = response.data || response;
-      
-      setFinancialReport({
-        totalIncome: reportData.totalIncome || 0,
-        incomeBySource: reportData.incomeBySource || [],
-        paymentMethodStats: reportData.paymentMethodStats || [],
-        dailyTrend: reportData.dailyTrend || [],
-        topProducts: reportData.topProducts || [],
-        previousPeriodIncome: reportData.previousPeriodIncome || 0,
-        growthPercentage: reportData.growthPercentage || 0
-      });
-      
-    } catch (error) {
-      console.error('Error al cargar reporte financiero:', error);
-      
-      try {
-        const basicReport = await apiService.getPaymentReports(params);
-        setFinancialReport({
-          totalIncome: basicReport.totalIncome || 0,
-          incomeBySource: [
-            { source: 'Membresías', total: basicReport.totalIncome * 0.7, percentage: '70' },
-            { source: 'Pagos Diarios', total: basicReport.totalIncome * 0.3, percentage: '30' }
-          ],
-          paymentMethodStats: basicReport.incomeByMethod || [],
-          dailyTrend: [],
-          topProducts: [],
-          previousPeriodIncome: 0,
-          growthPercentage: 0
-        });
-      } catch (fallbackError) {
-        console.error('Error en reporte financiero de respaldo:', fallbackError);
-        setFinancialReport({});
-      }
-    }
-  };
-  
-  // CARGAR REPORTE DE USUARIOS
-  const loadUserReport = async (params) => {
-    try {
-      const userStats = await apiService.getUserStats();
-      
-      setUserReport({
-        totalUsers: userStats.totalUsers || 0,
-        activeUsers: userStats.totalActiveUsers || 0,
-        newUsersThisMonth: userStats.newUsersThisMonth || 0,
-        roleDistribution: userStats.roleStats || {},
-        userGrowth: userStats.userGrowth || [],
-        topUsers: userStats.topUsers || [],
-        userActivity: userStats.userActivity || {}
-      });
-      
-    } catch (error) {
-      console.error('Error al cargar reporte de usuarios:', error);
-      setUserReport({
-        totalUsers: 0,
-        activeUsers: 0,
-        newUsersThisMonth: 0,
-        roleDistribution: {},
-        userGrowth: [],
-        topUsers: [],
-        userActivity: {}
-      });
-    }
-  };
-  
-  // CARGAR REPORTE DE MEMBRESÍAS
-  const loadMembershipReport = async (params) => {
-    try {
-      const membershipStats = await apiService.getMembershipStats();
-      
-      setMembershipReport({
-        totalMemberships: membershipStats.totalMemberships || 0,
-        activeMemberships: membershipStats.activeMemberships || 0,
-        expiredMemberships: membershipStats.expiredMemberships || 0,
-        expiringSoon: membershipStats.expiringSoon || 0,
-        membershipTypes: membershipStats.membershipTypes || [],
-        renewalRate: membershipStats.renewalRate || 0,
-        averageMembershipValue: membershipStats.averageMembershipValue || 0
-      });
-      
-    } catch (error) {
-      console.error('Error al cargar reporte de membresías:', error);
-      setMembershipReport({
-        totalMemberships: 0,
-        activeMemberships: 0,
-        expiredMemberships: 0,
-        expiringSoon: 0,
-        membershipTypes: [],
-        renewalRate: 0,
-        averageMembershipValue: 0
-      });
-    }
-  };
-  
-  // CARGAR REPORTE DE RENDIMIENTO
-  const loadPerformanceReport = async (params) => {
-    try {
-      const [userStats, membershipStats, paymentStats] = await Promise.all([
-        apiService.getUserStats().catch(() => ({})),
-        apiService.getMembershipStats().catch(() => ({})),
-        apiService.getPaymentReports(params).catch(() => ({}))
-      ]);
-      
-      const performanceData = {
-        customerAcquisition: userStats.newUsersThisMonth || 0,
-        membershipConversion: membershipStats.activeMemberships && userStats.totalUsers 
-          ? ((membershipStats.activeMemberships / userStats.totalUsers) * 100).toFixed(1)
-          : 0,
-        averageRevenue: paymentStats.averagePayment || 0,
-        customerRetention: 85,
-        occupancyRate: 72,
-        equipmentUtilization: 68,
-        staffProductivity: 90,
-        customerSatisfaction: 4.2,
-        kpis: [
-          {
-            name: 'Ingresos Mensuales',
-            value: formatCurrency(paymentStats.totalIncome || 0),
-            change: '+12%',
-            trend: 'up',
-            target: formatCurrency((paymentStats.totalIncome || 0) * 1.15),
-            status: 'good'
-          },
-          {
-            name: 'Nuevos Clientes',
-            value: userStats.newUsersThisMonth || 0,
-            change: '+8%',
-            trend: 'up',
-            target: (userStats.newUsersThisMonth || 0) + 5,
-            status: 'good'
-          },
-          {
-            name: 'Retención',
-            value: '85%',
-            change: '-2%',
-            trend: 'down',
-            target: '90%',
-            status: 'warning'
-          },
-          {
-            name: 'Ocupación',
-            value: '72%',
-            change: '+5%',
-            trend: 'up',
-            target: '80%',
-            status: 'good'
-          }
-        ]
-      };
-      
-      setPerformanceReport(performanceData);
-      
-    } catch (error) {
-      console.error('Error al cargar reporte de rendimiento:', error);
-      setPerformanceReport({
-        customerAcquisition: 0,
-        membershipConversion: 0,
-        averageRevenue: 0,
-        customerRetention: 0,
-        occupancyRate: 0,
-        equipmentUtilization: 0,
-        staffProductivity: 0,
-        customerSatisfaction: 0,
-        kpis: []
-      });
-    }
-  };
-  
-  // Cargar datos al montar y cuando cambien filtros
   useEffect(() => {
     loadReportData();
   }, [activeReport, dateRange]);
   
-  // Manejar cambio de período
+  // CAMBIAR PERÍODO
   const handlePeriodChange = (period) => {
     const today = new Date();
     let startDate = new Date();
-    let endDate = new Date();
     
     switch (period) {
       case 'today':
         startDate = today;
-        endDate = today;
         break;
       case 'week':
         startDate.setDate(today.getDate() - 7);
@@ -326,139 +166,646 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
     if (period !== 'custom') {
       setDateRange({
         startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
+        endDate: today.toISOString().split('T')[0],
         period
       });
     }
   };
   
-  // Exportar reporte
-  const handleExportReport = async (format = 'pdf') => {
+  // EXPORTAR REPORTE
+  const handleExport = async (format) => {
     try {
-      const params = {
-        ...dateRange,
-        reportType: activeReport,
-        format
-      };
+      setExporting(true);
       
-      showSuccess(`Exportando reporte en formato ${format.toUpperCase()}...`);
+      if (format === 'pdf') {
+        await reportService.exportToPDF(activeReport, reportData, dateRange);
+        showSuccess('Reporte PDF descargado exitosamente');
+      } else if (format === 'excel') {
+        await reportService.exportToExcel(activeReport, reportData, dateRange);
+        showSuccess('Reporte Excel descargado exitosamente');
+      } else if (format === 'json') {
+        await reportService.exportToJSON(activeReport, reportData);
+        showSuccess('Reporte JSON descargado exitosamente');
+      }
       
     } catch (error) {
-      console.error('Error al exportar reporte:', error);
+      console.error('Error exportando:', error);
       showError('Error al exportar reporte');
-    }
-  };
-  
-  // Obtener color para tendencias
-  const getTrendColor = (trend) => {
-    switch (trend) {
-      case 'up': return 'text-green-600';
-      case 'down': return 'text-red-600';
-      default: return 'text-gray-600';
-    }
-  };
-  
-  // Obtener ícono para tendencias
-  const getTrendIcon = (trend) => {
-    switch (trend) {
-      case 'up': return ArrowUp;
-      case 'down': return ArrowDown;
-      default: return Activity;
+    } finally {
+      setExporting(false);
     }
   };
 
+  // COMPONENTE: Card de Métrica
+  const MetricCard = ({ title, value, icon: Icon, color, change, trend }) => (
+    <div className={`bg-gradient-to-br ${color} rounded-xl p-4 sm:p-6 text-white shadow-lg hover:shadow-xl transition-all`}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-xs sm:text-sm text-white/80 font-medium mb-1">{title}</p>
+          <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2">{value}</h3>
+          {change && (
+            <div className="flex items-center text-xs sm:text-sm">
+              {trend === 'up' ? (
+                <ArrowUp className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              ) : (
+                <ArrowDown className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              )}
+              <span>{change}</span>
+            </div>
+          )}
+        </div>
+        <div className="bg-white/20 p-2 sm:p-3 rounded-lg">
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8" />
+        </div>
+      </div>
+    </div>
+  );
+
+  // COMPONENTE: Reporte Financiero
+  const FinancialReport = () => {
+    if (!reportData) return null;
+    
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        
+        {/* TABS */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="flex overflow-x-auto">
+            {['summary', 'charts', 'breakdown'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 min-w-[100px] px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+                  activeTab === tab
+                    ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {tab === 'summary' && '📊 Resumen'}
+                {tab === 'charts' && '📈 Gráficas'}
+                {tab === 'breakdown' && '💰 Desglose'}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* RESUMEN */}
+        {activeTab === 'summary' && (
+          <div className="space-y-4 sm:space-y-6">
+            
+            {/* Métricas Principales */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <MetricCard
+                title="Ingresos Totales"
+                value={formatCurrency(reportData.totalIncome)}
+                icon={DollarSign}
+                color="from-green-500 to-emerald-600"
+                change="+12%"
+                trend="up"
+              />
+              <MetricCard
+                title="Gastos Totales"
+                value={formatCurrency(reportData.expenses.total)}
+                icon={ShoppingCart}
+                color="from-red-500 to-pink-600"
+                change="+5%"
+                trend="up"
+              />
+              <MetricCard
+                title="Utilidad Neta"
+                value={formatCurrency(reportData.netProfit)}
+                icon={Calculator}
+                color={reportData.netProfit >= 0 ? 'from-blue-500 to-indigo-600' : 'from-orange-500 to-red-600'}
+                change={reportData.netProfit >= 0 ? '+8%' : '-3%'}
+                trend={reportData.netProfit >= 0 ? 'up' : 'down'}
+              />
+              <MetricCard
+                title="Margen de Ganancia"
+                value={`${reportData.profitMargin.toFixed(1)}%`}
+                icon={Percent}
+                color="from-purple-500 to-pink-600"
+                change={reportData.profitMargin >= 30 ? '+3%' : '-2%'}
+                trend={reportData.profitMargin >= 30 ? 'up' : 'down'}
+              />
+            </div>
+            
+            {/* Resumen por Fuente */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-base sm:text-lg font-semibold text-green-900">Membresías</h4>
+                  <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                </div>
+                <p className="text-2xl sm:text-3xl font-bold text-green-900 mb-1">
+                  {formatCurrency(reportData.memberships.total)}
+                </p>
+                <p className="text-xs sm:text-sm text-green-700">
+                  {reportData.memberships.count} pagos
+                </p>
+              </div>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-base sm:text-lg font-semibold text-blue-900">Ventas Online</h4>
+                  <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                </div>
+                <p className="text-2xl sm:text-3xl font-bold text-blue-900 mb-1">
+                  {formatCurrency(reportData.onlineOrders.total)}
+                </p>
+                <p className="text-xs sm:text-sm text-blue-700">
+                  {reportData.onlineOrders.count} órdenes
+                </p>
+              </div>
+              
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-base sm:text-lg font-semibold text-purple-900">Ventas Locales</h4>
+                  <Building className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                </div>
+                <p className="text-2xl sm:text-3xl font-bold text-purple-900 mb-1">
+                  {formatCurrency(reportData.localSales.total)}
+                </p>
+                <p className="text-xs sm:text-sm text-purple-700">
+                  {reportData.localSales.count} ventas
+                </p>
+              </div>
+            </div>
+            
+          </div>
+        )}
+        
+        {/* GRÁFICAS */}
+        {activeTab === 'charts' && chartData && (
+          <div className="space-y-4 sm:space-y-6">
+            
+            {/* Composición de Ingresos */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                Composición de Ingresos
+              </h4>
+              <div className="h-64 sm:h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPie>
+                    <Pie
+                      data={chartData.incomeComposition.labels.map((label, i) => ({
+                        name: label,
+                        value: chartData.incomeComposition.datasets[0].data[i]
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                      outerRadius={isMobile ? 60 : 100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {chartData.incomeComposition.labels.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS.primary[index % COLORS.primary.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                  </RechartsPie>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            
+            {/* Ingresos vs Gastos */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                Ingresos vs Gastos
+              </h4>
+              <div className="h-64 sm:h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartData.incomeVsExpenses.labels.map((label, i) => ({
+                      name: label,
+                      Ingresos: chartData.incomeVsExpenses.datasets[0].data[i],
+                      Gastos: chartData.incomeVsExpenses.datasets[1].data[i]
+                    }))}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={isMobile ? -45 : 0} textAnchor={isMobile ? 'end' : 'middle'} height={isMobile ? 80 : 60} />
+                    <YAxis />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                    <Bar dataKey="Ingresos" fill={COLORS.success} />
+                    <Bar dataKey="Gastos" fill={COLORS.danger} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            
+            {/* Composición de Gastos */}
+            {chartData.expenseComposition && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                  Distribución de Gastos
+                </h4>
+                <div className="h-64 sm:h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie
+                        data={chartData.expenseComposition.labels.map((label, i) => ({
+                          name: label,
+                          value: chartData.expenseComposition.datasets[0].data[i]
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                        outerRadius={isMobile ? 60 : 100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {chartData.expenseComposition.labels.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={chartData.expenseComposition.datasets[0].backgroundColor[index]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+            
+            {/* Métodos de Pago */}
+            {chartData.paymentMethods && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                  Métodos de Pago
+                </h4>
+                <div className="h-64 sm:h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie
+                        data={chartData.paymentMethods.labels.map((label, i) => ({
+                          name: label,
+                          value: chartData.paymentMethods.datasets[0].data[i]
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                        outerRadius={isMobile ? 60 : 100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {chartData.paymentMethods.labels.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS.primary[index % COLORS.primary.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatCurrency(value)} />
+                      <Legend />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+            
+          </div>
+        )}
+        
+        {/* DESGLOSE */}
+        {activeTab === 'breakdown' && (
+          <div className="space-y-4 sm:space-y-6">
+            
+            {/* Desglose de Membresías */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                Desglose de Membresías
+              </h4>
+              <div className="space-y-3">
+                {Object.entries(reportData.memberships.breakdown).map(([method, amount]) => (
+                  <div key={method} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-900 capitalize text-sm sm:text-base">
+                      {method === 'cash' ? 'Efectivo' : method === 'card' ? 'Tarjeta' : 'Transferencia'}
+                    </span>
+                    <span className="font-bold text-gray-900 text-sm sm:text-base">
+                      {formatCurrency(amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Desglose de Ventas Online */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                Desglose de Ventas Online
+              </h4>
+              <div className="space-y-3">
+                {Object.entries(reportData.onlineOrders.breakdown).map(([type, amount]) => (
+                  <div key={type} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-900 capitalize text-sm sm:text-base">
+                      {type === 'pickup' ? 'Recoger' : type === 'delivery' ? 'Domicilio' : 'Express'}
+                    </span>
+                    <span className="font-bold text-gray-900 text-sm sm:text-base">
+                      {formatCurrency(amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Desglose de Gastos */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+                Desglose de Gastos
+              </h4>
+              <div className="space-y-3">
+                {Object.entries(reportData.expenses.breakdown)
+                  .filter(([_, amount]) => amount > 0)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([category, amount]) => (
+                    <div key={category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">
+                        {reportService.getCategoryLabel(category)}
+                      </span>
+                      <span className="font-bold text-gray-900 text-sm sm:text-base">
+                        {formatCurrency(amount)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+            
+          </div>
+        )}
+        
+      </div>
+    );
+  };
+
+  // COMPONENTE: Reporte de Usuarios
+  const UserReport = () => {
+    if (!reportData) return null;
+    
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            title="Total Usuarios"
+            value={reportData.totalUsers}
+            icon={Users}
+            color="from-blue-500 to-indigo-600"
+          />
+          <MetricCard
+            title="Usuarios Activos"
+            value={reportData.activeUsers}
+            icon={CheckCircle}
+            color="from-green-500 to-emerald-600"
+          />
+          <MetricCard
+            title="Nuevos Este Mes"
+            value={reportData.newUsersThisMonth}
+            icon={TrendingUp}
+            color="from-purple-500 to-pink-600"
+          />
+          <MetricCard
+            title="Tipos de Rol"
+            value={Object.keys(reportData.roleDistribution).length}
+            icon={Award}
+            color="from-orange-500 to-red-600"
+          />
+        </div>
+        
+        {/* Distribución por Roles */}
+        {Object.keys(reportData.roleDistribution).length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">
+              Distribución por Roles
+            </h4>
+            <div className="space-y-3">
+              {Object.entries(reportData.roleDistribution).map(([role, count]) => (
+                <div key={role} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <div className={`w-3 h-3 rounded mr-3 ${
+                      role === 'admin' ? 'bg-purple-500' :
+                      role === 'colaborador' ? 'bg-blue-500' : 'bg-green-500'
+                    }`} />
+                    <span className="font-medium text-gray-900 capitalize text-sm sm:text-base">
+                      {role === 'admin' ? 'Administradores' : 
+                       role === 'colaborador' ? 'Personal' : 'Clientes'}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-gray-900 text-sm sm:text-base">{count}</div>
+                    <div className="text-xs text-gray-500">
+                      {reportData.totalUsers > 0 ? Math.round((count / reportData.totalUsers) * 100) : 0}%
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // COMPONENTE: Reporte de Membresías
+  const MembershipReport = () => {
+    if (!reportData) return null;
+    
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            title="Total Membresías"
+            value={reportData.totalMemberships}
+            icon={CreditCard}
+            color="from-purple-500 to-pink-600"
+          />
+          <MetricCard
+            title="Activas"
+            value={reportData.activeMemberships}
+            icon={CheckCircle}
+            color="from-green-500 to-emerald-600"
+          />
+          <MetricCard
+            title="Vencidas"
+            value={reportData.expiredMemberships}
+            icon={AlertCircle}
+            color="from-red-500 to-pink-600"
+          />
+          <MetricCard
+            title="Por Vencer"
+            value={reportData.expiringSoon}
+            icon={Clock}
+            color="from-yellow-500 to-orange-600"
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+            <div className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+              {reportData.renewalRate}%
+            </div>
+            <div className="text-sm text-gray-600">Tasa de Renovación</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // COMPONENTE: Reporte de Rendimiento
+  const PerformanceReport = () => {
+    if (!reportData) return null;
+    
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        
+        {/* KPIs */}
+        {reportData.kpis && reportData.kpis.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {reportData.kpis.map((kpi, index) => (
+              <div
+                key={index}
+                className={`rounded-xl p-4 sm:p-6 border-2 ${
+                  kpi.status === 'good' ? 'bg-green-50 border-green-200' :
+                  kpi.status === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+                  'bg-red-50 border-red-200'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-xs sm:text-sm font-medium text-gray-900">{kpi.name}</h5>
+                  {kpi.trend === 'up' ? (
+                    <ArrowUp className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <ArrowDown className="w-4 h-4 text-red-600" />
+                  )}
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
+                  {kpi.value}
+                </div>
+                <div className="text-xs sm:text-sm text-gray-600">
+                  {kpi.change}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Métricas Adicionales */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-6 text-center">
+            <div className="text-2xl sm:text-3xl font-bold text-blue-900 mb-2">
+              {reportData.occupancyRate}%
+            </div>
+            <div className="text-xs sm:text-sm text-blue-700">Tasa de Ocupación</div>
+          </div>
+          
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 sm:p-6 text-center">
+            <div className="text-2xl sm:text-3xl font-bold text-green-900 mb-2">
+              {reportData.customerRetention}%
+            </div>
+            <div className="text-xs sm:text-sm text-green-700">Retención de Clientes</div>
+          </div>
+          
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 sm:p-6 text-center">
+            <div className="text-2xl sm:text-3xl font-bold text-purple-900 mb-2">
+              {reportData.customerSatisfaction}/5
+            </div>
+            <div className="text-xs sm:text-sm text-purple-700">Satisfacción</div>
+          </div>
+        </div>
+        
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
       
       {/* ENCABEZADO */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-            <BarChart3 className="w-6 h-6 mr-2 text-indigo-600" />
+          <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 flex items-center">
+            <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 mr-2 text-indigo-600" />
             Reportes y Análisis
           </h3>
-          <p className="text-gray-600 mt-1">
-            Análisis detallado del rendimiento y métricas del gimnasio
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
+            Análisis detallado del rendimiento
           </p>
         </div>
         
-        <div className="flex items-center space-x-3 mt-4 lg:mt-0">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             onClick={() => loadReportData()}
             className="btn-secondary btn-sm"
             disabled={loading}
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
+            <span className="hidden sm:inline">Actualizar</span>
           </button>
           
           <button
-            onClick={() => handleExportReport('pdf')}
+            onClick={() => handleExport('pdf')}
             className="btn-primary btn-sm"
+            disabled={exporting}
           >
             <Download className="w-4 h-4 mr-2" />
-            Exportar PDF
+            <span className="hidden sm:inline">PDF</span>
           </button>
           
           <button
-            onClick={() => handleExportReport('excel')}
+            onClick={() => handleExport('excel')}
             className="btn-secondary btn-sm"
+            disabled={exporting}
           >
             <Download className="w-4 h-4 mr-2" />
-            Exportar Excel
+            <span className="hidden sm:inline">Excel</span>
           </button>
         </div>
       </div>
       
-      {/* NAVEGACIÓN DE REPORTES */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {reportTypes.map((report) => {
-            if (!hasPermission(report.permission)) return null;
-            
-            const ReportIcon = report.icon;
-            const isActive = activeReport === report.id;
-            
-            return (
-              <button
-                key={report.id}
-                onClick={() => setActiveReport(report.id)}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  isActive 
-                    ? report.color + ' border-current'
-                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                }`}
-              >
-                <div className="flex items-start">
-                  <ReportIcon className="w-8 h-8 mr-3 flex-shrink-0" />
-                  <div className="text-left">
-                    <h4 className="font-medium text-sm">{report.title}</h4>
-                    <p className="text-xs opacity-75 mt-1">{report.description}</p>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+      {/* TIPOS DE REPORTES */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {reportTypes.map((report) => {
+          if (!hasPermission(report.permission)) return null;
+          
+          const ReportIcon = report.icon;
+          const isActive = activeReport === report.id;
+          
+          return (
+            <button
+              key={report.id}
+              onClick={() => setActiveReport(report.id)}
+              className={`p-4 rounded-xl border-2 transition-all text-left ${
+                isActive 
+                  ? `bg-gradient-to-br ${report.color} text-white border-transparent shadow-lg`
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-md'
+              }`}
+            >
+              <ReportIcon className="w-6 h-6 sm:w-8 sm:h-8 mb-2" />
+              <h4 className="font-semibold text-sm sm:text-base">{report.title}</h4>
+              <p className={`text-xs mt-1 ${isActive ? 'text-white/80' : 'text-gray-500'}`}>
+                {report.description}
+              </p>
+            </button>
+          );
+        })}
       </div>
       
       {/* FILTROS DE FECHA */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:space-x-4 space-y-3 lg:space-y-0">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-4">
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-gray-400" />
             <span className="text-sm font-medium text-gray-700">Período:</span>
           </div>
           
           <div className="flex flex-wrap gap-2">
-            {periodOptions.map((option) => (
+            {periods.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handlePeriodChange(option.value)}
-                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
                   dateRange.period === option.value
-                    ? 'bg-indigo-100 text-indigo-700 font-medium'
+                    ? 'bg-indigo-600 text-white font-medium'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -468,19 +815,19 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
           </div>
           
           {dateRange.period === 'custom' && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <input
                 type="date"
                 value={dateRange.startDate}
                 onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                className="px-3 py-1 text-sm border border-gray-300 rounded"
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
               />
               <span className="text-gray-500">a</span>
               <input
                 type="date"
                 value={dateRange.endDate}
                 onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                className="px-3 py-1 text-sm border border-gray-300 rounded"
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
               />
             </div>
           )}
@@ -489,379 +836,25 @@ const ReportsManager = ({ onSave, onUnsavedChanges }) => {
       </div>
       
       {/* CONTENIDO DEL REPORTE */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader className="w-6 h-6 animate-spin text-indigo-600 mr-2" />
-            <span className="text-gray-600">Cargando reporte...</span>
-          </div>
-        ) : (
-          <>
-            {/* REPORTE FINANCIERO */}
-            {activeReport === 'financial' && (
-              <div className="p-6 space-y-6">
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-green-900">
-                          {formatCurrency(financialReport.totalIncome || 0)}
-                        </div>
-                        <div className="text-sm text-green-600">Ingresos Totales</div>
-                      </div>
-                      <div className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold text-lg">
-                        Q
-                      </div>
-                    </div>
-                    {financialReport.growthPercentage !== undefined && (
-                      <div className={`text-sm mt-2 ${
-                        financialReport.growthPercentage >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {financialReport.growthPercentage >= 0 ? '+' : ''}{financialReport.growthPercentage}% vs período anterior
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-blue-900">
-                          {financialReport.paymentMethodStats?.length || 0}
-                        </div>
-                        <div className="text-sm text-blue-600">Métodos de Pago</div>
-                      </div>
-                      <CreditCard className="w-8 h-8 text-blue-600" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-purple-900">
-                          {financialReport.incomeBySource?.length || 0}
-                        </div>
-                        <div className="text-sm text-purple-600">Fuentes de Ingreso</div>
-                      </div>
-                      <PieChart className="w-8 h-8 text-purple-600" />
-                    </div>
-                  </div>
-                </div>
-                
-                {financialReport.incomeBySource && financialReport.incomeBySource.length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-4">Ingresos por Fuente</h4>
-                    <div className="space-y-3">
-                      {financialReport.incomeBySource.map((source, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <span className="font-medium text-gray-900">{source.source}</span>
-                            <span className="text-sm text-gray-500 ml-2">({source.count} transacciones)</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold text-gray-900">{formatCurrency(source.total)}</div>
-                            <div className="text-sm text-gray-500">{source.percentage}%</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {financialReport.paymentMethodStats && financialReport.paymentMethodStats.length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-4">Ingresos por Método de Pago</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {financialReport.paymentMethodStats.map((method, index) => (
-                        <div key={index} className="bg-gray-50 rounded-lg p-4">
-                          <div className="text-center">
-                            <div className="text-xl font-bold text-gray-900">
-                              {formatCurrency(method.total)}
-                            </div>
-                            <div className="text-sm text-gray-600 capitalize">
-                              {method.method === 'cash' ? 'Efectivo' : 
-                               method.method === 'card' ? 'Tarjeta' : 
-                               method.method === 'transfer' ? 'Transferencia' : method.method}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {method.count} transacciones
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {financialReport.topProducts && financialReport.topProducts.length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-4">Productos Más Vendidos</h4>
-                    <div className="space-y-2">
-                      {financialReport.topProducts.map((product, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center">
-                            <span className="w-6 h-6 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center text-sm font-medium mr-3">
-                              {index + 1}
-                            </span>
-                            <span className="font-medium text-gray-900">{product.name}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold text-gray-900">{formatCurrency(product.totalRevenue)}</div>
-                            <div className="text-sm text-gray-500">{product.totalSold} vendidos</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-              </div>
-            )}
-            
-            {/* REPORTE DE USUARIOS */}
-            {activeReport === 'users' && (
-              <div className="p-6 space-y-6">
-                
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-blue-900">
-                          {userReport.totalUsers || 0}
-                        </div>
-                        <div className="text-sm text-blue-600">Total Usuarios</div>
-                      </div>
-                      <Users className="w-8 h-8 text-blue-600" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-green-900">
-                          {userReport.activeUsers || 0}
-                        </div>
-                        <div className="text-sm text-green-600">Usuarios Activos</div>
-                      </div>
-                      <CheckCircle className="w-8 h-8 text-green-600" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-purple-900">
-                          {userReport.newUsersThisMonth || 0}
-                        </div>
-                        <div className="text-sm text-purple-600">Nuevos Este Mes</div>
-                      </div>
-                      <TrendingUp className="w-8 h-8 text-purple-600" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-orange-900">
-                          {Object.keys(userReport.roleDistribution || {}).length}
-                        </div>
-                        <div className="text-sm text-orange-600">Tipos de Rol</div>
-                      </div>
-                      <Award className="w-8 h-8 text-orange-600" />
-                    </div>
-                  </div>
-                </div>
-                
-                {userReport.roleDistribution && Object.keys(userReport.roleDistribution).length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-4">Distribución por Roles</h4>
-                    <div className="space-y-3">
-                      {Object.entries(userReport.roleDistribution).map(([role, count]) => (
-                        <div key={role} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center">
-                            <div className={`w-4 h-4 rounded mr-3 ${
-                              role === 'admin' ? 'bg-purple-500' :
-                              role === 'colaborador' ? 'bg-blue-500' : 'bg-green-500'
-                            }`} />
-                            <span className="font-medium text-gray-900 capitalize">
-                              {role === 'admin' ? 'Administradores' : 
-                               role === 'colaborador' ? 'Personal' : 'Clientes'}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold text-gray-900">{count}</div>
-                            <div className="text-sm text-gray-500">
-                              {userReport.totalUsers > 0 ? Math.round((count / userReport.totalUsers) * 100) : 0}%
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-              </div>
-            )}
-            
-            {/* REPORTE DE MEMBRESÍAS */}
-            {activeReport === 'memberships' && (
-              <div className="p-6 space-y-6">
-                
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-purple-900">
-                          {membershipReport.totalMemberships || 0}
-                        </div>
-                        <div className="text-sm text-purple-600">Total Membresías</div>
-                      </div>
-                      <CreditCard className="w-8 h-8 text-purple-600" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-green-900">
-                          {membershipReport.activeMemberships || 0}
-                        </div>
-                        <div className="text-sm text-green-600">Activas</div>
-                      </div>
-                      <CheckCircle className="w-8 h-8 text-green-600" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-red-900">
-                          {membershipReport.expiredMemberships || 0}
-                        </div>
-                        <div className="text-sm text-red-600">Vencidas</div>
-                      </div>
-                      <AlertCircle className="w-8 h-8 text-red-600" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-2xl font-bold text-yellow-900">
-                          {membershipReport.expiringSoon || 0}
-                        </div>
-                        <div className="text-sm text-yellow-600">Por Vencer</div>
-                      </div>
-                      <Clock className="w-8 h-8 text-yellow-600" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-gray-900">
-                        {membershipReport.renewalRate || 0}%
-                      </div>
-                      <div className="text-sm text-gray-600">Tasa de Renovación</div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-gray-900">
-                        {formatCurrency(membershipReport.averageMembershipValue || 0)}
-                      </div>
-                      <div className="text-sm text-gray-600">Valor Promedio</div>
-                    </div>
-                  </div>
-                </div>
-                
-              </div>
-            )}
-            
-            {/* REPORTE DE RENDIMIENTO */}
-            {activeReport === 'performance' && (
-              <div className="p-6 space-y-6">
-                
-                {performanceReport.kpis && performanceReport.kpis.length > 0 && (
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-4">KPIs Principales</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {performanceReport.kpis.map((kpi, index) => {
-                        const TrendIcon = getTrendIcon(kpi.trend);
-                        const trendColor = getTrendColor(kpi.trend);
-                        
-                        return (
-                          <div key={index} className={`rounded-lg p-4 border-2 ${
-                            kpi.status === 'good' ? 'bg-green-50 border-green-200' :
-                            kpi.status === 'warning' ? 'bg-yellow-50 border-yellow-200' :
-                            'bg-red-50 border-red-200'
-                          }`}>
-                            <div className="flex items-center justify-between mb-2">
-                              <h5 className="text-sm font-medium text-gray-900">{kpi.name}</h5>
-                              <TrendIcon className={`w-4 h-4 ${trendColor}`} />
-                            </div>
-                            <div className="text-2xl font-bold text-gray-900 mb-1">
-                              {kpi.value}
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className={trendColor}>{kpi.change}</span>
-                              <span className="text-gray-500">Meta: {kpi.target}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-900">
-                        {performanceReport.occupancyRate || 0}%
-                      </div>
-                      <div className="text-sm text-blue-600">Tasa de Ocupación</div>
-                      <div className="text-xs text-blue-500 mt-1">Promedio diario</div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-900">
-                        {performanceReport.customerRetention || 0}%
-                      </div>
-                      <div className="text-sm text-green-600">Retención de Clientes</div>
-                      <div className="text-xs text-green-500 mt-1">Últimos 3 meses</div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-900">
-                        {performanceReport.customerSatisfaction || 0}/5
-                      </div>
-                      <div className="text-sm text-purple-600">Satisfacción</div>
-                      <div className="text-xs text-purple-500 mt-1">Promedio de reseñas</div>
-                    </div>
-                  </div>
-                </div>
-                
-              </div>
-            )}
-          </>
-        )}
-        
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader className="w-6 h-6 animate-spin text-indigo-600 mr-2" />
+          <span className="text-gray-600">Cargando reporte...</span>
+        </div>
+      ) : (
+        <>
+          {activeReport === 'financial' && <FinancialReport />}
+          {activeReport === 'users' && <UserReport />}
+          {activeReport === 'memberships' && <MembershipReport />}
+          {activeReport === 'performance' && <PerformanceReport />}
+        </>
+      )}
       
     </div>
   );
 };
 
 export default ReportsManager;
-
 /*
  * COMPONENTE: ReportsManager
  * AUTOR: Alexander Echeverria
