@@ -18,6 +18,7 @@ import statisticsService from './statisticsService.js';
 import testimonialService from './testimonialService.js';
 import expenseService from './expenseService.js';
 import reportService from './reportService.js';
+import membershipManagementService from './membershipManagementService.js';
 
 // ================================
 // 🏠 CLASE PRINCIPAL DEL SERVICIO API
@@ -39,6 +40,7 @@ class ApiService extends BaseService {
     this.testimonialService = testimonialService;
     this.expenseService = expenseService;
     this.reportService = reportService;
+    this.membershipManagementService = membershipManagementService;
 
   }
 
@@ -462,56 +464,131 @@ formatTestimonialDataForAPI(testimonialData) {
     return this.userService.getUserStats(currentUserRole);
   }
   
-  // 🎫 MÉTODOS DE MEMBRESÍAS
-  async getMemberships(params = {}) {
-    return this.userService.getMemberships(params);
-  }
-  
-  async getMembershipStats() {
-    return this.userService.getMembershipStats();
-  }
-  
-  /**
- * Obtener membresías vencidas (solo para staff)
- * @param {number} days - Días desde el vencimiento (0 = hoy)
- */
-async getExpiredMemberships(days = 0) {
-  try {
-    console.log(`📊 MembershipService: Obteniendo membresías vencidas (días: ${days})...`);
-    
-    const response = await apiService.get('/api/memberships/expired', {
-      params: { days }
-    });
-    
-    console.log(`✅ ${response.data?.memberships?.length || 0} membresías vencidas obtenidas`);
-    return response;
-    
-  } catch (error) {
-    console.error('❌ MembershipService: Error obteniendo membresías vencidas:', error);
-    throw error;
-  }
-}
+  // ================================
+  // 💳 MÉTODOS DE GESTIÓN DE MEMBRESÍAS gestor panel
+  // Delegación a membershipManagementService
+  // ================================
 
-/**
- * Obtener membresías próximas a vencer (solo para staff)
- * @param {number} days - Días antes del vencimiento (7 = próximos 7 días)
- */
-async getExpiringSoonMemberships(days = 7) {
-  try {
-    console.log(`📊 MembershipService: Obteniendo membresías por vencer (días: ${days})...`);
-    
-    const response = await apiService.get('/api/memberships/expiring-soon', {
-      params: { days }
-    });
-    
-    console.log(`✅ ${response.data?.memberships?.length || 0} membresías por vencer obtenidas`);
-    return response;
-    
-  } catch (error) {
-    console.error('❌ MembershipService: Error obteniendo membresías por vencer:', error);
-    throw error;
+  /**
+   * 1. Obtener lista de membresías con filtros y paginación
+   */
+  async getMemberships(params = {}) {
+    return this.membershipManagementService.getMemberships(params);
   }
-}
+
+  /**
+   * 2. Obtener membresía por ID
+   */
+  async getMembershipById(membershipId) {
+    return this.membershipManagementService.getMembershipById(membershipId);
+  }
+
+  /**
+   * 3. Obtener estadísticas generales de membresías
+   */
+  async getMembershipStats() {
+    return this.membershipManagementService.getStatistics();
+  }
+
+  /**
+   * 4. Obtener membresías vencidas
+   */
+  async getExpiredMemberships(days = 0) {
+    return this.membershipManagementService.getExpiredMemberships(days);
+  }
+
+  /**
+   * 5. Obtener membresías próximas a vencer
+   */
+  async getExpiringSoonMemberships(days = 7) {
+    return this.membershipManagementService.getExpiringSoonMemberships(days);
+  }
+
+  /**
+   * 6. Obtener planes de membresía disponibles
+   */
+  async getMembershipPlans() {
+    return this.membershipManagementService.getPlans();
+  }
+
+  /**
+   * 7. Crear nueva membresía
+   */
+  async createMembership(membershipData) {
+    return this.membershipManagementService.createMembership(membershipData);
+  }
+
+  /**
+   * 8. Actualizar membresía existente
+   */
+  async updateMembership(membershipId, updates) {
+    return this.membershipManagementService.updateMembership(membershipId, updates);
+  }
+
+  /**
+   * 9. Renovar membresía
+   */
+  async renewMembership(membershipId, renewalData = {}) {
+    return this.membershipManagementService.renewMembership(membershipId, renewalData);
+  }
+
+  /**
+   * 10. Cancelar membresía
+   */
+  async cancelMembership(membershipId, reason = '') {
+    return this.membershipManagementService.cancelMembership(membershipId, reason);
+  }
+
+  /**
+   * 11. Eliminar membresía (solo admin)
+   */
+  async deleteMembership(membershipId) {
+    return this.membershipManagementService.deleteMembership(membershipId);
+  }
+
+  /**
+   * 12. Obtener lista de clientes para selector
+   */
+  async getMembershipClients(params = {}) {
+    return this.membershipManagementService.getClients(params);
+  }
+
+  /**
+   * 13. Validar datos de membresía
+   */
+  validateMembershipData(data) {
+    return this.membershipManagementService.validateMembershipData(data);
+  }
+
+  /**
+   * 14. Formatear datos de membresía para API
+   */
+  formatMembershipDataForAPI(formData) {
+    return this.membershipManagementService.formatMembershipDataForAPI(formData);
+  }
+
+  /**
+   * 15. Calcular días hasta vencimiento
+   */
+  calculateMembershipDaysUntilExpiry(endDate) {
+    return this.membershipManagementService.calculateDaysUntilExpiry(endDate);
+  }
+
+  /**
+   * 16. Determinar estado visual de una membresía
+   */
+  getMembershipStatusInfo(membership) {
+    return this.membershipManagementService.getMembershipStatusInfo(membership);
+  }
+
+  /**
+   * 17. Limpiar caché de membresías
+   */
+  clearMembershipCache(pattern = null) {
+    return this.membershipManagementService.clearCache(pattern);
+  }
+  
+  
 
   // ================================
   // 🛍️ MÉTODOS DE TIENDA - DELEGACIÓN A storeService

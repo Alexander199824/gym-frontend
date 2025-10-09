@@ -395,7 +395,8 @@ class MembershipManagementService {
       const cached = this.getCached('membership-plans');
       if (cached) return cached;
 
-      const response = await axios.get(`${this.baseURL}/memberships/purchase/plans`, {
+     
+    const response = await axios.get(`${this.baseURL}/memberships/plans`, {
         ...this.getAxiosConfig()
       });
 
