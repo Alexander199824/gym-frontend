@@ -1,9 +1,9 @@
 // Autor: Alexander Echeverria
 // src/services/reportService.js
-// VERSIÓN CORREGIDA: Sincronizado exactamente con test-complete-financial-dashboard.js
-// FUNCIONANDO: Paginación automática + estados correctos + manejo de errores
+// VERSIÓN MEJORADA: Exportación real de PDF y Excel funcional
 
 import { BaseService } from './baseService.js';
+import * as XLSX from 'xlsx';
 
 class ReportService extends BaseService {
   constructor() {
@@ -16,14 +16,10 @@ class ReportService extends BaseService {
   // 🔄 PAGINACIÓN AUTOMÁTICA (Como el test)
   // ================================
   
-  /**
-   * Obtener todos los registros con paginación automática
-   * EXACTAMENTE como fetchAllPaginated del test
-   */
   async fetchAllPaginated(endpoint, params = {}, filterFn = null) {
     const allItems = [];
     let page = 1;
-    const limit = 100; // Máximo permitido por el backend
+    const limit = 100;
     let hasMore = true;
 
     console.log(`📥 Paginando: ${endpoint}`);
@@ -38,7 +34,6 @@ class ReportService extends BaseService {
           let items = [];
           let pagination = null;
 
-          // Extraer items según estructura de respuesta
           if (response.data.payments) {
             items = response.data.payments;
             pagination = response.data.pagination;
@@ -56,13 +51,11 @@ class ReportService extends BaseService {
             pagination = response.pagination;
           }
 
-          // Aplicar filtro si existe
           const itemsToAdd = filterFn ? items.filter(filterFn) : items;
           allItems.push(...itemsToAdd);
 
           console.log(`   📄 Página ${page}: ${items.length} items (${itemsToAdd.length} después del filtro)`);
 
-          // Determinar si hay más páginas
           if (pagination) {
             hasMore = page < pagination.pages;
           } else {
@@ -87,10 +80,6 @@ class ReportService extends BaseService {
   // 💰 REPORTE FINANCIERO COMPLETO
   // ================================
 
-  /**
-   * Obtener reporte financiero completo
-   * IGUAL que el test: construir desde fuentes individuales
-   */
   async getFinancialReport(params = {}) {
     try {
       console.log('💰 ReportService: Obteniendo reporte financiero completo...');
@@ -103,7 +92,6 @@ class ReportService extends BaseService {
         period: period || 'month'
       };
       
-      // Construir reporte desde endpoints individuales (como el test)
       return await this.buildFinancialReportFromSources(queryParams);
       
     } catch (error) {
@@ -112,15 +100,10 @@ class ReportService extends BaseService {
     }
   }
 
-  /**
-   * Construir reporte financiero desde múltiples fuentes
-   * EXACTAMENTE como buildFinancialReportFromSources del test
-   */
   async buildFinancialReportFromSources(params) {
     try {
       console.log('🔨 ReportService: Construyendo reporte desde fuentes individuales...');
       
-      // Obtener datos en paralelo (como el test)
       const [memberships, onlineOrders, localSales, expenses] = await Promise.all([
         this.getMembershipIncome(params),
         this.getOnlineOrdersIncome(params),
@@ -128,7 +111,6 @@ class ReportService extends BaseService {
         this.getExpenses(params)
       ]);
       
-      // Calcular totales (igual que el test)
       const totalIncome = memberships.total + onlineOrders.total + localSales.total;
       const netProfit = totalIncome - expenses.total;
       const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
@@ -163,14 +145,13 @@ class ReportService extends BaseService {
   }
 
   // ================================
-  // 💳 MEMBRESÍAS (Como el test)
+  // 💳 MEMBRESÍAS
   // ================================
   
   async getMembershipIncome(params) {
     try {
       console.log('💳 Obteniendo ingresos por membresías...');
       
-      // Usar paginación automática con filtro
       const allPayments = await this.fetchAllPaginated(
         '/api/payments',
         {
@@ -217,15 +198,13 @@ class ReportService extends BaseService {
   }
 
   // ================================
-  // 🛒 VENTAS ONLINE (Como el test)
+  // 🛒 VENTAS ONLINE
   // ================================
   
   async getOnlineOrdersIncome(params) {
     try {
       console.log('🛒 Obteniendo ingresos por ventas online...');
       
-      // ⚠️ BACKEND SOLO ACEPTA 'delivered' - picked_up causa error 400
-      // Obtener solo órdenes delivered (único estado válido)
       const deliveredOrders = await this.fetchAllPaginated(
         '/api/store/management/orders',
         {
@@ -236,7 +215,6 @@ class ReportService extends BaseService {
         (o) => o.status === 'delivered'
       );
       
-      // Usar solo órdenes delivered
       const allOrders = [...deliveredOrders];
       
       const total = allOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount || 0), 0);
@@ -273,7 +251,7 @@ class ReportService extends BaseService {
   }
 
   // ================================
-  // 🏪 VENTAS LOCALES (Como el test)
+  // 🏪 VENTAS LOCALES
   // ================================
   
   async getLocalSalesIncome(params) {
@@ -323,36 +301,33 @@ class ReportService extends BaseService {
   }
 
   // ================================
-  // 💸 GASTOS (Como el test - CORREGIDO)
+  // 💸 GASTOS
   // ================================
   
   async getExpenses(params) {
     try {
       console.log('💸 Obteniendo gastos operativos...');
       
-      // Obtener gastos "paid"
       const paidExpenses = await this.fetchAllPaginated(
         '/api/expenses',
         {
-          status: 'paid', // UN SOLO ESTADO
+          status: 'paid',
           startDate: params.startDate,
           endDate: params.endDate
         },
         (e) => e.status === 'paid'
       );
       
-      // Obtener gastos "approved"
       const approvedExpenses = await this.fetchAllPaginated(
         '/api/expenses',
         {
-          status: 'approved', // UN SOLO ESTADO
+          status: 'approved',
           startDate: params.startDate,
           endDate: params.endDate
         },
         (e) => e.status === 'approved'
       );
       
-      // Combinar todos los gastos
       const allExpenses = [...paidExpenses, ...approvedExpenses];
       
       const total = allExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0);
@@ -424,7 +399,6 @@ class ReportService extends BaseService {
     const { memberships, onlineOrders, localSales, expenses } = reportData;
     
     return {
-      // 1. Composición de Ingresos
       incomeComposition: {
         labels: ['Membresías', 'Ventas Online', 'Ventas Locales'],
         datasets: [{
@@ -433,7 +407,6 @@ class ReportService extends BaseService {
         }]
       },
       
-      // 2. Composición de Gastos
       expenseComposition: expenses.total > 0 ? {
         labels: Object.keys(expenses.breakdown || {})
           .filter(cat => expenses.breakdown[cat] > 0)
@@ -447,7 +420,6 @@ class ReportService extends BaseService {
         }]
       } : null,
       
-      // 3. Ingresos vs Gastos
       incomeVsExpenses: {
         labels: ['Membresías', 'Ventas Online', 'Ventas Locales', 'Gastos'],
         datasets: [
@@ -464,7 +436,6 @@ class ReportService extends BaseService {
         ]
       },
       
-      // 4. Métodos de Pago
       paymentMethods: {
         labels: ['Efectivo', 'Tarjeta', 'Transferencia'],
         datasets: [{
@@ -623,29 +594,340 @@ class ReportService extends BaseService {
   }
 
   // ================================
-  // 📥 EXPORTACIÓN
+  // 📥 EXPORTACIÓN MEJORADA
   // ================================
 
+  /**
+   * EXPORTAR A PDF
+   * Intenta usar el backend, si falla genera HTML convertible a PDF
+   */
   async exportToPDF(reportType, reportData, params) {
-    return this.exportToJSON(reportType, reportData);
+    try {
+      console.log('📄 Exportando a PDF...');
+      
+      // OPCIÓN 1: Intentar con el backend
+      try {
+        const response = await this.post('/api/reports/export/pdf', 
+          {
+            reportType,
+            data: reportData,
+            params
+          },
+          {
+            responseType: 'blob'
+          }
+        );
+
+        if (response.data) {
+          const blob = new Blob([response.data], { type: 'application/pdf' });
+          this.downloadBlob(blob, `reporte-${reportType}-${this.getTimestamp()}.pdf`);
+          return { success: true };
+        }
+      } catch (backendError) {
+        console.log('⚠️ Backend no disponible, generando PDF en cliente...');
+      }
+
+      // OPCIÓN 2: Generar HTML y descargar (el navegador puede imprimir a PDF)
+      const htmlContent = this.generateReportHTML(reportType, reportData, params);
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      this.downloadBlob(blob, `reporte-${reportType}-${this.getTimestamp()}.html`);
+      
+      console.log('✅ Archivo HTML generado. Usa Ctrl+P para convertir a PDF');
+      
+      return { success: true, message: 'Archivo HTML descargado. Usa "Imprimir" (Ctrl+P) para guardarlo como PDF' };
+      
+    } catch (error) {
+      console.error('❌ Error exportando PDF:', error);
+      throw error;
+    }
   }
 
+  /**
+   * EXPORTAR A EXCEL (.xlsx)
+   * Usa SheetJS para generar archivo Excel real
+   */
   async exportToExcel(reportType, reportData, params) {
-    return this.exportToCSV(reportType, reportData);
+    try {
+      console.log('📊 Exportando a Excel...');
+      
+      // OPCIÓN 1: Intentar con el backend
+      try {
+        const response = await this.post('/api/reports/export/excel',
+          {
+            reportType,
+            data: reportData,
+            params
+          },
+          {
+            responseType: 'blob'
+          }
+        );
+
+        if (response.data) {
+          const blob = new Blob([response.data], { 
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+          });
+          this.downloadBlob(blob, `reporte-${reportType}-${this.getTimestamp()}.xlsx`);
+          return { success: true };
+        }
+      } catch (backendError) {
+        console.log('⚠️ Backend no disponible, generando Excel en cliente...');
+      }
+
+      // OPCIÓN 2: Generar Excel con SheetJS en el cliente
+      const workbook = this.generateExcelWorkbook(reportType, reportData);
+      
+      // Convertir workbook a archivo binario
+      const excelBuffer = XLSX.write(workbook, { 
+        bookType: 'xlsx', 
+        type: 'array' 
+      });
+      
+      const blob = new Blob([excelBuffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      this.downloadBlob(blob, `reporte-${reportType}-${this.getTimestamp()}.xlsx`);
+      
+      console.log('✅ Archivo Excel generado exitosamente');
+      
+      return { success: true };
+      
+    } catch (error) {
+      console.error('❌ Error exportando Excel:', error);
+      throw error;
+    }
   }
 
+  /**
+   * GENERAR WORKBOOK DE EXCEL
+   */
+  generateExcelWorkbook(reportType, reportData) {
+    const workbook = XLSX.utils.book_new();
+    
+    if (reportType === 'financial') {
+      // Hoja 1: Resumen
+      const summaryData = [
+        ['REPORTE FINANCIERO'],
+        [''],
+        ['Período', `${reportData.startDate} a ${reportData.endDate}`],
+        [''],
+        ['RESUMEN GENERAL'],
+        ['Total Ingresos', reportData.totalIncome],
+        ['Total Gastos', reportData.expenses.total],
+        ['Utilidad Neta', reportData.netProfit],
+        ['Margen de Ganancia', `${reportData.profitMargin.toFixed(2)}%`],
+        [''],
+        ['INGRESOS POR FUENTE'],
+        ['Membresías', reportData.memberships.total, reportData.memberships.count, 'pagos'],
+        ['Ventas Online', reportData.onlineOrders.total, reportData.onlineOrders.count, 'órdenes'],
+        ['Ventas Locales', reportData.localSales.total, reportData.localSales.count, 'ventas'],
+        [''],
+        ['GASTOS POR CATEGORÍA']
+      ];
+      
+      Object.entries(reportData.expenses.breakdown).forEach(([cat, amount]) => {
+        if (amount > 0) {
+          summaryData.push([this.getCategoryLabel(cat), amount]);
+        }
+      });
+      
+      const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, ws1, 'Resumen');
+      
+      // Hoja 2: Detalles de Membresías
+      if (reportData.memberships.details && reportData.memberships.details.length > 0) {
+        const membershipData = [
+          ['ID', 'Monto', 'Método', 'Fecha', 'Usuario', 'Descripción'],
+          ...reportData.memberships.details.map(d => [
+            d.id,
+            d.amount,
+            d.method,
+            d.date,
+            d.userId,
+            d.description
+          ])
+        ];
+        const ws2 = XLSX.utils.aoa_to_sheet(membershipData);
+        XLSX.utils.book_append_sheet(workbook, ws2, 'Membresías');
+      }
+      
+      // Hoja 3: Detalles de Ventas Online
+      if (reportData.onlineOrders.details && reportData.onlineOrders.details.length > 0) {
+        const onlineData = [
+          ['ID', 'No. Orden', 'Monto', 'Tipo Entrega', 'Método Pago', 'Fecha', 'Usuario'],
+          ...reportData.onlineOrders.details.map(d => [
+            d.id,
+            d.orderNumber,
+            d.amount,
+            d.deliveryType,
+            d.paymentMethod,
+            d.date,
+            d.userId
+          ])
+        ];
+        const ws3 = XLSX.utils.aoa_to_sheet(onlineData);
+        XLSX.utils.book_append_sheet(workbook, ws3, 'Ventas Online');
+      }
+      
+      // Hoja 4: Detalles de Ventas Locales
+      if (reportData.localSales.details && reportData.localSales.details.length > 0) {
+        const localData = [
+          ['ID', 'No. Venta', 'Monto', 'Método Pago', 'Fecha', 'Empleado', 'Cliente'],
+          ...reportData.localSales.details.map(d => [
+            d.id,
+            d.saleNumber,
+            d.amount,
+            d.paymentMethod,
+            d.date,
+            d.employeeId,
+            d.customerName
+          ])
+        ];
+        const ws4 = XLSX.utils.aoa_to_sheet(localData);
+        XLSX.utils.book_append_sheet(workbook, ws4, 'Ventas Locales');
+      }
+      
+      // Hoja 5: Detalles de Gastos
+      if (reportData.expenses.details && reportData.expenses.details.length > 0) {
+        const expensesData = [
+          ['ID', 'Título', 'Monto', 'Categoría', 'Fecha', 'Proveedor', 'Estado'],
+          ...reportData.expenses.details.map(d => [
+            d.id,
+            d.title,
+            d.amount,
+            this.getCategoryLabel(d.category),
+            d.date,
+            d.vendor,
+            d.status
+          ])
+        ];
+        const ws5 = XLSX.utils.aoa_to_sheet(expensesData);
+        XLSX.utils.book_append_sheet(workbook, ws5, 'Gastos');
+      }
+    }
+    
+    return workbook;
+  }
+
+  /**
+   * GENERAR HTML PARA PDF
+   */
+  generateReportHTML(reportType, reportData, params) {
+    if (reportType !== 'financial') {
+      return '<html><body><h1>Reporte no implementado para HTML</h1></body></html>';
+    }
+    
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte Financiero</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    h1 { color: #1f2937; border-bottom: 3px solid #10b981; padding-bottom: 10px; }
+    h2 { color: #374151; margin-top: 30px; }
+    .summary { background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .summary-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #d1d5db; }
+    .summary-item strong { color: #1f2937; }
+    .positive { color: #10b981; font-weight: bold; }
+    .negative { color: #ef4444; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th { background: #10b981; color: white; padding: 12px; text-align: left; }
+    td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+    tr:hover { background: #f9fafb; }
+    .footer { margin-top: 40px; text-align: center; color: #6b7280; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>📊 Reporte Financiero</h1>
+  <p><strong>Período:</strong> ${reportData.startDate} a ${reportData.endDate}</p>
+  
+  <div class="summary">
+    <h2>Resumen General</h2>
+    <div class="summary-item">
+      <span>💰 Total Ingresos:</span>
+      <strong class="positive">Q${reportData.totalIncome.toFixed(2)}</strong>
+    </div>
+    <div class="summary-item">
+      <span>💸 Total Gastos:</span>
+      <strong class="negative">Q${reportData.expenses.total.toFixed(2)}</strong>
+    </div>
+    <div class="summary-item">
+      <span>📈 Utilidad Neta:</span>
+      <strong class="${reportData.netProfit >= 0 ? 'positive' : 'negative'}">Q${reportData.netProfit.toFixed(2)}</strong>
+    </div>
+    <div class="summary-item">
+      <span>📊 Margen de Ganancia:</span>
+      <strong>${reportData.profitMargin.toFixed(2)}%</strong>
+    </div>
+  </div>
+  
+  <h2>Ingresos por Fuente</h2>
+  <table>
+    <tr>
+      <th>Fuente</th>
+      <th>Monto</th>
+      <th>Cantidad</th>
+      <th>%</th>
+    </tr>
+    <tr>
+      <td>💳 Membresías</td>
+      <td>Q${reportData.memberships.total.toFixed(2)}</td>
+      <td>${reportData.memberships.count}</td>
+      <td>${((reportData.memberships.total / reportData.totalIncome) * 100).toFixed(1)}%</td>
+    </tr>
+    <tr>
+      <td>🛒 Ventas Online</td>
+      <td>Q${reportData.onlineOrders.total.toFixed(2)}</td>
+      <td>${reportData.onlineOrders.count}</td>
+      <td>${((reportData.onlineOrders.total / reportData.totalIncome) * 100).toFixed(1)}%</td>
+    </tr>
+    <tr>
+      <td>🏪 Ventas Locales</td>
+      <td>Q${reportData.localSales.total.toFixed(2)}</td>
+      <td>${reportData.localSales.count}</td>
+      <td>${((reportData.localSales.total / reportData.totalIncome) * 100).toFixed(1)}%</td>
+    </tr>
+  </table>
+  
+  <h2>Gastos por Categoría</h2>
+  <table>
+    <tr>
+      <th>Categoría</th>
+      <th>Monto</th>
+      <th>%</th>
+    </tr>
+    ${Object.entries(reportData.expenses.breakdown)
+      .filter(([_, amount]) => amount > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, amount]) => `
+        <tr>
+          <td>${this.getCategoryLabel(cat)}</td>
+          <td>Q${amount.toFixed(2)}</td>
+          <td>${((amount / reportData.expenses.total) * 100).toFixed(1)}%</td>
+        </tr>
+      `).join('')}
+  </table>
+  
+  <div class="footer">
+    <p>Generado el ${new Date().toLocaleDateString('es-GT')} a las ${new Date().toLocaleTimeString('es-GT')}</p>
+    <p>Para convertir a PDF: Presiona Ctrl+P y selecciona "Guardar como PDF"</p>
+  </div>
+</body>
+</html>
+    `;
+  }
+
+  /**
+   * EXPORTAR A JSON (mantenido igual)
+   */
   exportToJSON(reportType, reportData) {
     try {
       const dataStr = JSON.stringify(reportData, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reporte-${reportType}-${new Date().getTime()}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      this.downloadBlob(blob, `reporte-${reportType}-${this.getTimestamp()}.json`);
       
       return { success: true };
     } catch (error) {
@@ -654,19 +936,15 @@ class ReportService extends BaseService {
     }
   }
 
+  /**
+   * EXPORTAR A CSV (mantenido igual)
+   */
   exportToCSV(reportType, reportData) {
     try {
       let csvContent = this.generateFinancialCSV(reportData);
       
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `reporte-${reportType}-${new Date().getTime()}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      this.downloadBlob(blob, `reporte-${reportType}-${this.getTimestamp()}.csv`);
       
       return { success: true };
     } catch (error) {
@@ -694,6 +972,27 @@ class ReportService extends BaseService {
   // ================================
   // 🛠️ UTILIDADES
   // ================================
+
+  /**
+   * Descargar blob como archivo
+   */
+  downloadBlob(blob, filename) {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Obtener timestamp para nombres de archivo
+   */
+  getTimestamp() {
+    return new Date().toISOString().split('T')[0];
+  }
 
   getDefaultStartDate(period) {
     const today = new Date();

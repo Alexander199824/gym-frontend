@@ -7,7 +7,7 @@ import {
   BarChart3, PieChart, TrendingUp, TrendingDown, Calendar, Download,
   Coins, Users, CreditCard, Clock, RefreshCw, Eye, FileText,
   Calculator, Target, Award, Activity, AlertCircle, CheckCircle,
-  ArrowUp, ArrowDown, Loader, DollarSign, ShoppingCart, Building,
+  ArrowUp, ArrowDown, Loader, ShoppingCart, Building,
   Percent, ChevronDown, ChevronUp
 } from 'lucide-react';
 import {
@@ -258,7 +258,7 @@ const ReportsManager = () => {
               <MetricCard
                 title="Ingresos Totales"
                 value={formatCurrency(reportData.totalIncome)}
-                icon={DollarSign}
+                icon={TrendingUp}
                 color="from-green-500 to-emerald-600"
                 change="+12%"
                 trend="up"
