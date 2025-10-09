@@ -16,6 +16,7 @@ import scheduleService from './scheduleService.js';
 import inventoryService from './inventoryService.js';
 import statisticsService from './statisticsService.js';
 import testimonialService from './testimonialService.js';
+import expenseService from './expenseService.js';
 
 // ================================
 // 🏠 CLASE PRINCIPAL DEL SERVICIO API
@@ -35,6 +36,7 @@ class ApiService extends BaseService {
     this.inventoryService = inventoryService;
     this.statisticsService = statisticsService; 
     this.testimonialService = testimonialService;
+    this.expenseService = expenseService;
 
   }
 
@@ -861,6 +863,159 @@ formatTestimonialDataForAPI(testimonialData) {
   }
 
   // ================================
+  // 💰 MÉTODOS DE GASTOS - DELEGACIÓN A expenseService
+  // ================================
+
+  /**
+   * Obtener todos los gastos con filtros
+   */
+  async getAllExpenses(params = {}) {
+    return this.expenseService.getAllExpenses(params);
+  }
+
+  /**
+   * Obtener gasto por ID
+   */
+  async getExpenseById(expenseId) {
+    return this.expenseService.getExpenseById(expenseId);
+  }
+
+  /**
+   * Obtener gastos pendientes de aprobación
+   */
+  async getPendingExpensesApproval(minAmount = 500) {
+    return this.expenseService.getPendingApproval(minAmount);
+  }
+
+  /**
+   * Obtener gastos por categoría
+   */
+  async getExpensesByCategory(category, params = {}) {
+    return this.expenseService.getExpensesByCategory(category, params);
+  }
+
+  /**
+   * Obtener gastos recurrentes próximos
+   */
+  async getUpcomingRecurringExpenses(daysAhead = 7) {
+    return this.expenseService.getUpcomingRecurring(daysAhead);
+  }
+
+  /**
+   * Crear nuevo gasto
+   */
+  async createExpense(expenseData) {
+    return this.expenseService.createExpense(expenseData);
+  }
+
+  /**
+   * Actualizar gasto existente
+   */
+  async updateExpense(expenseId, updateData) {
+    return this.expenseService.updateExpense(expenseId, updateData);
+  }
+
+  /**
+   * Aprobar gasto
+   */
+  async approveExpense(expenseId) {
+    return this.expenseService.approveExpense(expenseId);
+  }
+
+  /**
+   * Rechazar gasto
+   */
+  async rejectExpense(expenseId, reason = '') {
+    return this.expenseService.rejectExpense(expenseId, reason);
+  }
+
+  /**
+   * Cancelar gasto
+   */
+  async cancelExpense(expenseId, reason = '') {
+    return this.expenseService.cancelExpense(expenseId, reason);
+  }
+
+  /**
+   * Eliminar gasto
+   */
+  async deleteExpense(expenseId) {
+    return this.expenseService.deleteExpense(expenseId);
+  }
+
+  /**
+   * Procesar gastos recurrentes
+   */
+  async processRecurringExpenses() {
+    return this.expenseService.processRecurringExpenses();
+  }
+
+  /**
+   * Obtener resumen de estadísticas
+   */
+  async getExpensesStatsSummary(startDate, endDate) {
+    return this.expenseService.getStatsSummary(startDate, endDate);
+  }
+
+  /**
+   * Obtener breakdown por categorías
+   */
+  async getExpensesStatsBreakdown(startDate, endDate) {
+    return this.expenseService.getStatsBreakdown(startDate, endDate);
+  }
+
+  /**
+   * Obtener top proveedores
+   */
+  async getExpensesTopVendors(startDate, endDate, limit = 10) {
+    return this.expenseService.getTopVendors(startDate, endDate, limit);
+  }
+
+  /**
+   * Validar datos de gasto
+   */
+  validateExpenseData(expenseData) {
+    return this.expenseService.validateExpenseData(expenseData);
+  }
+
+  /**
+   * Formatear datos para API
+   */
+  formatExpenseDataForAPI(expenseData) {
+    return this.expenseService.formatExpenseDataForAPI(expenseData);
+  }
+
+  /**
+   * Obtener categorías disponibles
+   */
+  getExpenseCategories() {
+    return this.expenseService.getAvailableCategories();
+  }
+
+  /**
+   * Obtener estados disponibles
+   */
+  getExpenseStatuses() {
+    return this.expenseService.getAvailableStatuses();
+  }
+
+  /**
+   * Obtener frecuencias recurrentes
+   */
+  getExpenseRecurringFrequencies() {
+    return this.expenseService.getRecurringFrequencies();
+  }
+
+  /**
+   * Formatear moneda (Quetzales)
+   */
+  formatExpenseCurrency(amount) {
+    return this.expenseService.formatCurrency(amount);
+  }
+
+
+
+  // ================================
   // 📅 MÉTODOS DE GESTIÓN DE HORARIOS - DELEGACIÓN A scheduleService
   // ================================
 
@@ -988,7 +1143,8 @@ formatTestimonialDataForAPI(testimonialData) {
         payments: 'PaymentService',
         schedule: 'ScheduleService',
         inventory: this.inventoryService.constructor.name,
-        statistics: this.statisticsService.constructor.name // 🆕 ESTADÍSTICAS
+        statistics: this.statisticsService.constructor.name,
+        expenses: this.expenseService.constructor.name
       },
       features: [
         'Autenticación JWT',
@@ -1001,7 +1157,8 @@ formatTestimonialDataForAPI(testimonialData) {
         'Ventas locales y transferencias',
         'Gestión de productos con imágenes',
         'Reportes financieros',
-        'Estadísticas dinámicas personalizables', // 🆕 ESTADÍSTICAS
+        'Estadísticas dinámicas personalizables', 
+        'Gestión completa de gastos operativos',
         'Cache inteligente',
         'Debug integrado'
       ],
@@ -1015,7 +1172,8 @@ formatTestimonialDataForAPI(testimonialData) {
         inventory: '/api/inventory/*',
         management: '/api/store/management/*',
         localSales: '/api/local-sales/*',
-        statistics: '/api/statistics/*' // 🆕 ESTADÍSTICAS
+        statistics: '/api/statistics/*',
+        expenses: '/api/expenses/*' 
       }
     };
   }
@@ -1039,6 +1197,9 @@ formatTestimonialDataForAPI(testimonialData) {
       
       // Health check de pagos
       results.services.payments = await this.paymentService.paymentHealthCheck();
+
+      // Health check de gastos  
+      results.services.expenses = await this.expenseService.healthCheck();
       
       // Determinar estado general
       const healthyServices = Object.values(results.services).filter(s => s.healthy).length;

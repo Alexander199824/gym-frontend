@@ -21,7 +21,8 @@ import {
   Calendar,
   Globe,
   Settings,
-  Package
+  Package,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -112,6 +113,17 @@ const Sidebar = ({ collapsed }) => {
         label: 'Pagos (Q)',
         icon: Coins,
         path: '/dashboard/payments',
+        show: true
+      });
+    }
+
+    // 💰 Gastos - Solo para administradores y personal con permisos
+    if (hasPermission('view_expenses')) {
+      baseItems.push({
+        id: 'expenses',
+        label: 'Gastos',
+        icon: Receipt,
+        path: '/dashboard/expenses',
         show: true
       });
     }

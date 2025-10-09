@@ -18,6 +18,7 @@ import apiService from '../../services/apiService';
 import DashboardCard from '../../components/common/DashboardCard';
 import QuickActionCard from '../../components/common/QuickActionCard';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import expenseService from '../../services/expenseService';
 
 // Función auxiliar para formatear en Quetzales
 const formatQuetzales = (amount) => {
@@ -51,7 +52,7 @@ const AdminDashboard = () => {
   const [expiringSoon, setExpiringSoon] = useState({ data: null, isLoading: false, error: null });
   const [pendingTransfers, setPendingTransfers] = useState({ data: null, isLoading: false, error: null });
   const [todayPayments, setTodayPayments] = useState({ data: null, isLoading: false, error: null });
-  
+  const [expenseStats, setExpenseStats] = useState({ data: null, isLoading: false, error: null });
   // Cargar datos operativos
   const loadDashboardData = async () => {
     console.log('Cargando datos del dashboard...');
