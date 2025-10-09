@@ -49,6 +49,7 @@ const MembershipsManager = React.lazy(() => import('./pages/dashboard/components
 const ReportsManager = React.lazy(() => import('./pages/dashboard/components/ReportsManager'));
 const ProfileManager = React.lazy(() => import('./pages/dashboard/components/ProfileManager'));
 const PaymentsManager = React.lazy(() => import('./pages/dashboard/components/PaymentsManager'));
+const ExpensesManager = React.lazy(() => import('./pages/dashboard/components/ExpensesManager'));
 
 // Páginas de Error (Lazy Loading)
 const NotFoundPage = React.lazy(() => import('./pages/error/NotFoundPage'));
@@ -352,9 +353,10 @@ function AppContent() {
           <div>Carrito: Integrado con backend</div>
           <div>Checkout: Invitados + autenticados</div>
           <div>Moneda: Quetzales guatemaltecos</div>
-          <div>🆕 Horarios: Gestor independiente</div>
-          <div>🆕 Web: Gestor separado</div>
-          <div>🆕 Inventario: Sistema modular</div>
+          <div>Gastos: Sistema completo</div>
+          <div>Horarios: Gestor independiente</div>
+          <div>Web: Gestor separado</div>
+          <div>Inventario: Sistema modular</div>
           {user && (
             <div className="mt-2 text-green-300">
               Usuario: {user.firstName} ({user.role})
@@ -478,6 +480,13 @@ function AppContent() {
               </ProtectedRoute>
             } />
             
+            {/* 💰 Gastos  */}
+            <Route path="expenses" element={
+              <ProtectedRoute requiredRole="admin">
+                <ExpensesManager />
+              </ProtectedRoute>
+            } />
+
             {/* Reportes - solo admin y staff con permisos */}
             <Route path="reports" element={
               <ProtectedRoute requiredPermissions={['view_reports']}>

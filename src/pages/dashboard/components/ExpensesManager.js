@@ -9,7 +9,7 @@ import {
   AlertTriangle, CheckCircle, XCircle, Eye, Trash2, Check, X,
   User, TrendingUp, TrendingDown, Bell, BarChart3,
   FileText, Download, Upload, MoreHorizontal, Loader, RotateCcw,
-  Receipt, Building, Zap, Tool, Users, Sparkles, Megaphone,
+  Receipt, Building, Zap, Settings, Users, Sparkles, Megaphone,
   Shield, FileCheck, Package, Ban
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -106,8 +106,8 @@ const ExpensesManager = ({ onSave, onUnsavedChanges }) => {
     const icons = {
       rent: Building,
       utilities: Zap,
-      equipment_purchase: Tool,
-      equipment_maintenance: Tool,
+      equipment_purchase: Settings,
+      equipment_maintenance: Settings,
       staff_salary: Users,
       cleaning_supplies: Sparkles,
       marketing: Megaphone,

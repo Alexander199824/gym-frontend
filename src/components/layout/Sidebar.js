@@ -22,7 +22,7 @@ import {
   Globe,
   Settings,
   Package,
-  Receipt
+  TrendingDown 
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -118,15 +118,16 @@ const Sidebar = ({ collapsed }) => {
     }
     
      // Gastos - Solo para administradores y personal con permisos
-    if (hasPermission('view_expenses')) {
-      baseItems.push({
-        id: 'expenses',
-        label: 'Gastos',
-        icon: Receipt,  
-        path: '/dashboard/expenses',
-        show: true
-      });
-    }
+   // 💰 Gastos - Solo para administradores
+if (user?.role === 'admin') {
+  baseItems.push({
+    id: 'expenses',
+    label: 'Gastos',
+    icon: TrendingDown ,  
+    path: '/dashboard/expenses',
+    show: true
+  });
+}
 
     // Tienda - Disponible para todos los usuarios
     baseItems.push({
