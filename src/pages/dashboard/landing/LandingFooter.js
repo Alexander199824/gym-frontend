@@ -159,7 +159,7 @@ const LandingFooter = ({
           isMobile ? 'space-y-4' : ''
         }`}>
           <p className="text-gray-400 text-sm">
-            &copy; 2024 {gymConfig.name}. Todos los derechos reservados.
+            &copy; 2025 para {gymConfig.name} por Alexander E Todos los derechos reservados.
           </p>
 
           {/* Redes sociales móvil */}
