@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/MembershipsManager.js
-// VERSIÓN: Final - Cards con datos directos de endpoints específicos
+// VERSIÓN: Con Wizard de Creación Integrado
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -13,6 +13,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useApp } from '../../../contexts/AppContext';
 import membershipManagementService from '../../../services/membershipManagementService';
 import MembershipPlansManager from './MembershipPlansManager';
+import MembershipCreationWizard from './MembershipCreationWizard';
 
 const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   const { user: currentUser, hasPermission } = useAuth();
@@ -26,7 +27,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   // Estados de membresías
   const [memberships, setMemberships] = useState([]);
   
-  // ✅ NUEVO: Estados separados para cada card
+  // Estados separados para cada card
   const [activeMembershipsCount, setActiveMembershipsCount] = useState(0);
   const [expiredMembershipsCount, setExpiredMembershipsCount] = useState(0);
   const [expiringSoonCount, setExpiringSoonCount] = useState(0);
@@ -47,7 +48,10 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   const [totalMemberships, setTotalMemberships] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
-  // Modal de membresía
+  // ✅ NUEVO: Estado para wizard de creación
+  const [showCreationWizard, setShowCreationWizard] = useState(false);
+  
+  // Modal de edición (para editar membresías EXISTENTES)
   const [showMembershipModal, setShowMembershipModal] = useState(false);
   const [editingMembership, setEditingMembership] = useState(null);
   const [membershipFormData, setMembershipFormData] = useState({
@@ -58,17 +62,17 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     notes: ''
   });
   
-  // Datos para selectores
+  // Datos para selectores (modal de edición)
   const [availablePlans, setAvailablePlans] = useState([]);
   const [availableClients, setAvailableClients] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
   
-  // Búsqueda en selectores
+  // Búsqueda en selectores (modal de edición)
   const [clientSearchTerm, setClientSearchTerm] = useState('');
   const [planSearchTerm, setPlanSearchTerm] = useState('');
   
-  // Validación de cliente con membresía activa
+  // Validación de cliente con membresía activa (modal de edición)
   const [selectedClientHasMembership, setSelectedClientHasMembership] = useState(false);
   const [selectedClientMembership, setSelectedClientMembership] = useState(null);
   
@@ -100,7 +104,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   ];
   
   // ============================================================================
-  // ✅ NUEVA FUNCIÓN: Cargar estadísticas directamente de los endpoints
+  // CARGAR ESTADÍSTICAS
   // ============================================================================
   
   const loadMembershipStats = useCallback(async () => {
@@ -121,7 +125,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         setActiveMembershipsCount(0);
       }
       
-      // 2. Membresías vencidas - USANDO ENDPOINT ESPECÍFICO
+      // 2. Membresías vencidas
       try {
         const expiredResponse = await membershipManagementService.getExpiredMemberships(0);
         const count = expiredResponse.total || expiredResponse.memberships?.length || 0;
@@ -132,7 +136,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         setExpiredMembershipsCount(0);
       }
       
-      // 3. Membresías por vencer - USANDO ENDPOINT ESPECÍFICO
+      // 3. Membresías por vencer
       try {
         const expiringResponse = await membershipManagementService.getExpiringSoonMemberships(7);
         const count = expiringResponse.total || expiringResponse.memberships?.length || 0;
@@ -154,7 +158,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   }, []);
   
   // ============================================================================
-  // FUNCIONES DE CARGA DE DATOS DESDE EL BACKEND
+  // FUNCIONES DE CARGA DE DATOS
   // ============================================================================
   
   const loadMemberships = useCallback(async () => {
@@ -314,7 +318,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     }
   }, [activeSection, loadMemberships]);
   
-  // ✅ Cargar estadísticas al inicio y cuando se refresque
   useEffect(() => {
     if (activeSection === 'memberships') {
       loadMembershipStats();
@@ -353,6 +356,29 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     loadMemberships();
     loadMembershipStats();
     showSuccess('Datos actualizados');
+  };
+  
+  // ✅ MODIFICADO: Ahora abre el wizard
+  const handleNewMembership = () => {
+    setShowCreationWizard(true);
+  };
+  
+  // ✅ NUEVO: Manejar éxito del wizard
+  const handleWizardSuccess = async (result) => {
+    console.log('✅ Membresía creada desde wizard:', result);
+    
+    // Recargar todos los datos
+    await loadMemberships();
+    await loadMembershipStats();
+    
+    // Notificar al componente padre
+    if (onSave) {
+      onSave({ 
+        type: 'membership', 
+        action: 'created',
+        data: result
+      });
+    }
   };
   
   const handleSaveMembership = async () => {
@@ -486,12 +512,6 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     setShowMembershipModal(true);
   };
   
-  const handleNewMembership = () => {
-    setEditingMembership(null);
-    resetMembershipForm();
-    setShowMembershipModal(true);
-  };
-  
   const handleSavePlans = (data) => {
     console.log('✅ Planes guardados:', data);
     setHasUnsavedChanges(false);
@@ -600,7 +620,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         {activeSection === 'memberships' && (
           <div className="space-y-6">
             
-            {/* ✅ SOLO 3 CARDS - SIN TOTAL */}
+            {/* CARDS DE ESTADÍSTICAS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               
               {/* Card Activas */}
@@ -937,7 +957,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         
       </div>
       
-      {/* MODAL CREAR/EDITAR MEMBRESÍA */}
+      {/* MODAL EDITAR MEMBRESÍA (Solo para EDITAR existentes) */}
       {showMembershipModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -1187,6 +1207,16 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
+      {/* ============================================================================
+          WIZARD DE CREACIÓN DE MEMBRESÍA - NUEVO
+          ============================================================================ */}
+      {showCreationWizard && (
+        <MembershipCreationWizard
+          onClose={() => setShowCreationWizard(false)}
+          onSuccess={handleWizardSuccess}
+        />
+      )}
+      
     </div>
   );
 };
@@ -1195,93 +1225,36 @@ export default MembershipsManager;
 
 /*
 =============================================================================
-CAMBIOS REALIZADOS EN MembershipsManager.js
+CAMBIOS REALIZADOS - INTEGRACIÓN DEL WIZARD
 =============================================================================
 
-🆕 AGREGADO - SISTEMA DE PESTAÑAS:
-- Sistema completo de navegación por pestañas como WebsiteManager
-- Estado activeSection para controlar la pestaña activa
-- Array membershipSections con configuración de pestañas
-- Navegación visual con indicadores de estado
+✅ AGREGADO:
+1. Import de MembershipCreationWizard
+2. Estado showCreationWizard
+3. Función handleWizardSuccess para manejar éxito del wizard
+4. Renderizado del wizard al final (antes del cierre del div principal)
 
-📋 PESTAÑAS IMPLEMENTADAS:
-1. "Gestión de Membresías" (memberships) - Contenido original
-2. "Planes de Membresías" (plans) - Nuevo usando MembershipPlansManager
+✅ MODIFICADO:
+1. handleNewMembership() - Ahora abre el wizard en lugar del modal viejo
 
-✅ MANTENIDO SIN CAMBIOS:
-- Toda la funcionalidad original de gestión de membresías
-- Sistema de alertas de vencimiento
-- Estadísticas y filtros
-- Tabla de membresías con paginación
-- Modal de creación/edición de membresías
-- Todas las funciones de renovar, cancelar, etc.
+✅ MANTENIDO INTACTO:
+- Cards de estadísticas (activas, vencidas, por vencer)
+- loadMembershipStats() con endpoints específicos
+- Tabla de membresías con todos sus filtros
+- Paginación completa
+- Funciones de renovar, cancelar membresías
+- Modal de EDICIÓN (showMembershipModal) - Se usa solo para editar
+- handleEditMembership() - Abre el modal viejo para editar
+- Sección de planes con MembershipPlansManager
+- Sistema de pestañas (memberships y plans)
+- Todas las cargas de datos
+- Todo el diseño original
 
-🔗 INTEGRACIÓN:
-- Import del MembershipPlansManager
-- Función handleSavePlans para manejar guardado desde planes
-- Propagación correcta de props (onSave, onUnsavedChanges)
-- Control unificado de cambios sin guardar
+🎯 FUNCIONAMIENTO:
+- Botón "Nueva Membresía" → Abre WIZARD (5 pasos)
+- Botón "Editar" en tabla → Abre MODAL VIEJO (edición simple)
+- Wizard crea + activa automáticamente
+- Modal viejo solo actualiza datos
 
-🎨 DISEÑO:
-- Header principal con título "Gestión de Membresías"
-- Navegación con pestañas estilo WebsiteManager
-- Indicadores visuales de contenido cargado
-- Botón de refrescar datos
-- Indicador de cambios sin guardar
-
-📱 RESPONSIVO:
-- Navegación de pestañas con scroll horizontal en mobile
-- Mantiene toda la responsividad del contenido original
-
-🎯 BENEFICIOS:
-- Interfaz unificada para gestión completa de membresías
-- Separación clara entre gestión de membresías activas y configuración de planes
-- Navegación intuitiva entre secciones
-- Experiencia de usuario consistente con otros managers del sistema
-- Control centralizado de cambios sin guardar
-
-El MembershipsManager ahora es un gestor completo que incluye:
-- Gestión de membresías activas (pestaña 1)
-- Configuración de planes disponibles (pestaña 2)
-
-Ambas secciones funcionan de manera independiente pero comparten
-el mismo contexto y sistema de navegación.
+=============================================================================
 */
-
-/**
- * COMENTARIOS FINALES DEL COMPONENTE
- * 
- * PROPÓSITO:
- * Este componente gestiona el sistema completo de membresías del gimnasio.
- * Permite crear, renovar, cancelar y monitorear el estado de las membresías de los usuarios.
- * 
- * FUNCIONALIDADES PRINCIPALES:
- * - Visualización de lista completa de membresías con filtros y búsqueda
- * - Creación y edición de nuevas membresías
- * - Renovación automática y manual de membresías
- * - Cancelación de membresías activas
- * - Alertas de vencimientos próximos y membresías vencidas
- * - Estadísticas en tiempo real del estado de las membresías
- * - Gestión de diferentes tipos de membresía (diaria, semanal, mensual, trimestral, anual)
- * - Vista responsiva para escritorio y móvil
- * 
- * CONEXIONES CON OTROS ARCHIVOS:
- * - AuthContext: Para verificar permisos del usuario actual
- * - AppContext: Para mostrar notificaciones y formatear datos
- * - apiService: Para comunicación con el backend (/api/memberships/*)
- * - Lucide React: Para iconografía del sistema
- * 
- * DATOS QUE MUESTRA AL USUARIO:
- * - Lista paginada de todas las membresías con información del usuario
- * - Estados de membresía (activa, vencida, cancelada, suspendida)
- * - Precios en moneda local (quetzales)
- * - Fechas de inicio y vencimiento
- * - Estadísticas generales del sistema
- * - Alertas de vencimientos y renovaciones necesarias
- * 
- * PERMISOS REQUERIDOS:
- * - create_memberships: Para crear nuevas membresías
- * - edit_memberships: Para editar membresías existentes
- * - renew_memberships: Para renovar membresías
- * - cancel_memberships: Para cancelar membresías
- */
