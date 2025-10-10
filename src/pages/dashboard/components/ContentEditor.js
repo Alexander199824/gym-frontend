@@ -100,7 +100,7 @@ const ContentEditor = ({ gymConfig, onSave, onUnsavedChanges }) => {
         phone: config.contact?.phone || '',
         email: config.contact?.email || '',
         city: config.contact?.city || '',
-        mapsUrl: mapsUrl, // ✅ Usar el valor mapeado correctamente
+        mapsUrl: mapsUrl, 
         social: {
           facebook: config.social?.facebook?.url || '',
           instagram: config.social?.instagram?.url || '',
