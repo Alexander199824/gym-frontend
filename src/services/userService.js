@@ -504,7 +504,7 @@ class UserService extends BaseService {
           activeMemberships: 0,
           expiredMemberships: 0,
           expiringSoon: 0
-        };f
+        };
       }
     }
   }
