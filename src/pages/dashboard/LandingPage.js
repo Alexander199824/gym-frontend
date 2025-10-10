@@ -2,6 +2,7 @@
 // Archivo: src/pages/dashboard/LandingPage.js
 // COMPONENTE PRINCIPAL - ORQUESTADOR DE LANDING PAGE
 // ✅ ACTUALIZADO CON useActiveGymServices
+// ✅ INTEGRADO CON FloatingRaffleCard
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -15,7 +16,7 @@ import { useApp } from '../../contexts/AppContext';
 // Hooks optimizados del backend
 import useGymConfig from '../../hooks/useGymConfig';
 import useGymStats from '../../hooks/useGymStats';
-import useActiveGymServices from '../../hooks/useActiveGymServices'; // 🆕 HOOK NUEVO
+import useActiveGymServices from '../../hooks/useActiveGymServices';
 import useTestimonials from '../../hooks/useTestimonials';
 import useFeaturedProducts from '../../hooks/useFeaturedProducts';
 import useMembershipPlans from '../../hooks/useMembershipPlans';
@@ -23,8 +24,9 @@ import useMembershipPlans from '../../hooks/useMembershipPlans';
 // Componentes comunes
 import GymLogo from '../../components/common/GymLogo';
 import ConnectionIndicator from '../../components/common/ConnectionIndicator';
+import FloatingRaffleCard from '../../components/common/FloatingRaffleCard'; // 🆕 COMPONENTE NUEVO
 
-// Sub-componentes de Landing (nuevos)
+// Sub-componentes de Landing
 import LandingHero from './landing/LandingHero';
 import LandingStore from './landing/LandingStore';
 import LandingServices from './landing/LandingServices';
@@ -60,7 +62,7 @@ const LandingPage = () => {
   // Hooks del backend
   const { config, isLoaded: configLoaded, error: configError } = useGymConfig();
   const { stats, isLoaded: statsLoaded } = useGymStats();
-  const { services, isLoaded: servicesLoaded } = useActiveGymServices(); // 🆕 HOOK NUEVO
+  const { services, isLoaded: servicesLoaded } = useActiveGymServices();
   const { testimonials, isLoaded: testimonialsLoaded } = useTestimonials();
   const { products, isLoaded: productsLoaded, error: productsError } = useFeaturedProducts();
   const { plans, isLoaded: plansLoaded } = useMembershipPlans();
@@ -179,12 +181,10 @@ const LandingPage = () => {
     };
   }, [config]);
 
-  // 🆕 SIMPLIFICADO: Los servicios ya vienen activos del hook
   const displayServices = useMemo(() => {
     if (!servicesLoaded || !services || !Array.isArray(services)) {
       return [];
     }
-    // ✅ Ya no necesitamos filtrar, el hook solo trae activos
     return services;
   }, [servicesLoaded, services]);
 
@@ -432,6 +432,9 @@ const LandingPage = () => {
         isMobile={isMobile}
       />
 
+      {/* 🆕 BANNER FLOTANTE DE SORTEO - Se muestra solo si está habilitado en .env */}
+      <FloatingRaffleCard />
+
     </div>
   );
 };
@@ -439,43 +442,47 @@ const LandingPage = () => {
 export default LandingPage;
 
 /*
-EXPLICACIÓN DE LOS CAMBIOS - VERSIÓN CON HOOK NUEVO
+CAMBIOS REALIZADOS - VERSIÓN CON SORTEO FLOTANTE
 
- CAMBIOS REALIZADOS:
-1. Importado useActiveGymServices en lugar de useGymServices
-2. Simplificado displayServices (ya no necesita filtrar, el hook lo hace)
-3. Mantiene TODAS las funcionalidades existentes
-4. Mantiene todos los carousels
-5. Mantiene todo el manejo de estado
-6. Mantiene toda la lógica de navegación
+✅ INTEGRADO FloatingRaffleCard:
+- Importado el nuevo componente
+- Colocado al final antes del cierre del div principal
+- Se controla completamente desde .env
+- No afecta ninguna funcionalidad existente
 
-VENTAJAS DEL HOOK NUEVO:
-- Más eficiente (solo trae servicios activos del backend)
-- Menos datos transferidos
-- Código más limpio
-- Mejor rendimiento
-
-FUNCIONALIDADES MANTENIDAS:
-- Hero con video/imagen adaptativo
-- Navegación responsive con menú móvil
-- Carousel de productos automático
-- Carousel de servicios en móvil
-- Carousel de testimonios
-- Sistema de estadísticas dinámicas
+✅ MANTENIDO TODO LO EXISTENTE:
+- Hero con video/imagen
+- Navegación responsive
+- Carousels de productos, servicios y testimonios
+- Sistema de estadísticas
 - Integración con carrito
 - Footer completo
-- Información de contacto
-- Todos los efectos y hooks existentes
+- Todos los hooks
+- Todos los efectos
+- Todo el manejo de estado
 
- LO QUE NO CAMBIÓ:
-- Estructura del componente
-- Props a subcomponentes
-- Lógica de carruseles
-- Manejo de estado local
-- Estilos y clases CSS
-- Navegación y menús
-- Integración con otros hooks
+✅ CARACTERÍSTICAS DEL BANNER:
+- Aparece solo si REACT_APP_RAFFLE_ENABLED=true
+- Completamente invisible si está en false
+- Configurable desde .env
+- No intrusivo
+- Responsive
+- Animado
+- Puede cerrarse temporalmente
 
-Este componente ahora usa el hook optimizado pero mantiene
-TODA la funcionalidad original sin perder nada.
+✅ ZERO IMPACTO:
+- No modifica estilos existentes
+- No interfiere con navegación
+- No bloquea contenido
+- No afecta performance
+- Se puede desactivar sin dejar rastro
+
+MODO DE USO:
+1. Configurar variables en .env
+2. Reiniciar servidor de desarrollo
+3. El banner aparece automáticamente si está habilitado
+4. Para desactivar: REACT_APP_RAFFLE_ENABLED=false
+
+Este componente mantiene TODA la funcionalidad original
+y agrega el banner de sorteo de manera no intrusiva.
 */
