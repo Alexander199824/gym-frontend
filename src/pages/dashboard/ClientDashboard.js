@@ -1,7 +1,3 @@
-// Autor: Alexander Echeverria
-// Archivo: src/pages/dashboard/ClientDashboard.js
-// ACTUALIZADO: Con integración completa de gymConfig.js y optimizaciones
-
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -37,7 +33,8 @@ import {
   RefreshCw,
   Timer,
   BarChart3,
-  Settings
+  Settings,
+  Heart
 } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -96,7 +93,7 @@ const ClientDashboard = () => {
   const { data: backendConfig } = useQuery({
     queryKey: ['gymConfig'],
     queryFn: () => apiService.getGymConfig(),
-    staleTime: 30 * 60 * 1000, // 30 minutos
+    staleTime: 30 * 60 * 1000,
     retry: 1,
     onError: (error) => {
       console.log('ℹ️ Usando configuración del .env (backend no disponible)');
@@ -133,18 +130,17 @@ const ClientDashboard = () => {
         return membership;
       } catch (error) {
         console.error('❌ ClientDashboard: Error obteniendo membresía:', error);
-        // Solo mostrar error si no es 404 (sin membresía) o 401 (sin autenticación)
         if (error.response?.status !== 404 && error.response?.status !== 401) {
           throw error;
         }
         return null;
       }
     },
-    staleTime: 2 * 60 * 1000, // 2 minutos 
+    staleTime: 2 * 60 * 1000,
     retry: 2,
-    enabled: !!user?.id, // Solo ejecutar si hay usuario autenticado
-    refetchOnWindowFocus: true, // Actualizar cuando el usuario vuelve a la ventana
-    refetchInterval: 5 * 60 * 1000, // Actualizar cada 5 minutos automáticamente
+    enabled: !!user?.id,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60 * 1000,
   });
   
   // Horarios actuales del cliente
@@ -207,7 +203,6 @@ const ClientDashboard = () => {
   
   // Calcular días hasta vencimiento
   const getDaysUntilExpiry = (endDate, membershipStatus) => {
-    // ✅ Las membresías canceladas NO tienen días activos
     if (membershipStatus === 'cancelled') {
       return null;
     }
@@ -238,19 +233,16 @@ const ClientDashboard = () => {
       daysUntilExpiry: daysUntilExpiry
     });
     
-    // ✅ PRIORIDAD 1: Estados pendientes
     if (currentMembership.status === 'pending' || currentMembership.isPending || currentMembership.requiresValidation) {
       console.log('⏳ Membresía en estado PENDIENTE');
       return { status: 'pending', message: 'Pendiente validación', color: 'yellow' };
     }
     
-    // ✅ PRIORIDAD 2: Estado cancelado (sin días)
     if (currentMembership.status === 'cancelled') {
       console.log('🚫 Estado: CANCELADA');
       return { status: 'cancelled', message: 'Cancelada', color: 'gray' };
     }
     
-    // ✅ PRIORIDAD 3: Estados por vencimiento (solo para membresías activas)
     if (currentMembership.status === 'active') {
       if (daysUntilExpiry === null || daysUntilExpiry === undefined) {
         console.log('✅ Membresía ACTIVA sin límite de tiempo');
@@ -276,13 +268,11 @@ const ClientDashboard = () => {
       return { status: 'active', message: 'Activa', color: 'green' };
     }
     
-    // ✅ PRIORIDAD 4: Otros estados específicos
     if (currentMembership.status === 'expired') {
       console.log('❌ Estado explícito: VENCIDA');
       return { status: 'expired', message: 'Vencida', color: 'red' };
     }
     
-    // ✅ FALLBACK: Estado desconocido
     console.log('⚠️ Estado de membresía desconocido:', currentMembership.status);
     return { 
       status: 'unknown', 
@@ -433,8 +423,8 @@ const ClientDashboard = () => {
         </div>
       </div>
       
-      {/* MÉTRICAS PERSONALES - 3 COLUMNAS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* MÉTRICAS PERSONALES - 4 COLUMNAS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Estado de membresía */}
         <div 
@@ -493,6 +483,33 @@ const ClientDashboard = () => {
           />
         </div>
         
+        {/* ✅ NUEVO: Tarjeta de Testimonios */}
+        <div 
+          className="cursor-pointer transition-transform hover:scale-105"
+          onClick={() => navigateToSection('testimonials')}
+        >
+          <DashboardCard
+            title="Mis Testimonios"
+            value={
+              userTestimonials.length === 0 ? 'Sin testimonios' :
+              userTestimonials.length === 1 ? '1 testimonio' :
+              `${userTestimonials.length} testimonios`
+            }
+            icon={Heart}
+            color={
+              userTestimonials.length === 0 ? 'yellow' : 
+              publishedCount > 0 ? 'green' : 'blue'
+            }
+            isLoading={testimonialsLoading}
+            subtitle={
+              userTestimonials.length === 0 ? 'Comparte tu experiencia' :
+              publishedCount > 0 ? `${publishedCount} publicado${publishedCount !== 1 ? 's' : ''}` :
+              `${pendingCount} en revisión`
+            }
+            alert={canSubmitTestimonial && userTestimonials.length === 0}
+          />
+        </div>
+        
         {/* Días restantes */}
         <DashboardCard
           title="Días restantes"
@@ -546,6 +563,37 @@ const ClientDashboard = () => {
         </div>
       )}
 
+      {/* ✅ NUEVA ALERTA: Invitación a dejar testimonio (prominente) */}
+     {/* ✅ MODIFICADO: Alerta para TODOS los usuarios, con o sin membresía */}
+{canSubmitTestimonial && userTestimonials.length === 0 && (  
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-6 shadow-lg">
+          <div className="flex items-center">
+            <div className="bg-white rounded-full p-3 mr-4">
+              <Heart className="w-8 h-8 text-purple-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-purple-900">
+                ¡Comparte tu experiencia en {appConfig.name}!
+              </h3>
+              <p className="text-purple-800 mt-2">
+  Déjanos un testimonio, reseña, recomendación o cuéntanos tu experiencia en el gimnasio. 
+  Tu opinión es muy valiosa, seas miembro actual, visitante o ex-miembro. 
+  Ayuda a otros a conocer {appConfig.name}.
+</p>
+            </div>
+            <div className="ml-6">
+              <button
+                onClick={() => navigateToSection('testimonials')}
+                className="btn-primary font-bold py-3 px-6 text-lg hover:scale-105 transition-transform bg-purple-600 hover:bg-purple-700"
+              >
+                <Star className="w-5 h-5 mr-2" />
+                Dejar Testimonio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Alerta para membresía pendiente */}
       {membershipStatus.status === 'pending' && currentMembership && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -569,7 +617,6 @@ const ClientDashboard = () => {
                     'Procesando tu membresía - Te notificaremos pronto'
                   }
                 </p>
-                {/* Información adicional de la membresía */}
                 <div className="text-xs text-yellow-600 mt-2">
                   Plan: {currentMembership.plan?.name || currentMembership.type || 'Membresía'} • 
                   Precio: {formatQuetzales(currentMembership.price)} • 
@@ -668,37 +715,8 @@ const ClientDashboard = () => {
         </div>
       )}
       
-      {/* Alerta para testimonios */}
-      {canSubmitTestimonial && currentMembership && membershipStatus.status !== 'pending' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <MessageSquare className="w-5 h-5 text-blue-500 mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-blue-800">
-                {userTestimonials.length === 0 ? 
-                  '¡Comparte tu experiencia!' :
-                  '¡Comparte más experiencias!'
-                }
-              </h3>
-              <p className="text-sm text-blue-700 mt-1">
-                {userTestimonials.length === 0 ? 
-                  'Tu opinión es muy valiosa. Ayuda a otros miembros compartiendo tu experiencia en el gimnasio.' :
-                  `Ya tienes ${userTestimonials.length} testimonio${userTestimonials.length !== 1 ? 's' : ''}. ¿Tienes más experiencias que compartir?`
-                }
-              </p>
-            </div>
-            <button
-              onClick={() => navigateToSection('testimonials')}
-              className="ml-auto btn-primary btn-sm"
-            >
-              {userTestimonials.length === 0 ? 'Escribir testimonio' : 'Agregar otro'}
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* CONTENIDO PRINCIPAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* ✅ CONTENIDO PRINCIPAL - 3 COLUMNAS (incluye testimonios) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* MI MEMBRESÍA */}
         <div className="bg-white rounded-lg shadow-lg p-6">
@@ -737,7 +755,6 @@ const ClientDashboard = () => {
                 isOwner={true}
               />
               
-              {/* Información adicional para membresías pendientes */}
               {membershipStatus.status === 'pending' && currentMembership.payment && (
                 <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <h4 className="font-medium text-yellow-800 mb-2">Estado del pago</h4>
@@ -759,13 +776,12 @@ const ClientDashboard = () => {
                 </div>
               )}
               
-              {/* Botón para ver detalles completos */}
               <button
                 onClick={() => navigateToSection('membership')}
                 className="w-full mt-4 btn-outline text-center"
               >
                 <CreditCard className="w-4 h-4 mr-2 inline" />
-                Ver detalles completos de mi membresía
+                Ver detalles completos
               </button>
             </div>
           ) : (
@@ -856,7 +872,6 @@ const ClientDashboard = () => {
             </div>
           ) : (
             <div>
-              {/* Resumen de horarios */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-blue-50 rounded-lg p-3 text-center">
                   <div className="text-lg font-semibold text-blue-800">{totalScheduledSlots}</div>
@@ -868,7 +883,6 @@ const ClientDashboard = () => {
                 </div>
               </div>
               
-              {/* Lista de horarios */}
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {Object.entries(scheduleData)
                   .filter(([_, dayData]) => dayData.hasSlots)
@@ -903,138 +917,127 @@ const ClientDashboard = () => {
             </div>
           )}
         </div>
-        
-      </div>
-      
-      {/* SECCIÓN DE TESTIMONIOS */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">
-            Mis Testimonios
-            {userTestimonials.length > 0 && (
-              <span className="ml-2 text-sm font-normal text-gray-500">
-                ({userTestimonials.length})
-              </span>
-            )}
-          </h3>
-          <button
-            onClick={() => navigateToSection('testimonials')}
-            className="text-primary-600 hover:text-primary-500 text-sm font-medium"
-          >
-            {userTestimonials.length > 0 ? 'Ver todos' : 'Escribir testimonio'}
-          </button>
-        </div>
-        
-        {testimonialsLoading ? (
-          <LoadingSpinner />
-        ) : userTestimonials.length > 0 ? (
-          <div className="space-y-4">
-            
-            {/* Estadísticas rápidas */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-green-50 rounded-lg p-3 text-center">
-                <div className="text-lg font-semibold text-green-800">{publishedCount}</div>
-                <div className="text-xs text-green-600">Publicado{publishedCount !== 1 ? 's' : ''}</div>
-              </div>
-              <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <div className="text-lg font-semibold text-blue-800">{pendingCount}</div>
-                <div className="text-xs text-blue-600">En revisión</div>
-              </div>
-            </div>
-            
-            {/* Mostrar los 2 testimonios más recientes */}
-            {userTestimonials.slice(0, 2).map((testimonial, index) => (
-              <div key={testimonial.id} className="border border-gray-200 rounded-lg p-4">
-                
-                {/* Estado del testimonio */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    testimonial.status === 'Publicado' ? 'bg-green-100 text-green-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
-                    {testimonial.status === 'Publicado' && <CheckCircle className="w-3 h-3 mr-1" />}
-                    {testimonial.status === 'En revisión' && <Clock className="w-3 h-3 mr-1" />}
-                    {testimonial.status}
-                    {index === 0 && userTestimonials.length > 1 && (
-                      <span className="ml-1 text-xs">• Más reciente</span>
-                    )}
-                  </span>
-                  
-                  {/* Calificación */}
-                  <div className="flex items-center">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        className={`w-4 h-4 ${
-                          star <= testimonial.rating
-                            ? 'text-yellow-400 fill-current'
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                    <span className="ml-2 text-sm text-gray-600">
-                      ({testimonial.rating}/5)
-                    </span>
-                  </div>
-                </div>
-                
-                {/* Contenido del testimonio */}
-                <p className="text-gray-800 text-sm leading-relaxed mb-3">
-                  "{testimonial.text.length > 100 ? 
-                    testimonial.text.substring(0, 100) + '...' : 
-                    testimonial.text}"
-                </p>
-                
-                {/* Meta información */}
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Como {testimonial.role}</span>
-                  <span>Enviado el {formatDate(testimonial.submittedAt)}</span>
-                </div>
-                
-                {/* Destacado */}
-                {testimonial.featured && (
-                  <div className="mt-2 flex items-center text-xs text-purple-600">
-                    <Star className="w-3 h-3 mr-1 fill-current" />
-                    Testimonio destacado
-                  </div>
-                )}
-              </div>
-            ))}
-            
-            {/* Indicador de más testimonios */}
-            {userTestimonials.length > 2 && (
-              <div className="text-center pt-2">
-                <button
-                  onClick={() => navigateToSection('testimonials')}
-                  className="text-sm text-primary-600 hover:text-primary-500"
-                >
-                  Ver {userTestimonials.length - 2} testimonio{userTestimonials.length - 2 !== 1 ? 's' : ''} más →
-                </button>
-              </div>
-            )}
-            
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h4 className="text-lg font-medium text-gray-900 mb-2">
-              Comparte tu experiencia
-            </h4>
-            <p className="text-gray-600 mb-4">
-              Tu testimonio ayuda a otros miembros a conocer los beneficios de {appConfig.name}
-            </p>
+
+        {/* ✅ MIS TESTIMONIOS - NUEVA COLUMNA */}
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">
+              Mis Testimonios
+              {userTestimonials.length > 0 && (
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  ({userTestimonials.length})
+                </span>
+              )}
+            </h3>
             <button
               onClick={() => navigateToSection('testimonials')}
-              className="btn-primary"
-              disabled={!currentMembership || membershipStatus.status === 'pending'}
+              className="text-primary-600 hover:text-primary-500 text-sm font-medium"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              {!currentMembership ? 'Obtén membresía primero' : 
-               membershipStatus.status === 'pending' ? 'Espera validación' :
-               'Escribir testimonio'}
+              {userTestimonials.length > 0 ? 'Ver todos' : 'Escribir'}
             </button>
           </div>
-        )}
+          
+          {testimonialsLoading ? (
+            <LoadingSpinner />
+          ) : userTestimonials.length > 0 ? (
+            <div className="space-y-4">
+              
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-semibold text-green-800">{publishedCount}</div>
+                  <div className="text-xs text-green-600">Publicado{publishedCount !== 1 ? 's' : ''}</div>
+                </div>
+                <div className="bg-blue-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-semibold text-blue-800">{pendingCount}</div>
+                  <div className="text-xs text-blue-600">En revisión</div>
+                </div>
+              </div>
+              
+              <div className="space-y-3 max-h-48 overflow-y-auto">
+                {userTestimonials.slice(0, 2).map((testimonial, index) => (
+                  <div key={testimonial.id} className="border border-gray-200 rounded-lg p-3">
+                    
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        testimonial.status === 'Publicado' ? 'bg-green-100 text-green-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {testimonial.status === 'Publicado' && <CheckCircle className="w-3 h-3 mr-1" />}
+                        {testimonial.status === 'En revisión' && <Clock className="w-3 h-3 mr-1" />}
+                        {testimonial.status}
+                      </span>
+                      
+                      <div className="flex items-center">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-3 h-3 ${
+                              star <= testimonial.rating
+                                ? 'text-yellow-400 fill-current'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <p className="text-gray-800 text-xs leading-relaxed">
+                      "{testimonial.text.length > 80 ? 
+                        testimonial.text.substring(0, 80) + '...' : 
+                        testimonial.text}"
+                    </p>
+                    
+                    <div className="text-xs text-gray-500 mt-2">
+                      {formatDate(testimonial.submittedAt)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {userTestimonials.length > 2 && (
+                <div className="text-center pt-2">
+                  <button
+                    onClick={() => navigateToSection('testimonials')}
+                    className="text-sm text-primary-600 hover:text-primary-500"
+                  >
+                    Ver {userTestimonials.length - 2} más →
+                  </button>
+                </div>
+              )}
+              
+              <button
+                onClick={() => navigateToSection('testimonials')}
+                className="w-full mt-4 btn-outline text-center"
+              >
+                <MessageSquare className="w-4 h-4 mr-2 inline" />
+                Gestionar testimonios
+              </button>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Heart className="w-8 h-8 text-purple-600" />
+              </div>
+              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                Comparte tu experiencia
+              </h4>
+              <p className="text-gray-600 text-sm mb-4 px-2">
+                Deja un testimonio, reseña, recomendación o cuéntanos tu experiencia en {appConfig.name}
+              </p>
+              <button
+                onClick={() => navigateToSection('testimonials')}
+                className="btn-primary w-full"
+                disabled={!currentMembership || membershipStatus.status === 'pending'}
+              >
+                <Star className="w-4 h-4 mr-2" />
+                {!currentMembership ? 'Obtén membresía primero' : 
+                 membershipStatus.status === 'pending' ? 'Espera validación' :
+                 'Dejar Testimonio'}
+              </button>
+            </div>
+          )}
+        </div>
+        
       </div>
       
     </div>
@@ -1042,48 +1045,3 @@ const ClientDashboard = () => {
 };
 
 export default ClientDashboard;
-
-/*
-=== ACTUALIZACIONES PARA SISTEMA DE PRODUCCIÓN ===
-
-INTEGRACIÓN CON SERVICIOS ACTUALIZADOS:
-- membershipService.getCurrentMembership() para obtener membresía actual
-- membershipService.getUserMemberships() para historial completo
-- membershipService.getPlans() para planes con el nuevo formato de datos
-
-ESTADOS DE MEMBRESÍA MEJORADOS:
-- 'none': Sin membresía activa
-- 'pending': Pendiente de validación (transferencia/efectivo)
-- 'active': Membresía activa y validada
-- 'expired': Membresía vencida
-- 'expiring': Por vencer (≤7 días)
-
-ALERTAS INTELIGENTES:
-- Sin membresía: CTA prominente para obtener una
-- Pendiente validación: Opciones para actualizar estado o ver ubicación
-- Por vencer: Recordatorios de renovación
-- Testimonios: Solo para miembros con membresía validada
-
-INFORMACIÓN DE MÉTODOS DE PAGO:
-- Tarjeta: Activación inmediata con Stripe
-- Transferencia: Validación manual 1-2 días
-- Efectivo: Pago en sucursal del gimnasio
-
-FUNCIONALIDADES NUEVAS:
-- Botón "Actualizar estado" para pagos pendientes
-- Enlaces a ubicación del gimnasio para pagos en efectivo
-- Información detallada del estado de cada pago
-- Restricciones para testimonios hasta validar membresía
-
-EXPERIENCIA DE USUARIO:
-- Feedback claro sobre el estado de cada proceso
-- Instrucciones específicas según método de pago elegido
-- Actualizaciones en tiempo real del estado de membresía
-- Navegación intuitiva entre secciones relacionadas
-
-SEGURIDAD Y VALIDACIÓN:
-- Verificación de disponibilidad antes de mostrar planes
-- Estados consistentes entre frontend y backend
-- Manejo de errores específico por tipo de operación
-- Protección contra acciones no permitidas según estado
-*/
