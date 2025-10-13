@@ -1,6 +1,6 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/MembershipsManager.js
-// VERSIÓN: Con Wizard de Creación Integrado
+// VERSIÓN: Con Wizard + Vista Responsive + Controles con Iconos
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -48,7 +48,10 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   const [totalMemberships, setTotalMemberships] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   
-  // ✅ NUEVO: Estado para wizard de creación
+  // Estado para vista (tabla o tarjetas)
+  const [viewMode, setViewMode] = useState('table');
+  
+  // Estado para wizard de creación
   const [showCreationWizard, setShowCreationWizard] = useState(false);
   
   // Modal de edición (para editar membresías EXISTENTES)
@@ -102,6 +105,22 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'cancelled', label: 'Cancelada', color: 'bg-gray-100 text-gray-800', icon: XCircle },
     { value: 'suspended', label: 'Suspendida', color: 'bg-orange-100 text-orange-800', icon: AlertTriangle }
   ];
+  
+  // ============================================================================
+  // FUNCIÓN: Traducir tipos de membresía
+  // ============================================================================
+  
+  const translateMembershipType = (type) => {
+    const translations = {
+      'daily': 'Diaria',
+      'weekly': 'Semanal',
+      'monthly': 'Mensual',
+      'quarterly': 'Trimestral',
+      'annual': 'Anual',
+      'yearly': 'Anual'
+    };
+    return translations[type?.toLowerCase()] || type || 'N/A';
+  };
   
   // ============================================================================
   // CARGAR ESTADÍSTICAS
@@ -358,20 +377,16 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
     showSuccess('Datos actualizados');
   };
   
-  // ✅ MODIFICADO: Ahora abre el wizard
   const handleNewMembership = () => {
     setShowCreationWizard(true);
   };
   
-  // ✅ NUEVO: Manejar éxito del wizard
   const handleWizardSuccess = async (result) => {
     console.log('✅ Membresía creada desde wizard:', result);
     
-    // Recargar todos los datos
     await loadMemberships();
     await loadMembershipStats();
     
-    // Notificar al componente padre
     if (onSave) {
       onSave({ 
         type: 'membership', 
@@ -561,142 +576,176 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
   return (
     <div className="space-y-6 relative">
       
-      {/* HEADER */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex items-center space-x-3 mb-2">
-            <CreditCard className="w-8 h-8 text-purple-500" />
-            <h1 className="text-3xl font-bold text-gray-900">
-              Gestión de Membresías
-            </h1>
-          </div>
-          <p className="text-gray-600 text-lg">
-            Administra membresías, planes y configuraciones del sistema
-          </p>
-        </div>
-        
-        <div className="flex items-center space-x-4 mt-4 lg:mt-0">
-          <button
-            onClick={refreshMembershipsData}
-            className="btn-secondary btn-sm"
-            title="Actualizar datos"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          
-          {hasUnsavedChanges && (
-            <div className="flex items-center bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-              <AlertTriangle className="w-4 h-4 mr-1" />
-              Cambios sin guardar
+      {/* ✅ HEADER CON CONTROLES INTEGRADOS */}
+      <div className="flex flex-col space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <CreditCard className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500 flex-shrink-0" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Gestión de Membresías
+              </h1>
             </div>
-          )}
+            <p className="text-sm sm:text-base text-gray-600">
+              Administra membresías, planes y configuraciones del sistema
+            </p>
+          </div>
+          
+          {/* ✅ CONTROLES A LA DERECHA CON ICONOS */}
+          <div className="flex items-center gap-2">
+            {/* Botón Actualizar */}
+            <button
+              onClick={refreshMembershipsData}
+              className="btn-secondary btn-sm flex-shrink-0 p-2"
+              title="Actualizar datos"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            
+            {/* Toggle Vista (Solo Iconos) */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'table'
+                    ? 'bg-white text-purple-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="Vista de Lista"
+              >
+                <FileText className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'cards'
+                    ? 'bg-white text-purple-700 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="Vista de Tarjetas"
+              >
+                <CreditCard className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* Botón Nueva Membresía */}
+            {hasPermission('create_memberships') && (
+              <button
+                onClick={handleNewMembership}
+                className="btn-primary btn-sm flex-shrink-0"
+              >
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Nueva Membresía</span>
+              </button>
+            )}
+            
+            {/* Indicador de cambios sin guardar */}
+            {hasUnsavedChanges && (
+              <div className="flex items-center bg-yellow-100 text-yellow-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm whitespace-nowrap">
+                <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" />
+                <span className="hidden sm:inline">Cambios sin guardar</span>
+                <span className="sm:hidden">Sin guardar</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
       {/* NAVEGACIÓN POR SECCIONES */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
+      <div className="bg-white rounded-lg shadow-sm p-2 sm:p-4">
         <div className="flex space-x-1 overflow-x-auto">
           {membershipSections.map((section) => (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex items-center ${
+              className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg whitespace-nowrap transition-colors flex items-center flex-shrink-0 ${
                 activeSection === section.id
                   ? `bg-${section.color}-100 text-${section.color}-700`
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
-              <section.icon className="w-4 h-4 mr-2" />
-              {section.title}
+              <section.icon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+              <span className="hidden sm:inline">{section.title}</span>
+              <span className="sm:hidden">{section.title.split(' ')[0]}</span>
             </button>
           ))}
         </div>
       </div>
       
       {/* CONTENIDO */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
         
         {/* SECCIÓN: Gestión de Membresías */}
         {activeSection === 'memberships' && (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             
             {/* CARDS DE ESTADÍSTICAS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               
               {/* Card Activas */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                  <div className="ml-3">
-                    <div className="text-2xl font-bold text-green-900">
+                  <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 flex-shrink-0" />
+                  <div className="ml-2 sm:ml-3">
+                    <div className="text-xl sm:text-2xl font-bold text-green-900">
                       {activeMembershipsCount}
                     </div>
-                    <div className="text-sm text-green-600">Activas</div>
+                    <div className="text-xs sm:text-sm text-green-600">Activas</div>
                   </div>
                 </div>
               </div>
               
               {/* Card Vencidas */}
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center">
-                  <XCircle className="w-8 h-8 text-red-600" />
-                  <div className="ml-3">
-                    <div className="text-2xl font-bold text-red-900">
+                  <XCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-600 flex-shrink-0" />
+                  <div className="ml-2 sm:ml-3">
+                    <div className="text-xl sm:text-2xl font-bold text-red-900">
                       {expiredMembershipsCount}
                     </div>
-                    <div className="text-sm text-red-600">Vencidas</div>
+                    <div className="text-xs sm:text-sm text-red-600">Vencidas</div>
                   </div>
                 </div>
               </div>
               
               {/* Card Por Vencer */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center">
-                  <Clock className="w-8 h-8 text-yellow-600" />
-                  <div className="ml-3">
-                    <div className="text-2xl font-bold text-yellow-900">
+                  <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600 flex-shrink-0" />
+                  <div className="ml-2 sm:ml-3">
+                    <div className="text-xl sm:text-2xl font-bold text-yellow-900">
                       {expiringSoonCount}
                     </div>
-                    <div className="text-sm text-yellow-600">Por Vencer</div>
+                    <div className="text-xs sm:text-sm text-yellow-600">Por Vencer</div>
                   </div>
                 </div>
               </div>
               
             </div>
             
-            {/* CONTROLES SUPERIORES */}
-            <div className="flex justify-between items-center">
-              <h4 className="text-lg font-medium text-gray-900">
+            {/* TÍTULO SIMPLE */}
+            <div>
+              <h4 className="text-base sm:text-lg font-medium text-gray-900">
                 Membresías Registradas ({totalMemberships})
               </h4>
-              
-              {hasPermission('create_memberships') && (
-                <button
-                  onClick={handleNewMembership}
-                  className="btn-primary btn-sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nueva Membresía
-                </button>
-              )}
             </div>
             
             {/* FILTROS Y BÚSQUEDA */}
-            <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 sm:p-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 
                 {/* Búsqueda */}
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Buscar por usuario..."
+                    placeholder="Buscar..."
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
                 
@@ -707,7 +756,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     setSelectedStatus(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value="all">Todos los estados</option>
                   {membershipStatuses.map(status => (
@@ -724,7 +773,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     setSelectedType(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value="all">Todos los tipos</option>
                   <option value="daily">Diaria</option>
@@ -743,7 +792,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     setSortOrder(order);
                     setCurrentPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value="createdAt-desc">Más recientes</option>
                   <option value="createdAt-asc">Más antiguos</option>
@@ -754,26 +803,26 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            {/* TABLA DE MEMBRESÍAS */}
+            {/* CONTENEDOR DE MEMBRESÍAS */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader className="w-6 h-6 animate-spin text-purple-600 mr-2" />
-                  <span className="text-gray-600">Cargando membresías...</span>
+                  <span className="text-sm sm:text-base text-gray-600">Cargando...</span>
                 </div>
               ) : memberships.length === 0 ? (
-                <div className="text-center py-12">
+                <div className="text-center py-12 px-4">
                   <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No hay membresías</h3>
-                  <p className="text-gray-600 mb-4">
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No hay membresías</h3>
+                  <p className="text-sm text-gray-600 mb-4">
                     {searchTerm || selectedStatus !== 'all' || selectedType !== 'all' 
                       ? 'No se encontraron membresías con los filtros aplicados'
                       : 'Comienza creando tu primera membresía'
                     }
                   </p>
                   {hasPermission('create_memberships') && (
-                    <button onClick={handleNewMembership} className="btn-primary">
+                    <button onClick={handleNewMembership} className="btn-primary text-sm">
                       <Plus className="w-4 h-4 mr-2" />
                       Crear Membresía
                     </button>
@@ -781,169 +830,299 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                 </div>
               ) : (
                 <>
-                  {/* Desktop Table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Usuario
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Tipo/Plan
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Precio
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Período
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Estado
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                            Acciones
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                  {/* VISTA DE TARJETAS */}
+                  {viewMode === 'cards' && (
+                    <div className="p-3 sm:p-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         {memberships.map((membership) => {
                           const statusInfo = getStatusInfo(membership.status);
                           const StatusIcon = statusInfo.icon;
                           
                           return (
-                            <tr key={membership.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10">
-                                    {membership.user?.profileImage ? (
-                                      <img
-                                        className="h-10 w-10 rounded-full object-cover"
-                                        src={membership.user.profileImage}
-                                        alt=""
-                                      />
-                                    ) : (
-                                      <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                        <span className="text-sm font-medium text-purple-800">
-                                          {membership.user?.firstName?.[0]}{membership.user?.lastName?.[0]}
-                                        </span>
-                                      </div>
-                                    )}
+                            <div key={membership.id} className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                              {/* Usuario */}
+                              <div className="flex items-center mb-3">
+                                <div className="flex-shrink-0">
+                                  {membership.user?.profileImage ? (
+                                    <img
+                                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-full object-cover"
+                                      src={membership.user.profileImage}
+                                      alt=""
+                                    />
+                                  ) : (
+                                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                                      <span className="text-xs sm:text-sm font-medium text-purple-800">
+                                        {membership.user?.firstName?.[0]}{membership.user?.lastName?.[0]}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="ml-3 flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-gray-900 truncate">
+                                    {membership.user?.firstName} {membership.user?.lastName}
                                   </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {membership.user?.firstName} {membership.user?.lastName}
-                                    </div>
-                                    <div className="text-sm text-gray-500">
-                                      {membership.user?.email}
-                                    </div>
+                                  <div className="text-xs text-gray-500 truncate">
+                                    {membership.user?.email}
                                   </div>
                                 </div>
-                              </td>
+                              </div>
                               
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {membership.type || membership.plan?.name || 'N/A'}
-                              </td>
-                              
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {formatCurrency(membership.price)}
-                              </td>
-                              
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                <div>
-                                  <div className="flex items-center">
-                                    <Calendar className="w-4 h-4 mr-1" />
-                                    {formatDate(membership.startDate, 'dd/MM/yyyy')}
-                                  </div>
-                                  <div className="flex items-center mt-1">
-                                    <Clock className="w-4 h-4 mr-1" />
-                                    {formatDate(membership.endDate, 'dd/MM/yyyy')}
-                                  </div>
-                                </div>
-                              </td>
-                              
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                                  <StatusIcon className="w-3 h-3 mr-1" />
+                              {/* Estado */}
+                              <div className="mb-3">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                                  <StatusIcon className="w-3 h-3 mr-1 flex-shrink-0" />
                                   {statusInfo.label}
                                 </span>
-                              </td>
+                              </div>
                               
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex items-center justify-end space-x-2">
-                                  {(membership.status === 'expired' || membership.status === 'active') && (
-                                    <button
-                                      onClick={() => handleRenewMembership(membership.id)}
-                                      className="text-green-600 hover:text-green-800"
-                                      title="Renovar"
-                                    >
-                                      <RotateCcw className="w-4 h-4" />
-                                    </button>
-                                  )}
-                                  
-                                  <button
-                                    onClick={() => handleEditMembership(membership)}
-                                    className="text-blue-600 hover:text-blue-800"
-                                    title="Editar"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                  
-                                  {membership.status === 'active' && (
-                                    <button
-                                      onClick={() => handleCancelMembership(membership.id)}
-                                      className="text-red-600 hover:text-red-800"
-                                      title="Cancelar"
-                                    >
-                                      <XCircle className="w-4 h-4" />
-                                    </button>
-                                  )}
+                              {/* Información */}
+                              <div className="space-y-1.5 mb-3 text-xs sm:text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Plan:</span>
+                                  <span className="font-medium text-gray-900 truncate ml-2">
+                                    {translateMembershipType(membership.type) || membership.plan?.name}
+                                  </span>
                                 </div>
-                              </td>
-                            </tr>
+                                
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Precio:</span>
+                                  <span className="font-medium text-gray-900">
+                                    {formatCurrency(membership.price)}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Inicio:</span>
+                                  <span className="text-gray-900">
+                                    {formatDate(membership.startDate, 'dd/MM/yyyy')}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Vence:</span>
+                                  <span className="text-gray-900">
+                                    {formatDate(membership.endDate, 'dd/MM/yyyy')}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Acciones */}
+                              <div className="flex flex-wrap items-center justify-end gap-1.5 pt-3 border-t border-gray-200">
+                                {(membership.status === 'expired' || membership.status === 'active') && (
+                                  <button
+                                    onClick={() => handleRenewMembership(membership.id)}
+                                    className="flex items-center text-xs text-green-600 hover:text-green-800 px-2 py-1.5 rounded hover:bg-green-50 whitespace-nowrap"
+                                    title="Renovar"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+                                    Renovar
+                                  </button>
+                                )}
+                                
+                                <button
+                                  onClick={() => handleEditMembership(membership)}
+                                  className="flex items-center text-xs text-blue-600 hover:text-blue-800 px-2 py-1.5 rounded hover:bg-blue-50 whitespace-nowrap"
+                                  title="Editar"
+                                >
+                                  <Edit className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+                                  Editar
+                                </button>
+                                
+                                {membership.status === 'active' && (
+                                  <button
+                                    onClick={() => handleCancelMembership(membership.id)}
+                                    className="flex items-center text-xs text-red-600 hover:text-red-800 px-2 py-1.5 rounded hover:bg-red-50 whitespace-nowrap"
+                                    title="Cancelar"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
+                                    Cancelar
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           );
                         })}
-                      </tbody>
-                    </table>
-                  </div>
-                  
-                  {/* PAGINACIÓN */}
-                  {totalPages > 1 && (
-                    <div className="bg-white px-4 py-3 border-t border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-700">
-                            Mostrando {((currentPage - 1) * membershipsPerPage) + 1} a {Math.min(currentPage * membershipsPerPage, totalMemberships)} de {totalMemberships}
-                          </p>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                          >
-                            Anterior
-                          </button>
-                          
-                          <span className="text-sm text-gray-700">
-                            {currentPage} de {totalPages}
-                          </span>
-                          
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                            disabled={currentPage === totalPages}
-                            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                          >
-                            Siguiente
-                          </button>
-                        </div>
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* VISTA DE TABLA RESPONSIVE */}
+                  {viewMode === 'table' && (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                              Usuario
+                            </th>
+                            <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                              Plan
+                            </th>
+                            <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell whitespace-nowrap">
+                              Precio
+                            </th>
+                            <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase hidden lg:table-cell whitespace-nowrap">
+                              Período
+                            </th>
+                            <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                              Estado
+                            </th>
+                            <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                              Acciones
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {memberships.map((membership) => {
+                            const statusInfo = getStatusInfo(membership.status);
+                            const StatusIcon = statusInfo.icon;
+                            
+                            return (
+                              <tr key={membership.id} className="hover:bg-gray-50">
+                                {/* USUARIO */}
+                                <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap">
+                                  <div className="flex items-center min-w-0">
+                                    <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                                      {membership.user?.profileImage ? (
+                                        <img
+                                          className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover"
+                                          src={membership.user.profileImage}
+                                          alt=""
+                                        />
+                                      ) : (
+                                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                          <span className="text-xs sm:text-sm font-medium text-purple-800">
+                                            {membership.user?.firstName?.[0]}{membership.user?.lastName?.[0]}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="ml-2 sm:ml-3 min-w-0">
+                                      <div className="text-xs sm:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-none">
+                                        {membership.user?.firstName} {membership.user?.lastName}
+                                      </div>
+                                      <div className="text-xs text-gray-500 hidden sm:block truncate max-w-[150px]">
+                                        {membership.user?.email}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                
+                                {/* PLAN - TRADUCIDO */}
+                                <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap">
+                                  <div className="text-xs sm:text-sm text-gray-900">
+                                    {translateMembershipType(membership.type) || membership.plan?.name}
+                                  </div>
+                                </td>
+                                
+                                {/* PRECIO */}
+                                <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 hidden sm:table-cell">
+                                  {formatCurrency(membership.price)}
+                                </td>
+                                
+                                {/* PERÍODO */}
+                                <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-xs text-gray-500 hidden lg:table-cell">
+                                  <div>
+                                    <div className="flex items-center">
+                                      <Calendar className="w-3 h-3 mr-1 flex-shrink-0" />
+                                      {formatDate(membership.startDate, 'dd/MM/yyyy')}
+                                    </div>
+                                    <div className="flex items-center mt-1">
+                                      <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
+                                      {formatDate(membership.endDate, 'dd/MM/yyyy')}
+                                    </div>
+                                  </div>
+                                </td>
+                                
+                                {/* ESTADO */}
+                                <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}>
+                                    <StatusIcon className="w-3 h-3 mr-1 flex-shrink-0" />
+                                    <span className="hidden sm:inline">{statusInfo.label}</span>
+                                  </span>
+                                </td>
+                                
+                                {/* ACCIONES */}
+                                <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-right text-sm font-medium">
+                                  <div className="flex items-center justify-end gap-1">
+                                    {(membership.status === 'expired' || membership.status === 'active') && (
+                                      <button
+                                        onClick={() => handleRenewMembership(membership.id)}
+                                        className="text-green-600 hover:text-green-800 p-1.5 hover:bg-green-50 rounded"
+                                        title="Renovar"
+                                      >
+                                        <RotateCcw className="w-4 h-4 flex-shrink-0" />
+                                      </button>
+                                    )}
+                                    
+                                    <button
+                                      onClick={() => handleEditMembership(membership)}
+                                      className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-50 rounded"
+                                      title="Editar"
+                                    >
+                                      <Edit className="w-4 h-4 flex-shrink-0" />
+                                    </button>
+                                    
+                                    {membership.status === 'active' && (
+                                      <button
+                                        onClick={() => handleCancelMembership(membership.id)}
+                                        className="text-red-600 hover:text-red-800 p-1.5 hover:bg-red-50 rounded"
+                                        title="Cancelar"
+                                      >
+                                        <XCircle className="w-4 h-4 flex-shrink-0" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </>
               )}
             </div>
+            
+            {/* PAGINACIÓN */}
+            {totalPages > 1 && !loading && memberships.length > 0 && (
+              <div className="bg-white px-3 sm:px-4 py-3 border-t border-gray-200 rounded-lg">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="text-center sm:text-left">
+                    <p className="text-xs sm:text-sm text-gray-700">
+                      <span className="hidden sm:inline">Mostrando </span>
+                      {((currentPage - 1) * membershipsPerPage) + 1} - {Math.min(currentPage * membershipsPerPage, totalMemberships)} 
+                      <span className="hidden sm:inline"> de</span>
+                      <span className="sm:hidden">/</span> {totalMemberships}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Anterior
+                    </button>
+                    
+                    <span className="text-xs sm:text-sm text-gray-700 px-2">
+                      {currentPage} / {totalPages}
+                    </span>
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
           </div>
         )}
         
@@ -962,9 +1141,9 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             
-            <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+            <div className="px-4 sm:px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900">
                   {editingMembership ? 'Editar Membresía' : 'Nueva Membresía'}
                 </h3>
                 <button
@@ -973,15 +1152,15 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     setEditingMembership(null);
                     resetMembershipForm();
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-1"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
             </div>
             
-            <div className="px-6 py-4">
-              <div className="space-y-6">
+            <div className="px-4 sm:px-6 py-4">
+              <div className="space-y-4 sm:space-y-6">
                 
                 {/* SELECTOR DE CLIENTE */}
                 <div>
@@ -990,20 +1169,20 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                   </label>
                   
                   <div className="relative mb-2">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
                       type="text"
-                      placeholder="Buscar cliente por nombre o email..."
+                      placeholder="Buscar cliente..."
                       value={clientSearchTerm}
                       onChange={(e) => setClientSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                       disabled={editingMembership}
                     />
                   </div>
                   
                   <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
                     {filteredClients.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">
+                      <div className="p-4 text-center text-sm text-gray-500">
                         No se encontraron clientes
                       </div>
                     ) : (
@@ -1038,16 +1217,16 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                                   </div>
                                 )}
                               </div>
-                              <div className="ml-3 flex-1">
-                                <div className="text-sm font-medium text-gray-900">
+                              <div className="ml-3 flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
                                   {client.firstName} {client.lastName}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-gray-500 truncate">
                                   {client.email}
                                 </div>
                               </div>
                               {membershipFormData.userId === client.id && (
-                                <CheckCircle className="w-5 h-5 text-purple-600" />
+                                <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0 ml-2" />
                               )}
                             </div>
                           </button>
@@ -1066,7 +1245,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     <div className="mt-2 bg-orange-50 border border-orange-200 rounded-lg p-3">
                       <div className="flex">
                         <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0" />
-                        <div className="ml-3">
+                        <div className="ml-3 flex-1">
                           <h4 className="text-sm font-medium text-orange-800">
                             Este cliente ya tiene una membresía activa
                           </h4>
@@ -1092,19 +1271,19 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                   </label>
                   
                   <div className="relative mb-2">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                     <input
                       type="text"
                       placeholder="Buscar plan..."
                       value={planSearchTerm}
                       onChange={(e) => setPlanSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
                   
                   <div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
                     {filteredPlans.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500">
+                      <div className="p-4 text-center text-sm text-gray-500">
                         No se encontraron planes
                       </div>
                     ) : (
@@ -1119,16 +1298,16 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                             }`}
                           >
                             <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-gray-900">
+                              <div className="flex-1 min-w-0 mr-2">
+                                <div className="text-sm font-medium text-gray-900 truncate">
                                   {plan.name}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-gray-500 truncate">
                                   {plan.description || `${plan.duration} - ${formatCurrency(plan.price)}`}
                                 </div>
                               </div>
                               {membershipFormData.planId === plan.id && (
-                                <CheckCircle className="w-5 h-5 text-purple-600 ml-2" />
+                                <CheckCircle className="w-5 h-5 text-purple-600 flex-shrink-0" />
                               )}
                             </div>
                           </button>
@@ -1146,7 +1325,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                   <select
                     value={membershipFormData.paymentMethod}
                     onChange={(e) => setMembershipFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="cash">Efectivo</option>
                     <option value="transfer">Transferencia</option>
@@ -1163,7 +1342,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
                     value={membershipFormData.notes}
                     onChange={(e) => setMembershipFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                     placeholder="Notas adicionales..."
                   />
                 </div>
@@ -1171,14 +1350,14 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
               </div>
             </div>
             
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 sticky bottom-0 bg-white">
+            <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sticky bottom-0 bg-white z-10">
               <button
                 onClick={() => {
                   setShowMembershipModal(false);
                   setEditingMembership(null);
                   resetMembershipForm();
                 }}
-                className="btn-secondary"
+                className="btn-secondary w-full sm:w-auto text-sm py-2"
                 disabled={saving}
               >
                 Cancelar
@@ -1187,7 +1366,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
               <button
                 onClick={handleSaveMembership}
                 disabled={saving || !membershipFormData.userId || !membershipFormData.planId || selectedClientHasMembership}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto text-sm py-2"
               >
                 {saving ? (
                   <>
@@ -1207,9 +1386,7 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* ============================================================================
-          WIZARD DE CREACIÓN DE MEMBRESÍA - NUEVO
-          ============================================================================ */}
+      {/* WIZARD DE CREACIÓN DE MEMBRESÍA */}
       {showCreationWizard && (
         <MembershipCreationWizard
           onClose={() => setShowCreationWizard(false)}
@@ -1222,39 +1399,3 @@ const MembershipsManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default MembershipsManager;
-
-/*
-=============================================================================
-CAMBIOS REALIZADOS - INTEGRACIÓN DEL WIZARD
-=============================================================================
-
-✅ AGREGADO:
-1. Import de MembershipCreationWizard
-2. Estado showCreationWizard
-3. Función handleWizardSuccess para manejar éxito del wizard
-4. Renderizado del wizard al final (antes del cierre del div principal)
-
-✅ MODIFICADO:
-1. handleNewMembership() - Ahora abre el wizard en lugar del modal viejo
-
-✅ MANTENIDO INTACTO:
-- Cards de estadísticas (activas, vencidas, por vencer)
-- loadMembershipStats() con endpoints específicos
-- Tabla de membresías con todos sus filtros
-- Paginación completa
-- Funciones de renovar, cancelar membresías
-- Modal de EDICIÓN (showMembershipModal) - Se usa solo para editar
-- handleEditMembership() - Abre el modal viejo para editar
-- Sección de planes con MembershipPlansManager
-- Sistema de pestañas (memberships y plans)
-- Todas las cargas de datos
-- Todo el diseño original
-
-🎯 FUNCIONAMIENTO:
-- Botón "Nueva Membresía" → Abre WIZARD (5 pasos)
-- Botón "Editar" en tabla → Abre MODAL VIEJO (edición simple)
-- Wizard crea + activa automáticamente
-- Modal viejo solo actualiza datos
-
-=============================================================================
-*/
