@@ -174,7 +174,7 @@ const ClientDashboard = () => {
     onError: (error) => showError('Error al cargar planes de membresía')
   });
   
-  // Testimonios del usuario
+  // Reseñas del usuario
   const { data: testimonials, isLoading: testimonialsLoading } = useQuery({
     queryKey: ['myTestimonials', user?.id],
     queryFn: () => apiService.getMyTestimonials(),
@@ -182,7 +182,7 @@ const ClientDashboard = () => {
     retry: 1,
     onError: (error) => {
       if (error.response?.status !== 404) {
-        console.warn('Error cargando testimonios:', error.message);
+        console.warn('Error cargando Reseñas:', error.message);
       }
     }
   });
@@ -364,7 +364,7 @@ const ClientDashboard = () => {
             <ArrowLeft className="w-4 h-4 mr-1" />
             Volver al Panel
           </button>
-          <h2 className="text-xl font-semibold text-gray-900">Mis Testimonios</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Mis Reseñas</h2>
         </div>
         <TestimonialManager />
       </div>
@@ -483,17 +483,17 @@ const ClientDashboard = () => {
           />
         </div>
         
-        {/* ✅ NUEVO: Tarjeta de Testimonios */}
+        {/* ✅ NUEVO: Tarjeta de Reseñas */}
         <div 
           className="cursor-pointer transition-transform hover:scale-105"
           onClick={() => navigateToSection('testimonials')}
         >
           <DashboardCard
-            title="Mis Testimonios"
+            title="Mis Reseñas"
             value={
-              userTestimonials.length === 0 ? 'Sin testimonios' :
-              userTestimonials.length === 1 ? '1 testimonio' :
-              `${userTestimonials.length} testimonios`
+              userTestimonials.length === 0 ? 'Sin Reseñas ahora' :
+              userTestimonials.length === 1 ? '1 Reseña' :
+              `${userTestimonials.length} Reseñas`
             }
             icon={Heart}
             color={
@@ -563,7 +563,7 @@ const ClientDashboard = () => {
         </div>
       )}
 
-      {/* ✅ NUEVA ALERTA: Invitación a dejar testimonio (prominente) */}
+      {/* ✅ NUEVA ALERTA: Invitación a dejar Reseña (prominente) */}
      {/* ✅ MODIFICADO: Alerta para TODOS los usuarios, con o sin membresía */}
 {canSubmitTestimonial && userTestimonials.length === 0 && (  
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-6 shadow-lg">
@@ -576,7 +576,7 @@ const ClientDashboard = () => {
                 ¡Comparte tu experiencia en {appConfig.name}!
               </h3>
               <p className="text-purple-800 mt-2">
-  Déjanos un testimonio, reseña, recomendación o cuéntanos tu experiencia en el gimnasio. 
+  Déjanos una Reseña, testimonio, recomendación sobre nuestra pagina web o cuéntanos tu experiencia en el gimnasio. 
   Tu opinión es muy valiosa, seas miembro actual, visitante o ex-miembro. 
   Ayuda a otros a conocer {appConfig.name}.
 </p>
@@ -587,7 +587,7 @@ const ClientDashboard = () => {
                 className="btn-primary font-bold py-3 px-6 text-lg hover:scale-105 transition-transform bg-purple-600 hover:bg-purple-700"
               >
                 <Star className="w-5 h-5 mr-2" />
-                Dejar Testimonio
+                Dejar Reseña
               </button>
             </div>
           </div>
@@ -715,7 +715,7 @@ const ClientDashboard = () => {
         </div>
       )}
       
-      {/* ✅ CONTENIDO PRINCIPAL - 3 COLUMNAS (incluye testimonios) */}
+      {/* ✅ CONTENIDO PRINCIPAL - 3 COLUMNAS (incluye Reseñas) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* MI MEMBRESÍA */}
@@ -918,11 +918,11 @@ const ClientDashboard = () => {
           )}
         </div>
 
-        {/* ✅ MIS TESTIMONIOS - NUEVA COLUMNA */}
+        {/* ✅ MIS Reseñas - NUEVA COLUMNA */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
-              Mis Testimonios
+              Mis Reseñas
               {userTestimonials.length > 0 && (
                 <span className="ml-2 text-sm font-normal text-gray-500">
                   ({userTestimonials.length})
@@ -1010,7 +1010,7 @@ const ClientDashboard = () => {
                 className="w-full mt-4 btn-outline text-center"
               >
                 <MessageSquare className="w-4 h-4 mr-2 inline" />
-                Gestionar testimonios
+                Gestionar Reseñas
               </button>
             </div>
           ) : (
@@ -1022,7 +1022,7 @@ const ClientDashboard = () => {
                 Comparte tu experiencia
               </h4>
               <p className="text-gray-600 text-sm mb-4 px-2">
-                Deja un testimonio, reseña, recomendación o cuéntanos tu experiencia en {appConfig.name}
+                Deja un Reseña, reseña, recomendación o cuéntanos tu experiencia en {appConfig.name}
               </p>
               <button
                 onClick={() => navigateToSection('testimonials')}
@@ -1032,7 +1032,7 @@ const ClientDashboard = () => {
                 <Star className="w-4 h-4 mr-2" />
                 {!currentMembership ? 'Obtén membresía primero' : 
                  membershipStatus.status === 'pending' ? 'Espera validación' :
-                 'Dejar Testimonio'}
+                 'Dejar Reseña'}
               </button>
             </div>
           )}
