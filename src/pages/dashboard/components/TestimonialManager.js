@@ -359,7 +359,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
             <ThumbsUp className={`text-blue-600 mt-0.5 mr-2 flex-shrink-0 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             <div>
               <h4 className={`font-medium text-blue-900 ${isMobile ? 'text-xs mb-0.5' : 'text-sm mb-1'}`}>
-                ¡Gracias por tu información!
+                ¡Gracias por tu opinion!
               </h4>
               <p className={`text-blue-800 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                 Tu opinión nos ayuda a mejorar constantemente nuestros servicios.
