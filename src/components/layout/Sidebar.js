@@ -1,7 +1,7 @@
 // Autor: Alexander Echeverria
 // src/components/layout/Sidebar.js
 // FUNCIÓN: Sidebar solo para desktop con navegación colapsable
-// ACTUALIZADO: Con inventario separado, sin badges
+// ACTUALIZADO: Con inventario separado y Reseñas para clientes
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -22,7 +22,8 @@ import {
   Globe,
   Settings,
   Package,
-  TrendingDown 
+  TrendingDown,
+  Heart
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApp } from '../../contexts/AppContext';
@@ -104,6 +105,15 @@ const Sidebar = ({ collapsed }) => {
         path: '/dashboard/client?section=schedule',
         show: true
       });
+      
+      // ✅ NUEVO: Mis Reseñas para clientes
+      baseItems.push({
+        id: 'my_testimonials',
+        label: 'Mis Reseñas',
+        icon: Heart,
+        path: '/dashboard/client?section=testimonials',
+        show: true
+      });
     }
     
     // Pagos en quetzales
@@ -117,17 +127,16 @@ const Sidebar = ({ collapsed }) => {
       });
     }
     
-     // Gastos - Solo para administradores y personal con permisos
-   // 💰 Gastos - Solo para administradores
-if (user?.role === 'admin') {
-  baseItems.push({
-    id: 'expenses',
-    label: 'Gastos',
-    icon: TrendingDown ,  
-    path: '/dashboard/expenses',
-    show: true
-  });
-}
+    // Gastos - Solo para administradores
+    if (user?.role === 'admin') {
+      baseItems.push({
+        id: 'expenses',
+        label: 'Gastos',
+        icon: TrendingDown,  
+        path: '/dashboard/expenses',
+        show: true
+      });
+    }
 
     // Tienda - Disponible para todos los usuarios
     baseItems.push({
@@ -159,8 +168,6 @@ if (user?.role === 'admin') {
         show: true
       });
     }
-
-
     
     // Reportes - Solo admin y colaboradores con permisos
     if (hasPermission('view_reports')) {
@@ -212,6 +219,12 @@ if (user?.role === 'admin') {
   const isActiveScheduleSection = () => {
     const searchParams = new URLSearchParams(location.search);
     return location.pathname === '/dashboard/client' && searchParams.get('section') === 'schedule';
+  };
+  
+  // ✅ NUEVO: Verificar si estamos en la sección de testimonials
+  const isActiveTestimonialsSection = () => {
+    const searchParams = new URLSearchParams(location.search);
+    return location.pathname === '/dashboard/client' && searchParams.get('section') === 'testimonials';
   };
   
   // Manejar logout robusto
@@ -337,7 +350,7 @@ if (user?.role === 'admin') {
       </div>
       
       {/* Navegación principal */}
-      <nav className={`flex-1 space-y-2 transition-all duration-300 ${
+      <nav className={`flex-1 space-y-2 transition-all duration-300 overflow-y-auto ${
         collapsed ? 'p-2' : 'p-4'
       }`}>
         {menuItems.map((item) => {
@@ -348,6 +361,8 @@ if (user?.role === 'admin') {
             isActive = isActiveMembershipSection();
           } else if (item.id === 'my_schedule') {
             isActive = isActiveScheduleSection();
+          } else if (item.id === 'my_testimonials') {
+            isActive = isActiveTestimonialsSection();
           } else {
             isActive = isActiveRoute(item.path) || isActiveSection([item.path]);
           }
@@ -440,7 +455,6 @@ if (user?.role === 'admin') {
 };
 
 export default Sidebar;
-
 /*
 🆕 CAMBIOS PRINCIPALES EN Sidebar.js:
 

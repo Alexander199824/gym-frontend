@@ -8,7 +8,6 @@ import {
   Menu, 
   Bell, 
   User, 
-  Settings, 
   LogOut, 
   ChevronDown,
   Sun,
@@ -271,15 +270,6 @@ const Header = ({ onToggleMobileMenu, onToggleNotifications }) => {
                 >
                   <User className="w-4 h-4 mr-3" />
                   Mi Perfil
-                </Link>
-                
-                <Link
-                  to="/dashboard/settings"
-                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
-                  onClick={() => setShowUserMenu(false)}
-                >
-                  <Settings className="w-4 h-4 mr-3" />
-                  Configuración Personal
                 </Link>
                 
                 <div className="border-t border-gray-200 my-2" />

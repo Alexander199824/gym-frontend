@@ -399,24 +399,24 @@ const ClientDashboard = () => {
 
   // Vista principal del dashboard
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       
       {/* ENCABEZADO PERSONALIZADO */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg p-6 text-white">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg p-4 md:p-6 text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-xl md:text-2xl font-bold">
               ¡Hola, {user?.firstName}!
             </h1>
-            <p className="text-primary-100 mt-1">
+            <p className="text-primary-100 mt-1 text-sm md:text-base">
               Bienvenido a {appConfig.name}
             </p>
           </div>
-          <div className="text-right">
-            <div className="text-sm text-primary-100">
+          <div className="text-left sm:text-right">
+            <div className="text-xs md:text-sm text-primary-100">
               Miembro desde
             </div>
-            <div className="text-lg font-semibold">
+            <div className="text-base md:text-lg font-semibold">
               {formatDate(new Date(user?.createdAt || Date.now()), 'MMM yyyy')}
             </div>
           </div>
@@ -424,7 +424,7 @@ const ClientDashboard = () => {
       </div>
       
       {/* MÉTRICAS PERSONALES - 4 COLUMNAS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         
         {/* Estado de membresía */}
         <div 
@@ -492,7 +492,7 @@ const ClientDashboard = () => {
             title="Mis Reseñas"
             value={
               userTestimonials.length === 0 ? 'Sin Reseñas ahora' :
-              userTestimonials.length === 1 ? '1 Reseña' :
+              userTestimonials.length === 1 ? '1 Reseña nueva' :
               `${userTestimonials.length} Reseñas`
             }
             icon={Heart}
@@ -503,8 +503,8 @@ const ClientDashboard = () => {
             isLoading={testimonialsLoading}
             subtitle={
               userTestimonials.length === 0 ? 'Comparte tu experiencia' :
-              publishedCount > 0 ? `${publishedCount} publicado${publishedCount !== 1 ? 's' : ''}` :
-              `${pendingCount} en revisión`
+              publishedCount > 0 ? `${publishedCount} Gracias${publishedCount !== 1 ? 's' : ''}` :
+              ` Gracias tu opinion es muy valiosa`
             }
             alert={canSubmitTestimonial && userTestimonials.length === 0}
           />
@@ -535,27 +535,38 @@ const ClientDashboard = () => {
       
       {/* ALERTAS IMPORTANTES */}
       {!currentMembership && !membershipLoading && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 shadow-lg">
-          <div className="flex items-center">
-            <AlertTriangle className="w-8 h-8 text-red-500 mr-4" />
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-red-800">
-                ¡Necesitas una membresía para acceder al gimnasio!
-              </h3>
-              <p className="text-red-700 mt-2">
-                Para disfrutar de todas nuestras instalaciones y servicios exclusivos, 
-                necesitas obtener una membresía. 
-                {paymentConfig.cardEnabled && ' Pago con tarjeta para activación inmediata.'}
-                {paymentConfig.transferEnabled && ' Transferencia bancaria con validación 1-2 días.'}
-                {paymentConfig.cashEnabled && ' Pago en efectivo en nuestra sucursal.'}
-              </p>
+        <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 md:p-6 shadow-lg">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-start gap-3 md:gap-4 flex-1">
+              <AlertTriangle className="w-6 h-6 md:w-8 md:h-8 text-red-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base md:text-lg font-bold text-red-800">
+                  ¡Necesitas una membresía para acceder al gimnasio!
+                </h3>
+                <p className="text-sm md:text-base text-red-700 mt-2">
+                  Para disfrutar de todas nuestras instalaciones y servicios exclusivos, 
+                  necesitas obtener una membresía.
+                </p>
+                {/* Info de métodos de pago - solo en desktop */}
+                <div className="hidden md:block text-xs text-red-600 mt-2 space-y-1">
+                  {paymentConfig.cardEnabled && (
+                    <div>💳 {paymentConfig.cardProcessingNote}</div>
+                  )}
+                  {paymentConfig.transferEnabled && (
+                    <div>🏦 {paymentConfig.transferProcessingNote}</div>
+                  )}
+                  {paymentConfig.cashEnabled && (
+                    <div>💵 {paymentConfig.cashProcessingNote}</div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="ml-6">
+            <div className="w-full md:w-auto md:ml-4">
               <button
                 onClick={() => navigateToSection('membership')}
-                className="btn-primary font-bold py-3 px-6 text-lg hover:scale-105 transition-transform"
+                className="btn-primary w-full md:w-auto font-bold py-2.5 md:py-3 px-4 md:px-6 text-base md:text-lg hover:scale-105 transition-transform"
               >
-                <Gift className="w-5 h-5 mr-2" />
+                <Gift className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                 Obtener Membresía
               </button>
             </div>
@@ -564,29 +575,29 @@ const ClientDashboard = () => {
       )}
 
       {/* ✅ NUEVA ALERTA: Invitación a dejar Reseña (prominente) */}
-     {/* ✅ MODIFICADO: Alerta para TODOS los usuarios, con o sin membresía */}
-{canSubmitTestimonial && userTestimonials.length === 0 && (  
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-6 shadow-lg">
-          <div className="flex items-center">
-            <div className="bg-white rounded-full p-3 mr-4">
-              <Heart className="w-8 h-8 text-purple-500" />
+      {canSubmitTestimonial && userTestimonials.length === 0 && (  
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-lg p-4 md:p-6 shadow-lg">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-start gap-3 md:gap-4 flex-1">
+              <div className="bg-white rounded-full p-2 md:p-3 flex-shrink-0">
+                <Heart className="w-6 h-6 md:w-8 md:h-8 text-purple-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base md:text-lg font-bold text-purple-900">
+                  ¡Comparte tu experiencia en {appConfig.name}!
+                </h3>
+                <p className="text-sm md:text-base text-purple-800 mt-2">
+                  Déjanos una Reseña, testimonio o cuéntanos tu experiencia. 
+                  Tu opinión es valiosa. Ayuda a otros a conocernos.
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-purple-900">
-                ¡Comparte tu experiencia en {appConfig.name}!
-              </h3>
-              <p className="text-purple-800 mt-2">
-  Déjanos una Reseña, testimonio, recomendación sobre nuestra pagina web o cuéntanos tu experiencia en el gimnasio. 
-  Tu opinión es muy valiosa, seas miembro actual, visitante o ex-miembro. 
-  Ayuda a otros a conocer {appConfig.name}.
-</p>
-            </div>
-            <div className="ml-6">
+            <div className="w-full md:w-auto md:ml-4">
               <button
                 onClick={() => navigateToSection('testimonials')}
-                className="btn-primary font-bold py-3 px-6 text-lg hover:scale-105 transition-transform bg-purple-600 hover:bg-purple-700"
+                className="btn-primary w-full md:w-auto font-bold py-2.5 md:py-3 px-4 md:px-6 text-base md:text-lg hover:scale-105 transition-transform bg-purple-600 hover:bg-purple-700"
               >
-                <Star className="w-5 h-5 mr-2" />
+                <Star className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                 Dejar Reseña
               </button>
             </div>
@@ -596,15 +607,15 @@ const ClientDashboard = () => {
 
       {/* Alerta para membresía pendiente */}
       {membershipStatus.status === 'pending' && currentMembership && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Clock className="w-5 h-5 text-yellow-500 mr-3" />
-              <div>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 md:p-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex items-start gap-2 md:gap-3 flex-1">
+              <Clock className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-medium text-yellow-800">
                   Tu membresía está siendo validada
                 </h3>
-                <p className="text-sm text-yellow-700 mt-1">
+                <p className="text-xs md:text-sm text-yellow-700 mt-1">
                   {currentMembership.payment?.paymentMethod === 'transfer' && 
                     `Validando transferencia bancaria - ${paymentConfig.transferProcessingNote || 'Validación en proceso'}`
                   }
@@ -624,10 +635,10 @@ const ClientDashboard = () => {
                 </div>
               </div>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={handleRefreshPaymentStatus}
-                className="btn-warning btn-sm"
+                className="btn-warning btn-sm flex-1 sm:flex-none"
               >
                 <RefreshCw className="w-4 h-4 mr-1" />
                 Actualizar
@@ -635,7 +646,7 @@ const ClientDashboard = () => {
               {currentMembership.payment?.paymentMethod === 'cash' && (
                 <button
                   onClick={() => window.open(getGymMapUrl(), '_blank')}
-                  className="btn-outline btn-sm"
+                  className="btn-outline btn-sm flex-1 sm:flex-none"
                 >
                   <MapPin className="w-4 h-4 mr-1" />
                   Ver ubicación
@@ -648,20 +659,22 @@ const ClientDashboard = () => {
 
       {/* Alertas de vencimiento */}
       {membershipStatus.status === 'expired' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-red-800">
-                Tu membresía ha vencido
-              </h3>
-              <p className="text-sm text-red-700 mt-1">
-                Renueva tu membresía para continuar disfrutando de nuestros servicios.
-              </p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 md:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-2 md:gap-3 flex-1">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-medium text-red-800">
+                  Tu membresía ha vencido
+                </h3>
+                <p className="text-xs md:text-sm text-red-700 mt-1">
+                  Renueva tu membresía para continuar disfrutando de nuestros servicios.
+                </p>
+              </div>
             </div>
             <button
               onClick={() => navigateToSection('membership')}
-              className="ml-auto btn-danger btn-sm"
+              className="btn-danger btn-sm w-full sm:w-auto sm:ml-auto"
             >
               Renovar ahora
             </button>
@@ -670,20 +683,22 @@ const ClientDashboard = () => {
       )}
       
       {membershipStatus.status === 'expiring' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-yellow-500 mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-yellow-800">
-                Tu membresía vence en {daysUntilExpiry} día{daysUntilExpiry !== 1 ? 's' : ''}
-              </h3>
-              <p className="text-sm text-yellow-700 mt-1">
-                Renueva pronto para evitar interrupciones en tu rutina.
-              </p>
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 md:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-2 md:gap-3 flex-1">
+              <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Tu membresía vence en {daysUntilExpiry} día{daysUntilExpiry !== 1 ? 's' : ''}
+                </h3>
+                <p className="text-xs md:text-sm text-yellow-700 mt-1">
+                  Renueva pronto para evitar interrupciones en tu rutina.
+                </p>
+              </div>
             </div>
             <button
               onClick={() => navigateToSection('membership')}
-              className="ml-auto btn-warning btn-sm"
+              className="btn-warning btn-sm w-full sm:w-auto sm:ml-auto"
             >
               Renovar
             </button>
@@ -693,20 +708,22 @@ const ClientDashboard = () => {
 
       {/* Alerta para configurar horarios */}
       {currentMembership && membershipStatus.status === 'active' && totalScheduledSlots === 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <Timer className="w-5 h-5 text-blue-500 mr-3" />
-            <div>
-              <h3 className="text-sm font-medium text-blue-800">
-                ¡Configura tus horarios de entrenamiento!
-              </h3>
-              <p className="text-sm text-blue-700 mt-1">
-                Ya tienes membresía activa. Ahora configura tus horarios para aprovechar al máximo el gimnasio.
-              </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-2 md:gap-3 flex-1">
+              <Timer className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-800">
+                  ¡Configura tus horarios de entrenamiento!
+                </h3>
+                <p className="text-xs md:text-sm text-blue-700 mt-1">
+                  Ya tienes membresía activa. Ahora configura tus horarios para aprovechar al máximo el gimnasio.
+                </p>
+              </div>
             </div>
             <button
               onClick={() => navigateToSection('schedule')}
-              className="ml-auto btn-primary btn-sm"
+              className="btn-primary btn-sm w-full sm:w-auto sm:ml-auto"
             >
               <Calendar className="w-4 h-4 mr-1" />
               Configurar Horarios
@@ -716,12 +733,12 @@ const ClientDashboard = () => {
       )}
       
       {/* ✅ CONTENIDO PRINCIPAL - 3 COLUMNAS (incluye Reseñas) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         
         {/* MI MEMBRESÍA */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-base md:text-lg font-medium text-gray-900">
               Mi Membresía
             </h3>
             {currentMembership ? (
@@ -729,7 +746,7 @@ const ClientDashboard = () => {
                 {membershipStatus.status === 'pending' && (
                   <button
                     onClick={handleRefreshPaymentStatus}
-                    className="text-yellow-600 hover:text-yellow-500 text-sm font-medium"
+                    className="text-yellow-600 hover:text-yellow-500 text-xs md:text-sm font-medium"
                   >
                     Actualizar estado
                   </button>
@@ -738,7 +755,7 @@ const ClientDashboard = () => {
             ) : (
               <button
                 onClick={() => navigateToSection('membership')}
-                className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+                className="text-primary-600 hover:text-primary-500 text-xs md:text-sm font-medium"
               >
                 Obtener membresía
               </button>
@@ -756,14 +773,14 @@ const ClientDashboard = () => {
               />
               
               {membershipStatus.status === 'pending' && currentMembership.payment && (
-                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h4 className="font-medium text-yellow-800 mb-2">Estado del pago</h4>
-                  <div className="text-sm text-yellow-700 space-y-1">
+                <div className="mt-4 p-3 md:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <h4 className="font-medium text-yellow-800 mb-2 text-sm md:text-base">Estado del pago</h4>
+                  <div className="text-xs md:text-sm text-yellow-700 space-y-1">
                     <div>Método: {getPaymentMethodName(currentMembership.payment.paymentMethod)}</div>
                     <div>Estado: Pendiente de validación</div>
                     {currentMembership.payment.paymentMethod === 'cash' && (
                       <div className="flex items-center mt-2">
-                        <MapPin className="w-4 h-4 mr-1" />
+                        <MapPin className="w-4 h-4 mr-1 flex-shrink-0" />
                         <span>Visita {appConfig.name} en {contactInfo.address}</span>
                       </div>
                     )}
@@ -778,26 +795,26 @@ const ClientDashboard = () => {
               
               <button
                 onClick={() => navigateToSection('membership')}
-                className="w-full mt-4 btn-outline text-center"
+                className="w-full mt-4 btn-outline text-center text-sm"
               >
                 <CreditCard className="w-4 h-4 mr-2 inline" />
                 Ver detalles completos
               </button>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <CreditCard className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-6 md:py-8">
+              <CreditCard className="w-10 h-10 md:w-12 md:h-12 text-red-500 mx-auto mb-3 md:mb-4" />
+              <h4 className="text-base md:text-lg font-medium text-gray-900 mb-2">
                 No tienes membresía activa
               </h4>
-              <p className="text-gray-600 mb-6">
+              <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-6 px-2">
                 Para acceder a todas nuestras instalaciones y servicios, 
                 necesitas obtener una membresía.
               </p>
               <div className="space-y-3">
                 <button
                   onClick={() => navigateToSection('membership')}
-                  className="btn-primary w-full"
+                  className="btn-primary w-full text-sm md:text-base"
                 >
                   <Gift className="w-4 h-4 mr-2" />
                   Obtener Membresía Ahora
@@ -819,14 +836,14 @@ const ClientDashboard = () => {
         </div>
         
         {/* MIS HORARIOS */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-base md:text-lg font-medium text-gray-900">
               Mis Horarios
             </h3>
             <button
               onClick={() => navigateToSection('schedule')}
-              className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+              className="text-primary-600 hover:text-primary-500 text-xs md:text-sm font-medium"
             >
               {totalScheduledSlots > 0 ? 'Gestionar horarios' : 'Configurar horarios'}
             </button>
@@ -835,36 +852,36 @@ const ClientDashboard = () => {
           {scheduleLoading ? (
             <LoadingSpinner />
           ) : !currentSchedule?.hasMembership ? (
-            <div className="text-center py-8">
-              <Timer className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-6 md:py-8">
+              <Timer className="w-10 h-10 md:w-12 md:h-12 text-red-500 mx-auto mb-3 md:mb-4" />
+              <h4 className="text-base md:text-lg font-medium text-gray-900 mb-2">
                 Necesitas membresía activa
               </h4>
-              <p className="text-gray-600 mb-6">
+              <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-6 px-2">
                 Para configurar horarios de entrenamiento, 
                 primero necesitas obtener una membresía.
               </p>
               <button
                 onClick={() => navigateToSection('membership')}
-                className="btn-primary w-full"
+                className="btn-primary w-full text-sm md:text-base"
               >
                 <Zap className="w-4 h-4 mr-2" />
                 Obtener Membresía
               </button>
             </div>
           ) : totalScheduledSlots === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="text-center py-6 md:py-8">
+              <Calendar className="w-10 h-10 md:w-12 md:h-12 text-yellow-500 mx-auto mb-3 md:mb-4" />
+              <h4 className="text-base md:text-lg font-medium text-gray-900 mb-2">
                 Sin horarios configurados
               </h4>
-              <p className="text-gray-600 mb-6">
+              <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-6 px-2">
                 Configura tus horarios de entrenamiento para 
                 aprovechar al máximo tu membresía.
               </p>
               <button
                 onClick={() => navigateToSection('schedule')}
-                className="btn-primary w-full"
+                className="btn-primary w-full text-sm md:text-base"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Configurar Horarios
@@ -872,13 +889,13 @@ const ClientDashboard = () => {
             </div>
           ) : (
             <div>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-blue-800">{totalScheduledSlots}</div>
+              <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4">
+                <div className="bg-blue-50 rounded-lg p-2 md:p-3 text-center">
+                  <div className="text-base md:text-lg font-semibold text-blue-800">{totalScheduledSlots}</div>
                   <div className="text-xs text-blue-600">Horarios activos</div>
                 </div>
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-green-800">{scheduledDays}</div>
+                <div className="bg-green-50 rounded-lg p-2 md:p-3 text-center">
+                  <div className="text-base md:text-lg font-semibold text-green-800">{scheduledDays}</div>
                   <div className="text-xs text-green-600">Días programados</div>
                 </div>
               </div>
@@ -887,8 +904,8 @@ const ClientDashboard = () => {
                 {Object.entries(scheduleData)
                   .filter(([_, dayData]) => dayData.hasSlots)
                   .map(([day, dayData]) => (
-                    <div key={day} className="border border-gray-200 rounded-lg p-3">
-                      <div className="font-medium text-gray-900 mb-1">
+                    <div key={day} className="border border-gray-200 rounded-lg p-2 md:p-3">
+                      <div className="font-medium text-gray-900 mb-1 text-sm md:text-base">
                         {dayData.dayName}
                       </div>
                       <div className="flex flex-wrap gap-1">
@@ -897,7 +914,7 @@ const ClientDashboard = () => {
                             key={index}
                             className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md"
                           >
-                            <Clock className="w-3 h-3 mr-1" />
+                            <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
                             {slot.timeRange}
                           </span>
                         ))}
@@ -909,7 +926,7 @@ const ClientDashboard = () => {
               
               <button
                 onClick={() => navigateToSection('schedule')}
-                className="w-full mt-4 btn-outline text-center"
+                className="w-full mt-4 btn-outline text-center text-sm"
               >
                 <Settings className="w-4 h-4 mr-2 inline" />
                 Gestionar todos los horarios
@@ -919,9 +936,9 @@ const ClientDashboard = () => {
         </div>
 
         {/* ✅ MIS Reseñas - NUEVA COLUMNA */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-base md:text-lg font-medium text-gray-900">
               Mis Reseñas
               {userTestimonials.length > 0 && (
                 <span className="ml-2 text-sm font-normal text-gray-500">
@@ -931,7 +948,7 @@ const ClientDashboard = () => {
             </h3>
             <button
               onClick={() => navigateToSection('testimonials')}
-              className="text-primary-600 hover:text-primary-500 text-sm font-medium"
+              className="text-primary-600 hover:text-primary-500 text-xs md:text-sm font-medium"
             >
               {userTestimonials.length > 0 ? 'Ver todos' : 'Escribir'}
             </button>
@@ -942,28 +959,28 @@ const ClientDashboard = () => {
           ) : userTestimonials.length > 0 ? (
             <div className="space-y-4">
               
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-green-50 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-green-800">{publishedCount}</div>
-                  <div className="text-xs text-green-600">Publicado{publishedCount !== 1 ? 's' : ''}</div>
+              <div className="grid grid-cols-2 gap-3 md:gap-4 mb-4">
+                <div className="bg-green-50 rounded-lg p-2 md:p-3 text-center">
+                  <div className="text-base md:text-lg font-semibold text-green-800">{publishedCount}</div>
+                  <div className="text-xs text-green-600">Gracias{publishedCount !== 1 ? 's' : ''}</div>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold text-blue-800">{pendingCount}</div>
-                  <div className="text-xs text-blue-600">En revisión</div>
+                <div className="bg-blue-50 rounded-lg p-2 md:p-3 text-center">
+                  <div className="text-base md:text-lg font-semibold text-blue-800">{pendingCount}</div>
+                  <div className="text-xs text-blue-600">tu opinion es valiosa para nosotros</div>
                 </div>
               </div>
               
               <div className="space-y-3 max-h-48 overflow-y-auto">
                 {userTestimonials.slice(0, 2).map((testimonial, index) => (
-                  <div key={testimonial.id} className="border border-gray-200 rounded-lg p-3">
+                  <div key={testimonial.id} className="border border-gray-200 rounded-lg p-2 md:p-3">
                     
                     <div className="flex items-center justify-between mb-2">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        testimonial.status === 'Publicado' ? 'bg-green-100 text-green-800' :
+                        testimonial.status === 'Gracias' ? 'bg-green-100 text-green-800' :
                         'bg-blue-100 text-blue-800'
                       }`}>
-                        {testimonial.status === 'Publicado' && <CheckCircle className="w-3 h-3 mr-1" />}
-                        {testimonial.status === 'En revisión' && <Clock className="w-3 h-3 mr-1" />}
+                        {testimonial.status === 'Gracias' && <CheckCircle className="w-3 h-3 mr-1" />}
+                        {testimonial.status === 'tu opinion es valiosa para nosotros' && <Clock className="w-3 h-3 mr-1" />}
                         {testimonial.status}
                       </span>
                       
@@ -1007,32 +1024,29 @@ const ClientDashboard = () => {
               
               <button
                 onClick={() => navigateToSection('testimonials')}
-                className="w-full mt-4 btn-outline text-center"
+                className="w-full mt-4 btn-outline text-center text-sm"
               >
                 <MessageSquare className="w-4 h-4 mr-2 inline" />
                 Gestionar Reseñas
               </button>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <Heart className="w-8 h-8 text-purple-600" />
+            <div className="text-center py-6 md:py-8">
+              <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-full w-14 h-14 md:w-16 md:h-16 flex items-center justify-center mx-auto mb-3 md:mb-4">
+                <Heart className="w-7 h-7 md:w-8 md:h-8 text-purple-600" />
               </div>
-              <h4 className="text-lg font-medium text-gray-900 mb-2">
+              <h4 className="text-base md:text-lg font-medium text-gray-900 mb-2">
                 Comparte tu experiencia
               </h4>
-              <p className="text-gray-600 text-sm mb-4 px-2">
+              <p className="text-gray-600 text-xs md:text-sm mb-4 px-2">
                 Deja un Reseña, reseña, recomendación o cuéntanos tu experiencia en {appConfig.name}
               </p>
               <button
                 onClick={() => navigateToSection('testimonials')}
-                className="btn-primary w-full"
-                disabled={!currentMembership || membershipStatus.status === 'pending'}
+                className="btn-primary w-full text-sm md:text-base"
               >
                 <Star className="w-4 h-4 mr-2" />
-                {!currentMembership ? 'Obtén membresía primero' : 
-                 membershipStatus.status === 'pending' ? 'Espera validación' :
-                 'Dejar Reseña'}
+                Dejar Reseña
               </button>
             </div>
           )}

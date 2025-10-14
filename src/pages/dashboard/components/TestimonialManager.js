@@ -312,7 +312,9 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
             onClick={interactive ? () => handleFormChange('rating', star) : undefined}
             onMouseEnter={interactive ? () => setHoverRating(star) : undefined}
             onMouseLeave={interactive ? () => setHoverRating(0) : undefined}
-            className={`${interactive ? 'cursor-pointer hover:scale-110' : 'cursor-default'} transition-all`}
+            onTouchStart={interactive ? () => setHoverRating(star) : undefined}
+            onTouchEnd={interactive ? () => setHoverRating(0) : undefined}
+            className={`${interactive ? 'cursor-pointer hover:scale-110 active:scale-125' : 'cursor-default'} transition-all touch-manipulation`}
             disabled={!interactive}
           >
             <Star
@@ -329,53 +331,38 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-4 ${isMobile ? 'pb-6' : 'space-y-6'}`}>
       
-      {/* ENCABEZADO */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-            <MessageSquare className="w-6 h-6 mr-2 text-blue-600" />
-            Mis Reseñas
-            {userTestimonials.length > 0 && (
-              <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                {userTestimonials.length}
-              </span>
-            )}
-          </h3>
-          <p className="text-gray-600 mt-1">
-            {userTestimonials.length === 0 ? 
-              "Comparte tu experiencia en el gimnasio, sobre la página web o sugerencias para ayudar a otros miembros" :
-              `Tienes ${userTestimonials.length} Reseña${userTestimonials.length !== 1 ? 's' : ''} compartida${userTestimonials.length !== 1 ? 's' : ''}.`
-            }
-          </p>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="btn-primary btn-sm"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {userTestimonials.length === 0 ? 'Escribir Reseña' : 'Agregar Otro Reseña'}
-          </button>
-        </div>
+      {/* ENCABEZADO - SIN BOTÓN */}
+      <div>
+        <h3 className={`font-semibold text-gray-900 flex items-center ${isMobile ? 'text-lg' : 'text-xl'}`}>
+          <MessageSquare className={`mr-2 text-blue-600 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
+          Mis Reseñas
+          {userTestimonials.length > 0 && (
+            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+              {userTestimonials.length}
+            </span>
+          )}
+        </h3>
+        <p className={`text-gray-600 mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+          {userTestimonials.length === 0 ? 
+            "Comparte tu experiencia en el gimnasio o sobre la página web" :
+            `Has compartido ${userTestimonials.length} reseña${userTestimonials.length !== 1 ? 's' : ''}`
+          }
+        </p>
       </div>
       
       {/* MENSAJE DE AGRADECIMIENTO */}
       {userTestimonials.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className={`bg-blue-50 border border-blue-200 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
           <div className="flex items-start">
-            <ThumbsUp className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+            <ThumbsUp className={`text-blue-600 mt-0.5 mr-2 flex-shrink-0 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             <div>
-              <h4 className="text-sm font-medium text-blue-900 mb-1">
-                ¡Gracias por tu valiosa información!
+              <h4 className={`font-medium text-blue-900 ${isMobile ? 'text-xs mb-0.5' : 'text-sm mb-1'}`}>
+                ¡Gracias por tu información!
               </h4>
-              <p className="text-sm text-blue-800">
-                Tu opinión es muy importante para nosotros y nos ayuda a mejorar constantemente nuestros servicios.
-              </p>
-              <p className="text-xs text-blue-700 mt-2">
-                Recuerda que puedes agregar más reseñas sobre diferentes aspectos del gimnasio o la página web.
+              <p className={`text-blue-800 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                Tu opinión nos ayuda a mejorar constantemente nuestros servicios.
               </p>
             </div>
           </div>
@@ -386,100 +373,99 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         
         {testimonialsLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader className="w-6 h-6 animate-spin text-blue-600 mr-2" />
-            <span className="text-gray-600">Cargando tus Reseñas...</span>
+          <div className={`flex items-center justify-center ${isMobile ? 'py-8' : 'py-12'}`}>
+            <Loader className="w-5 h-5 animate-spin text-blue-600 mr-2" />
+            <span className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>Cargando...</span>
           </div>
         ) : userTestimonials.length === 0 ? (
-          <div className="text-center py-12">
-            <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No tienes Reseñas aún
+          <div className={`text-center ${isMobile ? 'py-8 px-4' : 'py-12'}`}>
+            <MessageSquare className={`text-gray-400 mx-auto mb-3 ${isMobile ? 'w-10 h-10' : 'w-12 h-12'}`} />
+            <h3 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
+              No tienes reseñas aún
             </h3>
-            <p className="text-gray-600 mb-4">
-              Comparte tu experiencia en el gimnasio, sobre la página web o sugerencias para ayudar a otros miembros
+            <p className={`text-gray-600 mb-4 ${isMobile ? 'text-xs px-4' : 'text-sm'}`}>
+              Comparte tu experiencia en el gimnasio o tu opinión sobre la página web
             </p>
+            {/* ✅ ÚNICO BOTÓN - CENTRADO Y COMPACTO */}
             <button 
               onClick={() => setShowCreateForm(true)}
-              className="btn-primary"
+              className={`btn-primary inline-flex items-center ${isMobile ? 'text-sm px-4' : 'px-6'}`}
             >
               <Plus className="w-4 h-4 mr-2" />
-              Escribir mi Primer Reseña
+              Escribir Reseña
             </button>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
             {userTestimonials.map((testimonial, index) => {
               return (
-                <div key={testimonial.id} className="p-6">
+                <div key={testimonial.id} className={isMobile ? 'p-3' : 'p-6'}>
                   
                   {/* Indicador de más reciente */}
                   {index === 0 && userTestimonials.length > 1 && (
-                    <div className="mb-3">
-                      <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                    <div className="mb-2">
+                      <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
                         <Star className="w-3 h-3 mr-1" />
-                        Más reciente
+                        Reciente
                       </span>
                     </div>
                   )}
                   
                   {/* Header del Reseña */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-3">
+                  <div className={`flex items-start justify-between ${isMobile ? 'mb-2' : 'mb-4'}`}>
+                    <div className="flex items-center space-x-2">
                       <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <MessageSquare className="w-5 h-5 text-blue-600" />
+                        <div className={`bg-blue-100 rounded-full flex items-center justify-center ${isMobile ? 'w-8 h-8' : 'w-10 h-10'}`}>
+                          <MessageSquare className={`text-blue-600 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                         </div>
                       </div>
                       
                       <div>
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="text-sm font-medium text-gray-900">
+                        <div className={`flex items-center space-x-2 ${isMobile ? 'mb-0.5' : 'mb-1'}`}>
+                          <span className={`font-medium text-gray-900 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                             Reseña #{testimonial.id}
                           </span>
                         </div>
                         
-                        <div className="flex items-center space-x-2 text-sm text-gray-500">
-                          <Calendar className="w-4 h-4" />
-                          <span>Enviado el {formatDate(testimonial.submittedAt)}</span>
+                        <div className={`flex items-center space-x-1 text-gray-500 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                          <Calendar className={isMobile ? 'w-3 h-3' : 'w-4 h-4'} />
+                          <span>{formatDate(testimonial.submittedAt)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                   
                   {/* Contenido del Reseña */}
-                  <div className="mb-4">
-                    <p className="text-gray-800 text-base leading-relaxed mb-3">
+                  <div className={isMobile ? 'mb-2' : 'mb-4'}>
+                    <p className={`text-gray-800 leading-relaxed mb-2 ${isMobile ? 'text-sm' : 'text-base'}`}>
                       "{testimonial.text}"
                     </p>
                     
-                    <div className="flex items-center justify-between flex-wrap gap-3">
-                      <div className="flex items-center space-x-4">
-                        {/* Calificación */}
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">Calificación:</span>
-                          {renderStars(testimonial.rating)}
-                          <span className="text-sm font-medium text-gray-900">
-                            ({testimonial.rating}/5)
-                          </span>
-                        </div>
-                        
-                        {/* Rol */}
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">Como:</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {testimonial.role}
-                          </span>
-                        </div>
+                    <div className={`flex flex-col gap-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      {/* Calificación */}
+                      <div className="flex items-center space-x-2">
+                        <span className="text-gray-600">Calificación:</span>
+                        {renderStars(testimonial.rating, false, isMobile ? 'w-4 h-4' : 'w-5 h-5')}
+                        <span className="font-medium text-gray-900">
+                          ({testimonial.rating}/5)
+                        </span>
+                      </div>
+                      
+                      {/* Rol */}
+                      <div className="flex items-center space-x-2">
+                        <span className="text-gray-600">Como:</span>
+                        <span className="font-medium text-gray-900">
+                          {testimonial.role}
+                        </span>
                       </div>
                     </div>
                   </div>
                   
                   {/* Mensaje de agradecimiento individual */}
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <div className="flex items-center text-sm text-green-800">
-                      <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                      <span>¡Gracias por compartir tu experiencia! Tu opinión es muy valiosa para nosotros.</span>
+                  <div className={`bg-green-50 border border-green-200 rounded-lg ${isMobile ? 'p-2' : 'p-3'}`}>
+                    <div className={`flex items-center text-green-800 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      <CheckCircle className={`mr-2 flex-shrink-0 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                      <span>¡Gracias por compartir tu experiencia!</span>
                     </div>
                   </div>
                   
@@ -487,17 +473,14 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               );
             })}
             
-            {/* Botón para agregar más al final */}
-            <div className="p-6 bg-gray-50 text-center">
-              <p className="text-gray-600 mb-3">
-                ¿Tienes más experiencias que compartir sobre el gimnasio o la página web?
-              </p>
+            {/* ✅ BOTÓN SUTIL AL FINAL - MÁS PEQUEÑO Y DISCRETO */}
+            <div className={`bg-gray-50 text-center ${isMobile ? 'p-3' : 'p-4'}`}>
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="btn-secondary"
+                className={`text-primary-600 hover:text-primary-700 font-medium inline-flex items-center ${isMobile ? 'text-xs' : 'text-sm'}`}
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Agregar Otro Reseña
+                <Plus className={`mr-1 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                Agregar otra reseña
               </button>
             </div>
           </div>
@@ -506,84 +489,75 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
       
       {/* MODAL PARA CREAR Reseña */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9998 }}>
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]" style={{ padding: isMobile ? '0.5rem' : '1rem' }}>
+          <div className={`bg-white rounded-lg shadow-xl w-full ${isMobile ? 'max-h-[95vh]' : 'max-w-2xl max-h-[90vh]'} overflow-y-auto`}>
             
             {/* Header del modal */}
-            <div className="px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
+            <div className={`border-b border-gray-200 sticky top-0 bg-white z-10 ${isMobile ? 'px-4 py-3' : 'px-6 py-4'}`}>
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                  <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
-                  {userTestimonials.length === 0 ? 'Escribir Reseña' : 'Agregar Otro Reseña'}
+                <h3 className={`font-medium text-gray-900 flex items-center ${isMobile ? 'text-base' : 'text-lg'}`}>
+                  <MessageSquare className={`text-blue-600 mr-2 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                  {userTestimonials.length === 0 ? 'Escribir Reseña' : 'Agregar Reseña'}
                 </h3>
                 <button
                   onClick={() => {
                     setShowCreateForm(false);
                     resetForm();
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-1"
                 >
-                  <X className="w-6 h-6" />
+                  <X className={isMobile ? 'w-5 h-5' : 'w-6 h-6'} />
                 </button>
               </div>
             </div>
             
             {/* Contenido del modal */}
-            <form onSubmit={handleSubmit} className="px-6 py-4">
+            <form onSubmit={handleSubmit} className={isMobile ? 'px-4 py-3' : 'px-6 py-4'}>
               
               {/* Mensaje introductorio */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className={`bg-blue-50 border border-blue-200 rounded-lg mb-4 ${isMobile ? 'p-3' : 'p-4'}`}>
                 <div className="flex items-start">
-                  <Info className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <Info className={`text-blue-600 mt-0.5 mr-2 flex-shrink-0 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
                   <div>
-                    <h4 className="text-sm font-medium text-blue-900 mb-1">
-                      {userTestimonials.length === 0 ? 
-                        'Comparte tu experiencia' :
-                        'Comparte otra experiencia'
-                      }
+                    <h4 className={`font-medium text-blue-900 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      Comparte tu experiencia
                     </h4>
-                    <p className="text-sm text-blue-800">
-                      {userTestimonials.length === 0 ? 
-                        'Tu Reseña ayudará a otros miembros a conocer los beneficios de nuestro gimnasio. También puedes compartir tu opinión sobre la página web, si te gusta su diseño o qué le agregarías.' :
-                        'Puedes compartir diferentes aspectos de tu experiencia en el gimnasio (entrenamientos, instalaciones, ambiente, etc.) o tu opinión sobre la página web.'
-                      }
+                    <p className={`text-blue-800 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      Tu opinión ayuda a otros miembros y nos ayuda a mejorar.
                     </p>
                   </div>
                 </div>
               </div>
               
-              <div className="space-y-6">
+              <div className={isMobile ? 'space-y-4' : 'space-y-6'}>
                 
                 {/* Reseña */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>
                     Tu Reseña *
                   </label>
                   <textarea
                     value={formData.text}
                     onChange={(e) => handleFormChange('text', e.target.value)}
-                    rows={4}
+                    rows={isMobile ? 3 : 4}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none ${
                       fieldErrors.text ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                    }`}
-                    placeholder={userTestimonials.length === 0 ? 
-                      "Comparte tu experiencia en el gimnasio, qué te parece la página web (si está bonita, qué le agregarías), sugerencias... ¿Cómo te ha ayudado? ¿Qué es lo que más te gusta?" :
-                      "Comparte otro aspecto de tu experiencia... ¿Qué más te gusta del gimnasio o la página web? ¿Alguna mejora que hayas notado?"
-                    }
+                    } ${isMobile ? 'text-sm' : ''}`}
+                    placeholder="Comparte tu experiencia..."
                     maxLength={500}
                   />
                   <div className="flex items-center justify-between mt-1">
                     <div>
                       {fieldErrors.text && (
-                        <p className="text-sm text-red-600 flex items-center">
-                          <AlertCircle className="w-4 h-4 mr-1" />
+                        <p className={`text-red-600 flex items-center ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                          <AlertCircle className={`mr-1 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                           {fieldErrors.text}
                         </p>
                       )}
                     </div>
-                    <span className={`text-xs ${
+                    <span className={`${
                       formData.text.length > 450 ? 'text-red-600' : 'text-gray-500'
-                    }`}>
+                    } ${isMobile ? 'text-xs' : 'text-xs'}`}>
                       {formData.text.length}/500
                     </span>
                   </div>
@@ -591,27 +565,27 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                 
                 {/* Calificación */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Calificación General *
+                  <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>
+                    Calificación *
                   </label>
-                  <div className="flex items-center space-x-4">
-                    {renderStars(formData.rating, true, 'w-8 h-8')}
-                    <span className="text-sm text-gray-600">
+                  <div className={`flex items-center ${isMobile ? 'space-x-2' : 'space-x-4'}`}>
+                    {renderStars(formData.rating, true, isMobile ? 'w-7 h-7' : 'w-8 h-8')}
+                    <span className={`text-gray-600 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                       {formData.rating > 0 && (
                         <>
                           {formData.rating}/5 - {
                             formData.rating === 5 ? 'Excelente' :
                             formData.rating === 4 ? 'Muy Bueno' :
                             formData.rating === 3 ? 'Bueno' :
-                            formData.rating === 2 ? 'Regular' : 'Necesita Mejorar'
+                            formData.rating === 2 ? 'Regular' : 'Mejorar'
                           }
                         </>
                       )}
                     </span>
                   </div>
                   {fieldErrors.rating && (
-                    <p className="text-sm text-red-600 flex items-center mt-1">
-                      <AlertCircle className="w-4 h-4 mr-1" />
+                    <p className={`text-red-600 flex items-center mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      <AlertCircle className={`mr-1 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                       {fieldErrors.rating}
                     </p>
                   )}
@@ -619,13 +593,13 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                 
                 {/* PROFESIÓN CON BÚSQUEDA */}
                 <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className={`block font-medium text-gray-700 mb-2 ${isMobile ? 'text-sm' : 'text-sm'}`}>
                     Tu Profesión *
                   </label>
                   
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Search className="w-4 h-4 text-gray-400" />
+                      <Search className={`text-gray-400 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                     </div>
                     <input
                       ref={roleInputRef}
@@ -633,20 +607,20 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                       value={roleSearchTerm}
                       onChange={(e) => handleRoleSearch(e.target.value)}
                       onFocus={() => setShowRoleDropdown(true)}
-                      placeholder="Busca o escribe tu profesión (ej: Chef, Mecánico, Estudiante...)"
-                      className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      placeholder="Ej: Chef, Estudiante..."
+                      className={`w-full pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                         fieldErrors.role ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                      }`}
+                      } ${isMobile ? 'pl-8 text-sm' : 'pl-10'}`}
                       maxLength={50}
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <ChevronDown className={`text-gray-400 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                     </div>
                   </div>
                   
                   {fieldErrors.role && (
-                    <p className="text-sm text-red-600 flex items-center mt-1">
-                      <AlertCircle className="w-4 h-4 mr-1" />
+                    <p className={`text-red-600 flex items-center mt-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      <AlertCircle className={`mr-1 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                       {fieldErrors.role}
                     </p>
                   )}
@@ -655,7 +629,9 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                   {showRoleDropdown && (
                     <div 
                       ref={roleDropdownRef}
-                      className="absolute z-50 mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto w-full"
+                      className={`absolute z-50 mt-1 bg-white border border-gray-300 rounded-lg shadow-xl overflow-y-auto w-full ${
+                        isMobile ? 'max-h-40' : 'max-h-60'
+                      }`}
                     >
                       {filteredRoles.length > 0 ? (
                         <ul className="py-1">
@@ -665,57 +641,60 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                               <li
                                 key={role.value}
                                 onClick={() => handleSelectRole(role.value)}
-                                className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-center space-x-3 transition-colors"
+                                className={`hover:bg-blue-50 cursor-pointer flex items-center space-x-2 transition-colors ${
+                                  isMobile ? 'px-3 py-2' : 'px-4 py-2'
+                                }`}
                               >
-                                <RoleIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                <RoleIcon className={`text-gray-500 flex-shrink-0 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium text-gray-900">
+                                  <div className={`font-medium text-gray-900 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                                     {role.value}
                                   </div>
-                                  <div className="text-xs text-gray-500 truncate">
-                                    {role.description}
-                                  </div>
+                                  {!isMobile && (
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {role.description}
+                                    </div>
+                                  )}
                                 </div>
                               </li>
                             );
                           })}
                         </ul>
                       ) : (
-                        <div className="px-4 py-6 text-center">
-                          <User className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600 mb-2">
-                            No se encontró "{roleSearchTerm}" en la lista
+                        <div className={`text-center ${isMobile ? 'px-3 py-4' : 'px-4 py-6'}`}>
+                          <User className={`text-gray-400 mx-auto mb-2 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+                          <p className={`text-gray-600 mb-1 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                            No encontrado
                           </p>
-                          <p className="text-xs text-blue-600">
-                            ✏️ Puedes escribir tu propia profesión o seleccionar "Otro"
+                          <p className={`text-blue-600 ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                            Escribe tu profesión
                           </p>
                         </div>
                       )}
                     </div>
                   )}
                   
-                  <p className="text-xs text-gray-500 mt-1">
-                    Escribe para buscar o seleccionar de la lista. Si no encuentras tu profesión, puedes escribirla directamente
+                  <p className={`text-gray-500 mt-1 ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                    Busca o escribe tu profesión
                   </p>
                 </div>
                 
                 {/* OPCIÓN DE RESEÑA PRIVADA */}
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className={`bg-gray-50 border border-gray-200 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
                   <label className="flex items-start cursor-pointer">
                     <input
                       type="checkbox"
                       checked={formData.isPrivate}
                       onChange={(e) => handleFormChange('isPrivate', e.target.checked)}
-                      className="mt-1 mr-3"
+                      className="mt-1 mr-2"
                     />
                     <div>
-                      <div className="flex items-center text-sm font-medium text-gray-900">
-                        <Lock className="w-4 h-4 mr-2 text-gray-600" />
-                        Marcar como Reseña privado
+                      <div className={`flex items-center font-medium text-gray-900 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                        <Lock className={`mr-2 text-gray-600 ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+                        Reseña privado
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">
-                        Si activas esta opción, tu Reseña será enviado como privado y NO será publicado. 
-                        Solo el equipo del gimnasio lo verá para análisis interno y mejoras.
+                      <p className={`text-gray-600 mt-0.5 ${isMobile ? 'text-xs' : 'text-xs'}`}>
+                        No será publicado, solo para análisis interno.
                       </p>
                     </div>
                   </label>
@@ -725,14 +704,14 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
             </form>
             
             {/* Footer del modal */}
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 sticky bottom-0 bg-white">
+            <div className={`border-t border-gray-200 flex gap-2 sticky bottom-0 bg-white ${isMobile ? 'px-4 py-3' : 'px-6 py-4 justify-end space-x-3'}`}>
               <button
                 type="button"
                 onClick={() => {
                   setShowCreateForm(false);
                   resetForm();
                 }}
-                className="btn-secondary"
+                className={`btn-secondary ${isMobile ? 'flex-1 text-sm' : ''}`}
                 disabled={isSubmitting}
               >
                 Cancelar
@@ -741,7 +720,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="btn-primary flex items-center"
+                className={`btn-primary flex items-center justify-center ${isMobile ? 'flex-1 text-sm' : ''}`}
               >
                 {isSubmitting ? (
                   <>
@@ -751,7 +730,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Enviar Reseña
+                    Enviar
                   </>
                 )}
               </button>
@@ -763,21 +742,24 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
       
       {/* INFORMACIÓN ADICIONAL */}
       {userTestimonials.length === 0 && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+        <div className={`bg-gray-50 border border-gray-200 rounded-lg ${isMobile ? 'p-3' : 'p-6'}`}>
           <div className="flex items-start">
-            <Info className="w-5 h-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
+            <Info className={`text-gray-400 mt-0.5 mr-2 flex-shrink-0 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
             <div>
-              <h4 className="text-sm font-medium text-gray-900 mb-2">
-                ¿Por qué compartir tu Reseña?
+              <h4 className={`font-medium text-gray-900 mb-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                ¿Por qué compartir?
               </h4>
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>• Ayuda a otros miembros a conocer los beneficios del gimnasio</p>
-                <p>• Tu experiencia puede motivar a otros a alcanzar sus objetivos</p>
-                <p>• Puedes compartir tu opinión sobre la página web (diseño, funcionalidad, mejoras)</p>
-                <p>• Contribuyes a mejorar la comunidad del gimnasio</p>
-                <p>• Puedes agregar múltiples Reseñas sobre diferentes aspectos</p>
-                <p>• Si prefieres que tu Reseña sea privado, puedes marcarlo como tal</p>
-                <p>• Los Reseñas Privados solo se usaran para mejoras de nuestros servicios</p>
+              <div className={`text-gray-600 space-y-0.5 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                <p>• Ayuda a otros miembros</p>
+                <p>• Motiva a la comunidad</p>
+                <p>• Mejora nuestros servicios</p>
+                {!isMobile && (
+                  <>
+                    <p>• Opina sobre la página web</p>
+                    <p>• Múltiples reseñas permitidas</p>
+                    <p>• Opción de reseña privada</p>
+                  </>
+                )}
               </div>
             </div>
           </div>
