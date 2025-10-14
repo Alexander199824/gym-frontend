@@ -1,11 +1,11 @@
 // Autor: Alexander Echeverria
 // Archivo: src/pages/dashboard/components/TestimonialManager.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare, Star, Send, Eye, CheckCircle, Clock, AlertCircle,
   User, Briefcase, Heart, Trophy, Target, Users, Coffee, Book,
-  Loader, X, Plus, Info, Calendar, ThumbsUp, Edit3
+  Loader, X, Plus, Info, Calendar, ThumbsUp, Edit3, Lock, Search, ChevronDown, Shield
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -25,8 +25,16 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
   const [formData, setFormData] = useState({
     text: '',
     rating: 0,
-    role: ''
+    role: '',
+    isPrivate: false // ✅ NUEVO: campo para marcar como privada
   });
+  
+  // ✅ NUEVO: Estados para búsqueda de profesión
+  const [roleSearchTerm, setRoleSearchTerm] = useState('');
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+  const [filteredRoles, setFilteredRoles] = useState([]);
+  const roleInputRef = useRef(null);
+  const roleDropdownRef = useRef(null);
   
   // Estados de validación
   const [fieldErrors, setFieldErrors] = useState({});
@@ -38,18 +46,51 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     { value: 'Profesional', icon: Briefcase, description: 'Profesional en activo' },
     { value: 'Empresario', icon: Target, description: 'Dueño de negocio o emprendedor' },
     { value: 'Médico', icon: Heart, description: 'Profesional de la salud' },
+    { value: 'Enfermero/a', icon: Heart, description: 'Profesional de enfermería' },
     { value: 'Ingeniero', icon: Users, description: 'Ingeniero o técnico' },
+    { value: 'Arquitecto', icon: Target, description: 'Arquitecto o diseñador' },
+    { value: 'Abogado', icon: Briefcase, description: 'Profesional del derecho' },
+    { value: 'Contador', icon: Briefcase, description: 'Contador o auditor' },
     { value: 'Profesor', icon: Book, description: 'Educador o académico' },
     { value: 'Deportista', icon: Trophy, description: 'Atleta o deportista' },
     { value: 'Freelancer', icon: Coffee, description: 'Trabajador independiente' },
     { value: 'Ejecutivo', icon: Briefcase, description: 'Ejecutivo o gerente' },
     { value: 'Artista', icon: Star, description: 'Artista o creativo' },
+    { value: 'Diseñador', icon: Star, description: 'Diseñador gráfico o web' },
+    { value: 'Programador', icon: Coffee, description: 'Desarrollador de software' },
     { value: 'Ama de Casa', icon: Heart, description: 'Dedicada al hogar' },
+    { value: 'Agricultor', icon: Target, description: 'Trabajador agrícola' },
+    { value: 'Comerciante', icon: Users, description: 'Comerciante o vendedor' },
+    { value: 'Chef', icon: Coffee, description: 'Chef o cocinero profesional' },
+    { value: 'Mecánico', icon: Target, description: 'Mecánico o técnico automotriz' },
+    { value: 'Electricista', icon: Target, description: 'Electricista profesional' },
+    { value: 'Plomero', icon: Target, description: 'Plomero o fontanero' },
+    { value: 'Carpintero', icon: Target, description: 'Carpintero o ebanista' },
+    { value: 'Conductor', icon: Users, description: 'Conductor o chofer profesional' },
+    { value: 'Policía', icon: Shield, description: 'Oficial de policía' },
+    { value: 'Bombero', icon: Shield, description: 'Bombero profesional' },
+    { value: 'Militar', icon: Shield, description: 'Personal militar' },
+    { value: 'Psicólogo', icon: Heart, description: 'Psicólogo o terapeuta' },
+    { value: 'Fisioterapeuta', icon: Heart, description: 'Fisioterapeuta profesional' },
+    { value: 'Nutricionista', icon: Heart, description: 'Nutricionista o dietista' },
+    { value: 'Veterinario', icon: Heart, description: 'Médico veterinario' },
+    { value: 'Farmacéutico', icon: Heart, description: 'Farmacéutico profesional' },
+    { value: 'Periodista', icon: Book, description: 'Periodista o reportero' },
+    { value: 'Fotógrafo', icon: Star, description: 'Fotógrafo profesional' },
+    { value: 'Músico', icon: Star, description: 'Músico o intérprete' },
+    { value: 'Peluquero/a', icon: Star, description: 'Estilista o peluquero' },
+    { value: 'Barbero', icon: Star, description: 'Barbero profesional' },
+    { value: 'Mesero/a', icon: Coffee, description: 'Mesero o camarero' },
+    { value: 'Guardia de Seguridad', icon: Shield, description: 'Guardia o vigilante' },
+    { value: 'Secretario/a', icon: Briefcase, description: 'Asistente administrativo' },
+    { value: 'Recepcionista', icon: User, description: 'Recepcionista profesional' },
+    { value: 'Obrero', icon: Target, description: 'Obrero o trabajador manual' },
     { value: 'Jubilado', icon: User, description: 'Persona jubilada' },
+    { value: 'Desempleado', icon: User, description: 'Actualmente sin empleo' },
     { value: 'Otro', icon: User, description: 'Otra profesión' }
   ];
   
-  // QUERY: Obtener mis testimonios
+  // QUERY: Obtener mis Reseñas
   const { 
     data: testimonials, 
     isLoading: testimonialsLoading,
@@ -61,24 +102,31 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     staleTime: 2 * 60 * 1000,
     retry: 2,
     onError: (error) => {
-      console.error('Error al cargar testimonios:', error);
+      console.error('Error al cargar Reseñas:', error);
       if (error.response?.status !== 404) {
-        showError('Error al cargar tus testimonios');
+        showError('Error al cargar tus Reseñas');
       }
     }
   });
   
-  // MUTATION: Crear testimonio
+  // MUTATION: Crear Reseña
   const createTestimonialMutation = useMutation({
-    mutationFn: (testimonialData) => apiService.createTestimonial(testimonialData),
+    mutationFn: (testimonialData) => {
+      // ✅ Si marcó como privada, agregar prefijo al texto
+      const dataToSend = { ...testimonialData };
+      if (formData.isPrivate) {
+        dataToSend.text = `[RESEÑA PRIVADA - NO PUBLICAR] ${testimonialData.text}`;
+      }
+      return apiService.createTestimonial(dataToSend);
+    },
     onSuccess: (response) => {
-      console.log('Testimonio creado exitosamente:', response);
+      console.log('Reseña creado exitosamente:', response);
       
       // Mostrar mensaje personalizado del backend
       if (response.data?.thankYouMessage) {
         showSuccess(response.data.thankYouMessage);
       } else {
-        showSuccess(response.message || 'Testimonio enviado exitosamente!');
+        showSuccess(response.message || 'Reseña enviado exitosamente!');
       }
       
       // Limpiar formulario y cerrar modal
@@ -94,11 +142,11 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
       }
     },
     onError: (error) => {
-      console.error('Error al crear testimonio:', error);
+      console.error('Error al crear Reseña:', error);
       
       if (error.response?.status === 400) {
-        // Usuario ya tiene testimonio
-        const message = error.response.data?.message || 'Error al crear testimonio';
+        // Usuario ya tiene Reseña
+        const message = error.response.data?.message || 'Error al crear Reseña';
         showError(message);
         
         // Mostrar mensaje de agradecimiento si está disponible
@@ -117,13 +165,13 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         setFieldErrors(errors);
         showError('Por favor corrige los errores en el formulario');
       } else {
-        const errorMsg = error.response?.data?.message || 'Error al enviar testimonio';
+        const errorMsg = error.response?.data?.message || 'Error al enviar Reseña';
         showError(errorMsg);
       }
     }
   });
   
-  // Procesar datos de testimonios
+  // Procesar datos de Reseñas
   const testimonialData = testimonials?.data || {};
   const userTestimonials = testimonialData.testimonials || [];
   const canSubmitNew = testimonialData.canSubmitNew !== false;
@@ -131,26 +179,54 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
   const pendingCount = testimonialData.pendingCount || 0;
   const thankYouMessage = testimonialData.thankYouMessage;
   
+  // ✅ NUEVO: Efecto para filtrar profesiones
+  useEffect(() => {
+    if (roleSearchTerm.trim() === '') {
+      setFilteredRoles(professionalRoles);
+    } else {
+      const searchLower = roleSearchTerm.toLowerCase();
+      const filtered = professionalRoles.filter(role => 
+        role.value.toLowerCase().includes(searchLower) ||
+        role.description.toLowerCase().includes(searchLower)
+      );
+      setFilteredRoles(filtered);
+    }
+  }, [roleSearchTerm]);
+  
+  // ✅ NUEVO: Cerrar dropdown al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target) &&
+          roleInputRef.current && !roleInputRef.current.contains(event.target)) {
+        setShowRoleDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
   // FUNCIONES HELPER
   
-  // Validar testimonio
+  // Validar Reseña
   const validateTestimonial = () => {
     const errors = {};
     
     if (!formData.text.trim()) {
-      errors.text = 'El testimonio es obligatorio';
+      errors.text = 'El Reseña es obligatorio';
     } else if (formData.text.trim().length < 10) {
-      errors.text = 'El testimonio debe tener al menos 10 caracteres';
+      errors.text = 'El Reseña debe tener al menos 10 caracteres';
     } else if (formData.text.length > 500) {
-      errors.text = 'El testimonio no puede superar los 500 caracteres';
+      errors.text = 'El Reseña no puede superar los 500 caracteres';
     }
     
     if (!formData.rating || formData.rating < 1 || formData.rating > 5) {
       errors.rating = 'Debes seleccionar una calificación del 1 al 5';
     }
     
-    if (!formData.role.trim()) {
-      errors.role = 'Por favor selecciona tu profesión';
+    // ✅ MODIFICADO: Validar profesión desde el campo de búsqueda
+    if (!formData.role.trim() && !roleSearchTerm.trim()) {
+      errors.role = 'Por favor ingresa o selecciona tu profesión';
     }
     
     setFieldErrors(errors);
@@ -162,8 +238,11 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     setFormData({
       text: '',
       rating: 0,
-      role: ''
+      role: '',
+      isPrivate: false
     });
+    setRoleSearchTerm(''); // ✅ NUEVO
+    setShowRoleDropdown(false); // ✅ NUEVO
     setFieldErrors({});
     setHoverRating(0);
     if (onUnsavedChanges) {
@@ -192,6 +271,20 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     }
   };
   
+  // ✅ NUEVO: Manejar búsqueda de profesión
+  const handleRoleSearch = (value) => {
+    setRoleSearchTerm(value);
+    setShowRoleDropdown(true);
+    handleFormChange('role', value);
+  };
+  
+  // ✅ NUEVO: Seleccionar profesión del dropdown
+  const handleSelectRole = (roleValue) => {
+    setRoleSearchTerm(roleValue);
+    handleFormChange('role', roleValue);
+    setShowRoleDropdown(false);
+  };
+  
   // Manejar envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -204,10 +297,13 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
     setIsSubmitting(true);
     
     try {
+      // ✅ MODIFICADO: Usar el valor del campo de búsqueda
+      const finalRole = formData.role.trim() || roleSearchTerm.trim();
+      
       await createTestimonialMutation.mutateAsync({
         text: formData.text.trim(),
         rating: parseInt(formData.rating),
-        role: formData.role.trim()
+        role: finalRole
       });
     } catch (error) {
       // El error ya se maneja en la mutation
@@ -283,7 +379,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         <div>
           <h3 className="text-xl font-semibold text-gray-900 flex items-center">
             <MessageSquare className="w-6 h-6 mr-2 text-blue-600" />
-            Mis Testimonios
+            Mis Reseñas
             {/* Mostrar contador */}
             {userTestimonials.length > 0 && (
               <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
@@ -293,8 +389,8 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
           </h3>
           <p className="text-gray-600 mt-1">
             {userTestimonials.length === 0 ? 
-              "Comparte tu experiencia en el gimnasio para ayudar a otros miembros" :
-              `Tienes ${userTestimonials.length} testimonio${userTestimonials.length !== 1 ? 's' : ''}. ${publishedCount} publicado${publishedCount !== 1 ? 's' : ''}, ${pendingCount} en revisión.`
+              "Comparte tu experiencia en el gimnasio, sobre la página web o sugerencias para ayudar a otros miembros" :
+              `Tienes ${userTestimonials.length} Reseña${userTestimonials.length !== 1 ? 's' : ''}. ${publishedCount} publicado${publishedCount !== 1 ? 's' : ''}, ${pendingCount} en revisión.`
             }
           </p>
         </div>
@@ -321,7 +417,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
             className="btn-primary btn-sm"
           >
             <Plus className="w-4 h-4 mr-2" />
-            {userTestimonials.length === 0 ? 'Escribir Testimonio' : 'Agregar Otro Testimonio'}
+            {userTestimonials.length === 0 ? 'Escribir Reseña' : 'Agregar Otro Reseña'}
           </button>
         </div>
       </div>
@@ -341,7 +437,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               {/* Recordatorio sobre poder agregar más */}
               {userTestimonials.length > 0 && (
                 <p className="text-xs text-blue-700 mt-2">
-                  Recuerda que puedes agregar más testimonios sobre diferentes aspectos del gimnasio.
+                  Recuerda que puedes agregar más Reseñas sobre diferentes aspectos del gimnasio o la página web.
                 </p>
               )}
             </div>
@@ -349,29 +445,29 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
         </div>
       )}
       
-      {/* LISTA DE TESTIMONIOS */}
+      {/* LISTA DE Reseñas */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         
         {testimonialsLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader className="w-6 h-6 animate-spin text-blue-600 mr-2" />
-            <span className="text-gray-600">Cargando tus testimonios...</span>
+            <span className="text-gray-600">Cargando tus Reseñas...</span>
           </div>
         ) : userTestimonials.length === 0 ? (
           <div className="text-center py-12">
             <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No tienes testimonios aún
+              No tienes Reseñas aún
             </h3>
             <p className="text-gray-600 mb-4">
-              Comparte tu experiencia en el gimnasio para ayudar a otros miembros
+              Comparte tu experiencia en el gimnasio, sobre la página web o sugerencias para ayudar a otros miembros
             </p>
             <button 
               onClick={() => setShowCreateForm(true)}
               className="btn-primary"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Escribir mi Primer Testimonio
+              Escribir mi Primer Reseña
             </button>
           </div>
         ) : (
@@ -392,7 +488,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                     </div>
                   )}
                   
-                  {/* Header del testimonio */}
+                  {/* Header del Reseña */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
@@ -404,7 +500,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                       <div>
                         <div className="flex items-center space-x-2 mb-1">
                           <span className="text-sm font-medium text-gray-900">
-                            Testimonio #{testimonial.id}
+                            Reseña #{testimonial.id}
                           </span>
                           {testimonial.featured && (
                             <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full flex items-center">
@@ -435,7 +531,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                     </span>
                   </div>
                   
-                  {/* Contenido del testimonio */}
+                  {/* Contenido del Reseña */}
                   <div className="mb-4">
                     <p className="text-gray-800 text-base leading-relaxed mb-3">
                       "{testimonial.text}"
@@ -468,7 +564,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                     <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                       <div className="flex items-center text-sm text-green-800">
                         <CheckCircle className="w-4 h-4 mr-2" />
-                        Tu testimonio está publicado y visible para otros usuarios
+                        Tu Reseña está publicado y visible para otros usuarios
                         {testimonial.featured && (
                           <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
                             Destacado
@@ -482,7 +578,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="flex items-center text-sm text-blue-800">
                         <Clock className="w-4 h-4 mr-2" />
-                        Tu testimonio está siendo revisado por nuestro equipo. Te notificaremos cuando esté publicado.
+                        Tu Reseña está siendo revisado por nuestro equipo. Te notificaremos cuando esté publicado.
                       </div>
                     </div>
                   )}
@@ -494,21 +590,21 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
             {/* Botón para agregar más al final */}
             <div className="p-6 bg-gray-50 text-center">
               <p className="text-gray-600 mb-3">
-                ¿Tienes más experiencias que compartir?
+                ¿Tienes más experiencias que compartir sobre el gimnasio o la página web?
               </p>
               <button
                 onClick={() => setShowCreateForm(true)}
                 className="btn-secondary"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Agregar Otro Testimonio
+                Agregar Otro Reseña
               </button>
             </div>
           </div>
         )}
       </div>
       
-      {/* MODAL PARA CREAR TESTIMONIO */}
+      {/* MODAL PARA CREAR Reseña */}
       {showCreateForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
@@ -518,7 +614,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900 flex items-center">
                   <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
-                  {userTestimonials.length === 0 ? 'Escribir Testimonio' : 'Agregar Otro Testimonio'}
+                  {userTestimonials.length === 0 ? 'Escribir Reseña' : 'Agregar Otro Reseña'}
                 </h3>
                 <button
                   onClick={() => {
@@ -548,8 +644,8 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                     </h4>
                     <p className="text-sm text-blue-800">
                       {userTestimonials.length === 0 ? 
-                        'Tu testimonio ayudará a otros miembros a conocer los beneficios de nuestro gimnasio.' :
-                        'Puedes compartir diferentes aspectos de tu experiencia en el gimnasio (entrenamientos, instalaciones, ambiente, etc.).'
+                        'Tu Reseña ayudará a otros miembros a conocer los beneficios de nuestro gimnasio. También puedes compartir tu opinión sobre la página web, si te gusta su diseño o qué le agregarías.' :
+                        'Puedes compartir diferentes aspectos de tu experiencia en el gimnasio (entrenamientos, instalaciones, ambiente, etc.) o tu opinión sobre la página web.'
                       } Será revisado por nuestro equipo antes de ser publicado.
                     </p>
                   </div>
@@ -558,10 +654,10 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
               
               <div className="space-y-6">
                 
-                {/* Testimonio */}
+                {/* Reseña */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tu Testimonio *
+                    Tu Reseña *
                   </label>
                   <textarea
                     value={formData.text}
@@ -571,8 +667,8 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                       fieldErrors.text ? 'border-red-300 bg-red-50' : 'border-gray-300'
                     }`}
                     placeholder={userTestimonials.length === 0 ? 
-                      "Comparte tu experiencia en el gimnasio... ¿Cómo te ha ayudado? ¿Qué es lo que más te gusta?" :
-                      "Comparte otro aspecto de tu experiencia... ¿Qué más te gusta del gimnasio? ¿Alguna mejora que hayas notado?"
+                      "Comparte tu experiencia en el gimnasio, qué te parece la página web (si está bonita, qué le agregarías), sugerencias... ¿Cómo te ha ayudado? ¿Qué es lo que más te gusta?" :
+                      "Comparte otro aspecto de tu experiencia... ¿Qué más te gusta del gimnasio o la página web? ¿Alguna mejora que hayas notado?"
                     }
                     maxLength={500}
                   />
@@ -621,34 +717,113 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                   )}
                 </div>
                 
-                {/* Profesión/Rol */}
-                <div>
+                {/* ✅ PROFESIÓN CON BÚSQUEDA */}
+                <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tu Profesión *
                   </label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => handleFormChange('role', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      fieldErrors.role ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="">Selecciona tu profesión</option>
-                    {professionalRoles.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.value} - {role.description}
-                      </option>
-                    ))}
-                  </select>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <input
+                      ref={roleInputRef}
+                      type="text"
+                      value={roleSearchTerm}
+                      onChange={(e) => handleRoleSearch(e.target.value)}
+                      onFocus={() => setShowRoleDropdown(true)}
+                      placeholder="Busca o escribe tu profesión (ej: Chef, Mecánico, Estudiante...)"
+                      className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        fieldErrors.role ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                      }`}
+                      maxLength={50}
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                  
                   {fieldErrors.role && (
                     <p className="text-sm text-red-600 flex items-center mt-1">
                       <AlertCircle className="w-4 h-4 mr-1" />
                       {fieldErrors.role}
                     </p>
                   )}
+                  
+                  {/* Dropdown de profesiones */}
+                  {showRoleDropdown && (
+                    <div 
+                      ref={roleDropdownRef}
+                      className="fixed z-[9999] bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                      style={{
+                        top: roleInputRef.current ? roleInputRef.current.getBoundingClientRect().bottom + 4 : 0,
+                        left: roleInputRef.current ? roleInputRef.current.getBoundingClientRect().left : 0,
+                        width: roleInputRef.current ? roleInputRef.current.getBoundingClientRect().width : 'auto'
+                      }}
+                    >
+                      {filteredRoles.length > 0 ? (
+                        <ul className="py-1">
+                          {filteredRoles.map((role) => {
+                            const RoleIcon = role.icon;
+                            return (
+                              <li
+                                key={role.value}
+                                onClick={() => handleSelectRole(role.value)}
+                                className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-center space-x-3 transition-colors"
+                              >
+                                <RoleIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {role.value}
+                                  </div>
+                                  <div className="text-xs text-gray-500 truncate">
+                                    {role.description}
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <div className="px-4 py-6 text-center">
+                          <User className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-600 mb-2">
+                            No se encontró "{roleSearchTerm}" en la lista
+                          </p>
+                          <p className="text-xs text-blue-600">
+                            ✏️ Puedes escribir tu propia profesión o seleccionar "Otro"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <p className="text-xs text-gray-500 mt-1">
-                    Esto ayuda a otros usuarios a identificarse con tu experiencia
+                    Escribe para buscar o seleccionar de la lista. Si no encuentras tu profesión, puedes escribirla directamente
                   </p>
+                </div>
+                
+                {/* ✅ OPCIÓN DE RESEÑA PRIVADA */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <label className="flex items-start cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isPrivate}
+                      onChange={(e) => handleFormChange('isPrivate', e.target.checked)}
+                      className="mt-1 mr-3"
+                    />
+                    <div>
+                      <div className="flex items-center text-sm font-medium text-gray-900">
+                        <Lock className="w-4 h-4 mr-2 text-gray-600" />
+                        Marcar como Reseña privado
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Si activas esta opción, tu Reseña será enviado como privado y NO será publicado. 
+                        Solo el equipo del gimnasio lo verá para análisis interno y mejoras.
+                      </p>
+                    </div>
+                  </label>
                 </div>
                 
               </div>
@@ -681,7 +856,7 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Enviar Testimonio
+                    Enviar Reseña
                   </>
                 )}
               </button>
@@ -698,14 +873,16 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
             <Info className="w-5 h-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
             <div>
               <h4 className="text-sm font-medium text-gray-900 mb-2">
-                ¿Por qué compartir tu testimonio?
+                ¿Por qué compartir tu Reseña?
               </h4>
               <div className="text-sm text-gray-600 space-y-1">
                 <p>• Ayuda a otros miembros a conocer los beneficios del gimnasio</p>
                 <p>• Tu experiencia puede motivar a otros a alcanzar sus objetivos</p>
+                <p>• Puedes compartir tu opinión sobre la página web (diseño, funcionalidad, mejoras)</p>
                 <p>• Contribuyes a mejorar la comunidad del gimnasio</p>
-                <p>• Puedes agregar múltiples testimonios sobre diferentes aspectos</p>
-                <p>• Todos los testimonios son revisados antes de ser publicados</p>
+                <p>• Puedes agregar múltiples Reseñas sobre diferentes aspectos</p>
+                <p>• Si prefieres que tu Reseña sea privado, puedes marcarlo como tal</p>
+                <p>• Los Reseñas Privados solo se usaran para mejoras de nuestros servicios </p>
               </div>
             </div>
           </div>
@@ -717,24 +894,23 @@ const TestimonialManager = ({ onSave, onUnsavedChanges }) => {
 };
 
 export default TestimonialManager;
-
 /*
  * COMPONENTE: TestimonialManager
  * AUTOR: Alexander Echeverria
  * 
  * PROPÓSITO:
- * Este componente permite a los clientes del gimnasio gestionar sus testimonios de experiencia.
- * Los usuarios pueden crear múltiples testimonios, ver su estado de revisión y seguimiento,
+ * Este componente permite a los clientes del gimnasio gestionar sus Reseñas de experiencia.
+ * Los usuarios pueden crear múltiples Reseñas, ver su estado de revisión y seguimiento,
  * y contribuir con diferentes aspectos de su experiencia en el gimnasio.
  * 
  * FUNCIONALIDADES PARA EL USUARIO:
  * 
- * GESTIÓN DE TESTIMONIOS MÚLTIPLES:
- * - Crear testimonios ilimitados sobre diferentes aspectos del gimnasio
- * - Ver todos sus testimonios en una lista organizada
- * - Seguimiento del estado de cada testimonio (publicado, en revisión, pendiente)
- * - Contador visual de testimonios totales, publicados y en revisión
- * - Indicador del testimonio más reciente
+ * GESTIÓN DE Reseñas MÚLTIPLES:
+ * - Crear Reseñas ilimitados sobre diferentes aspectos del gimnasio
+ * - Ver todos sus Reseñas en una lista organizada
+ * - Seguimiento del estado de cada Reseña (publicado, en revisión, pendiente)
+ * - Contador visual de Reseñas totales, publicados y en revisión
+ * - Indicador del Reseña más reciente
  * 
  * FORMULARIO DE CREACIÓN:
  * - Campo de texto libre para compartir experiencias (máximo 500 caracteres)
@@ -759,15 +935,15 @@ export default TestimonialManager;
  * - Otra profesión
  * 
  * SISTEMA DE ESTADOS:
- * - "Publicado": Testimonio visible públicamente, puede ser destacado
- * - "En revisión": Testimonio enviado, esperando aprobación del equipo
+ * - "Publicado": Reseña visible públicamente, puede ser destacado
+ * - "En revisión": Reseña enviado, esperando aprobación del equipo
  * - "Pendiente de aprobación": En cola para revisión
  * - "No público - Guardado para análisis": Guardado internamente pero no público
  * 
  * EXPERIENCIA DE USUARIO:
  * - Interfaz intuitiva con navegación clara
  * - Feedback visual inmediato con colores y estados
- * - Modal elegante para creación de nuevos testimonios
+ * - Modal elegante para creación de nuevos Reseñas
  * - Mensajes de agradecimiento personalizados
  * - Indicadores de progreso durante el envío
  * - Vista previa completa antes de enviar
@@ -781,12 +957,12 @@ export default TestimonialManager;
  * - Limpieza automática de espacios en blanco
  * 
  * INFORMACIÓN MOSTRADA AL USUARIO:
- * - Lista completa de sus testimonios con detalles
- * - Fecha de envío y publicación de cada testimonio
+ * - Lista completa de sus Reseñas con detalles
+ * - Fecha de envío y publicación de cada Reseña
  * - Estado actual con iconos descriptivos
  * - Calificación y profesión asociada
- * - Texto completo del testimonio
- * - Indicador si el testimonio está destacado
+ * - Texto completo del Reseña
+ * - Indicador si el Reseña está destacado
  * - Estadísticas personales (total, publicados, en revisión)
  * 
  * CONEXIONES Y DEPENDENCIAS:
@@ -799,12 +975,12 @@ export default TestimonialManager;
  * - apiService: Servicio principal para comunicación con el backend
  * 
  * ENDPOINTS CONECTADOS:
- * - apiService.getMyTestimonials(): Obtiene todos los testimonios del usuario
- * - apiService.createTestimonial(data): Crea un nuevo testimonio
+ * - apiService.getMyTestimonials(): Obtiene todos los Reseñas del usuario
+ * - apiService.createTestimonial(data): Crea un nuevo Reseña
  * 
  * QUERIES Y MUTATIONS (React Query):
- * - Query 'myTestimonials': Gestiona la carga y cache de testimonios del usuario
- * - Mutation para crear testimonios con manejo de errores y estados
+ * - Query 'myTestimonials': Gestiona la carga y cache de Reseñas del usuario
+ * - Mutation para crear Reseñas con manejo de errores y estados
  * - Invalidación automática de cache tras operaciones exitosas
  * - Retry automático en caso de fallos de conexión
  * 
@@ -829,11 +1005,11 @@ export default TestimonialManager;
  * - Genera contenido auténtico para marketing y promoción
  * - Permite identificar fortalezas y áreas de mejora
  * - Facilita la construcción de comunidad entre miembros
- * - Proporciona testimonios segmentados por profesión/demografía
+ * - Proporciona Reseñas segmentados por profesión/demografía
  * - Crea base de datos de experiencias para análisis de satisfacción
  * 
  * IMPACTO EN LA COMUNIDAD:
- * - Los testimonios ayudan a nuevos miembros a tomar decisiones
+ * - Los Reseñas ayudan a nuevos miembros a tomar decisiones
  * - Fomenta el sentido de pertenencia y comunidad
  * - Motiva a otros usuarios a compartir sus experiencias
  * - Crea un ciclo positivo de retroalimentación
